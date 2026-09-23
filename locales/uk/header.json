@@ -1,0 +1,46 @@
+{
+    "header": {
+        "menu": {
+            "profile": "Профіль",
+            "security": "Безпека",
+            "logout": "Вийти"
+        },
+        "nav": {
+            "home": "Головна",
+            "contact_center": "Контактний цент",
+            "contact_center_telegram_settings": "Налаштування telegram",
+            "orders": "Замовлення",
+            "orders_status": "Статус замовлень",
+            "clients": "Клієнти",
+            "settings": "Налаштування",
+            "services": "Сервіси",
+            "tokens": "Токени",
+            "abandoned_cart": "Покинутий кошик",
+            "events": "Події",
+            "catalog": "Каталог",
+            "localization": "Локалізація",
+            "currencies": "Валюти",
+            "languages": "Мови",
+            "site_support": "ПІДТРИМКА САЙТУ",
+            "technical_site_audit": "Технічний аудит сайту",
+            "site_administration": "Адміністрування сайту",
+            "site_optimization": "Оптимізація сайту",
+            "content_management": "КОНТЕНТ МЕНЕДЖМЕНТ",
+            "site_content_filling": "Наповнення сайту",
+            "copywriting": "Копірайтинг",
+            "internet_marketing": "ІНТЕРНЕТ МАРКЕТИНГ",
+            "internet_presence": "Інтернет присутність",
+            "email_marketing": "Email маркетинг",
+            "customers": "Покупці",
+            "leads": "Ліди",
+            "deals": "Угоди",
+            "users": "Користувачі",
+            "groups": "Групи",
+            "permissions": "Права",
+            "faq": "FAQ",
+            "integration": "Інтеграція",
+            "email": "Email",
+            "test": "Тест"
+        }
+    }
+}

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<%- include('../../partials/head'); %>
+		<!-- tabulator -->
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<!-- END tabulator -->
+	</head>
+
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+		<div class="container-fluid">
+			<div class="row">
+				<div class="col-12 col-lg-6 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><% if (i18n.__('lang_iso') === 'en') { %>Welcome<% } else { %>Ласкаво просимо<% } %></div>
+						<div class="card-body">
+							<% if (i18n.__('lang_iso') === 'en') { %>
+							<p>Thank you for using the Growth contour system.</p>
+							<p>If you have any questions, you can contact us via email. <a href="mailto: support@growthcontour.com">support@growthcontour.com</a>.</p>
+							<div class="alert alert-warning mb-0" role="alert">The system is currently in beta testing.</div>
+							<% } else { %>
+							<p>Дякуємо що користуєтесь системою Growth contour.</p>
+							<p>Якщо у Вас є питання можете з нами зв'язатися через пошту <a href="mailto: support@growthcontour.com">support@growthcontour.com</a>.</p>
+							<div class="alert alert-warning rounded-0 mb-0" role="alert">Зараз система знаходиться в бета тестуванні.</div>
+							<% } %>
+						</div>
+					</div>
+				</div>
+				<div class="col-12 col-lg-6 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0">Online</div>
+						<div class="card-body">
+							<ul id="userList"></ul>
+						</div>
+					</div>
+				</div>
+			</div>
+			<!--<div class="row">
+				<div class="col-12 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0">Orders</div>
+						<div id="orders-table"></div>
+					</div>
+				</div>
+			</div>-->
+		</div>
+		<%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+		<!-- END tabulator -->
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			//initialize table
+			var table = new Tabulator("#products-table", {
+				layout: "fitColumns",
+				ajaxURL: "/products-list/",
+				ajaxConfig: "POST",
+				paginationSize: 5,
+				rowHeight: 100,
+				paginationSizeSelector: [10, 20, 30, 40],
+				pagination: true,
+				movableColumns: true,
+				columns: [
+					{
+						title: "ID",
+						formatter: "rownum",
+						field: "id",
+						headerSort: false,
+						widthGrow: "1",
+					},
+					{
+						title: "Name",
+						field: "name",
+						sorter: "string",
+						headerSort: false,
+					},
+					{
+						title: "Reference",
+						field: "reference",
+						sorter: "string",
+						headerSort: false,
+					},
+					{
+						title: "Quantity",
+						field: "quantity",
+						sorter: "string",
+						headerSort: false,
+					},
+					{
+						title: "Price per piece",
+						field: "price_wt",
+						sorter: "string",
+						headerSort: false,
+					},
+					{
+						title: "Total",
+						field: "total",
+						sorter: "string",
+						headerSort: false,
+						widthGrow: "1",
+					},
+					/*{
+						title: "Edit",
+						field: "",
+						headerSort: false,
+						widthGrow: "1",
+						formatter: function (cell, formatterParams, onRendered) {
+							return '<a href="/orders/' + cell.getRow().getData().id + '" class="text-center d-block"><i class="fa-regular fa-pen-to-square"></i></a>';
+						},
+					},*/
+				],
+			});
+		</script>
+		<!-- tabulator -->
+	</body>
+</html>

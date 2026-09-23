@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+
+<head>
+	<%- include('../../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<!-- tabulator -->
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<!-- END tabulator -->
+		<link href="/assets/css/scheduler/scheduler.css" rel="stylesheet" />
+</head>
+
+<body class="d-flex flex-column h-100">
+	<%- include('../../../../partials/header'); %>
+		<div class="container-fluid">
+			<div class="row">
+				<div class="col-12 col-lg-12 mb-3">
+					<div id="toket_list_table"></div>
+				</div>
+			</div>
+		</div>
+
+		<div class="modal fade" id="wcs-add-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header text-bg-primary">
+						<h1 class="modal-title fs-5">Новий сайт</h1>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+							aria-label="Close"></button>
+					</div>
+					<div class="modal-body">
+						<div class="mb-3">
+							<label class="form-label">Site ID</label>
+							<input type="text" class="form-control rounded-0" id="wcs-add-siteid"
+								placeholder="my-shop-123">
+							<div class="form-text">Латиниця, цифри, дефіс, підкреслення. Має бути унікальним.</div>
+						</div>
+						<div class="mb-3">
+							<label class="form-label">Домени (через кому)</label>
+							<input type="text" class="form-control rounded-0" id="wcs-add-domains"
+								placeholder="example.com">
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0"
+							data-bs-dismiss="modal">Скасувати</button>
+						<button type="button" class="btn btn-primary rounded-0" id="wcs-add-save">Створити</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="modal fade" id="wcs-del-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header bg-danger text-white">
+						<h1 class="modal-title fs-5">Видалити сайт назавжди</h1>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+							aria-label="Close"></button>
+					</div>
+					<div class="modal-body">
+						<div class="alert alert-danger rounded-0">
+							Це <strong>безповоротно</strong> видалить сайт <strong id="wcs-del-name"></strong> та всі
+							його дані: переписки, повідомлення, ліди, сесії.
+						</div>
+						<label class="form-label">Для підтвердження введіть Site ID:</label>
+						<input type="text" class="form-control rounded-0" id="wcs-del-confirm" placeholder="site_id">
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0"
+							data-bs-dismiss="modal">Скасувати</button>
+						<button type="button" class="btn btn-danger rounded-0" id="wcs-del-btn">Видалити
+							назавжди</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../../../partials/footer'); %> <%- include('../../../../partials/script'); %>
+				<script src="/assets/js/notyf/notyf.min.js"></script>
+				<script>
+					const notyf = new Notyf({
+						position: {
+							x: "right",
+							y: "top",
+						},
+						types: [
+							{
+								type: "success",
+								dismissible: true,
+								icon: false,
+							},
+							{
+								type: "error",
+								background: "indianred",
+								dismissible: true,
+								icon: false,
+							},
+						],
+					});
+				</script>
+				<script>
+					const wcsAddModal = new bootstrap.Modal(document.getElementById("wcs-add-modal"));
+
+					document.getElementById("wcs-add-btn").onclick = function () {
+						document.getElementById("wcs-add-siteid").value = "";
+						document.getElementById("wcs-add-domains").value = "";
+						wcsAddModal.show();
+					};
+
+					document.getElementById("wcs-add-save").onclick = function () {
+						const siteId = document.getElementById("wcs-add-siteid").value.trim();
+						const domains = document.getElementById("wcs-add-domains").value.trim();
+						if (!/^[a-zA-Z0-9_-]+$/.test(siteId)) { notyf.error("Site ID: лише латиниця, цифри, - та _"); return; }
+
+						$.ajax({
+							url: "/api/contact-center/webchat/settings/insert/",
+							method: "POST",
+							contentType: "application/json",
+							data: JSON.stringify({
+								site_id: siteId,
+								domains: domains,
+								brand_color: "#007fff",
+								lead_timeout_sec: 120,
+								offline_lead_delay_sec: 30,
+								active: 1,
+								product_card_enabled: 0,
+								offline_lead_enabled: 1,
+							}),
+							success: function () {
+								notyf.success("Сайт створено");
+								wcsAddModal.hide();
+								// одразу на сторінку редагування
+								window.location.href = "/contact-center/webchat/settings/" + encodeURIComponent(siteId) + "/";
+							},
+							error: function (x) {
+								const msg = (x.responseJSON && x.responseJSON.error) || "Помилка";
+								notyf.error(x.status === 409 ? "Site ID вже існує" : msg);
+							},
+						});
+					};
+				</script>
+				<script>
+					const wcsDelModal = new bootstrap.Modal(document.getElementById("wcs-del-modal"));
+					let wcsDelSiteId = "";
+
+					function setActive(siteId, val) {
+						$.ajax({
+							url: val === 0 ? "/api/contact-center/webchat/settings/deactivate/" : "/api/contact-center/webchat/settings/activate/",
+							method: "POST",
+							contentType: "application/json",
+							data: JSON.stringify({ site_id: siteId }),
+							success: function () { notyf.success(val === 0 ? "Деактивовано" : "Активовано"); table.replaceData(); },
+							error: function (x) { notyf.error((x.responseJSON && x.responseJSON.error) || "Помилка"); },
+						});
+					}
+
+					function openDeleteModal(siteId) {
+						wcsDelSiteId = siteId;
+						document.getElementById("wcs-del-name").textContent = siteId;
+						document.getElementById("wcs-del-confirm").value = "";
+						wcsDelModal.show();
+					}
+
+					document.getElementById("wcs-del-btn").onclick = function () {
+						const confirm = document.getElementById("wcs-del-confirm").value.trim();
+						if (confirm !== wcsDelSiteId) { notyf.error("Site ID не збігається"); return; }
+						$.ajax({
+							url: "/api/contact-center/webchat/settings/delete/",
+							method: "POST",
+							contentType: "application/json",
+							data: JSON.stringify({ site_id: wcsDelSiteId, confirm: confirm }),
+							success: function () { notyf.success("Сайт видалено"); wcsDelModal.hide(); table.replaceData(); },
+							error: function (x) { notyf.error((x.responseJSON && x.responseJSON.error) || "Помилка"); },
+						});
+					};
+				</script>
+				<!-- Tabulator -->
+				<script src="/assets/js/tabulator/tabulator.min.js"></script>
+				<script>
+					var table = new Tabulator("#toket_list_table", {
+						layout: "fitColumns",
+						ajaxURL: "/api/contact-center/webchat/settings/list/",
+						ajaxConfig: "POST",
+						paginationMode: "local",
+						pagination: true,
+						paginationSize: 20,
+						paginationSizeSelector: [10, 20, 50, 100],
+						movableColumns: true,
+						columns: [
+							{
+								title: "ID", formatter: "rownum", headerSort: false, width: 60, hozAlign: "center",
+							},
+							{
+								title: "Site ID", field: "site_id", headerSort: true, widthGrow: 2,
+							},
+							{
+								title: "Domains", field: "domains", headerSort: false, widthGrow: 3,
+								formatter: function (cell) {
+									return cell.getValue() ? cell.getValue() : '<span class="text-muted">—</span>';
+								},
+							},
+							{
+								title: "Active", field: "active", headerSort: false, width: 90, hozAlign: "center",
+								formatter: function (cell) {
+									return cell.getValue() == 1
+										? '<span class="badge bg-success rounded-0">✓</span>'
+										: '<span class="badge bg-secondary rounded-0">—</span>';
+								},
+							},
+							{
+								title: "Brand", field: "brand_color", headerSort: false, width: 110,
+								formatter: function (cell) {
+									var v = cell.getValue() || '';
+									return '<span style="display:inline-block;width:16px;height:16px;border-radius:3px;vertical-align:middle;background:' + (v || '#000') + '"></span> ' + v;
+								},
+							},
+							{
+								title: "", headerSort: false, width: 160, hozAlign: "center",
+								formatter: function (cell) {
+									var active = cell.getRow().getData().active == 1;
+									var toggleBtn = active
+										? '<button type="button" class="btn btn-sm btn-outline-secondary rounded-0 me-1" data-act="deact" title="Деактивувати"><i class="fa-solid fa-power-off"></i></button>'
+										: '<button type="button" class="btn btn-sm btn-outline-success rounded-0 me-1" data-act="act" title="Активувати"><i class="fa-solid fa-power-off"></i></button>';
+									return '<button type="button" class="btn btn-sm btn-primary rounded-0 me-1" data-act="edit" title="Редагувати"><i class="fa-regular fa-pen-to-square"></i></button>'
+										+ toggleBtn
+										+ '<button type="button" class="btn btn-sm btn-danger rounded-0" data-act="del" title="Видалити назавжди"><i class="fa-regular fa-trash-can"></i></button>';
+								},
+								cellClick: function (e, cell) {
+									var btn = e.target.closest("button");
+									if (!btn) return;
+									var act = btn.getAttribute("data-act");
+									var d = cell.getRow().getData();
+									if (act === "edit") {
+										window.location.href = "/contact-center/webchat/settings/" + encodeURIComponent(d.site_id) + "/";
+									} else if (act === "deact") {
+										setActive(d.site_id, 0);
+									} else if (act === "act") {
+										setActive(d.site_id, 1);
+									} else if (act === "del") {
+										openDeleteModal(d.site_id);
+									}
+								},
+							},
+						],
+					});
+				</script>
+				<!-- END Tabulator -->
+</body>
+
+</html>

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+    <head>
+        <title><%= i18n.__('users.access.title') %></title>
+        <%- include('../../partials/head'); %>
+        <style>
+            .permissions-table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+
+            .permissions-table th,
+            .permissions-table td {
+                border: 1px solid #dee2e6;
+                padding: 10px 15px;
+                text-align: center;
+                vertical-align: middle;
+            }
+
+            .permissions-table th {
+                background-color: #f8f9fa;
+                font-weight: bold;
+                font-size: 13px;
+                text-transform: uppercase;
+            }
+
+            .permissions-table .page-column {
+                text-align: left;
+                font-weight: 500;
+            }
+
+            .perm-checkbox {
+                width: 20px;
+                height: 20px;
+                cursor: pointer;
+                accent-color: #0d6efd;
+            }
+
+            .perm-checkbox:disabled {
+                cursor: not-allowed;
+                opacity: 0.6;
+            }
+
+            .group-list .list-group-item {
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+
+            .group-list .list-group-item:hover {
+                background-color: #f8f9fa;
+            }
+
+            .group-list .list-group-item.active {
+                background-color: #0d6efd;
+                border-color: #0d6efd;
+                color: #fff;
+            }
+
+            .group-list .list-group-item.active .badge {
+                background-color: #fff;
+                color: #0d6efd;
+            }
+        </style>
+    </head>
+
+    <body class="d-flex flex-column h-100">
+        <%- include('../../partials/header'); %>
+
+        <!-- Breadcrumb -->
+        <div class="breadcrumbs pt-3 pb-3">
+            <div class="container-fluid">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <span><%= i18n.__('users.access.breadcrumb') %></span>
+                        <div>
+                            <ul class="list-inline mb-0">
+                                <li class="list-inline-item">
+                                    <a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('users.index.home') %></span></a>
+                                </li>
+                                <li class="list-inline-item">
+                                    <i class="fas fa-chevron-right"></i>
+                                    <%= i18n.__('users.index.users') %>
+                                </li>
+                                <li class="list-inline-item">
+                                    <i class="fas fa-chevron-right"></i>
+                                    <%= i18n.__('users.access.breadcrumb') %>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <a href="/" class="btn btn-primary rounded-0">
+                            <i class="fa-solid fa-angle-left"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- END Breadcrumb -->
+
+        <div class="container-fluid mt-3">
+            <div class="row">
+                <div class="col-12 col-lg-3 mb-3">
+                    <div class="card border-primary rounded-0">
+                        <div class="card-header text-bg-primary rounded-0">
+                            <i class="fas fa-users me-2"></i><%= i18n.__('users.access.groups_list') %>
+                        </div>
+                        <ul class="list-group list-group-flush group-list" id="groups-list"></ul>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-9 mb-3">
+                    <div class="card border-primary rounded-0">
+                        <div class="card-header text-bg-primary rounded-0">
+                            <i class="fas fa-shield-alt me-2"></i><%= i18n.__('users.access.title') %>: <span id="current-group-name"></span>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="permissions-table">
+                                    <thead>
+                                        <tr>
+                                            <th><%= i18n.__('users.access.page') %></th>
+                                            <th><span class="text-primary"><i class="fas fa-eye me-1"></i><%= i18n.__('users.access.view') %></span></th>
+                                            <th><span class="text-success"><i class="fas fa-plus me-1"></i><%= i18n.__('users.access.add') %></span></th>
+                                            <th><span class="text-warning"><i class="fas fa-edit me-1"></i><%= i18n.__('users.access.edit') %></span></th>
+                                            <th><span class="text-danger"><i class="fas fa-trash me-1"></i><%= i18n.__('users.access.delete') %></span></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="permissions-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <%- include('../../partials/footer'); %>
+        <%- include('../../partials/script'); %>
+
+        <script src="/assets/js/notyf/notyf.min.js"></script>
+        <script>
+            const notyf = new Notyf({
+                position: { x: "right", y: "top" },
+                duration: 4000,
+                types: [
+                    { type: "success", dismissible: true, icon: false },
+                    { type: "error", background: "indianred", dismissible: true, icon: false },
+                ],
+            });
+        </script>
+
+        <script>
+            // ── Глобальні змінні ──────────────────────────────────────────
+            let permissionsData = null;
+            let currentGroupId = null;
+
+            // ── Завантаження даних ────────────────────────────────────────
+            async function loadPermissions() {
+                try {
+                    const response = await $.ajax({
+                        type: "POST",
+                        url: "/api/users/access/list",
+                        dataType: "json",
+                    });
+
+                    if (response.status !== "success") {
+                        notyf.error("<%= i18n.__('users.access.load_error') %>");
+                        return;
+                    }
+
+                    permissionsData = response.data;
+                    buildGroupsList();
+                } catch (error) {
+                    console.error("[loadPermissions]", error);
+                    notyf.error("<%= i18n.__('users.access.load_error') %>");
+                }
+            }
+
+            // ── Побудова списку груп ──────────────────────────────────────
+            function buildGroupsList() {
+                const $groupsList = $('#groups-list');
+                $groupsList.empty();
+
+                for (const group of permissionsData.groups) {
+                    const isAdmin = group.id === 1;
+                    let html = '<li class="list-group-item d-flex justify-content-between align-items-center" data-group-id="' + group.id + '">';
+                    html += '<span>';
+                    html += group.name;
+                    if (isAdmin) {
+                        html += ' <span class="badge bg-warning text-dark ms-1"><i class="fas fa-lock"></i></span>';
+                    }
+                    html += '</span>';
+                    if (group.note) {
+                        html += '<small class="text-muted">' + group.note + '</small>';
+                    }
+                    html += '</li>';
+
+                    $groupsList.append(html);
+                }
+
+                // Вибираємо першу групу
+                const firstGroup = permissionsData.groups[0];
+                if (firstGroup) {
+                    selectGroup(firstGroup.id);
+                }
+            }
+
+            // ── Вибір групи ───────────────────────────────────────────────
+            function selectGroup(groupId) {
+                currentGroupId = groupId;
+
+                // Оновлюємо активний елемент
+                $('.group-list .list-group-item').removeClass('active');
+                $(`.group-list .list-group-item[data-group-id="${groupId}"]`).addClass('active');
+
+                // Оновлюємо назву групи
+                const group = permissionsData.groups.find(g => g.id === groupId);
+                $('#current-group-name').text(group ? group.name : '');
+
+                // Будуємо таблицю прав
+                buildPermissionsTable(groupId);
+            }
+
+            // ── Побудова таблиці прав ─────────────────────────────────────
+            function buildPermissionsTable(groupId) {
+                const $tbody = $('#permissions-tbody');
+                $tbody.empty();
+
+                const group = permissionsData.groups.find(g => g.id === groupId);
+                const isAdmin = groupId === 1;
+                const pages = permissionsData.pages;
+
+                // Групуємо сторінки
+                const rootPages = pages.filter(p => p.parent_id === null);
+                const childPages = pages.filter(p => p.parent_id !== null);
+
+                for (const rootPage of rootPages) {
+                    const children = childPages.filter(c => c.parent_id === rootPage.id);
+
+                    if (children.length > 0) {
+                        // Додаємо заголовок секції
+                        $tbody.append('<tr class="table-secondary"><td colspan="5" class="page-column fw-bold"><i class="fas fa-folder me-2"></i>' + rootPage.name + '</td></tr>');
+
+                        // Додаємо дочірні сторінки
+                        for (const child of children) {
+                            appendPageRow($tbody, child, isAdmin);
+                        }
+                    } else {
+                        appendPageRow($tbody, rootPage, isAdmin);
+                    }
+                }
+            }
+
+            function appendPageRow($tbody, page, isAdmin) {
+                const perms = permissionsData.permissions[currentGroupId]?.[page.id] || {};
+                const actions = ['view', 'add', 'edit', 'delete'];
+
+                let rowHtml = '<tr>';
+                rowHtml += '<td class="page-column"><i class="fas fa-file me-2 text-muted"></i>' + page.name + '</td>';
+
+                for (const action of actions) {
+                    const checked = perms[action] || false;
+                    rowHtml += '<td>';
+                    rowHtml += '<input type="checkbox" class="perm-checkbox" ';
+                    rowHtml += 'data-page-id="' + page.id + '" ';
+                    rowHtml += 'data-action="' + action + '" ';
+                    rowHtml += (checked ? 'checked ' : '');
+                    rowHtml += (isAdmin ? 'disabled ' : '');
+                    rowHtml += '>';
+                    rowHtml += '</td>';
+                }
+
+                rowHtml += '</tr>';
+                $tbody.append(rowHtml);
+            }
+
+            // ── Функція збереження права ─────────────────────────────────
+            async function savePermission(id_page, action, value, $checkbox) {
+                $checkbox.prop('disabled', true);
+
+                try {
+                    const response = await $.ajax({
+                        type: "POST",
+                        url: "/api/users/access/save",
+                        dataType: "json",
+                        data: {
+                            id_group: currentGroupId,
+                            id_page,
+                            action,
+                            value,
+                        },
+                    });
+
+                    if (response.status === "success") {
+                        if (!permissionsData.permissions[currentGroupId]) {
+                            permissionsData.permissions[currentGroupId] = {};
+                        }
+                        if (!permissionsData.permissions[currentGroupId][id_page]) {
+                            permissionsData.permissions[currentGroupId][id_page] = {};
+                        }
+                        permissionsData.permissions[currentGroupId][id_page][action] = value === 1;
+                        return true;
+                    } else {
+                        notyf.error(response.message || "<%= i18n.__('users.access.save_error') %>");
+                        $checkbox.prop('checked', !$checkbox.is(':checked'));
+                        return false;
+                    }
+                } catch (error) {
+                    console.error("[save permission]", error);
+                    notyf.error("<%= i18n.__('users.access.save_error') %>");
+                    $checkbox.prop('checked', !$checkbox.is(':checked'));
+                    return false;
+                } finally {
+                    if (currentGroupId !== 1) {
+                        $checkbox.prop('disabled', false);
+                    }
+                }
+            }
+
+            // ── Обробка зміни чекбоксів ────────────────────────────────────
+            $(document).on('change', '.perm-checkbox', async function () {
+                const $checkbox = $(this);
+                const id_page = parseInt($checkbox.data('page-id'));
+                const action = $checkbox.data('action');
+                const value = $checkbox.is(':checked') ? 1 : 0;
+
+                // ── Логіка залежностей ─────────────────────────────────────
+                if (value === 1 && (action === 'edit' || action === 'delete' || action === 'add')) {
+                    const $viewCheckbox = $(`.perm-checkbox[data-page-id="${id_page}"][data-action="view"]`);
+                    if ($viewCheckbox.length && !$viewCheckbox.is(':checked')) {
+                        $viewCheckbox.prop('checked', true);
+                        await savePermission(id_page, 'view', 1, $viewCheckbox);
+                    }
+                }
+
+                if (value === 0 && action === 'view') {
+                    const $otherCheckboxes = $(`.perm-checkbox[data-page-id="${id_page}"]`).not($checkbox);
+                    for (const otherCheckbox of $otherCheckboxes) {
+                        if ($(otherCheckbox).is(':checked')) {
+                            $(otherCheckbox).prop('checked', false);
+                            const otherAction = $(otherCheckbox).data('action');
+                            await savePermission(id_page, otherAction, 0, $(otherCheckbox));
+                        }
+                    }
+                }
+
+                await savePermission(id_page, action, value, $checkbox);
+            });
+
+            // ── Обробка кліку по групі ────────────────────────────────────
+            $(document).on('click', '.group-list .list-group-item', function () {
+                const groupId = parseInt($(this).data('group-id'));
+                selectGroup(groupId);
+            });
+
+            // ── Запуск ─────────────────────────────────────────────────────
+            $(document).ready(function () {
+                loadPermissions();
+            });
+        </script>
+    </body>
+</html>

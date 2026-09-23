@@ -1,0 +1,231 @@
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
+<script src="/assets/js/jquery/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js"></script>
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script src="/assets/js/favicon/favico.js"></script>
+<!-- favicon -->
+<script>
+	var favico = new Favico({ animation: "none" });
+	var favico_count = 0;
+</script>
+<!-- io -->
+<script>
+	var audio = new Audio("/assets/mp3/new-message.mp3");
+</script>
+<script>
+	const socket = io();
+
+	socket.emit("user:online", { userId: <%= user.id %> });
+
+	setInterval(function () {
+	  socket.emit("heartbeat", { userId: <%= user.id %> });
+	}, 30000);
+
+	socket.emit("room", "io_notifications_header");
+	socket.emit("room", `io_manager_notifications_<%= user.id %>`);
+
+	socket.on("io_notifications_header", function (data) {
+	  handleNotification(data);
+	});
+	socket.on(`io_manager_notifications_<%= user.id %>`, function (data) {
+	  handleNotification(data);
+	});
+
+	const TAB_LISTS = {
+	  chat: "#notification-chat-list",
+	  profile: "#notification-profile-list",
+	  personal: "#notification-personal-list",
+	  system: "#notification-system-list",
+	};
+
+	// ── Плейсхолдер "Немає повідомлень" ──────────────────────────
+	// Початкові <li> без data-event-id вважаємо плейсхолдерами й ніколи не видаляємо,
+	// тільки ховаємо/показуємо залежно від наявності реальних items.
+	function markPlaceholders() {
+	  $.each(TAB_LISTS, function (tab, sel) {
+	    $(sel).children("li").not("[data-event-id]").addClass("notif-empty");
+	  });
+	}
+
+	function refreshEmptyState(sel) {
+	  const $list = $(sel);
+	  const hasItems = $list.children("li[data-event-id]").length > 0;
+	  $list.children("li.notif-empty").toggle(!hasItems);
+	}
+
+	function refreshAllEmptyStates() {
+	  $.each(TAB_LISTS, function (tab, sel) {
+	    refreshEmptyState(sel);
+	  });
+	}
+
+	// ── Рендер одного елемента ───────────────────────────────────
+	  function renderItem(data) {
+	  const esc = function (s) { return $("<div>").text(s == null ? "" : s).html(); };
+	  const title = data.title || data.name || "Сповіщення";
+	  const href = data.url || "#";
+	  const badge = Number(data.count) > 0 ? ` <span class="badge text-bg-success">${data.count}</span>` : "";
+
+	  // Іконка залежно від каналу
+	  let iconHtml;
+	  if (data.channel === "telegram") {
+	    iconHtml = '<span class="me-2" style="background:#24a1de"><i class="fa-brands fa-telegram"></i></span>';
+	  } else {
+	    iconHtml = '<span class="me-2"><i class="fa-solid fa-bell"></i></span>';
+	  }
+
+	  // Рядок дати (якщо є)
+	  const dateHtml = data.date ? `<p class="mb-0">${esc(data.date)}</p>` : "";
+
+	  return `
+	          <div class="d-flex align-items-center justify-content-between w-100">
+	              <a class="d-flex align-items-center flex-grow-1" href="${href}">
+	                  ${iconHtml}
+	                  <div>
+	                      <p class="mb-0">${esc(title)}${badge}</p>
+	                      <p class="mb-0">${esc(data.message || "")}</p>
+	                      ${dateHtml}
+	                  </div>
+	              </a>
+	              <button type="button" class="btn btn-sm btn-link text-secondary notif-close ms-2" aria-label="Close">
+	                  <i class="fa-solid fa-xmark"></i>
+	              </button>
+	          </div>`;
+	}
+
+	function upsertItem(data, prepend) {
+	  const sel = TAB_LISTS[data.tab] || TAB_LISTS.personal;
+	  const $list = $(sel);
+	  const key = data.collapse_key || data.event_id;
+	  const $existing = $list.find(`li[data-collapse="${key}"]`);
+	  const html = renderItem(data);
+
+	   if ($existing.length > 0) {
+	    // Подія по топіку не несе персонального лічильника —
+	    // накопичуємо його на клієнті, поки сповіщення не прочитане.
+	    if (!data.count) {
+	      const prev = parseInt($existing.attr("data-count"), 10) || 1;
+	      data = Object.assign({}, data, { count: prev + 1 });
+	    }
+	    $existing.attr("data-count", data.count || 1);
+	    $existing.html(renderItem(data));
+	    if (prepend) $existing.prependTo($list);
+	  } else {
+	     const $li = $(`<li data-collapse="${key}" data-event-id="${data.event_id}" data-count="${data.count || 1}">${html}</li>`);
+	    if (prepend) $list.prepend($li);
+	    else $list.append($li);
+	  }
+	  refreshEmptyState(sel);
+	}
+
+	function showBellDot() {
+	  if ($(".notification-button").find(".position-absolute").length === 0) {
+	    $(".notification-button").append('<span class="position-absolute top-0 start-100 translate-middle p-2 bg-danger border border-light rounded-circle"></span>');
+	  }
+	}
+
+	var seenEvents = new Set();
+
+	function handleNotification(data) {
+	  var id = data.event_id;
+	  if (id != null) {
+	    if (seenEvents.has(id)) return; // той самий пуш із іншої кімнати — ігноруємо
+	    seenEvents.add(id);
+	  }
+	  var p = audio.play();
+	  if (p && p.catch) p.catch(function () {});
+	  favico_count = favico_count === 0 ? 1 : favico_count + 1;
+	  favico.badge(favico_count);
+	  upsertItem(data, true);
+	  showBellDot();
+	}
+
+	// ── Видалення через "x" ──────────────────────────────────────
+	$(document).on("click", ".notif-close", function (e) {
+	  e.preventDefault();
+	  e.stopPropagation();
+	  const $li = $(this).closest("li");
+	  const sel = "#" + $li.closest("ul").attr("id");
+	  const eventId = $li.data("event-id");
+	  const collapseKey = $li.data("collapse");
+
+	  // Оптимістично прибираємо з UI
+	  $li.remove();
+	  refreshEmptyState(sel);
+
+	  if (!eventId && !collapseKey) return;
+
+	  $.ajax({
+	     type: "POST",
+	     url: "/api/notifications/delete/",
+	     data: { event_id: eventId, collapse_key: collapseKey },
+	     success: function () {
+	       // Якщо відкритий список діалогів контакт-центру — оновити бейджі
+	       if (/^cc_conv_\d+$/.test(String(collapseKey)) && typeof loadTab === "function") {
+	         loadTab("open", true);
+	         if (typeof loadCounters === "function") loadCounters();
+	       }
+	     },
+	     error: function (err) {
+	       console.error(err);
+	     },
+	   });
+	});
+
+	// ── Читання з БД при завантаженні ────────────────────────────
+	$(document).ready(function () {
+	  markPlaceholders();
+
+	  $.ajax({
+	    type: "POST",
+	    url: "/api/notifications/list/",
+	    success: function (data) {
+	      if (!Array.isArray(data)) {
+	        refreshAllEmptyStates();
+	        return;
+	      }
+
+	      // прибираємо тільки реальні items (плейсхолдери лишаємо)
+	      $.each(TAB_LISTS, function (tab, sel) {
+	        $(sel).children("li[data-event-id]").remove();
+	      });
+
+	      data.forEach(function (item) {
+	        const tab = TAB_LISTS[item.tab] ? item.tab : "personal";
+	        upsertItem({ ...item, tab: tab }, false);
+	      });
+
+	      refreshAllEmptyStates();
+
+	      if (
+	        data.some(function (x) {
+	          return !x.read;
+	        })
+	      )
+	        showBellDot();
+	    },
+	    error: function (e) {
+	      console.error(e);
+	      refreshAllEmptyStates();
+	    },
+	  });
+	});
+
+	$("#notification_panel").on("shown.bs.offcanvas", function () {
+	  favico.reset();
+	  favico_count = 0;
+	  $(".notification-button").find(".position-absolute").remove();
+	  $.ajax({ type: "POST", url: "/api/notifications/seen/" }).fail(function (e) {
+	    console.error(e);
+	  });
+	});
+
+	document.addEventListener("visibilitychange", function () {
+	  if (document.visibilityState === "visible") {
+	    favico.reset();
+	    favico_count = 0;
+	  }
+	});
+</script>
+<!-- END io -->
+<!-- END SIM -->

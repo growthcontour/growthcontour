@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+<head>
+    <%- include('../../partials/head'); %>
+    <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+    <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+    <style>
+        .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase;
+                         color: #6c757d; letter-spacing: .5px; margin-bottom: 6px; }
+        .tab-content { min-height: 260px; }
+        .spinner-wrap { padding: 40px; text-align: center; color: #adb5bd; }
+        .kv td { padding: .25rem .5rem; font-size: 13px; }
+        .kv td.k { color: #6c757d; width: 45%; }
+        .badge-status { font-size: 12px; }
+        .money-final { font-size: 20px; font-weight: 700; }
+        .warn-sum { color: #e67e22; cursor: help; }
+    </style>
+</head>
+<body class="d-flex flex-column h-100">
+<%- include('../../partials/header'); %>
+
+<div class="container-fluid py-3">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="/orders/">Замовлення</a></li>
+            <li class="breadcrumb-item active">#<%= order.id %> · <%= order.reference %></li>
+        </ol>
+    </nav>
+
+    <div class="row g-3">
+
+        <!-- ЛІВА КОЛОНКА -->
+        <div class="col-12 col-xl-8">
+
+            <!-- Шапка замовлення -->
+            <div class="card rounded-0 border-primary mb-3">
+                <div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+                    <span class="fw-bold fs-5">
+                        Замовлення <%= order.reference %>
+                        <% if (order.external_number) { %>
+                            <small class="opacity-75">· № у джерелі: <%= order.external_number %></small>
+                        <% } %>
+                    </span>
+                    <a href="/orders/" class="btn btn-sm btn-light rounded-0"><i class="fa-solid fa-arrow-left"></i></a>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3">
+                            <div class="section-title">Статус</div>
+                            <span class="badge badge-status rounded-0" id="current-status-badge"
+                                  style="color:<%= order.status_color_text %>;background:<%= order.status_color_background %>">
+                                <% if (order.status_icon) { %><i class="<%= order.status_icon %> me-1"></i><% } %>
+                                <%= order.status_name || '—' %>
+                            </span>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title">Оплата</div>
+                            <span class="badge rounded-0 text-bg-secondary" id="financial-badge"><%= order.financial_status %></span>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title">Виконання</div>
+                            <span class="badge rounded-0 text-bg-secondary"><%= order.fulfillment_status %></span>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title">Джерело / канал</div>
+                            <span class="badge rounded-0 text-bg-dark"><%= order.source_channel || '—' %></span>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- Зміна статусу (стиль OpenCart) -->
+                    <div class="row g-2 align-items-end">
+                        <div class="col-12 col-md-3">
+                            <div class="section-title">Новий статус</div>
+                            <select id="new-status" class="form-select form-select-sm rounded-0">
+                                <% statuses.forEach(function(s) { %>
+                                <option value="<%= s.id %>" <%= order.status == s.id ? 'selected' : '' %>><%= s.name %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-5">
+                            <div class="section-title">Коментар (в історію)</div>
+                            <input id="status-comment" type="text" class="form-control form-control-sm rounded-0" placeholder="Необовʼязково">
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <div class="form-check mt-3">
+                                <input id="status-notify" class="form-check-input" type="checkbox">
+                                <label class="form-check-label small" for="status-notify">Повідомити клієнта</label>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <button class="btn btn-primary btn-sm rounded-0 w-100" data-action="apply-status">
+                                <i class="fa-solid fa-check me-1"></i> Застосувати
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Товари (ліниво) -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2 d-flex justify-content-between">
+                    <span>Товари <span id="sum-warn" class="warn-sum d-none" title="Сума позицій не збігається з total_products"><i class="fa-solid fa-triangle-exclamation"></i></span></span>
+                </div>
+                <div class="card-body p-0" id="items-body">
+                    <div class="spinner-wrap"><span class="spinner-border spinner-border-sm"></span> Завантаження…</div>
+                </div>
+            </div>
+
+            <!-- Оплати (ліниво) -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2">Оплати</div>
+                <div class="card-body p-0" id="payments-body">
+                    <div class="spinner-wrap"><span class="spinner-border spinner-border-sm"></span></div>
+                </div>
+            </div>
+
+            <!-- Доставка (ліниво) -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2">Відправлення</div>
+                <div class="card-body p-0" id="shipments-body">
+                    <div class="spinner-wrap"><span class="spinner-border spinner-border-sm"></span></div>
+                </div>
+            </div>
+
+            <!-- Повернення / Документи (ліниво) -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2">Повернення та документи</div>
+                <div class="card-body" id="refdoc-body">
+                    <div class="spinner-wrap"><span class="spinner-border spinner-border-sm"></span></div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ПРАВА КОЛОНКА -->
+        <div class="col-12 col-xl-4">
+
+            <!-- Клієнт -->
+            <div class="card rounded-0 mb-3" id="client-card">
+                <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center">
+                    <span>Клієнт</span>
+                    <span id="client-badge"></span>
+                </div>
+                <div class="card-body" id="client-body">
+                    <div class="spinner-wrap"><span class="spinner-border spinner-border-sm"></span></div>
+                </div>
+            </div>
+
+            <!-- Контакт із замовлення (снапшот) — показуємо завжди -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2">Контакт у замовленні</div>
+                <div class="card-body" id="snapshot-body">
+                    <div class="spinner-wrap"><span class="spinner-border spinner-border-sm"></span></div>
+                </div>
+            </div>
+
+            <!-- Адреси -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2">Адреси</div>
+                <div class="card-body">
+                    <% if (!addresses.length) { %>
+                        <span class="text-muted">Адрес немає</span>
+                    <% } %>
+                    <% addresses.forEach(function(a) { %>
+                        <div class="mb-2">
+                            <div class="section-title"><%= a.type === 'billing' ? 'Платіжна' : 'Доставка' %></div>
+                            <div style="font-size:13px">
+                                <%= [a.firstname, a.lastname].filter(Boolean).join(' ') %><br>
+                                <% if (a.company) { %><%= a.company %><br><% } %>
+                                <%= [a.country, a.region, a.city].filter(Boolean).join(', ') %><br>
+                                <% if (a.warehouse) { %><%= a.warehouse %><br><% } %>
+                                <% if (a.address_1) { %><%= a.address_1 %><% if (a.address_2) { %>, <%= a.address_2 %><% } %><br><% } %>
+                                <% if (a.postcode) { %><%= a.postcode %><% } %>
+                                <% if (a.phone) { %> · <%= a.phone %><% } %>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+            </div>
+
+            <!-- Підсумок -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2">Підсумок</div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless kv mb-2">
+                        <tr><td class="k">Товари</td><td><%= Number(order.total_products).toFixed(2) %> <%= order.currency_iso %></td></tr>
+                        <% if (Number(order.total_discount)) { %><tr><td class="k">Знижка</td><td>−<%= Number(order.total_discount).toFixed(2) %></td></tr><% } %>
+                        <% if (Number(order.total_shipping)) { %><tr><td class="k">Доставка</td><td><%= Number(order.total_shipping).toFixed(2) %></td></tr><% } %>
+                        <% if (Number(order.total_wrapping)) { %><tr><td class="k">Пакування</td><td><%= Number(order.total_wrapping).toFixed(2) %></td></tr><% } %>
+                        <% if (Number(order.total_tax)) { %><tr><td class="k">Податок</td><td><%= Number(order.total_tax).toFixed(2) %></td></tr><% } %>
+                        <% if (Number(order.total_tips)) { %><tr><td class="k">Чайові</td><td><%= Number(order.total_tips).toFixed(2) %></td></tr><% } %>
+                    </table>
+                    <div class="d-flex justify-content-between align-items-center border-top pt-2">
+                        <span class="text-muted">До сплати</span>
+                        <span class="money-final"><%= Number(order.total).toFixed(2) %> <%= order.currency_iso %></span>
+                    </div>
+                    <table class="table table-sm table-borderless kv mt-2 mb-0">
+                        <tr><td class="k">Сплачено</td><td><%= Number(order.total_paid).toFixed(2) %></td></tr>
+                        <% if (Number(order.total_refunded)) { %><tr><td class="k">Повернено</td><td class="text-danger">−<%= Number(order.total_refunded).toFixed(2) %></td></tr><% } %>
+                        <% if (Number(order.total_fees)) { %><tr><td class="k">Комісії</td><td><%= Number(order.total_fees).toFixed(2) %></td></tr><% } %>
+                        <% if (order.currency_iso !== 'UAH') { %><tr><td class="k">Курс</td><td><%= Number(order.currency_rate).toFixed(4) %></td></tr><% } %>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Дати / прапорці -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2">Інфо</div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless kv mb-2">
+                        <tr><td class="k">Створено</td><td><%= new Date(order.date_add).toLocaleString('uk-UA') %></td></tr>
+                        <tr><td class="k">Змінено</td><td><%= new Date(order.date_edit).toLocaleString('uk-UA') %></td></tr>
+                        <% if (order.date_order) { %><tr><td class="k">Дата в джерелі</td><td><%= new Date(order.date_order).toLocaleString('uk-UA') %></td></tr><% } %>
+                        <% if (order.ip_text) { %><tr><td class="k">IP</td><td><%= order.ip_text %></td></tr><% } %>
+                    </table>
+                    <div class="d-flex flex-wrap gap-1">
+                        <% if (order.is_paid) { %><span class="badge rounded-0 text-bg-success">Оплачено</span><% } %>
+                        <% if (order.is_shipped) { %><span class="badge rounded-0 text-bg-info">Відправлено</span><% } %>
+                        <% if (order.is_gift) { %><span class="badge rounded-0 text-bg-warning text-dark">Подарунок</span><% } %>
+                        <% if (order.is_canceled) { %><span class="badge rounded-0 text-bg-danger">Скасовано</span><% } %>
+                    </div>
+                    <% if (order.is_gift && order.gift_message) { %>
+                        <div class="mt-2 small fst-italic text-muted">🎁 <%= order.gift_message %></div>
+                    <% } %>
+                    <% if (order.note) { %>
+                        <div class="mt-2"><div class="section-title">Коментар</div><div class="small"><%= order.note %></div></div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ТАБИ -->
+    <div class="card rounded-0 mt-1">
+        <div class="card-header p-0">
+            <ul class="nav nav-tabs border-0">
+                <li class="nav-item"><button class="nav-link active rounded-0" data-bs-toggle="tab" data-bs-target="#tab-history">
+                    <i class="fa-solid fa-clock-rotate-left me-1"></i> Історія статусів</button></li>
+                <li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#tab-events" data-action="load-events">
+                    <i class="fa-solid fa-list me-1"></i> Журнал подій</button></li>
+                <li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#tab-raw" data-action="load-raw">
+                    <i class="fa-solid fa-code me-1"></i> Raw payload</button></li>
+            </ul>
+        </div>
+        <div class="tab-content p-3">
+            <div class="tab-pane fade show active" id="tab-history"><div id="history-table"></div></div>
+            <div class="tab-pane fade" id="tab-events"><div id="events-list"><div class="spinner-wrap"><span class="spinner-border spinner-border-sm"></span></div></div></div>
+            <div class="tab-pane fade" id="tab-raw"><pre id="raw-box" class="small bg-light p-3 rounded-0 mb-0" style="max-height:400px;overflow:auto">—</pre></div>
+        </div>
+    </div>
+
+</div>
+<!-- Модалка: ручний пошук клієнта -->
+<div class="modal fade" id="client-search-modal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content rounded-0">
+            <div class="modal-header">
+                <h6 class="modal-title">Пошук клієнта</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="client-search-input" class="form-control rounded-0 mb-3"
+                       placeholder="Імʼя, телефон, email або компанія…" autocomplete="off">
+                <div id="client-search-results"><p class="text-muted small mb-0">Введіть щонайменше 2 символи.</p></div>
+            </div>
+        </div>
+    </div>
+</div>
+<%- include('../../partials/footer'); %>
+<%- include('../../partials/script'); %>
+<script src="/assets/js/tabulator/tabulator.min.js"></script>
+<script>
+const ORDER_ID = <%= order.id %>;
+const CURRENCY = "<%= order.currency_iso %>";
+const TOTAL_PRODUCTS = <%= Number(order.total_products) %>;
+
+// Екранування всього, що прийшло ззовні (CMS/маркетплейс), перед вставкою в DOM
+function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, function(c) {
+        return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+    });
+}
+function money(v) { return Number(v || 0).toFixed(2) + ' ' + CURRENCY; }
+
+// ── ДЕЛЕГУВАННЯ ПОДІЙ (замість inline onclick — сумісно з CSP) ──
+document.addEventListener('click', function(e) {
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+    switch (el.dataset.action) {
+        case 'apply-status':       applyStatus(); break;
+        case 'load-events':        loadEvents(); break;
+        case 'load-raw':           loadRaw(); break;
+        case 'link-client':        linkClient(Number(el.dataset.id)); break;
+        case 'unlink-client':      unlinkClient(); break;
+        case 'open-client-search': openClientSearch(); break;
+        case 'create-client':      createClient(); break;
+        case 'load-client':        loadClient(); break;
+    }
+});
+
+// ── СТАТУС ────────────────────────────────────────────────
+function applyStatus() {
+    const id_status = document.getElementById('new-status').value;
+    const comment   = document.getElementById('status-comment').value;
+    const notify    = document.getElementById('status-notify').checked;
+
+    fetch('/api/orders/' + ORDER_ID + '/status/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_status, comment, notify })
+    }).then(r => r.json()).then(function(d) {
+        if (d.status === 'success') {
+            document.getElementById('status-comment').value = '';
+            document.getElementById('status-notify').checked = false;
+            if (historyTable) historyTable.setData('/api/orders/' + ORDER_ID + '/history/', {}, 'POST');
+            // Оновлюємо бейдж поточного статусу з випадайки
+            const opt = document.querySelector('#new-status option[value="' + d.id_status + '"]');
+            if (opt) document.getElementById('current-status-badge').textContent = opt.textContent.trim();
+        } else {
+            alert(d.message || 'Помилка');
+        }
+    });
+}
+
+// ── ДЕТАЛІ (товари/оплати/доставка/повернення+документи) — ліниво ──
+function renderDetails(d) {
+    // Товари
+    if (!d.items.length) {
+        document.getElementById('items-body').innerHTML = '<div class="p-3 text-muted">Товарів немає</div>';
+    } else {
+        let sum = 0;
+        let rows = d.items.map(function(it) {
+            sum += Number(it.total);
+            let attrs = '';
+            if (it.attributes) { try { attrs = Object.entries(it.attributes).map(([k,v]) => esc(k)+': '+esc(v)).join(', '); } catch(e){} }
+            return '<tr>'
+                 + '<td>' + esc(it.name) + (attrs ? '<br><small class="text-muted">'+attrs+'</small>' : '') + '</td>'
+                 + '<td>' + esc(it.sku || '—') + '</td>'
+                 + '<td class="text-end">' + Number(it.quantity) + '</td>'
+                 + '<td class="text-end">' + money(it.unit_price_wt) + '</td>'
+                 + '<td class="text-end">' + (Number(it.discount) ? '−'+money(it.discount) : '—') + '</td>'
+                 + '<td class="text-end fw-semibold">' + money(it.total) + '</td>'
+                 + '</tr>';
+        }).join('');
+        let totals = d.totals.map(t =>
+            '<tr><td colspan="5" class="text-end text-muted">'+esc(t.title)+'</td><td class="text-end">'+money(t.value)+'</td></tr>'
+        ).join('');
+        document.getElementById('items-body').innerHTML =
+            '<table class="table table-sm mb-0"><thead><tr>'
+          + '<th>Назва</th><th>SKU</th><th class="text-end">К-сть</th><th class="text-end">Ціна</th><th class="text-end">Знижка</th><th class="text-end">Сума</th>'
+          + '</tr></thead><tbody>' + rows + totals + '</tbody></table>';
+
+        // Перевірка «здоровʼя» сум: сума позицій vs total_products
+        if (Math.abs(sum - TOTAL_PRODUCTS) > 0.01) {
+            document.getElementById('sum-warn').classList.remove('d-none');
+        }
+    }
+
+    // Оплати
+    const payBadge = { paid:'success', pending:'secondary', authorized:'info', failed:'danger', refunded:'danger', partially_refunded:'warning' };
+    document.getElementById('payments-body').innerHTML = d.payments.length
+        ? '<table class="table table-sm mb-0"><tbody>' + d.payments.map(p =>
+            '<tr><td><span class="badge rounded-0 text-bg-'+(payBadge[p.status]||'secondary')+'">'+esc(p.status)+'</span></td>'
+          + '<td>'+esc(p.transaction_id||'—')+'</td>'
+          + '<td class="text-end fw-semibold">'+Number(p.amount).toFixed(2)+' '+esc(p.currency_iso)+'</td>'
+          + '<td class="text-end text-muted small">'+esc(p.paid_at||'')+'</td></tr>'
+          ).join('') + '</tbody></table>'
+        : '<div class="p-3 text-muted">Оплат немає</div>';
+
+    // Відправлення (трек-номер клікабельний)
+    document.getElementById('shipments-body').innerHTML = d.shipments.length
+        ? '<table class="table table-sm mb-0"><tbody>' + d.shipments.map(s =>
+            '<tr><td>'+esc(s.carrier||'—')+'</td>'
+          + '<td>'+(s.tracking_number ? '<a href="https://novaposhta.ua/tracking/?cargo_number='+encodeURIComponent(s.tracking_number)+'" target="_blank">'+esc(s.tracking_number)+'</a>' : '—')+'</td>'
+          + '<td><span class="badge rounded-0 text-bg-secondary">'+esc(s.status||'—')+'</span></td>'
+          + '<td class="text-end text-muted small">'+esc(s.shipped_at||'')+'</td></tr>'
+          ).join('') + '</tbody></table>'
+        : '<div class="p-3 text-muted">Відправлень немає</div>';
+
+    // Повернення + документи
+    let ref = d.refunds.length
+        ? '<div class="section-title">Повернення</div>' + d.refunds.map(r =>
+            '<div class="d-flex justify-content-between border-bottom py-1"><span>'+esc(r.number||'')+' · '+esc(r.reason||'')+'</span><span class="text-danger fw-semibold">−'+Number(r.amount).toFixed(2)+'</span></div>'
+          ).join('') : '';
+    let doc = d.documents.length
+        ? '<div class="section-title mt-2">Документи</div>' + d.documents.map(dc =>
+            '<div class="py-1"><i class="fa-solid fa-file-pdf text-danger me-2"></i><a href="'+esc(dc.file_path||'#')+'" target="_blank">'+esc(dc.number||dc.type)+'</a> <small class="text-muted">'+esc(dc.type)+'</small></div>'
+          ).join('') : '';
+    let fees = d.fees.length
+        ? '<div class="section-title mt-2">Збори</div>' + d.fees.map(f =>
+            '<div class="d-flex justify-content-between border-bottom py-1"><span>'+esc(f.title||f.type)+'</span><span>'+Number(f.amount).toFixed(2)+'</span></div>'
+          ).join('') : '';
+    document.getElementById('refdoc-body').innerHTML = (ref+doc+fees) || '<span class="text-muted">Немає</span>';
+}
+
+fetch('/api/orders/' + ORDER_ID + '/details/', { method: 'POST' })
+    .then(r => r.json()).then(renderDetails)
+    .catch(() => { document.getElementById('items-body').innerHTML = '<div class="p-3 text-danger">Помилка завантаження</div>'; });
+
+// ── ІСТОРІЯ СТАТУСІВ (Tabulator) ──
+var historyTable = new Tabulator("#history-table", {
+    layout: "fitColumns",
+    ajaxURL: "/api/orders/" + ORDER_ID + "/history/",
+    ajaxConfig: "POST",
+    pagination: true, paginationMode: "local", paginationSize: 15,
+    placeholder: "Історія порожня",
+    columns: [
+        { title: "Зміна", widthGrow: 3, headerSort: false, formatter: function(cell) {
+            const h = cell.getRow().getData();
+            const o = esc(h.status_old_name || '—'), n = esc(h.status_name || '—');
+            let out = '<span class="text-muted text-decoration-line-through me-1">'+o+'</span>'
+                    + '<i class="fa-solid fa-arrow-right mx-1 text-muted" style="font-size:10px"></i>'
+                    + '<span class="text-success fw-semibold">'+n+'</span>';
+            if (h.comment) out += '<div class="small fst-italic text-muted mt-1">'+esc(h.comment)+'</div>';
+            return out;
+        }},
+        { title: "Джерело", field: "source", width: 110, formatter: c => esc(c.getValue()) },
+        { title: "Email", field: "notified", width: 80, hozAlign: "center", formatter: c =>
+            c.getValue() ? '<i class="fa-solid fa-envelope text-success"></i>' : '<i class="fa-solid fa-minus text-muted"></i>' },
+        { title: "Дата", field: "date_add", width: 150 }
+    ]
+});
+
+// ── ЖУРНАЛ ПОДІЙ (ліниво) ──
+var eventsLoaded = false;
+function loadEvents() {
+    if (eventsLoaded) return; eventsLoaded = true;
+    fetch('/api/orders/' + ORDER_ID + '/events/', { method: 'POST' })
+        .then(r => r.json()).then(function(rows) {
+            document.getElementById('events-list').innerHTML = rows.length
+                ? rows.map(function(e) {
+                    let pl = ''; try { pl = e.payload ? JSON.stringify(e.payload) : ''; } catch(x){}
+                    return '<div class="d-flex justify-content-between border-bottom py-2">'
+                         + '<div><span class="badge rounded-0 text-bg-secondary me-2">'+esc(e.type)+'</span>'
+                         + '<small class="text-muted">'+esc(pl)+'</small></div>'
+                         + '<small class="text-muted">'+esc(e.source)+' · '+esc(e.date_add)+'</small></div>';
+                  }).join('')
+                : '<p class="text-muted">Подій немає</p>';
+        });
+}
+
+// ── RAW PAYLOAD (ліниво) ──
+var rawLoaded = false;
+function loadRaw() {
+    if (rawLoaded) return; rawLoaded = true;
+    fetch('/api/orders/' + ORDER_ID + '/raw/', { method: 'POST' })
+        .then(r => r.json()).then(function(d) {
+            document.getElementById('raw-box').textContent = d.payload
+                ? JSON.stringify(d.payload, null, 2)
+                : 'Сирих даних немає (замовлення створене вручну).';
+        });
+}
+
+// ============================================================
+// КЛІЄНТ У ЗАМОВЛЕННІ
+// ============================================================
+const confBadge = { high: 'text-bg-success', medium: 'text-bg-warning', low: 'text-bg-secondary' };
+const confText  = { high: 'Точний збіг', medium: 'Ймовірний збіг', low: 'Слабкий збіг' };
+const reasonMap = { email: 'email', phone: 'телефон', name: 'імʼя' };
+
+function money2(v, cur) { return Number(v || 0).toFixed(2) + ' ' + (cur || 'UAH'); }
+
+// Один рядок кандидата/результату пошуку з кнопкою «Привʼязати»
+function clientRow(c, withReasons) {
+    let meta = [];
+    if (c.company) meta.push(esc(c.company));
+    if (c.orders_count != null) meta.push(c.orders_count + ' зам.');
+    if (c.total_spent != null) meta.push('LTV ' + Number(c.total_spent).toFixed(0));
+    let reasons = '';
+    if (withReasons && c.reasons && c.reasons.length) {
+        reasons = ' ' + c.reasons.map(r => '<span class="badge rounded-0 text-bg-light border">' + (reasonMap[r] || r) + '</span>').join(' ');
+    }
+    let conf = '';
+    if (withReasons && c.confidence) {
+        conf = '<span class="badge rounded-0 ' + (confBadge[c.confidence] || 'text-bg-secondary') + '">' + (confText[c.confidence] || '') + '</span>';
+    }
+    return '<div class="d-flex justify-content-between align-items-center border-bottom py-2">'
+         + '<div><div class="fw-semibold">' + esc(c.display_name || ((c.firstname||'') + ' ' + (c.lastname||''))) + ' '
+         + (c.is_vip ? '<i class="fa-solid fa-star text-warning" title="VIP"></i>' : '') + '</div>'
+         + '<div class="small text-muted">' + esc(c.phone || '') + (c.email ? ' · ' + esc(c.email) : '') + '</div>'
+         + (meta.length ? '<div class="small text-muted">' + meta.join(' · ') + '</div>' : '')
+         + (reasons ? '<div class="mt-1">' + conf + reasons + '</div>' : '')
+         + '</div>'
+         + '<button class="btn btn-sm btn-primary rounded-0" data-action="link-client" data-id="' + c.id + '">Привʼязати</button>'
+         + '</div>';
+}
+
+// Завантаження стану блоку клієнта
+function loadClient() {
+    document.getElementById('client-body').innerHTML = '<div class="spinner-wrap"><span class="spinner-border spinner-border-sm"></span></div>';
+    fetch('/orders/' + ORDER_ID + '/client/', { method: 'POST' })
+        .then(r => r.json())
+        .then(function(d) {
+            // Снапшот — завжди
+            renderSnapshot(d.snapshot || {});
+
+            if (d.linked && d.client) {
+                renderLinkedClient(d.client);
+            } else {
+                renderUnlinked(d.candidates || []);
+            }
+        })
+        .catch(() => {
+            document.getElementById('client-body').innerHTML = '<div class="text-danger small p-2">Помилка завантаження</div>';
+        });
+}
+
+// Снапшот контакту з замовлення
+function renderSnapshot(s) {
+    const rows = [
+        ['Імʼя', [s.firstname, s.lastname].filter(Boolean).join(' ')],
+        ['Компанія', s.company],
+        ['Телефон', s.phone],
+        ['Email', s.email],
+    ].filter(r => r[1]);
+    document.getElementById('snapshot-body').innerHTML = rows.length
+        ? '<table class="table table-sm table-borderless kv mb-0">' + rows.map(r =>
+            '<tr><td class="k">' + r[0] + '</td><td>' + esc(r[1]) + '</td></tr>').join('') + '</table>'
+        : '<span class="text-muted small">Контакт відсутній</span>';
+}
+
+// Стан: клієнт прив'язаний → жива картка
+function renderLinkedClient(c) {
+    document.getElementById('client-badge').innerHTML =
+        '<span class="badge rounded-0 text-bg-success">Привʼязаний</span>';
+    document.getElementById('client-body').innerHTML =
+        '<div class="d-flex justify-content-between align-items-start">'
+      + '<div><div class="fw-semibold fs-6">' + esc(c.display_name) + ' '
+      + (c.is_vip ? '<i class="fa-solid fa-star text-warning"></i>' : '') + '</div>'
+      + '<div class="small text-muted">' + esc(c.phone || '') + (c.email ? ' · ' + esc(c.email) : '') + '</div></div>'
+      + '<a href="/orders/clients/' + c.id + '/" class="btn btn-sm btn-outline-primary rounded-0" title="Профіль"><i class="fa-solid fa-up-right-from-square"></i></a>'
+      + '</div>'
+      + '<table class="table table-sm table-borderless kv mt-2 mb-2">'
+      + (c.group_name ? '<tr><td class="k">Група</td><td>' + esc(c.group_name) + '</td></tr>' : '')
+      + '<tr><td class="k">Замовлень</td><td>' + (c.orders_count || 0) + '</td></tr>'
+      + '<tr><td class="k">Витрачено</td><td>' + money2(c.total_spent, c.balance_currency) + '</td></tr>'
+      + '<tr><td class="k">Бонуси</td><td>' + (c.reward_points || 0) + ' б.</td></tr>'
+      + '<tr><td class="k">Баланс</td><td>' + money2(c.balance, c.balance_currency) + '</td></tr>'
+      + '</table>'
+      + '<button class="btn btn-sm btn-outline-danger rounded-0 w-100" data-action="unlink-client">'
+      + '<i class="fa-solid fa-link-slash me-1"></i>Відвʼязати</button>';
+}
+
+// Стан: не прив'язаний → автозбіги + дії
+function renderUnlinked(candidates) {
+    document.getElementById('client-badge').innerHTML =
+        '<span class="badge rounded-0 text-bg-secondary">Гість</span>';
+
+    let html = '';
+    if (candidates.length) {
+        html += '<div class="section-title">Схоже на існуючого клієнта</div>';
+        html += candidates.map(c => clientRow(c, true)).join('');
+    } else {
+        html += '<p class="text-muted small mb-2">Збігів не знайдено.</p>';
+    }
+    html += '<div class="d-flex gap-2 mt-3">'
+          + '<button class="btn btn-sm btn-outline-secondary rounded-0 flex-fill" data-action="open-client-search"><i class="fa-solid fa-magnifying-glass me-1"></i>Знайти</button>'
+          + '<button class="btn btn-sm btn-primary rounded-0 flex-fill" data-action="create-client"><i class="fa-solid fa-user-plus me-1"></i>Створити</button>'
+          + '</div>';
+    document.getElementById('client-body').innerHTML = html;
+}
+
+// Дія: прив'язати
+function linkClient(id_client) {
+    fetch('/api/orders/' + ORDER_ID + '/client/link/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_client })
+    }).then(r => r.json()).then(function(d) {
+        if (d.status === 'success') {
+            bootstrap.Modal.getInstance(document.getElementById('client-search-modal'))?.hide();
+            loadClient();
+        } else alert(d.message || 'Помилка');
+    });
+}
+
+// Дія: відв'язати
+function unlinkClient() {
+    if (!confirm('Відвʼязати клієнта від замовлення? Контакт у замовленні залишиться.')) return;
+    fetch('/api/orders/' + ORDER_ID + '/client/unlink/', { method: 'POST' })
+        .then(r => r.json()).then(function(d) {
+            if (d.status === 'success') loadClient(); else alert(d.message || 'Помилка');
+        });
+}
+
+// Дія: створити зі снапшоту (з обробкою дубля 409)
+function createClient() {
+    fetch('/api/orders/' + ORDER_ID + '/client/create/', { method: 'POST' })
+        .then(async r => ({ ok: r.ok, status: r.status, data: await r.json() }))
+        .then(function(res) {
+            if (res.data.status === 'success') { loadClient(); return; }
+            if (res.status === 409 && res.data.candidates) {
+                // Дубль знайдено — пропонуємо прив'язати наявного
+                const list = res.data.candidates.map(c => clientRow(c, false)).join('');
+                document.getElementById('client-body').innerHTML =
+                    '<div class="alert alert-warning rounded-0 small mb-2">' + esc(res.data.message) + '</div>' + list
+                  + '<button class="btn btn-sm btn-outline-secondary rounded-0 w-100 mt-2" data-action="load-client">Назад</button>';
+            } else alert(res.data.message || 'Помилка');
+        });
+}
+
+// Ручний пошук
+function openClientSearch() {
+    const modal = new bootstrap.Modal(document.getElementById('client-search-modal'));
+    modal.show();
+    document.getElementById('client-search-input').value = '';
+    document.getElementById('client-search-results').innerHTML = '<p class="text-muted small mb-0">Введіть щонайменше 2 символи.</p>';
+    setTimeout(() => document.getElementById('client-search-input').focus(), 300);
+}
+
+let searchTimer = null;
+document.getElementById('client-search-input').addEventListener('input', function() {
+    const q = this.value.trim();
+    clearTimeout(searchTimer);
+    if (q.length < 2) {
+        document.getElementById('client-search-results').innerHTML = '<p class="text-muted small mb-0">Введіть щонайменше 2 символи.</p>';
+        return;
+    }
+    searchTimer = setTimeout(function() {
+        fetch('/api/orders/clients/search/', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ q })
+        }).then(r => r.json()).then(function(rows) {
+            document.getElementById('client-search-results').innerHTML = rows.length
+                ? rows.map(c => clientRow(c, false)).join('')
+                : '<p class="text-muted small mb-0">Нічого не знайдено.</p>';
+        });
+    }, 300); // debounce
+});
+
+loadClient(); // старт
+</script>
+</body>
+</html>

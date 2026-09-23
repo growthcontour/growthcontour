@@ -1,0 +1,294 @@
+<!-- ============================================================
+     deals/index.ejs
+     ============================================================ -->
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+
+<head>
+    <%- include('../../partials/head'); %>
+        <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+        <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+</head>
+
+<body class="d-flex flex-column h-100">
+    <%- include('../../partials/header'); %>
+        <!-- Breadcrumb -->
+        <div class="breadcrumbs pt-3 pb-3">
+            <div class="container-fluid">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <span>
+                            <%= i18n.__('deals.breadcrumbs.title') %>
+                        </span>
+                        <div>
+                            <ul class="list-inline mb-0">
+                                <li class="list-inline-item">
+                                    <a href="/"><i class="fas fa-home"></i> <span>
+                                            <%= i18n.__('deals.breadcrumbs.page1') %>
+                                        </span></a>
+                                </li>
+                                <li class="list-inline-item">
+                                    <i class="fas fa-chevron-right"></i>
+                                    <%= i18n.__('deals.breadcrumbs.title') %>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <button href="/" class="btn btn-primary rounded-0" id="btnCreateDeal">
+                            <i class="fa-solid fa-plus"></i> Додати угоду
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- END Breadcrumb -->
+        <div class="container-fluid mt-3">
+            <div class="row">
+                <div class="col-12 mb-3">
+                    <div class="card border-primary rounded-0">
+                        <div id="deals-table"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer'); %>
+            <%- include('../../partials/script'); %>
+                <script src="/assets/js/tabulator/tabulator.min.js"></script>
+                <script>
+                    var table = new Tabulator("#deals-table", {
+    layout: "fitDataFill",           // ← змінено з fitColumns
+    ajaxURL: "/api/deals/deals-list",
+    ajaxConfig: "POST",
+    pagination: true,
+    paginationMode: "local",
+    paginationSize: 20,
+    paginationSizeSelector: [10, 20, 50, 100],
+    movableColumns: true,
+    columnDefaults: {
+        resizable: true,             // ← дозволяє користувачу змінювати ширину
+        headerHozAlign: "center",    // ← вирівнювання заголовків за замовчуванням
+    },
+
+    columns: [
+        {
+            title: "ID",
+            field: "id",
+            headerSort: true,
+            width: 70,
+            hozAlign: "center",
+        },
+        {
+            title: "Угода",
+            field: "title",
+            headerSort: true,
+            minWidth: 200,            // ← мінімальна ширина замість widthGrow
+            widthGrow: 3,
+            tooltip: true,            // ← показує повний текст при наведенні
+            formatter: function (cell) {
+                var d = cell.getRow().getData();
+                var title = d.title || '—';
+                var number = d.deal_number
+                    ? '<span class="text-muted small ms-1">' + d.deal_number + '</span>'
+                    : '';
+                return title + number;
+            },
+        },
+        {
+            title: "Стадія",
+            field: "stage_name",
+            headerSort: true,
+            width: 160,
+            minWidth: 120,            // ← мінімальна ширина
+            hozAlign: "center",
+            formatter: function (cell) {
+                var d = cell.getRow().getData();
+                var name = d.stage_name || '—';
+                var bg = d.stage_color_background || '#e9ecef';
+                var color = d.stage_color_text || '#212529';
+                return '<span class="badge rounded-0" style="background:' + bg + ';color:' + color + '">'
+                    + name
+                    + '</span>';
+            },
+        },
+        {
+            title: "Воронка",
+            field: "pipeline_name",
+            headerSort: true,
+            width: 140,
+            minWidth: 100,
+            hozAlign: "center",
+            formatter: function (cell) {
+                var d = cell.getRow().getData();
+                var name = d.pipeline_name || '—';
+                var color = d.pipeline_color || '#007bff';
+                return '<span class="badge rounded-0" style="background:' + color + ';color:#fff">'
+                    + name
+                    + '</span>';
+            },
+        },
+        {
+            title: "Компанія",
+            field: "company_name",
+            headerSort: true,
+            minWidth: 150,
+            widthGrow: 2,
+            tooltip: true,
+            formatter: function (cell) {
+                var v = cell.getValue();
+                return v || '<span class="text-muted">—</span>';
+            },
+        },
+        {
+            title: "Контакт",
+            field: "contact_name",
+            headerSort: true,
+            minWidth: 180,            // ← збільшено, бо там багато інфи
+            widthGrow: 2,
+            tooltip: true,
+            formatter: function (cell) {
+                var d = cell.getRow().getData();
+                var name = d.contact_name || '';
+                var phone = d.contact_phone
+                    ? '<div class="small text-muted"><i class="fa-solid fa-phone fa-xs me-1"></i>' + d.contact_phone + '</div>'
+                    : '';
+                var email = d.contact_email
+                    ? '<div class="small text-muted"><i class="fa-solid fa-envelope fa-xs me-1"></i>' + d.contact_email + '</div>'
+                    : '';
+                return (name ? '<div>' + name + '</div>' : '') + phone + email
+                    || '<span class="text-muted">—</span>';
+            },
+        },
+        {
+            title: "Сума",
+            field: "amount_final",
+            headerSort: true,
+            width: 140,
+            minWidth: 120,
+            hozAlign: "right",
+            formatter: function (cell) {
+                var d = cell.getRow().getData();
+                var v = d.amount_final;
+                if (v == null) return '<span class="text-muted">—</span>';
+                var currency = d.amount_currency || 'UAH';
+                var symbol = currency === 'UAH' ? '₴'
+                    : currency === 'USD' ? '$'
+                        : currency === 'EUR' ? '€' : currency;
+                return parseFloat(v).toLocaleString('uk-UA', { minimumFractionDigits: 2 })
+                    + ' ' + symbol;
+            },
+        },
+        {
+            title: "Ймовірність",
+            field: "probability",
+            headerSort: true,
+            width: 120,
+            minWidth: 100,
+            hozAlign: "center",
+            formatter: function (cell) {
+                var v = cell.getValue();
+                if (v == null) return '<span class="text-muted">—</span>';
+                var color = v >= 75 ? '#28a745'
+                    : v >= 50 ? '#ffc107'
+                        : v >= 25 ? '#fd7e14'
+                            : '#dc3545';
+                return '<span style="color:' + color + ';font-weight:600">' + v + '%</span>';
+            },
+        },
+        {
+            title: "Закриття",
+            field: "date_close_plan",
+            headerSort: true,
+            width: 120,
+            minWidth: 110,
+            hozAlign: "center",
+            formatter: function (cell) {
+                var v = cell.getValue();
+                if (!v) return '<span class="text-muted">—</span>';
+                var date = new Date(v);
+                var today = new Date();
+                today.setHours(0, 0, 0, 0);
+                var isOverdue = date < today;
+                var str = date.toLocaleDateString('uk-UA');
+                return isOverdue
+                    ? '<span class="text-danger">' + str + '</span>'
+                    : str;
+            },
+        },
+        {
+            title: "Менеджер",
+            field: "user_name",
+            headerSort: true,
+            width: 140,
+            minWidth: 120,
+            tooltip: true,
+            formatter: function (cell) {
+                var v = cell.getValue();
+                return v || '<span class="text-muted">—</span>';
+            },
+        },
+        {
+            title: "Протухає",
+            field: "is_rotting",
+            headerSort: true,
+            width: 100,
+            minWidth: 90,
+            hozAlign: "center",
+            formatter: function (cell) {
+                var d = cell.getRow().getData();
+                if (!d.is_rotting) return '<span class="text-muted">—</span>';
+                return '<span class="text-danger" title="' + d.rotting_days + ' днів без активності">'
+                    + '<i class="fa-solid fa-triangle-exclamation"></i> '
+                    + d.rotting_days + 'д'
+                    + '</span>';
+            },
+        },
+        {
+            title: "Створено",
+            field: "date_add",
+            headerSort: true,
+            width: 120,
+            minWidth: 110,
+            hozAlign: "center",
+            formatter: function (cell) {
+                var v = cell.getValue();
+                if (!v) return '—';
+                return new Date(v).toLocaleDateString('uk-UA');
+            },
+        },
+        {
+            title: "",
+            field: "id",
+            headerSort: false,
+            width: 60,
+            minWidth: 50,
+            hozAlign: "center",
+            formatter: function (cell) {
+                return '<a href="/deals/' + cell.getValue() + '" class="text-primary">'
+                    + '<i class="fa-regular fa-pen-to-square"></i></a>';
+            },
+        },
+    ],
+});
+                </script>
+                <script>
+                    $('#btnCreateDeal').on('click', function () {
+                        var btn = $(this).prop('disabled', true);
+                        $.post('/api/deals/add')
+                            .done(function (r) {
+                                if (r.ok) {
+                                    window.location.href = '/deals/' + r.id;
+                                } else {
+                                    alert(r.error || 'Помилка створення угоди');
+                                    btn.prop('disabled', false);
+                                }
+                            })
+                            .fail(function () {
+                                alert('Помилка створення угоди');
+                                btn.prop('disabled', false);
+                            });
+                    });
+                </script>
+</body>
+
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+
+<head>
+	<%- include('../../partials/head'); %>
+		<!-- tabulator -->
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<!-- END tabulator -->
+</head>
+
+<body class="d-flex flex-column h-100">
+	<%- include('../../partials/header'); %>
+		<!-- Breadcrumb -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span>
+							Налаштування
+						</span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/"><i class="fas fa-home"></i> <span>Головна</span></a>
+								</li>
+								<li class="list-inline-item">
+									<a href="/leads/"><i class="fas fa-chevron-right"></i> <span>Ліди</span></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									Налаштування
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/leads/" class="btn btn-primary rounded-0">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- END Breadcrumb -->
+		<div class="container-fluid mt-3">
+			<div class="row">
+				<div class="col-12 col-lg-3 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0">Налаштування</div>
+						<ul class="list-group list-group-flush" id="myTab" role="tablist">
+							<li class="list-group-item">Воронка</li>
+							<li class="list-group-item p-0"><button class="nav-link w-100 text-start px-3 py-2 active" id="nav-home-tab" data-bs-toggle="tab" data-bs-target="#nav-home" type="button" role="tab" aria-controls="nav-home" aria-selected="true"><i class="fa-regular fa-circle"></i> Home</button></li>
+							<li class="list-group-item p-0"><button class="nav-link w-100 text-start px-3 py-2" id="nav-profile-tab" data-bs-toggle="tab" data-bs-target="#nav-profile" type="button" role="tab" aria-controls="nav-profile" aria-selected="false"><i class="fa-regular fa-circle"></i> Profile</button></li>
+							<li class="list-group-item">Воронка</li>
+							<li class="list-group-item p-0"><button class="nav-link w-100 text-start px-3 py-2" id="nav-contact-tab" data-bs-toggle="tab" data-bs-target="#nav-contact" type="button" role="tab" aria-controls="nav-contact" aria-selected="false"><i class="fa-regular fa-circle"></i> Contact</button></li>
+							<li class="list-group-item p-0"><button class="nav-link w-100 text-start px-3 py-2" id="nav-disabled-tab" data-bs-toggle="tab" data-bs-target="#nav-disabled" type="button" role="tab" aria-controls="nav-disabled" aria-selected="false" disabled><i class="fa-regular fa-circle"></i> Disabled</button></li>
+						</ul>
+					</div>
+				</div>
+				<div class="col-12 col-lg-9 mb-3">
+					<div class="tab-content" id="nav-tabContent">
+  <div class="tab-pane fade show active" id="nav-home" role="tabpanel" aria-labelledby="nav-home-tab" tabindex="0">.1..</div>
+  <div class="tab-pane fade" id="nav-profile" role="tabpanel" aria-labelledby="nav-profile-tab" tabindex="0">.2.</div>
+  <div class="tab-pane fade" id="nav-contact" role="tabpanel" aria-labelledby="nav-contact-tab" tabindex="0">.4..</div>
+  <div class="tab-pane fade" id="nav-disabled" role="tabpanel" aria-labelledby="nav-disabled-tab" tabindex="0">..3.</div>
+</div>
+				</div>
+			</div>
+		</div>
+		<%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+
+</body>
+
+</html>

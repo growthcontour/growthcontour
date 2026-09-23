@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en" class="h-100">
+  <head>
+    <%- include('../../../../partials/head'); %>
+    <style>
+      form textarea {
+        resize: none;
+      }
+      .message-client .time {
+        font-size: 10px;
+        color: #000;
+        display: block;
+      }
+      .message-client > .alert {
+        text-align: left;
+      }
+      .message-manager {
+        text-align: right;
+      }
+      .message-manager > .alert {
+        margin-left: 35px;
+        margin-bottom: 0;
+        display: inline-block;
+      }
+      .message-manager .time {
+        font-size: 10px;
+        color: #000;
+        display: block;
+      }
+      .message-system {
+        text-align: right;
+      }
+      .message-system > .alert {
+        display: inline-block;
+        margin-bottom: 0;
+      }
+      .msg-acts {
+        display: none;
+        gap: 8px;
+        margin-top: 2px;
+      }
+      .message-manager:hover .msg-acts {
+        display: inline-flex;
+      }
+      #wc-product-card img {
+        display: block;
+      }
+    </style>
+  </head>
+
+  <body class="d-flex flex-column h-100">
+    <%- include('../../../../partials/header'); %>
+    <div class="container-fluid mt-3 h-100">
+      <div class="row h-100">
+        <!-- ЛІВА КОЛОНКА -->
+        <div class="col-12 col-lg-3 mb-3">
+          <ul class="nav nav-underline nav-fill mb-3" id="pills-tab" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="pills-home-tab" data-bs-toggle="pill" data-bs-target="#pills-home" type="button" role="tab" aria-controls="pills-home" aria-selected="true">Дані</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="pills-product-tab" data-bs-toggle="pill" data-bs-target="#pills-product" type="button" role="tab" aria-controls="pills-product" aria-selected="false">Товари</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="pills-settings-tab" data-bs-toggle="pill" data-bs-target="#pills-settings" type="button" role="tab" aria-controls="pills-settings" aria-selected="false">Налаштування</button>
+            </li>
+          </ul>
+
+          <div class="tab-content" id="pills-tabContent">
+            <!-- TAB: Дані -->
+            <div class="tab-pane fade show active" id="pills-home" role="tabpanel" aria-labelledby="pills-home-tab" tabindex="0">
+              <div id="wc-lead" class="card rounded-0 mb-3" style="display: none">
+                <div class="card-body chats-list-card"></div>
+              </div>
+
+              <div class="card rounded-0 mb-3">
+                <div class="card-header rounded-0">Поточна сторінка</div>
+                <div class="card-body chats-list-card">
+                  <div id="wc-page" class="small text-muted" style="word-break: break-all">—</div>
+                </div>
+              </div>
+
+              <div class="card rounded-0">
+                <div class="card-header rounded-0">Дані відвідувача</div>
+                <div class="card-body chats-list-card" style="max-height: 60vh; overflow-y: auto">
+                  <div id="wc-info" class="small text-muted">Немає даних</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB: Товари -->
+            <div class="tab-pane fade" id="pills-product" role="tabpanel" aria-labelledby="pills-product-tab" tabindex="0">
+              <div class="card rounded-0">
+                <div class="card-header rounded-0">Дивиться товар</div>
+                <div class="card-body chats-list-card">
+                  <div id="wc-product-card" class="border rounded-0 mb-2" style="display: none; overflow: hidden"></div>
+                  <div id="wc-product" class="small text-muted">—</div>
+                  <button id="wc-history-btn" type="button" class="btn btn-outline-primary rounded-0 w-100 mt-2" style="display: none" data-bs-toggle="offcanvas" data-bs-target="#offcanvasHistory" aria-controls="offcanvasHistory">📜 Історія переглядів <span id="wc-history-count"></span></button>
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB: Налаштування -->
+            <div class="tab-pane fade" id="pills-settings" role="tabpanel" aria-labelledby="pills-settings-tab" tabindex="0">
+              <div class="card rounded-0">
+                <div class="card-header rounded-0">Налаштування</div>
+                <div class="card-body row chats-list-card">
+                  <div class="col-12 mb-3">
+                    <button id="wc-close" type="button" class="btn btn-success rounded-0 w-100" style="display: none" data-bs-toggle="modal" data-bs-target="#modal_close_chat">Завершити діалог</button>
+                  </div>
+                  <div class="col-12 mb-3">
+                    <button id="wc-archive" type="button" class="btn btn-primary rounded-0 w-100" data-bs-toggle="modal" data-bs-target="#modal_archive_chat">В архів</button>
+                  </div>
+                  <div class="col-12 mb-3">
+                    <button type="button" class="btn btn-primary rounded-0 w-100" data-bs-toggle="modal" data-bs-target="#modal_delegate_chat">Делегувати чат</button>
+                  </div>
+                  <div class="col-12 mb-3">
+                    <button type="button" class="btn btn-primary rounded-0 w-100" data-bs-toggle="modal" data-bs-target="#modal_delete_chat">Видалити чат</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CHAT AREA -->
+        <div class="col-12 col-lg-9 mb-3">
+          <div class="card h-100 rounded-0">
+            <div class="card-header rounded-0 d-flex align-items-center">
+              <span id="wc-dot" style="display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #c4c4c4; margin-right: 8px"></span>
+              <span id="wc-title" class="fw-bold text-secondary"></span>
+            </div>
+            <div style="position: relative; height: 100%; overflow: hidden; min-height: 300px">
+              <div class="card-body" id="message_list" style="position: absolute; top: 0; bottom: 0; left: 0; right: 0; width: 100%; overflow-y: auto; scrollbar-color: rgba(182, 193, 210, 0.55) transparent; scrollbar-width: thin"></div>
+            </div>
+
+            <div id="wc-typing" class="px-3 py-1 small text-muted fst-italic" style="display: none"></div>
+
+            <div id="wc-take-work" class="card-footer alert alert-primary m-0 rounded-0" style="display: none">
+              <p>Це листування доступне для обробки. Натисніть кнопку, щоб призначити його собі.</p>
+              <button type="button" class="btn btn-primary btn-take-work rounded-0">Взяти в роботу</button>
+            </div>
+
+            <form class="card-footer text-body-secondary bg-transparent p-0 rounded-0" id="wc-form">
+              <div id="wc-att-preview" class="small text-muted px-3 pt-2" style="display: none"></div>
+              <textarea class="form-control border-0 rounded-0" id="exampleFormControlTextarea1" name="message" rows="3" placeholder="Повідомлення..."></textarea>
+              <div class="d-flex justify-content-between p-3 pt-1">
+                <div class="btn-group" role="group">
+                  <button type="button" class="btn btn-outline-primary rounded-0" id="emoji-btn">
+                    <i class="fa-regular fa-face-smile"></i>
+                  </button>
+                  <label for="formFile" class="btn btn-outline-primary rounded-0 mb-0">
+                    <i class="fa-solid fa-paperclip"></i>
+                  </label>
+                  <input class="form-control d-none" type="file" id="formFile" accept="image/jpeg,image/png,image/webp,image/gif,.xlsx,.docx" />
+                  <div class="btn-group">
+                    <button type="button" class="btn btn-outline-primary rounded-0 dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                      <i class="fa-solid fa-terminal"></i>
+                    </button>
+                    <ul class="dropdown-menu rounded-0" id="wc-forms-menu">
+                      <li><span class="dropdown-item-text text-muted small">Форми недоступні</span></li>
+                    </ul>
+                  </div>
+                </div>
+                <button type="button" id="submitButton" class="btn btn-outline-primary rounded-0">Відправити</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OFFCANVAS: історія переглядів -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasHistory" aria-labelledby="offcanvasHistoryLabel" style="width: 380px">
+      <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title" id="offcanvasHistoryLabel">Історія переглядів</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Закрити"></button>
+      </div>
+      <div class="offcanvas-body p-0" id="wc-history-body" style="overflow-y: auto"></div>
+    </div>
+
+    <!-- MODAL: Завершити -->
+    <div class="modal fade" id="modal_close_chat" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-0">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5">Завершити діалог?</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body"><p>Ви впевнені, що хочете завершити цей діалог?</p></div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal">Закрити</button>
+            <button type="button" id="wc-close-confirm" class="btn btn-primary rounded-0" data-bs-dismiss="modal">Завершити</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Архів -->
+    <div class="modal fade" id="modal_archive_chat" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-0">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5">В архів?</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p>Перемістити цей діалог в архів? Він зникне з активних. Якщо клієнт напише знову — повернеться у «Відкриті».</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal">Закрити</button>
+            <button type="button" id="wc-archive-confirm" class="btn btn-primary rounded-0" data-bs-dismiss="modal">В архів</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Видалити -->
+    <div class="modal fade" id="modal_delete_chat" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-0">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5">Видалити чат?</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p>Ви впевнені, що хочете видалити цей чат?</p>
+            <p>Після видалення його неможливо відновити. Усі розмови та файли буде видалено.</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal">Закрити</button>
+            <button type="button" id="wc-delete-confirm" class="btn btn-primary rounded-0" data-bs-dismiss="modal">Видалити</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Делегувати -->
+    <div class="modal fade" id="modal_delegate_chat" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-0">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5">Делегувати чат?</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="wc-managers-list" class="form-label">Список менеджерів</label>
+              <select id="wc-managers-list" class="form-select rounded-0"></select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal">Закрити</button>
+            <button type="button" id="wc-delegate-confirm" class="btn btn-primary rounded-0">Делегувати</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%- include('../../../../partials/footer'); %> <%- include('../../../../partials/script'); %>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const button = document.getElementById("emoji-btn");
+        const textarea = document.getElementById("exampleFormControlTextarea1");
+
+        if (!button || !textarea) return;
+
+        const picker = document.createElement("emoji-picker");
+
+        // Завжди світла тема
+        picker.setAttribute("theme", "light");
+
+        // Прибираємо вибір відтінку шкіри
+        picker.setAttribute("skin-tone-emoji", "👍");
+
+        // Розмір
+        picker.style.position = "fixed";
+        picker.style.zIndex = "9999";
+        picker.style.display = "none";
+
+        document.body.appendChild(picker);
+
+        button.addEventListener("click", (e) => {
+          e.stopPropagation();
+
+          const rect = button.getBoundingClientRect();
+
+          picker.style.display = picker.style.display === "none" ? "block" : "none";
+
+          if (picker.style.display === "block") {
+            const pickerWidth = 350;
+            const pickerHeight = 400;
+            const gap = 5;
+
+            // По горизонталі
+            let left = rect.left;
+
+            if (left + pickerWidth > window.innerWidth) {
+              left = window.innerWidth - pickerWidth - 10;
+            }
+
+            if (left < 10) {
+              left = 10;
+            }
+
+            // Спочатку пробуємо показати НАД кнопкою
+            let top = rect.top - pickerHeight - gap;
+
+            // Якщо зверху не вистачає місця — показуємо під кнопкою
+            if (top < 10) {
+              top = rect.bottom + gap;
+            }
+
+            // Якщо і знизу не влазить
+            if (top + pickerHeight > window.innerHeight) {
+              top = window.innerHeight - pickerHeight - 10;
+            }
+
+            picker.style.left = `${left}px`;
+            picker.style.top = `${top}px`;
+          }
+        });
+
+        picker.addEventListener("emoji-click", (event) => {
+          const emoji = event.detail.unicode;
+
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+
+          textarea.value = textarea.value.substring(0, start) + emoji + textarea.value.substring(end);
+
+          // Повертаємо курсор після emoji
+          const newPosition = start + emoji.length;
+
+          textarea.focus();
+          textarea.setSelectionRange(newPosition, newPosition);
+
+          // Якщо textarea використовується з input/change listeners
+          textarea.dispatchEvent(new Event("input", { bubbles: true }));
+
+          picker.style.display = "none";
+        });
+
+        // Закриття при кліку за межами
+        document.addEventListener("click", (e) => {
+          if (!picker.contains(e.target) && !button.contains(e.target)) {
+            picker.style.display = "none";
+          }
+        });
+      });
+    </script>
+    <script>
+      (function () {
+        const WC_ROOM = "<%= data.roomId %>";
+        const WC_SITE = "<%= data.siteId %>";
+        const WC_USER = "<%= user.id %>";
+
+        const socket = io("/webchat", { transports: ["websocket", "polling"] });
+
+        const $ = (id) => document.getElementById(id);
+        const box = $("message_list");
+        const input = $("exampleFormControlTextarea1");
+        const sendBtn = $("submitButton");
+        const fileInp = $("formFile");
+        const attPrev = $("wc-att-preview");
+        const dot = $("wc-dot");
+        const titleEl = $("wc-title");
+        const typingEl = $("wc-typing");
+        const closeBtn = $("wc-close");
+
+        let convStatus = "open",
+          owner = null,
+          editingId = null,
+          pendingAtt = null;
+        let visitorProduct = null;
+        let ph = { items: [], cursor: null, loading: false, done: false };
+        let lastReadId = 0;
+
+        function esc(s) {
+          return String(s == null ? "" : s)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+        }
+        function fmtTime(ts) {
+          if (!ts) return "";
+          const d = new Date(ts);
+          return isNaN(d) ? "" : d.toLocaleString("uk-UA", { dateStyle: "short", timeStyle: "short" });
+        }
+        function fmtFull(ts) {
+          if (!ts) return "—";
+          const d = new Date(ts);
+          return isNaN(d) ? "—" : d.toLocaleString("uk-UA", { dateStyle: "short", timeStyle: "medium" });
+        }
+        function scrollDown() {
+          box.scrollTop = box.scrollHeight;
+        }
+
+        // ── звук ──
+        let actx = null;
+        function initAudio() {
+          try {
+            if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+            if (actx.state === "suspended") actx.resume();
+          } catch (e) {}
+        }
+        function ping() {
+          try {
+            if (!actx) return;
+            const o = actx.createOscillator(),
+              g = actx.createGain();
+            o.connect(g);
+            g.connect(actx.destination);
+            o.type = "sine";
+            o.frequency.value = 880;
+            g.gain.setValueAtTime(0.25, actx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + 0.25);
+            o.start(actx.currentTime);
+            o.stop(actx.currentTime + 0.25);
+          } catch (e) {}
+        }
+        ["click", "keydown"].forEach((ev) => window.addEventListener(ev, initAudio, { once: true }));
+
+        // ── повідомлення (стиль Telegram) ──
+        const byId = new Map();
+        function isSystemType(from, t) {
+          return from === "operator" && ["greeting", "offline_notice", "lead_prompt", "csat_prompt", "lead_confirm", "op_joined", "chat_closed", "csat_result"].includes(t);
+        }
+
+        function addMsg(text, from, ts, id, o) {
+          o = o || {};
+          if (id != null && byId.has(id)) return buildMsg(byId.get(id), text, from, ts, id, o);
+          const sys = isSystemType(from, o.type);
+          const el = document.createElement("div");
+          el.className = (sys ? "message-system" : from === "operator" ? "message-manager" : "message-client") + " mb-4";
+          if (id != null) {
+            el.dataset.id = id;
+            byId.set(id, el);
+          }
+          el.dataset.from = from;
+          buildMsg(el, text, from, ts, id, o, sys);
+          box.appendChild(el);
+          scrollDown();
+          return el;
+        }
+        function buildMsg(el, text, from, ts, id, o, sys) {
+          if (sys === undefined) sys = el.classList.contains("message-system");
+          if (o.rawText != null) el.dataset.raw = o.rawText;
+          else if (text != null) el.dataset.raw = text;
+          if (ts) el.dataset.ts = ts;
+          if (o.formId) el.dataset.formId = o.formId;
+          if (o.deletedAt) {
+            el.innerHTML = '<div class="alert alert-light rounded-0 d-inline-block mb-0 p-1 fst-italic text-muted">повідомлення видалено</div>';
+            return el;
+          }
+
+          const cls = sys ? "alert alert-success" : from === "operator" ? "alert alert-primary" : "alert alert-light";
+          let inner = esc(text || "");
+          if (o.type === "lead_prompt") {
+            const f = o.formId ? formsById[o.formId] : null;
+            const nm = (f && f.label) || o.formId || "форма";
+            let fh = "📋 Надіслано форму: <b>" + esc(nm) + "</b>";
+            if (f && f.fields && f.fields.length) fh += '<div class="mt-1">' + f.fields.map((x) => "• " + esc(x.label || x.name)).join("<br>") + "</div>";
+            inner = fh;
+          }
+          let h = '<div class="' + cls + ' rounded-0 d-inline-block mb-0 p-1" style="white-space:pre-wrap;word-wrap:break-word">' + inner;
+
+          if (o.attachment && o.attachment.url) {
+            if (o.attachment.kind === "image") h += '<br><a href="' + esc(o.attachment.url) + '" target="_blank"><img src="' + esc(o.attachment.url) + '" style="max-width:200px;border-radius:6px;margin-top:4px"></a>';
+            else h += '<br><a href="' + esc(o.attachment.url) + '" target="_blank">' + esc(o.attachment.name || "файл") + "</a>";
+          }
+          if (o.editedAt) h += ' <span class="small text-muted">(змінено)</span>';
+          h += "</div>";
+          const t = fmtTime(ts || el.dataset.ts);
+          if (t && !sys) h += '<span class="time m-0">' + t + "</span>";
+          if (from === "operator" && !sys && (o.type === "text" || o.type === undefined)) h += '<span class="msg-acts"><span data-act="edit" style="cursor:pointer;font-size:12px;opacity:.7">✏️</span><span data-act="del" style="cursor:pointer;font-size:12px;opacity:.7">🗑</span></span>';
+          el.innerHTML = h;
+          return el;
+        }
+
+        // ── товар / історія ──
+        function availLabel(a) {
+          if (a === "in") return { t: "В наявності", c: "#16a34a" };
+          if (a === "out") return { t: "Немає в наявності", c: "#dc2626" };
+          if (a === "preorder") return { t: "Під замовлення", c: "#d97706" };
+          if (a === "backorder") return { t: "Очікується", c: "#d97706" };
+          return null;
+        }
+        function prodKey(p) {
+          if (!p) return "";
+          if (p.sku) return String(p.sku);
+          try {
+            const u = new URL(p.url);
+            return u.origin + u.pathname;
+          } catch (e) {
+            return String(p.url || "");
+          }
+        }
+        function productCardHtml(p, isNow, views) {
+          const av = availLabel(p.availability),
+            price = p.price ? esc(p.price) + (p.currency ? " " + esc(p.currency) : "") : "";
+          let h = "";
+          if (p.image) h += '<div style="height:140px;background:#fafafa;display:flex;align-items:center;justify-content:center"><img src="' + esc(p.image) + '" alt="" style="max-width:100%;max-height:140px;object-fit:contain" onerror="this.parentNode.style.display=\'none\'"></div>';
+          h += '<div class="p-2">';
+          h += '<div class="small text-muted mb-1">' + (isNow ? '<span style="color:#16a34a">● Зараз переглядає</span>' : "🕘 Останній переглянутий") + "</div>";
+          if (p.brand) h += '<div class="small text-muted">' + esc(p.brand) + "</div>";
+          h += '<div class="fw-bold" style="line-height:1.3;margin:2px 0 6px">' + (p.url ? '<a href="' + esc(p.url) + '" target="_blank" rel="noopener noreferrer" style="color:#1f2937;text-decoration:none">' + esc(p.name) + "</a>" : esc(p.name)) + "</div>";
+          if (price) h += '<div style="font-size:16px;font-weight:bold;color:#4f46e5;margin-bottom:4px">' + price + "</div>";
+          if (av) h += '<div class="small" style="color:' + av.c + '">● ' + av.t + (p.inventory ? ' <span class="text-muted">(' + esc(p.inventory) + " шт)</span>" : "") + "</div>";
+          if (p.sku) h += '<div class="small text-muted mt-1">Артикул: ' + esc(p.sku) + "</div>";
+          if (views && views > 1) h += '<div class="small text-muted">Переглядів: ' + views + "</div>";
+          h += "</div>";
+          return h;
+        }
+        function historyRowHtml(it) {
+          const p = it.product || {},
+            price = p.price ? esc(p.price) + (p.currency ? " " + esc(p.currency) : "") : "",
+            when = fmtTime(it.lastViewed);
+          return '<div class="d-flex align-items-center" style="gap:8px;padding:8px;border-bottom:1px solid #f2f2f2">' + (p.image ? '<img src="' + esc(p.image) + '" style="width:40px;height:40px;object-fit:contain;flex:none" onerror="this.style.display=\'none\'">' : "") + '<div style="min-width:0;flex:1"><div class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (p.url ? '<a href="' + esc(p.url) + '" target="_blank" rel="noopener noreferrer" style="color:#374151;text-decoration:none">' + esc(p.name) + "</a>" : esc(p.name)) + '</div><div class="text-muted" style="font-size:11px">' + price + (when ? " · " + when : "") + (it.views > 1 ? " · " + it.views + "×" : "") + "</div></div></div>";
+        }
+        function renderProduct() {
+          const card = $("wc-product-card"),
+            fb = $("wc-product"),
+            items = ph.items || [];
+          const top = visitorProduct || (items[0] && items[0].product) || null;
+          if (!top) {
+            card.style.display = "none";
+            card.innerHTML = "";
+            fb.style.display = "block";
+            fb.textContent = "—";
+          } else {
+            const isNow = !!visitorProduct && prodKey(visitorProduct) === prodKey(top);
+            const m = items.find((it) => prodKey(it.product) === prodKey(top));
+            card.innerHTML = productCardHtml(top, isNow, m ? m.views : null);
+            card.style.display = "block";
+            fb.style.display = "none";
+          }
+          const btn = $("wc-history-btn"),
+            cnt = $("wc-history-count"),
+            n = items.length;
+          if (!n) {
+            btn.style.display = "none";
+          } else {
+            if (cnt) cnt.textContent = "(" + n + (ph.done ? "" : "+") + ")";
+            btn.style.display = "block";
+          }
+          const hb = $("wc-history-body");
+          hb.innerHTML = items.length ? items.map(historyRowHtml).join("") + (ph.done ? '<div class="p-2 text-center text-muted" style="font-size:11px">— кінець —</div>' : "") : '<div class="p-3 small text-muted">Історія порожня</div>';
+        }
+        $("wc-history-body").addEventListener("scroll", function () {
+          if (this.scrollTop + this.clientHeight >= this.scrollHeight - 40) {
+            if (ph.loading || ph.done || !ph.cursor) return;
+            ph.loading = true;
+            socket.emit("operator:load_product_history", { roomId: WC_ROOM, siteId: WC_SITE, cursor: ph.cursor });
+          }
+        });
+
+        // ── мета / сторінка / ліди ──
+        function renderInfo(meta, firstSeen, firstEventAt, firstData) {
+          const body = $("wc-info");
+          if (!meta) {
+            body.innerHTML = "Немає даних";
+            return;
+          }
+          const u = meta.utm || {},
+            fu = (firstData && firstData.utm) || {};
+          const rows = [
+            ["Перша подія", fmtFull(firstEventAt)],
+            ["Перший візит", fmtFull(firstSeen)],
+            ["h", "— Джерело залучення (перший візит) —"],
+            ["UTM Source", fu.source || u.source],
+            ["UTM Medium", fu.medium || u.medium],
+            ["UTM Campaign", fu.campaign || u.campaign],
+            ["UTM Term", fu.term || u.term],
+            ["UTM Content", fu.content || u.content],
+            ["gclid", fu.gclid || u.gclid],
+            ["fbclid", fu.fbclid || u.fbclid],
+            ["Перша сторінка", firstData && firstData.pageUrl],
+            ["Перший referrer", firstData && firstData.referrer],
+            ["h", "— Поточна сесія —"],
+            ["Сторінка", meta.pageUrl],
+            ["Referrer", meta.referrer],
+            ["IP", meta.ip],
+            ["Мова", meta.lang],
+            ["Мови браузера", meta.languages],
+            ["Timezone", meta.timezone],
+            ["Екран", meta.screen],
+            ["Вікно", meta.viewport],
+            ["Pixel ratio", meta.pixelRatio],
+            ["Платформа", meta.platform],
+            ["Ядра CPU", meta.cores],
+            ["Пам'ять (GB)", meta.memory],
+            ["Сенсорний", meta.touch],
+            ["З'єднання", meta.connection],
+            ["User-Agent", meta.userAgent],
+          ];
+          body.innerHTML = rows.map((r) => (r[0] === "h" ? '<div class="fw-bold text-muted mt-2 mb-1" style="font-size:11px">' + esc(r[1]) + "</div>" : '<div class="mb-2"><div class="text-muted" style="font-size:11px">' + esc(r[0]) + '</div><div style="word-break:break-all">' + (r[1] ? esc(r[1]) : "—") + "</div></div>")).join("");
+        }
+        function renderPage(url) {
+          $("wc-page").innerHTML = url ? '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer" style="word-break:break-all">' + esc(url) + "</a>" : "—";
+        }
+        function renderLeads(leads) {
+          const wrap = $("wc-lead"),
+            body = wrap.querySelector(".card-body");
+          if (!leads || !leads.length) {
+            wrap.style.display = "none";
+            body.innerHTML = "";
+            return;
+          }
+          let h = '<div class="fw-bold text-success mb-1" style="font-size:11px">📇 Контакт клієнта</div>';
+          leads.forEach((l) => {
+            const ans = l.answers && typeof l.answers === "object" ? l.answers : { name: l.name, email: l.email, phone: l.phone };
+            const when = l.date_add ? fmtTime(l.date_add) : "";
+            h += '<div class="pb-2 mb-2" style="border-bottom:1px solid #d1fae5">';
+            if (ans.name) h += '<div class="fw-bold small">' + esc(ans.name) + "</div>";
+            if (ans.email) h += '<div class="small"><a href="mailto:' + esc(ans.email) + '">' + esc(ans.email) + "</a></div>";
+            if (ans.phone) h += '<div class="small"><a href="tel:' + esc(ans.phone) + '">' + esc(ans.phone) + "</a></div>";
+            Object.entries(ans)
+              .filter((e) => !["name", "email", "phone"].includes(e[0]) && e[1])
+              .forEach((e) => {
+                h += '<div class="small">' + esc(e[0]) + ": " + esc(e[1]) + "</div>";
+              });
+            h += '<div class="text-muted" style="font-size:11px">' + (l.trigger === "offline" ? "Залишено в офлайн" : l.trigger === "timeout" ? "Залишено (немає відповіді)" : "Залишено") + (when ? " · " + when : "") + "</div></div>";
+          });
+          body.innerHTML = h;
+          wrap.style.display = "block";
+        }
+
+        function renderReadReceipt() {
+          box.querySelectorAll(".wc-read-tick").forEach((n) => n.remove());
+          let last = null;
+          byId.forEach((el, id) => {
+            if (el.dataset.from === "operator" && id <= lastReadId) last = el;
+          });
+          if (last) {
+            const tick = document.createElement("span");
+            tick.className = "wc-read-tick text-primary ms-1";
+            tick.style.fontSize = "11px";
+            tick.textContent = "✓✓";
+            (last.querySelector(".time") || last).appendChild(tick);
+          }
+        }
+
+        function setDot(on) {
+          dot.style.background = on ? "#16a34a" : "#c4c4c4";
+        }
+
+        function updateControls() {
+          const mine = owner != null && Number(owner) === Number(WC_USER);
+          const notJoined = owner == null,
+            closed = convStatus !== "open";
+          const canWrite = mine && !closed;
+          // банер «Взяти в роботу» — коли ніхто не приєднаний і чат відкритий
+          const takeWork = $("wc-take-work"),
+            form = $("wc-form");
+          if (takeWork) takeWork.style.display = notJoined && !closed ? "block" : "none";
+          if (form) form.style.display = canWrite ? "block" : "none";
+          closeBtn.style.display = mine && !closed ? "block" : "none";
+          const archBtn = document.getElementById("wc-archive");
+          if (archBtn) archBtn.style.display = convStatus === "archived" ? "none" : "block";
+          input.disabled = !canWrite;
+          sendBtn.disabled = !canWrite;
+        }
+
+        // ════ SOCKET ════
+        let opened = false;
+        socket.on("connect", () => socket.emit("operator:join", { userId: WC_USER }));
+        socket.on("operator:sites", () => {
+          if (opened) return;
+          opened = true;
+          socket.emit("operator:open_chat", { roomId: WC_ROOM, siteId: WC_SITE });
+        });
+
+        socket.on("operator:chat_history", (d) => {
+          if (d.roomId !== WC_ROOM) return;
+          box.innerHTML = "";
+          byId.clear();
+          (d.history || []).forEach((m) => addMsg(m.text, m.from, m.timestamp, m.id, { type: m.type, attachment: m.attachment, editedAt: m.editedAt, deletedAt: m.deletedAt, rawText: m.text, formId: m.formId }));
+          scrollDown();
+          renderInfo(d.meta, d.firstSeen, d.firstEventAt, d.firstData);
+          renderPage(d.meta && d.meta.pageUrl);
+          titleEl.textContent = WC_SITE + " · " + WC_ROOM.split("_").slice(1).join("_");
+          renderProduct();
+          renderReadReceipt();
+        });
+
+        let leadsCache = [];
+        socket.on("operator:leads", (d) => {
+          if (d.roomId !== WC_ROOM) return;
+          leadsCache = d.leads || [];
+          renderLeads(leadsCache);
+        });
+        socket.on("operator:lead", (d) => {
+          if (d.roomId !== WC_ROOM || !d.lead) return;
+          const l = d.lead;
+          leadsCache = [{ id: l.id, name: l.name, email: l.email, phone: l.phone, answers: l.answers, trigger: l.trigger, date_add: new Date().toISOString() }].concat(leadsCache);
+          renderLeads(leadsCache);
+        });
+
+        socket.on("operator:visitor_product", (d) => {
+          if (d.roomId !== WC_ROOM) return;
+          visitorProduct = d.product || null;
+          if (d.product) setDot(true);
+          renderProduct();
+        });
+        socket.on("operator:product_history", (d) => {
+          if (d.roomId !== WC_ROOM) return;
+          ph.items = d.append ? ph.items.concat(d.items || []) : d.items || [];
+          ph.cursor = d.nextCursor || null;
+          ph.done = !d.nextCursor;
+          ph.loading = false;
+          renderProduct();
+        });
+        socket.on("operator:product_history_update", (d) => {
+          if (d.roomId !== WC_ROOM || !d.item) return;
+          const k = prodKey(d.item.product),
+            ex = ph.items.find((it) => prodKey(it.product) === k);
+          if (ex) {
+            ex.lastViewed = d.item.lastViewed;
+            if (ex.views) ex.views++;
+            ph.items = ph.items.filter((it) => it !== ex);
+            ph.items.unshift(ex);
+          } else ph.items.unshift({ product: d.item.product, views: 1, lastViewed: d.item.lastViewed });
+          setDot(true);
+          renderProduct();
+        });
+
+        socket.on("operator:visitor_page", (d) => {
+          if (d.roomId === WC_ROOM) {
+            renderPage(d.pageUrl);
+            setDot(true);
+          }
+        });
+        socket.on("operator:online_list", (list) => setDot(Array.isArray(list) && list.includes(WC_ROOM)));
+        socket.on("operator:new_visitor", (d) => {
+          if (d.roomId === WC_ROOM) setDot(true);
+        });
+        socket.on("operator:visitor_left", (d) => {
+          if (d.roomId === WC_ROOM) setDot(false);
+        });
+
+        socket.on("operator:message", (d) => {
+          if (d.roomId !== WC_ROOM || !d.message) return;
+          const m = d.message;
+          addMsg(m.text, m.from, m.timestamp || Date.now(), m.id, { type: m.type, attachment: m.attachment, formId: m.formId });
+          if (m.from === "client") {
+            setDot(true);
+            ping();
+            socket.emit("operator:mark_read", { roomId: WC_ROOM, siteId: WC_SITE });
+          }
+        });
+        socket.on("operator:message_deleted", (d) => {
+          if (d.roomId !== WC_ROOM) return;
+          const el = byId.get(d.id);
+          if (el) {
+            buildMsg(el, "", el.dataset.from, null, d.id, { deletedAt: true });
+            renderReadReceipt();
+          }
+        });
+        socket.on("operator:message_edited", (d) => {
+          if (d.roomId !== WC_ROOM) return;
+          const el = byId.get(d.id);
+          if (el) {
+            buildMsg(el, d.text, el.dataset.from, null, d.id, { editedAt: true, rawText: d.text });
+            renderReadReceipt();
+          }
+        });
+
+        let tTimer = null;
+        socket.on("operator:preview", (d) => {
+          if (d.roomId !== WC_ROOM) return;
+          const t = (d.text || "").trim();
+          if (t) {
+            typingEl.textContent = "друкує: " + t.slice(0, 60);
+            typingEl.style.display = "block";
+            setDot(true);
+            clearTimeout(tTimer);
+            tTimer = setTimeout(() => (typingEl.style.display = "none"), 3000);
+          } else typingEl.style.display = "none";
+        });
+
+        socket.on("operator:read_receipt", (d) => {
+          if (d.roomId !== WC_ROOM) return;
+          lastReadId = Math.max(lastReadId, parseInt(d.lastReadId, 10) || 0);
+          renderReadReceipt();
+        });
+
+        const formsById = {};
+        socket.on("operator:forms", (d) => {
+          if (d.roomId !== WC_ROOM) return;
+          (d.forms || []).forEach((f) => {
+            formsById[f.id] = f;
+          });
+          const menu = $("wc-forms-menu");
+          if (!d.forms || !d.forms.length) {
+            menu.innerHTML = '<li><span class="dropdown-item-text text-muted small">Форми недоступні</span></li>';
+            return;
+          }
+          menu.innerHTML = d.forms.map((f) => '<li><a class="dropdown-item wc-form-item" href="#" data-form-id="' + esc(f.id) + '">' + esc(f.label || f.id) + "</a></li>").join("");
+        });
+
+        $("wc-forms-menu").addEventListener("click", (e) => {
+          const a = e.target.closest(".wc-form-item");
+          if (!a) return;
+          e.preventDefault();
+          const fid = a.getAttribute("data-form-id");
+          if (confirm("Надіслати клієнту форму «" + a.textContent.trim() + "»?")) socket.emit("operator:send_form", { roomId: WC_ROOM, siteId: WC_SITE, formId: fid });
+        });
+
+        // ════ ВВЕДЕННЯ ════
+        function send() {
+          const text = (input.value || "").trim();
+          if (!text && !pendingAtt) return;
+          if (editingId != null) {
+            socket.emit("operator:edit_message", { roomId: WC_ROOM, siteId: WC_SITE, id: editingId, text });
+            editingId = null;
+            sendBtn.textContent = "Відправити";
+          } else socket.emit("operator:message", { roomId: WC_ROOM, siteId: WC_SITE, text, attachment: pendingAtt || undefined });
+          input.value = "";
+          pendingAtt = null;
+          attPrev.style.display = "none";
+          attPrev.textContent = "";
+        }
+        sendBtn.onclick = send;
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            send();
+          } else if (e.key === "Escape" && editingId != null) {
+            editingId = null;
+            input.value = "";
+            sendBtn.textContent = "Відправити";
+          }
+        });
+        let tLast = 0;
+        input.addEventListener("input", () => {
+          const n = Date.now();
+          if (n - tLast < 1200) return;
+          tLast = n;
+          socket.emit("operator:typing", { roomId: WC_ROOM, siteId: WC_SITE });
+        });
+
+        box.addEventListener("click", (e) => {
+          const act = e.target.getAttribute && e.target.getAttribute("data-act");
+          if (!act) return;
+          const el = e.target.closest("[data-id]");
+          if (!el) return;
+          const id = parseInt(el.dataset.id, 10);
+          if (act === "del") {
+            if (confirm("Видалити повідомлення?")) socket.emit("operator:delete_message", { roomId: WC_ROOM, siteId: WC_SITE, id });
+          } else if (act === "edit") {
+            editingId = id;
+            input.value = el.dataset.raw || "";
+            input.focus();
+            sendBtn.textContent = "Зберегти";
+          }
+        });
+
+        // вкладення
+        fileInp.onchange = async () => {
+          const f = fileInp.files && fileInp.files[0];
+          if (!f) return;
+          attPrev.style.display = "block";
+          attPrev.textContent = "Завантаження…";
+          try {
+            const fd = new FormData();
+            fd.append("file", f);
+            const r = await fetch("/chat/upload?siteId=" + encodeURIComponent(WC_SITE) + "&role=operator", { method: "POST", body: fd });
+            const j = await r.json();
+            if (!j.ok) {
+              attPrev.textContent = "Помилка: " + (j.error || "");
+              return;
+            }
+            pendingAtt = { path: j.path, name: j.name, size: j.size, mime: j.mime, kind: j.kind };
+            attPrev.textContent = "📎 " + j.name + " (натисніть Відправити)";
+          } catch (e) {
+            attPrev.textContent = "Помилка завантаження";
+          }
+          fileInp.value = "";
+        };
+
+        // дії
+        const takeWorkBtn = document.querySelector(".btn-take-work");
+        if (takeWorkBtn) takeWorkBtn.onclick = () => socket.emit("operator:join_chat", { roomId: WC_ROOM, siteId: WC_SITE });
+        // після підтвердження приєднання від сервера — оновлюємо сторінку (як у телеграмі)
+        let convInited = false;
+
+        socket.on("operator:conv_state", (d) => {
+          if (d.roomId !== WC_ROOM) return;
+          // Архівовано → повертаємось до списку
+          if (d.status === "archived") {
+            window.location.href = "/contact-center/";
+            return;
+          }
+          const wasMine = owner != null && Number(owner) === Number(WC_USER);
+          convStatus = d.status || "open";
+          owner = d.operatorId != null ? Number(d.operatorId) : null;
+          const nowMine = owner != null && Number(owner) === Number(WC_USER);
+          // щойно ми стали власником (натиснули «Взяти в роботу») — оновити сторінку
+          if (convInited && !wasMine && nowMine) {
+            location.reload();
+            return;
+          }
+          convInited = true;
+          updateControls();
+        });
+
+        $("wc-close-confirm").onclick = () => socket.emit("operator:close_chat", { roomId: WC_ROOM, siteId: WC_SITE });
+        $("wc-archive-confirm").onclick = () => socket.emit("operator:archive_chat", { roomId: WC_ROOM, siteId: WC_SITE });
+        $("wc-delete-confirm").onclick = () => socket.emit("operator:delete_chat", { roomId: WC_ROOM, siteId: WC_SITE });
+
+        socket.on("operator:chat_deleted", (d) => {
+          if (d.roomId !== WC_ROOM) return;
+          window.location.href = "/contact-center/";
+        });
+
+        // делегування — список менеджерів (подія на бекенді ще не реалізована)
+        document.getElementById("modal_delegate_chat").addEventListener("show.bs.modal", () => {
+          fetch("/api/contact-center/managers/list/", { method: "POST", headers: { Accept: "application/json" } })
+            .then((r) => r.json())
+            .then((data) => {
+              const sel = $("wc-managers-list");
+              sel.innerHTML = '<option value="">-- Обрати --</option>';
+              (data || []).forEach((m) => {
+                const o = document.createElement("option");
+                o.value = m.id;
+                o.textContent = m.name;
+                sel.appendChild(o);
+              });
+            })
+            .catch(() => {});
+        });
+        $("wc-delegate-confirm").onclick = () => {
+          const id = $("wc-managers-list").value;
+          if (!id) return;
+          // TODO(бекенд 1web-chat.js): додати operator:delegate_chat, тоді розкоментувати:
+          // socket.emit("operator:delegate_chat",{roomId:WC_ROOM,siteId:WC_SITE,managerId:id});
+          alert("Делегування веб-чату ще не підключено на сервері.");
+        };
+
+        updateControls();
+      })();
+    </script>
+  </body>
+</html>

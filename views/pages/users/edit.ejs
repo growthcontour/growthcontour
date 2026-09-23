@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+
+<head>
+    <title>
+        <%= i18n.__('users.edit.title') %>
+    </title>
+    <%- include('../../partials/head'); %>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+</head>
+
+<body class="d-flex flex-column h-100">
+    <%- include('../../partials/header'); %>
+
+        <!-- Breadcrumb -->
+        <div class="breadcrumbs pt-3 pb-3">
+            <div class="container-fluid">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <span>
+                            <%= i18n.__('users.edit.breadcrumb_edit') %>
+                        </span>
+                        <div>
+                            <ul class="list-inline mb-0">
+                                <li class="list-inline-item">
+                                    <a href="/"><i class="fas fa-home"></i> <span>
+                                            Головна
+                                        </span></a>
+                                </li>
+                                <li class="list-inline-item">
+                                    <i class="fas fa-chevron-right"></i>
+                                    <a href="/users">
+                                        <%= i18n.__('users.edit.title') %>
+                                    </a>
+                                </li>
+                            <li class="list-inline-item">
+                                <i class="fas fa-chevron-right"></i>
+                                <%= i18n.__('users.edit.breadcrumb_edit') %>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <a href="/users/<%= targetUser.id %>" class="btn btn-primary rounded-0">
+                            <i class="fa-solid fa-angle-left"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- END Breadcrumb -->
+
+        <div class="container-fluid mt-2 mb-4">
+            <div class="row g-3">
+
+                <!-- ─── LEFT ─── -->
+                <div class="col-12 col-md-3">
+
+                    <!-- Фото -->
+                    <div class="card border-primary rounded-0 mb-3">
+                        <div class="card-header text-bg-primary rounded-0">
+                            <%= i18n.__('users.edit.section_photo') %>
+                        </div>
+                        <div class="card-body text-center">
+                            <img id="avatar-preview"
+                                src="<%= targetUser.avatar ? '/uploads/users/' + targetUser.id + '/' + targetUser.avatar : '/assets/img/avatar-placeholder.png' %>"
+                                alt="avatar" class="img-fluid rounded-circle border mb-3"
+                                style="width:120px;height:120px;object-fit:cover;">
+                            <div>
+                                <label for="avatar-input" class="btn btn-outline-primary btn-sm rounded-0 w-100">
+                                    <i class="fa-solid fa-upload me-1"></i>
+                                    <%= i18n.__('users.edit.photo_upload') %>
+                                </label>
+                                <input type="file" id="avatar-input" accept="image/*" class="d-none">
+                            </div>
+                            <% if (targetUser.avatar) { %>
+                                <button type="button" id="btn-remove-avatar"
+                                    class="btn btn-outline-danger btn-sm rounded-0 w-100 mt-2">
+                                    <i class="fa-solid fa-trash me-1"></i>
+                                    <%= i18n.__('users.edit.photo_remove') %>
+                                </button>
+                                <% } %>
+                        </div>
+                    </div>
+
+                    <!-- Мова -->
+                    <div class="card border-primary rounded-0 mb-3">
+                        <div class="card-header text-bg-primary rounded-0">
+                            <%= i18n.__('users.edit.section_lang') %>
+                        </div>
+                        <div class="card-body">
+                            <select id="field-id-lang" class="form-select rounded-0">
+                            <% languages.forEach(function(lang) { %>
+                                <option value="<%= lang.id %>"
+                                        data-iso="<%= lang.iso %>"
+                                        <%= targetUser.id_lang == lang.id ? 'selected' : '' %>>
+                                    <%= lang.name %>
+                                </option>
+                            <% }); %>
+                        </select>
+                            <button type="button" class="btn btn-primary rounded-0 w-100 mt-2 btn-save-section"
+                                data-section="lang">
+                                <i class="fa-solid fa-floppy-disk me-1"></i>
+                                <%= i18n.__('users.edit.btn_save') %>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Групи -->
+                    <div class="card border-primary rounded-0">
+                        <div class="card-header text-bg-primary rounded-0">
+                            <%= i18n.__('users.edit.section_groups') %>
+                        </div>
+                        <div class="card-body">
+                            <% allGroups.forEach(function(g) { %>
+                                <div class="form-check mb-1">
+                                    <input class="form-check-input group-checkbox" type="checkbox"
+                                        id="group-<%= g.id %>" value="<%= g.id %>" <%=userGroupIds.includes(g.id)
+                                        ? 'checked' : '' %>>
+                                    <label class="form-check-label" for="group-<%= g.id %>">
+                                        <%= g.name || g.id %>
+                                    </label>
+                                </div>
+                                <% }); %>
+                                    <button type="button" class="btn btn-primary rounded-0 w-100 mt-2 btn-save-section"
+                                        data-section="groups">
+                                        <i class="fa-solid fa-floppy-disk me-1"></i>
+                                        <%= i18n.__('users.edit.btn_save') %>
+                                    </button>
+                        </div>
+                    </div>
+
+                </div>
+                <!-- ─── END LEFT ─── -->
+
+                <!-- ─── RIGHT ─── -->
+                <div class="col-12 col-md-9">
+
+                    <!-- Основні дані -->
+                    <div class="card border-primary rounded-0 mb-3">
+                        <div class="card-header text-bg-primary rounded-0">
+                            <%= i18n.__('users.edit.section_basic') %>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-12 col-sm-4">
+                                    <label class="form-label small text-muted" for="field-last-name">
+                                        <%= i18n.__('users.edit.field_last_name') %>
+                                    </label>
+                                    <input type="text" id="field-last-name" class="form-control rounded-0"
+                                        value="<%= targetUser.last_name %>" maxlength="100">
+                                </div>
+                                <div class="col-12 col-sm-4">
+                                    <label class="form-label small text-muted" for="field-first-name">
+                                        <%= i18n.__('users.edit.field_first_name') %>
+                                    </label>
+                                    <input type="text" id="field-first-name" class="form-control rounded-0"
+                                        value="<%= targetUser.first_name %>" maxlength="100">
+                                </div>
+                                <div class="col-12 col-sm-4">
+                                    <label class="form-label small text-muted" for="field-patronymic">
+                                        <%= i18n.__('users.edit.field_patronymic') %>
+                                    </label>
+                                    <input type="text" id="field-patronymic" class="form-control rounded-0"
+                                        value="<%= targetUser.patronymic %>" maxlength="100">
+                                </div>
+                                <div class="col-12 col-sm-6">
+                                    <label class="form-label small text-muted" for="field-email">Email</label>
+                                    <input type="email" id="field-email" class="form-control rounded-0"
+                                        value="<%= targetUser.email %>" maxlength="255">
+                                </div>
+                                <div class="col-12 col-sm-6">
+                                    <label class="form-label small text-muted" for="field-phone">
+                                        <%= i18n.__('users.edit.field_phone') %>
+                                    </label>
+                                    <input type="tel" id="field-phone" class="form-control rounded-0"
+                                        value="<%= targetUser.phone %>" maxlength="20">
+                                </div>
+                                <div class="col-12 col-sm-6">
+                                    <label class="form-label small text-muted" for="field-birthday">
+                                        <%= i18n.__('users.edit.field_birthday') %>
+                                    </label>
+                                    <input type="date" id="field-birthday" class="form-control rounded-0"
+                                        value="<%= targetUser.birthday ? new Date(targetUser.birthday).toISOString().slice(0,10) : '' %>">
+                                </div>
+                                <div class="col-12 col-sm-6">
+                                    <label class="form-label small text-muted" for="field-gender">
+                                        <%= i18n.__('users.edit.field_gender') %>
+                                    </label>
+                                    <select id="field-gender" class="form-select rounded-0">
+                                        <option value="0" <%=targetUser.gender===0 ? 'selected' : '' %>><%=
+                                                i18n.__('users.edit.gender_unknown') %>
+                                        </option>
+                                        <option value="1" <%=targetUser.gender===1 ? 'selected' : '' %>><%=
+                                                i18n.__('users.edit.gender_male') %>
+                                        </option>
+                                        <option value="2" <%=targetUser.gender===2 ? 'selected' : '' %>><%=
+                                                i18n.__('users.edit.gender_female') %>
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mt-3 d-flex justify-content-end">
+                                <button type="button" class="btn btn-primary rounded-0 btn-save-section"
+                                    data-section="basic">
+                                    <i class="fa-solid fa-floppy-disk me-1"></i>
+                                    <%= i18n.__('users.edit.btn_save') %>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Зміна паролю -->
+                    <div class="card border-primary rounded-0 mb-3">
+                        <div class="card-header text-bg-primary rounded-0">
+                            <%= i18n.__('users.edit.section_password') %>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-12 col-sm-4">
+                                    <label class="form-label small text-muted" for="field-password-current">
+                                        <%= i18n.__('users.edit.field_password_current') %>
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="password" id="field-password-current"
+                                            class="form-control rounded-0" autocomplete="current-password">
+                                        <button class="btn btn-outline-secondary rounded-0 btn-toggle-pass"
+                                            type="button" data-target="field-password-current">
+                                            <i class="fa-solid fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-sm-4">
+                                    <label class="form-label small text-muted" for="field-password-new">
+                                        <%= i18n.__('users.edit.field_password_new') %>
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="password" id="field-password-new" class="form-control rounded-0"
+                                            autocomplete="new-password">
+                                        <button class="btn btn-outline-secondary rounded-0 btn-toggle-pass"
+                                            type="button" data-target="field-password-new">
+                                            <i class="fa-solid fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-sm-4">
+                                    <label class="form-label small text-muted" for="field-password-confirm">
+                                        <%= i18n.__('users.edit.field_password_confirm') %>
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="password" id="field-password-confirm"
+                                            class="form-control rounded-0" autocomplete="new-password">
+                                        <button class="btn btn-outline-secondary rounded-0 btn-toggle-pass"
+                                            type="button" data-target="field-password-confirm">
+                                            <i class="fa-solid fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Strength bar -->
+                            <div class="mt-2">
+                                <div class="progress rounded-0" style="height:4px">
+                                    <div id="pass-strength-bar" class="progress-bar" role="progressbar"
+                                        style="width:0%"></div>
+                                </div>
+                                <small id="pass-strength-label" class="text-muted"></small>
+                            </div>
+                            <div class="mt-3 d-flex justify-content-end">
+                                <button type="button" id="btn-save-password" class="btn btn-primary rounded-0">
+                                    <i class="fa-solid fa-floppy-disk me-1"></i>
+                                    <%= i18n.__('users.edit.btn_change_password') %>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                                        <!-- 2FA -->
+                    <div class="card border-primary rounded-0">
+                        <div
+                            class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+                            <span>
+                                <%= i18n.__('users.edit.section_2fa') %>
+                            </span>
+                            <span class="badge <%= targetUser.tfa_enabled ? 'text-bg-success' : 'text-bg-secondary' %>"
+                                id="tfa-status-badge">
+                                <%= targetUser.tfa_enabled ? 'ON' : 'OFF' %>
+                            </span>
+                        </div>
+                        <div class="card-body">
+
+                            <% if (isSelf) { %>
+
+                                <div id="tfa-off-block" class="<%= targetUser.tfa_enabled ? 'd-none' : '' %>">
+                                    <p class="text-muted small mb-3">
+                                        <%= i18n.__('authorization.tfa.description') %>
+                                    </p>
+                                    <button type="button" id="btn-tfa-open-enable"
+                                        class="btn btn-success rounded-0">
+                                        <i class="fa-solid fa-shield-halved me-1"></i>
+                                        <%= i18n.__('authorization.tfa.enable') %>
+                                    </button>
+                                </div>
+
+                                <div id="tfa-on-block" class="<%= targetUser.tfa_enabled ? '' : 'd-none' %>">
+                                    <p class="text-muted small mb-2">
+                                        <%= i18n.__('users.edit.tfa_enabled_text') %>
+                                    </p>
+                                    <p class="small mb-3">
+                                        <i class="fa-solid fa-key me-1 text-muted"></i>
+                                        <span id="tfa-codes-left-text" class="text-muted"></span>
+                                    </p>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <button type="button" id="btn-tfa-open-regen"
+                                            class="btn btn-outline-primary btn-sm rounded-0">
+                                            <i class="fa-solid fa-rotate me-1"></i>
+                                            <%= i18n.__('authorization.tfa.regenerate') %>
+                                        </button>
+                                        <button type="button" id="btn-tfa-open-disable"
+                                            class="btn btn-outline-danger btn-sm rounded-0">
+                                            <i class="fa-solid fa-shield-halved me-1"></i>
+                                            <%= i18n.__('authorization.tfa.disable') %>
+                                        </button>
+                                    </div>
+                                </div>
+
+                            <% } else { %>
+
+                                <p class="text-muted small mb-3">
+                                    <%= i18n.__('users.edit.tfa_foreign_hint') %>
+                                </p>
+                                <% if (targetUser.tfa_enabled && canResetTfa) { %>
+                                    <button type="button" id="btn-tfa-admin-reset"
+                                        class="btn btn-outline-danger btn-sm rounded-0">
+                                        <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                                        <%= i18n.__('users.edit.tfa_admin_reset') %>
+                                    </button>
+                                <% } %>
+
+                            <% } %>
+
+                        </div>
+                    </div>
+
+                </div>
+                <!-- ─── END RIGHT ─── -->
+
+            </div>
+        </div>
+        <% if (isSelf) { %>
+
+        <!-- ── Модалка: увімкнення 2FA ── -->
+        <div class="modal fade" id="modal-tfa-enable" tabindex="-1" data-bs-backdrop="static">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content rounded-0">
+                    <div class="modal-header text-bg-primary rounded-0">
+                        <h5 class="modal-title"><%= i18n.__('authorization.tfa.title') %></h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+
+                        <!-- Крок 1: пароль -->
+                        <div id="tfa-step-password">
+                            <p class="text-muted small">
+                                <%= i18n.__('authorization.tfa.description') %>
+                            </p>
+                            <label class="form-label small text-muted" for="tfa-init-password">
+                                <%= i18n.__('authorization.tfa.confirm_password') %>
+                            </label>
+                            <div class="input-group" style="max-width:320px">
+                                <input type="password" id="tfa-init-password" class="form-control rounded-0"
+                                    autocomplete="current-password">
+                                <button class="btn btn-outline-secondary rounded-0 btn-toggle-pass" type="button"
+                                    data-target="tfa-init-password">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Крок 2: QR + код -->
+                        <div id="tfa-step-qr" class="d-none">
+                            <div class="row g-3">
+                                <div class="col-12 col-sm-auto text-center">
+                                    <div class="border p-2 d-inline-block bg-white">
+                                        <img id="tfa-qr-img" alt="QR" style="width:180px;height:180px">
+                                    </div>
+                                    <div class="mt-2">
+                                        <small class="text-muted d-block mb-1">
+                                            <%= i18n.__('authorization.tfa.manual_entry') %>
+                                        </small>
+                                        <code id="tfa-secret-text" class="user-select-all small"></code>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <p class="small text-muted"><%= i18n.__('authorization.tfa.scan_qr') %></p>
+                                    <label class="form-label small text-muted" for="tfa-confirm-code">
+                                        <%= i18n.__('authorization.tfa.code') %>
+                                    </label>
+                                    <input type="text" id="tfa-confirm-code"
+                                        class="form-control rounded-0 text-center" maxlength="6"
+                                        placeholder="000000" inputmode="numeric" autocomplete="one-time-code"
+                                        style="max-width:160px">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Крок 3: backup-коди -->
+                        <div id="tfa-step-codes" class="d-none">
+                            <div class="alert alert-warning rounded-0 small">
+                                <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                                <%= i18n.__('authorization.tfa.backup_codes_warning') %>
+                            </div>
+                            <div id="tfa-codes-list" class="row row-cols-2 row-cols-sm-3 g-2 mb-3"></div>
+                            <button type="button" id="btn-tfa-download-codes"
+                                class="btn btn-outline-primary btn-sm rounded-0">
+                                <i class="fa-solid fa-download me-1"></i>
+                                <%= i18n.__('authorization.tfa.download') %>
+                            </button>
+                        </div>
+
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary rounded-0"
+                            data-bs-dismiss="modal" id="tfa-modal-cancel">
+                            <%= i18n.__('users.edit.tfa_btn_cancel') %>
+                        </button>
+                        <button type="button" class="btn btn-primary rounded-0" id="tfa-modal-next">
+                            <%= i18n.__('users.edit.btn_save') %>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Модалка: вимкнення / регенерація ── -->
+        <div class="modal fade" id="modal-tfa-verify" tabindex="-1" data-bs-backdrop="static">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content rounded-0">
+                    <div class="modal-header text-bg-primary rounded-0">
+                        <h5 class="modal-title" id="tfa-verify-title"></h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="tfa-verify-form">
+                            <div class="mb-3">
+                                <label class="form-label small text-muted" for="tfa-verify-password">
+                                    <%= i18n.__('authorization.tfa.confirm_password') %>
+                                </label>
+                                <div class="input-group">
+                                    <input type="password" id="tfa-verify-password" class="form-control rounded-0"
+                                        autocomplete="current-password">
+                                    <button class="btn btn-outline-secondary rounded-0 btn-toggle-pass"
+                                        type="button" data-target="tfa-verify-password">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="form-label small text-muted" for="tfa-verify-code">
+                                    <%= i18n.__('authorization.tfa.code') %>
+                                </label>
+                                <input type="text" id="tfa-verify-code"
+                                    class="form-control rounded-0 text-center" maxlength="6"
+                                    placeholder="000000" inputmode="numeric" autocomplete="one-time-code"
+                                    style="max-width:160px">
+                            </div>
+                        </div>
+
+                        <div id="tfa-verify-codes" class="d-none">
+                            <div class="alert alert-warning rounded-0 small">
+                                <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                                <%= i18n.__('authorization.tfa.backup_codes_warning') %>
+                            </div>
+                            <div id="tfa-verify-codes-list" class="row row-cols-2 g-2 mb-3"></div>
+                            <button type="button" id="btn-tfa-download-codes-2"
+                                class="btn btn-outline-primary btn-sm rounded-0">
+                                <i class="fa-solid fa-download me-1"></i>
+                                <%= i18n.__('authorization.tfa.download') %>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal">
+                            <%= i18n.__('users.edit.tfa_btn_cancel') %>
+                        </button>
+                        <button type="button" class="btn btn-danger rounded-0" id="tfa-verify-submit"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <% } %>
+        <%- include('../../partials/footer'); %>
+            <%- include('../../partials/script'); %>
+                <script src="/assets/js/notyf/notyf.min.js"></script>
+                <script>
+                    const notyf = new Notyf({
+                        position: { x: "right", y: "top" },
+                        duration: 4000,
+                        types: [
+                            { type: "success", dismissible: true, icon: false },
+                            { type: "error", background: "indianred", dismissible: true, icon: false },
+                        ],
+                    });
+                </script>
+                <script>
+                    const userId = <%= targetUser.id %>;
+
+                    // Показ/приховування паролю
+                    $(document).on('click', '.btn-toggle-pass', function () {
+                        const $input = $('#' + $(this).data('target'));
+                        const isPass = $input.attr('type') === 'password';
+                        $input.attr('type', isPass ? 'text' : 'password');
+                        $(this).find('i').toggleClass('fa-eye fa-eye-slash');
+                    });
+
+                    // Strength bar
+                    $('#field-password-new').on('input', function () {
+                        const v = $(this).val();
+                        let score = 0;
+                        if (v.length >= 8) score++;
+                        if (v.length >= 12) score++;
+                        if (/[A-Z]/.test(v)) score++;
+                        if (/[0-9]/.test(v)) score++;
+                        if (/[^A-Za-z0-9]/.test(v)) score++;
+                        const map = [
+                            [0, 'bg-danger', ''],
+                            [20, 'bg-danger', '<%= i18n.__("users.edit.strength_very_weak") %>'],
+                            [40, 'bg-warning', '<%= i18n.__("users.edit.strength_weak") %>'],
+                            [60, 'bg-info', '<%= i18n.__("users.edit.strength_medium") %>'],
+                            [80, 'bg-success', '<%= i18n.__("users.edit.strength_strong") %>'],
+                            [100, 'bg-success', '<%= i18n.__("users.edit.strength_very_strong") %>'],
+                        ];
+                        const [pct, cls, label] = map[score];
+                        $('#pass-strength-bar').css('width', pct + '%').attr('class', 'progress-bar ' + cls);
+                        $('#pass-strength-label').text(label);
+                    });
+
+                    // Зміна паролю
+                    $('#btn-save-password').on('click', function () {
+                        const $btn = $(this);
+                        const $current = $('#field-password-current');
+                        const $new = $('#field-password-new');
+                        const $confirm = $('#field-password-confirm');
+
+                        // Скидаємо попередні помилки
+                        $current.add($new).add($confirm).removeClass('is-invalid');
+                        $current.add($new).add($confirm).each(function () {
+                            $(this).closest('.input-group').removeClass('has-validation').next('.invalid-feedback').remove();
+                        });
+
+                        const btnOrigHtml = $btn.html();
+                        $btn.html('<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> <span role="status">Loading...</span>').prop('disabled', true);
+                        $current.add($new).add($confirm).prop('disabled', true);
+
+                        $.ajax({
+                            url: `/api/users/${userId}/update-password`,
+                            method: 'POST',
+                            contentType: 'application/json',
+                            data: JSON.stringify({
+                                current_password: $current.val(),
+                                new_password: $new.val(),
+                                confirm_password: $confirm.val(),
+                            }),
+                            success: function (json) {
+                                if (json.status === 'success') {
+                                    $current.add($new).add($confirm).val('');
+                                    $('#pass-strength-bar').css('width', '0%').attr('class', 'progress-bar');
+                                    $('#pass-strength-label').text('');
+                                    notyf.success(json.message);
+                                } else if (json.errors) {
+                                    const fieldMap = {
+                                        'password-current': $current,
+                                        'password-new': $new,
+                                        'password-confirm': $confirm,
+                                    };
+                                    $.each(json.errors, function (i, err) {
+                                        const $field = fieldMap[err.field];
+                                        if (!$field) return;
+                                        $field.addClass('is-invalid');
+                                        $field.closest('.input-group').addClass('has-validation').after(
+                                            $('<div class="invalid-feedback"></div>').text(err.message)
+                                        );
+                                        notyf.error(err.message);
+                                    });
+                                } else {
+                                    notyf.error(json.message || '<%= i18n.__("users.edit.error_network") %>');
+                                }
+                            },
+                            error: function () {
+                                notyf.error('<%= i18n.__("users.edit.error_network") %>');
+                            },
+                                                        complete: function () {
+                                $btn.html(btnOrigHtml).prop('disabled', false);
+                                $current.add($new).add($confirm).prop('disabled', false);
+                            },
+                        });
+                    });
+                </script>
+
+                <% if (isSelf) { %>
+                <script>
+                    (function () {
+                        const $enableModalEl = document.getElementById('modal-tfa-enable');
+                        const $verifyModalEl = document.getElementById('modal-tfa-verify');
+                        const enableModal = new bootstrap.Modal($enableModalEl);
+                        const verifyModal = new bootstrap.Modal($verifyModalEl);
+
+                        let enableStep = 1;      // 1=пароль 2=qr 3=коди
+                        let verifyAction = null; // 'disable' | 'regenerate'
+
+                        const I18N = {
+                            save: '<%= i18n.__("users.edit.btn_save") %>',
+                            confirm: '<%= i18n.__("authorization.tfa.confirm") %>',
+                            close: '<%= i18n.__("users.edit.tfa_btn_cancel") %>',
+                            disable: '<%= i18n.__("authorization.tfa.disable") %>',
+                            regenerate: '<%= i18n.__("authorization.tfa.regenerate") %>',
+                            codesLeft: '<%= i18n.__("authorization.tfa.backup_codes_left") %>',
+                            netErr: '<%= i18n.__("users.edit.error_network") %>',
+                            invalidPass: '<%= i18n.__("authorization.tfa.error.invalid_password") %>',
+                            invalidCode: '<%= i18n.__("authorization.tfa.error.invalid_code") %>',
+                            enabled: '<%= i18n.__("authorization.tfa.msg.enabled") %>',
+                            disabled: '<%= i18n.__("authorization.tfa.msg.disabled") %>',
+                            regenerated: '<%= i18n.__("authorization.tfa.msg.regenerated") %>'
+                        };
+
+                        function btnLoading($btn, on, origHtml) {
+                            if (on) {
+                                $btn.data('orig', $btn.html())
+                                    .html('<span class="spinner-border spinner-border-sm"></span>')
+                                    .prop('disabled', true);
+                            } else {
+                                $btn.html(origHtml || $btn.data('orig')).prop('disabled', false);
+                            }
+                        }
+
+                        function renderCodes($container, codes) {
+                            $container.empty();
+                            codes.forEach(function (c) {
+                                $container.append(
+                                    $('<div class="col"></div>').append(
+                                        $('<code class="d-block border p-2 text-center user-select-all"></code>').text(c)
+                                    )
+                                );
+                            });
+                        }
+
+                        function downloadCodes(codes) {
+                            const text = codes.join('\n') + '\n';
+                            const blob = new Blob([text], { type: 'text/plain' });
+                            const a = document.createElement('a');
+                            a.href = URL.createObjectURL(blob);
+                            a.download = 'backup-codes.txt';
+                            a.click();
+                            URL.revokeObjectURL(a.href);
+                        }
+
+                        function setBadge(on) {
+                            $('#tfa-status-badge')
+                                .text(on ? 'ON' : 'OFF')
+                                .attr('class', 'badge ' + (on ? 'text-bg-success' : 'text-bg-secondary'));
+                            $('#tfa-off-block').toggleClass('d-none', on);
+                            $('#tfa-on-block').toggleClass('d-none', !on);
+                        }
+
+                        function loadStatus() {
+                            $.get('/api/tfa/status', function (json) {
+                                if (json.status !== 'success') return;
+                                setBadge(json.tfa_enabled);
+                                $('#tfa-codes-left-text').text(
+                                    I18N.codesLeft.replace('{{count}}', json.codes_left)
+                                );
+                            });
+                        }
+
+                        // ── Увімкнення ──────────────────────────────────────
+                        $('#btn-tfa-open-enable').on('click', function () {
+                            enableStep = 1;
+                            $('#tfa-step-password').removeClass('d-none');
+                            $('#tfa-step-qr, #tfa-step-codes').addClass('d-none');
+                            $('#tfa-init-password, #tfa-confirm-code').val('').removeClass('is-invalid');
+                            $('#tfa-modal-next').removeClass('d-none').text(I18N.save);
+                            $('#tfa-modal-cancel').removeClass('d-none');
+                            enableModal.show();
+                        });
+
+                        $('#tfa-modal-next').on('click', function () {
+                            const $btn = $(this);
+
+                            if (enableStep === 1) {
+                                const pass = $('#tfa-init-password').val();
+                                if (!pass) {
+                                    $('#tfa-init-password').addClass('is-invalid');
+                                    return;
+                                }
+                                btnLoading($btn, true);
+
+                                $.ajax({
+                                    url: '/api/tfa/init',
+                                    method: 'POST',
+                                    contentType: 'application/json',
+                                    data: JSON.stringify({ password: pass }),
+                                    success: function (json) {
+                                        $('#tfa-qr-img').attr('src', json.qr);
+                                        $('#tfa-secret-text').text(json.secret.replace(/(.{4})/g, '$1 ').trim());
+                                        $('#tfa-step-password').addClass('d-none');
+                                        $('#tfa-step-qr').removeClass('d-none');
+                                        $('#tfa-init-password').val('');
+                                        enableStep = 2;
+                                        btnLoading($btn, false, I18N.confirm);
+                                        $('#tfa-confirm-code').focus();
+                                    },
+                                    error: function (xhr) {
+                                        const j = xhr.responseJSON || {};
+                                        btnLoading($btn, false);
+                                        if (j.status === 'invalid_password') {
+                                            $('#tfa-init-password').addClass('is-invalid');
+                                            notyf.error(I18N.invalidPass);
+                                        } else {
+                                            notyf.error(I18N.netErr);
+                                        }
+                                    }
+                                });
+                                return;
+                            }
+
+                            if (enableStep === 2) {
+                                const code = $('#tfa-confirm-code').val();
+                                if (!/^\d{6}$/.test(code.replace(/\s/g, ''))) {
+                                    $('#tfa-confirm-code').addClass('is-invalid');
+                                    return;
+                                }
+                                btnLoading($btn, true);
+
+                                $.ajax({
+                                    url: '/api/tfa/confirm',
+                                    method: 'POST',
+                                    contentType: 'application/json',
+                                    data: JSON.stringify({ code: code }),
+                                    success: function (json) {
+                                        renderCodes($('#tfa-codes-list'), json.backup_codes);
+                                        $('#btn-tfa-download-codes').off('click').on('click', function () {
+                                            downloadCodes(json.backup_codes);
+                                        });
+                                        $('#tfa-step-qr').addClass('d-none');
+                                        $('#tfa-step-codes').removeClass('d-none');
+                                        $('#tfa-modal-next').addClass('d-none');
+                                        $('#tfa-modal-cancel').text(I18N.close);
+                                        enableStep = 3;
+                                        setBadge(true);
+                                        notyf.success(I18N.enabled);
+                                        loadStatus();
+                                    },
+                                    error: function (xhr) {
+                                        const j = xhr.responseJSON || {};
+                                        btnLoading($btn, false, I18N.confirm);
+                                        $('#tfa-confirm-code').addClass('is-invalid').val('').focus();
+                                        notyf.error(j.status === 'invalid' ? I18N.invalidCode : I18N.netErr);
+                                    }
+                                });
+                            }
+                        });
+
+                        // ── Вимкнення / регенерація ─────────────────────────
+                        function openVerify(action) {
+                            verifyAction = action;
+                            $('#tfa-verify-title').text(
+                                action === 'disable' ? I18N.disable : I18N.regenerate
+                            );
+                            $('#tfa-verify-submit')
+                                .text(action === 'disable' ? I18N.disable : I18N.regenerate)
+                                .attr('class', 'btn rounded-0 ' + (action === 'disable' ? 'btn-danger' : 'btn-primary'))
+                                .removeClass('d-none');
+                            $('#tfa-verify-form').removeClass('d-none');
+                            $('#tfa-verify-codes').addClass('d-none');
+                            $('#tfa-verify-password, #tfa-verify-code').val('').removeClass('is-invalid');
+                            verifyModal.show();
+                        }
+
+                        $('#btn-tfa-open-disable').on('click', function () { openVerify('disable'); });
+                        $('#btn-tfa-open-regen').on('click', function () { openVerify('regenerate'); });
+
+                        $('#tfa-verify-submit').on('click', function () {
+                            const $btn = $(this);
+                            const pass = $('#tfa-verify-password').val();
+                            const code = $('#tfa-verify-code').val();
+
+                            if (!pass) { $('#tfa-verify-password').addClass('is-invalid'); return; }
+                            if (!/^\d{6}$/.test(code.replace(/\s/g, ''))) {
+                                $('#tfa-verify-code').addClass('is-invalid'); return;
+                            }
+
+                            const url = verifyAction === 'disable'
+                                ? '/api/tfa/disable'
+                                : '/api/tfa/backup-codes/regenerate';
+
+                            btnLoading($btn, true);
+
+                            $.ajax({
+                                url: url,
+                                method: 'POST',
+                                contentType: 'application/json',
+                                data: JSON.stringify({ password: pass, code: code }),
+                                success: function (json) {
+                                    if (verifyAction === 'disable') {
+                                        verifyModal.hide();
+                                        setBadge(false);
+                                        notyf.success(I18N.disabled);
+                                    } else {
+                                        renderCodes($('#tfa-verify-codes-list'), json.backup_codes);
+                                        $('#btn-tfa-download-codes-2').off('click').on('click', function () {
+                                            downloadCodes(json.backup_codes);
+                                        });
+                                        $('#tfa-verify-form').addClass('d-none');
+                                        $('#tfa-verify-codes').removeClass('d-none');
+                                        $('#tfa-verify-submit').addClass('d-none');
+                                        notyf.success(I18N.regenerated);
+                                        loadStatus();
+                                    }
+                                    btnLoading($btn, false);
+                                },
+                                error: function (xhr) {
+                                    const j = xhr.responseJSON || {};
+                                    btnLoading($btn, false);
+                                    if (j.status === 'invalid_password') {
+                                        $('#tfa-verify-password').addClass('is-invalid');
+                                        notyf.error(I18N.invalidPass);
+                                    } else if (j.status === 'invalid') {
+                                        $('#tfa-verify-code').addClass('is-invalid').val('').focus();
+                                        notyf.error(I18N.invalidCode);
+                                    } else {
+                                        notyf.error(I18N.netErr);
+                                    }
+                                }
+                            });
+                        });
+
+                        // Enter у полях коду
+                        $('#tfa-confirm-code').on('keypress', function (e) {
+                            if (e.which === 13) $('#tfa-modal-next').click();
+                        });
+                        $('#tfa-verify-code').on('keypress', function (e) {
+                            if (e.which === 13) $('#tfa-verify-submit').click();
+                        });
+
+                        // Чистимо секрет з DOM при закритті
+                        $enableModalEl.addEventListener('hidden.bs.modal', function () {
+                            $('#tfa-qr-img').attr('src', '');
+                            $('#tfa-secret-text').text('');
+                            $('#tfa-codes-list').empty();
+                            $('#tfa-init-password, #tfa-confirm-code').val('');
+                        });
+                        $verifyModalEl.addEventListener('hidden.bs.modal', function () {
+                            $('#tfa-verify-codes-list').empty();
+                            $('#tfa-verify-password, #tfa-verify-code').val('');
+                        });
+
+                        <% if (targetUser.tfa_enabled) { %>loadStatus();<% } %>
+                    })();
+                </script>
+                <% } %>
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+    const saveButton = document.querySelector('.btn-save-section[data-section="lang"]');
+    if (!saveButton) return;
+
+    saveButton.addEventListener('click', async function () {
+        const select = document.getElementById('field-id-lang');
+        const id_lang = select?.value;
+
+        if (!id_lang) {
+            alert('Будь ласка, виберіть мову.');
+            return;
+        }
+
+        // Блокуємо кнопку, щоб уникнути подвійного натискання
+        saveButton.disabled = true;
+
+        try {
+            const response = await fetch('/api/users/me/lang', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id_lang })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.message || 'Помилка сервера.');
+            }
+
+            // Успіх – просто оновлюємо сторінку
+            window.location.reload();
+        } catch (error) {
+            console.error('Помилка:', error);
+            alert('Помилка при збереженні мови.');
+        } finally {
+            saveButton.disabled = false;
+        }
+    });
+});
+                </script>
+</body>
+
+</html>

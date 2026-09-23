@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+  <head>
+    <%- include('../../partials/head'); %>
+    <!-- tabulator -->
+    <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+    <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+    <!-- END tabulator -->
+  </head>
+
+  <body class="d-flex flex-column h-100">
+    <%- include('../../partials/header'); %>
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-12 mb-3">
+          <button type="button" class="btn btn-primary button-add-token rounded-0 mb-3" data-bs-toggle="modal" data-bs-target="#tokenAddModal">Add token</button>
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0">Orders</div>
+            <div id="orders-table"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal fade" id="tokenAddModal" tabindex="-1" aria-labelledby="tokenAddModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content rounded-0">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="tokenAddModalLabel">Token edit</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form class="form-order-settings-token-add">
+              <div class="mb-3">
+                <label class="form-label">Token</label>
+                <div class="input-group">
+                  <span class="input-group-text rounded-0">https://g-code.skyneuron.com/api/orders/token/</span>
+                  <input type="text" class="form-control" name="token-add" id="token-add" />
+                  <button class="btn btn-primary rounded-0 token-generate" type="button"><i class="fa-solid fa-rotate"></i></button>
+                </div>
+                <div class="form-text">The token must be unique.</div>
+              </div>
+              <div class="mb-3">
+                <label for="name-add" class="form-label">Name</label>
+                <input type="text" class="form-control rounded-0" id="name-add" />
+              </div>
+              <div class="mb-3">
+                <label for="note-add" class="form-label">Note</label>
+                <textarea class="form-control rounded-0" id="note-add" rows="4"></textarea>
+              </div>
+              <div class="mb-3">
+                <div class="form-check">
+                  <input class="form-check-input rounded-0" type="checkbox" value="" id="flexCheckDefault" />
+                  <label class="form-check-label" for="flexCheckDefault">Active</label>
+                </div>
+              </div>
+              <div class="mb-3">
+                <button type="button" class="btn btn-primary rounded-0 mb-3" id="reactivity-add">Add new row</button>
+                <div class="ip-list"></div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-primary rounded-0">Save changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+    <!-- END tabulator -->
+    <script src="/assets/js/tabulator/tabulator.min.js"></script>
+    <script>
+      //initialize table
+      var table = new Tabulator("#orders-table", {
+        layout: "fitColumns",
+        ajaxURL: "/api/orders/orders-list/",
+        ajaxConfig: "POST",
+        paginationSize: 5,
+        paginationSizeSelector: [10, 20, 30, 40],
+        pagination: true,
+        movableColumns: true,
+        columns: [
+          {
+            title: "ID",
+            field: "id",
+            sorter: "string",
+            headerSort: false,
+            widthGrow: "1",
+          },
+          {
+            title: "Reference",
+            field: "reference",
+            sorter: "string",
+            headerSort: false,
+          },
+          {
+            title: "Delivery",
+            field: "category_name",
+            sorter: "string",
+            headerSort: false,
+            widthGrow: "1",
+            formatter: function (cell, formatterParams, onRendered) {
+              return (
+                '<div class="text-center p-1" style="color:' +
+                cell.getRow().getData().delivery_color_text +
+                ";background:" +
+                cell.getRow().getData().delivery_color_background +
+                '">' +
+                cell.getRow().getData().delivery_name +
+                "</div>"
+              );
+            },
+          },
+          {
+            title: "Total",
+            field: "total",
+            sorter: "string",
+            headerSort: false,
+            widthGrow: "1",
+            formatter: function (cell, formatterParams, onRendered) {
+              return '<span class="badge text-bg-primary rounded-0">' + cell.getRow().getData().total + " " + cell.getRow().getData().currency_iso_code + "</span>";
+            },
+          },
+          {
+            title: "Payment",
+            field: "price",
+            sorter: "string",
+            headerSort: false,
+            widthGrow: "1",
+          },
+          {
+            title: "Status",
+            field: "status",
+            sorter: "string",
+            headerSort: false,
+            widthGrow: "1",
+            formatter: function (cell, formatterParams, onRendered) {
+              return (
+                '<div class="text-center p-1" style="color:' +
+                cell.getRow().getData().status_color_text +
+                ";background:" +
+                cell.getRow().getData().status_color_background +
+                '">' +
+                cell.getRow().getData().status_name +
+                "</div>"
+              );
+            },
+          },
+          {
+            title: "Date add",
+            field: "date_add",
+            headerSort: false,
+            widthGrow: "1",
+          },
+          {
+            title: "Date edit",
+            field: "date_edit",
+            headerSort: false,
+            widthGrow: "1",
+          },
+          {
+            title: "Edit",
+            field: "",
+            headerSort: false,
+            widthGrow: "1",
+            formatter: function (cell, formatterParams, onRendered) {
+              return '<button type="button" class="btn btn-primary"><i class="fa-regular fa-pen-to-square"></i></button>';
+            },
+          },
+        ],
+      });
+    </script>
+    <script>
+      var tabledata = [];
+      var ip_list = new Tabulator(".ip-list", {
+        layout: "fitColumns",
+        ajaxConfig: "POST",
+        paginationSize: 5,
+        paginationSizeSelector: [10, 20, 30, 40],
+        pagination: true,
+        movableColumns: true,
+        reactiveData: true, //turn on data reactivity
+        data: tabledata, //load data into table
+        columns: [
+          {
+            title: "IP",
+            field: "ip",
+            editor: "input",
+            headerSort: false,
+          },
+          {
+            title: "Note",
+            field: "none",
+            editor: "input",
+            headerSort: false,
+          },
+          {
+            title: "Status",
+            field: "status",
+            editor: true,
+            formatter: "tickCross",
+            headerSort: false,
+          },
+          {
+            title: "Delete",
+            formatter: function (cell, formatterParams) {
+              return '<button class="btn btn-primary rounded-0">Delete</button>';
+            },
+            hozAlign: "center",
+            headerSort: false,
+            cellClick: function (e, cell) {
+              // Видалення рядка при натисканні на кнопку
+              cell.getRow().delete();
+            },
+          },
+        ],
+      });
+    </script>
+    <script>
+      document.getElementById("reactivity-add").addEventListener("click", function () {
+        ip_list.addData({
+          ip: "Specify IP",
+          none: "Note",
+          status: 0,
+        });
+      });
+    </script>
+    <!-- tabulator -->
+    <script>
+      $(document).ready(function () {
+        $(".button-add-token").on("click", function () {
+          $(".form-order-settings-token-add input, .form-order-settings-token-add textarea").val("");
+          ip_list.replaceData();
+        });
+      });
+    </script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const btn = document.getElementById("btnCreateDeal");
+        if (!btn) return;
+
+        btn.addEventListener("click", function () {
+          btn.disabled = true;
+
+          fetch("/api/deals/add", { method: "POST" })
+            .then(function (res) {
+              if (!res.ok) {
+                throw new Error("HTTP " + res.status);
+              }
+              return res.json();
+            })
+            .then(function (data) {
+              if (data.ok) {
+                window.location.href = "/deals/" + data.id;
+              } else {
+                alert(data.error || "Помилка створення угоди");
+                btn.disabled = false;
+              }
+            })
+            .catch(function (err) {
+              console.error(err);
+              alert("Помилка створення угоди");
+              btn.disabled = false;
+            });
+        });
+      });
+    </script>
+  </body>
+</html>

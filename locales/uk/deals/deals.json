@@ -1,0 +1,43 @@
+{
+    "deals": {
+        "action": {
+            "create": "Створено",
+            "update": "Оновлено",
+            "delete": "Видалено",
+            "restore": "Відновлено",
+            "view": "Переглянуто",
+            "export": "Експортовано",
+            "stage_change": "Зміна стадії",
+            "status_change": "Зміна статусу"
+        },
+        "entity": {
+            "deal": "Угода",
+            "quote": "КП",
+            "contract": "Договір",
+            "invoice": "Рахунок",
+            "act": "Акт",
+            "activity": "Активність",
+            "task": "Завдання"
+        },
+        "field": {
+            "id_quote_status": "Статус КП",
+            "probability": "Ймовірність",
+            "id_stage": "Стадія",
+            "id_lost_reason": "Причина програшу",
+            "competitor_name": "Конкурент",
+            "amount": "Сума",
+            "amount_final": "Сума з ПДВ",
+            "date_close_plan": "Дата закриття (план)",
+            "date_close_fact": "Дата закриття (факт)",
+            "id_user": "Менеджер",
+            "title": "Назва",
+            "description": "Опис",
+            "notes": "Нотатки"
+        },
+        "breadcrumbs": {
+            "title": "Угоди",
+            "page1": "Головна",
+            "page2": "Налаштування"
+        }
+    }
+}

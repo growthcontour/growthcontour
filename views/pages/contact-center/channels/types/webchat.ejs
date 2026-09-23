@@ -1,0 +1,1410 @@
+<!-- Домени -->
+<div class="mb-3">
+	<label for="f_allowed_origins" class="form-label"><%= i18n.__('contact_center.channels.webchat.allowed_origins') %></label>
+	<input type="text" class="form-control rounded-0" id="f_allowed_origins" name="allowed_origins" value="<%= data.settings.domains || '' %>" />
+	<small class="text-muted"><%= i18n.__('contact_center.channels.webchat.allowed_origins_hint') %></small>
+</div>
+
+<!-- Код вставки -->
+<div class="mb-3">
+	<label class="form-label"><%= i18n.__('contact_center.channels.webchat.embed_code') %></label>
+	<div class="input-group">
+		<textarea class="form-control rounded-0 bg-light" id="f_embed_code" rows="2" readonly>&lt;script src="<%= data.appUrl %>/chat/widget.js" data-site-id="<%= data.settings.site_id || '' %>" async&gt;&lt;/script&gt;</textarea>
+		<button type="button" class="btn btn-outline-secondary rounded-0 copy-field" data-target="f_embed_code">
+			<i class="fa-regular fa-copy"></i>
+		</button>
+	</div>
+	<small class="text-muted"><%= i18n.__('contact_center.channels.webchat.embed_hint') %></small>
+</div>
+
+<hr />
+
+<!-- ═══════════════════════════════════════════════════════════════
+     РЕДАКТОР ВІДЖЕТА (перенесено з index.html, стилі scoped у .wc-we)
+     ═══════════════════════════════════════════════════════════════ -->
+<style>
+	/* ── Обгортка / сітка ── */
+	.wc-we {
+		--wc-line: #e4e8ee;
+		--wc-ink: #1b2330;
+		--wc-ink-soft: #5b6675;
+		--wc-accent: #007fff;
+		--wc-danger: #e5342b;
+		--wc-radius: 8px;
+	}
+	.wc-we .wc-card {
+		border: 1px solid var(--wc-line);
+		border-radius: var(--wc-radius);
+		padding: 14px;
+		margin-bottom: 12px;
+		background: #fff;
+	}
+	.wc-we .wc-card:last-child {
+		margin-bottom: 0;
+	}
+	.wc-we .wc-field-label {
+		display: block;
+		font-size: 12px;
+		color: var(--wc-ink-soft);
+		margin: 0 0 5px;
+	}
+
+	/* ── Перемикач ── */
+	.wc-we .wc-switch {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px;
+		margin-bottom: 12px;
+	}
+	.wc-we .wc-switch .wc-toggle {
+		position: relative;
+		width: 42px;
+		height: 24px;
+		flex: none;
+		display: inline-block;
+	}
+	.wc-we .wc-switch .wc-toggle input {
+		opacity: 0;
+		width: 0;
+		height: 0;
+	}
+	.wc-we .wc-switch .wc-toggle .track {
+		position: absolute;
+		inset: 0;
+		background: #cdd4de;
+		border-radius: 999px;
+		transition: background 0.15s;
+	}
+	.wc-we .wc-switch .wc-toggle .dot {
+		position: absolute;
+		top: 3px;
+		left: 3px;
+		width: 18px;
+		height: 18px;
+		background: #fff;
+		border-radius: 50%;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+		transition: transform 0.15s;
+	}
+	.wc-we .wc-switch .wc-toggle input:checked + .track {
+		background: var(--wc-accent);
+	}
+	.wc-we .wc-switch .wc-toggle input:checked + .track + .dot {
+		transform: translateX(18px);
+	}
+
+	/* ── Рядок кнопки в редакторі ── */
+	.wc-we .wc-child-row {
+		border: 1px solid var(--wc-line);
+		border-radius: var(--wc-radius);
+		padding: 11px;
+		margin-bottom: 10px;
+	}
+	.wc-we .wc-child-head {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-bottom: 9px;
+	}
+	.wc-we .wc-child-head strong {
+		font-size: 13px;
+	}
+	.wc-we .wc-swatch {
+		width: 26px;
+		height: 26px;
+		border-radius: 50%;
+		display: inline-grid;
+		place-items: center;
+		flex: none;
+	}
+	.wc-we .wc-swatch svg {
+		width: 16px;
+		height: 16px;
+	}
+	.wc-we .wc-del {
+		margin-left: auto;
+		border: 0;
+		background: none;
+		color: var(--wc-ink-soft);
+		cursor: pointer;
+		font-size: 18px;
+		line-height: 1;
+		padding: 2px 6px;
+		border-radius: 6px;
+	}
+	.wc-we .wc-del:hover {
+		background: #fbe9e8;
+		color: var(--wc-danger);
+	}
+
+	.wc-we details {
+		margin-top: 8px;
+	}
+	.wc-we details summary {
+		font-size: 12px;
+		color: var(--wc-accent);
+		cursor: pointer;
+		user-select: none;
+	}
+	.wc-we details summary::-webkit-details-marker {
+		display: none;
+	}
+	.wc-we details summary::before {
+		content: "＋ ";
+	}
+	.wc-we details[open] summary::before {
+		content: "－ ";
+	}
+
+	/* Pickr у рядку */
+	.wc-we .pcr-button {
+		width: 2rem;
+		height: 2rem;
+	}
+
+	/* ── Прев'ю: точна копія з index.html, scoped ── */
+	.wc-we .wc-preview {
+		position: relative;
+		min-height: 480px;
+		border-radius: var(--wc-radius);
+		overflow: hidden;
+		background: linear-gradient(0deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.02)), repeating-linear-gradient(45deg, #e9edf2 0 12px, #eef2f6 12px 24px);
+	}
+	.wc-we .wc-preview .browser {
+		position: absolute;
+		inset: 20px;
+		background: #fff;
+		border-radius: 10px;
+		box-shadow: 0 12px 40px rgba(31, 45, 61, 0.14);
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+	}
+	.wc-we .wc-preview .bar {
+		height: 36px;
+		flex: none;
+		border-bottom: 1px solid #e4e8ee;
+		display: flex;
+		align-items: center;
+		gap: 7px;
+		padding: 0 12px;
+	}
+	.wc-we .wc-preview .bar i {
+		width: 10px;
+		height: 10px;
+		border-radius: 50%;
+		background: #e0e4ea;
+	}
+	.wc-we .wc-preview .bar .url {
+		margin-left: 10px;
+		height: 20px;
+		flex: 1;
+		max-width: 320px;
+		background: #f1f3f6;
+		border-radius: 6px;
+	}
+	.wc-we .wc-preview .content {
+		flex: 1;
+		position: relative;
+		padding: 20px;
+	}
+	.wc-we .wc-preview .ph {
+		height: 10px;
+		border-radius: 6px;
+		background: #eef1f5;
+		margin-bottom: 11px;
+	}
+	.wc-we .wc-preview .ph.t {
+		height: 18px;
+		width: 52%;
+		background: #e8ebf0;
+	}
+	.wc-we .wc-preview .ph.s {
+		width: 88%;
+	}
+	.wc-we .wc-preview .ph.m {
+		width: 74%;
+	}
+	.wc-we .wc-preview .ph.l {
+		width: 94%;
+	}
+	.wc-we .wc-preview .hint {
+		position: absolute;
+		left: 20px;
+		bottom: 14px;
+		font-size: 12px;
+		color: #9aa4b2;
+	}
+
+	/* Dock + FAB */
+	.wc-we .wc-dock {
+		position: absolute;
+		right: 16px;
+		bottom: 16px;
+		z-index: 5;
+		display: flex;
+		align-items: flex-end;
+		gap: 15px;
+	}
+	.wc-we .wc-preview.pos-left .wc-dock {
+		right: auto;
+		left: 16px;
+	}
+	.wc-we .wc-fab {
+		position: relative;
+		width: 52px;
+		height: 52px;
+		border: 0;
+		cursor: default;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		box-shadow:
+			0 0 4px rgba(0, 0, 0, 0.14),
+			0 4px 8px rgba(0, 0, 0, 0.28);
+		transition: transform 0.15s ease;
+	}
+	.wc-we .wc-fab:hover {
+		transform: scale(1.06);
+	}
+	.wc-we .wc-fab svg {
+		width: 24px;
+		height: 24px;
+	}
+
+	/* MFB меню (назви класів з index.html збережено) */
+	.wc-we .mfb-wrap {
+		position: relative;
+		display: inline-flex;
+	}
+	.wc-we .mfb-main {
+		position: relative;
+		width: 52px;
+		height: 52px;
+		border: 0;
+		cursor: pointer;
+		z-index: 20;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		text-decoration: none;
+		box-shadow:
+			0 0 4px rgba(0, 0, 0, 0.14),
+			0 4px 8px rgba(0, 0, 0, 0.28);
+		transition: transform 0.15s ease;
+	}
+	.wc-we .mfb-main:hover {
+		transform: scale(1.06);
+	}
+	.wc-we .mfb-main .ic svg {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		width: 24px;
+		height: 24px;
+		margin: -12px 0 0 -12px;
+		transition:
+			opacity 0.2s ease,
+			transform 0.2s ease;
+	}
+	.wc-we .mfb-main .ic.active {
+		opacity: 0;
+		transform: rotate(-90deg);
+	}
+	.wc-we .mfb-wrap:hover .mfb-main .ic.resting {
+		opacity: 0;
+		transform: rotate(90deg);
+	}
+	.wc-we .mfb-wrap:hover .mfb-main .ic.active {
+		opacity: 1;
+		transform: rotate(0);
+	}
+
+	.wc-we .mfb-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		position: absolute;
+		left: 0;
+		bottom: 0;
+		width: 52px;
+	}
+	.wc-we .mfb-list > li {
+		position: absolute;
+		left: 0;
+		bottom: 0;
+		width: 52px;
+		padding: 8px 0;
+		margin: -8px 0;
+		opacity: 0;
+		transform: translateY(0) scale(0);
+		transition:
+			transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+			opacity 0.3s;
+	}
+	.wc-we .mfb-wrap:hover .mfb-list > li {
+		opacity: 1;
+		transform: translateY(calc(var(--i) * -64px)) scale(1);
+		transition-delay: calc(var(--i) * 0.04s);
+	}
+	.wc-we .mfb-child {
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 52px;
+		height: 52px;
+		border: 0;
+		cursor: pointer;
+		text-decoration: none;
+		box-shadow:
+			0 0 4px rgba(0, 0, 0, 0.14),
+			0 4px 8px rgba(0, 0, 0, 0.28);
+		transition: transform 0.15s ease;
+	}
+	.wc-we .mfb-child:hover {
+		transform: scale(1.06);
+	}
+	.wc-we .mfb-child svg {
+		width: 24px;
+		height: 24px;
+	}
+	.wc-we .mfb-child[data-label]::after {
+		content: attr(data-label);
+		position: absolute;
+		right: 64px;
+		top: 50%;
+		transform: translateY(-50%);
+		white-space: nowrap;
+		background: rgba(0, 0, 0, 0.72);
+		color: #fff;
+		font:
+			12px/1 system-ui,
+			sans-serif;
+		padding: 6px 9px;
+		border-radius: 4px;
+		opacity: 0;
+		transition: opacity 0.2s;
+		pointer-events: none;
+	}
+	.wc-we .wc-preview.pos-left .mfb-child[data-label]::after {
+		right: auto;
+		left: 64px;
+	}
+	.wc-we .mfb-wrap:hover .mfb-child[data-label]:hover::after {
+		opacity: 1;
+	}
+</style>
+
+<div class="wc-we">
+	<div class="wc-card111">
+		<h6 class="mb-3">Редактор віджета</h6>
+		<div class="row g-3">
+			<!-- ЛІВА КОЛОНКА: контролі -->
+			<div class="col-lg-5">
+				<!-- Положення -->
+				<div class="wc-card">
+					<label class="wc-field-label"><%= i18n.__('contact_center.channels.webchat.position') %></label>
+					<select class="form-select form-select-sm rounded-0" id="cfg-position">
+						<option value="right"><%= i18n.__('contact_center.channels.webchat.position_right') %></option>
+						<option value="left"><%= i18n.__('contact_center.channels.webchat.position_left') %></option>
+					</select>
+				</div>
+
+				<!-- Колір бренду -->
+				<div class="wc-card">
+					<label class="wc-field-label"><%= i18n.__('contact_center.channels.webchat.brand_color') %></label>
+					<div class="pickr-brand" data-target="cfg-appearance-color"></div>
+					<input type="hidden" id="cfg-appearance-color" value="#16a34a" />
+				</div>
+
+				<!-- Додаткові кнопки -->
+				<div class="wc-card">
+					<div class="wc-switch">
+						<span>Показувати додаткові кнопки</span>
+						<label class="wc-toggle">
+							<input type="checkbox" id="cfg-extra-enabled" />
+							<span class="track"></span>
+							<span class="dot"></span>
+						</label>
+					</div>
+					<div id="cfg-extra-list"></div>
+					<button type="button" class="btn btn-outline-primary btn-sm rounded-0" id="cfg-extra-add"><i class="fa-solid fa-plus me-1"></i> Додати кнопку</button>
+				</div>
+			</div>
+
+			<!-- ПРАВА КОЛОНКА: прев'ю -->
+			<div class="col-lg-7">
+				<div class="wc-preview h-100" id="wc-preview">
+					<div class="browser">
+						<div class="bar"><i></i><i></i><i></i><span class="url"></span></div>
+						<div class="content">
+							<div class="ph t"></div>
+							<div class="ph l"></div>
+							<div class="ph s"></div>
+							<div class="ph m"></div>
+							<div class="ph l"></div>
+							<div class="ph s"></div>
+							<div class="hint">Наведіть на «+» — меню розкриється вгору</div>
+							<div id="wc-dock" class="wc-dock"></div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<hr />
+
+<!-- ═══ ВКЛАДКИ НАЛАШТУВАНЬ ВІДЖЕТА ═══ -->
+<ul class="nav nav-tabs mb-3" role="tablist">
+	<li class="nav-item"><button class="nav-link active rounded-0" data-bs-toggle="tab" data-bs-target="#wc-tab-general" type="button"><%= i18n.__('contact_center.channels.webchat.tab_general') %></button></li>
+	<li class="nav-item"><button class="nav-link rounded-0" id="wc-tab-hours-btn" data-bs-toggle="tab" data-bs-target="#wc-tab-hours" type="button"><%= i18n.__('contact_center.channels.webchat.tab_hours') %></button></li>
+	<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#wc-tab-texts" type="button"><%= i18n.__('contact_center.channels.webchat.tab_texts') %></button></li>
+	<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#wc-tab-forms" type="button"><%= i18n.__('contact_center.channels.webchat.tab_forms') %></button></li>
+</ul>
+
+<div class="tab-content">
+	<!-- ── ЗАГАЛЬНЕ ── -->
+	<div class="tab-pane fade show active" id="wc-tab-general">
+		<div class="row">
+			<div class="col-md-4 mb-3">
+				<label class="form-label"><%= i18n.__('contact_center.channels.webchat.primary_locale') %></label>
+				<select class="form-select rounded-0" id="cfg-locale-primary"></select>
+				<small class="text-muted"><%= i18n.__('contact_center.channels.webchat.primary_locale_hint') %></small>
+			</div>
+		</div>
+
+		<div class="form-check mb-3">
+			<input class="form-check-input rounded-0" type="checkbox" id="cfg-productcard" />
+			<label class="form-check-label" for="cfg-productcard"><%= i18n.__('contact_center.channels.webchat.product_card') %></label>
+		</div>
+
+		<hr />
+		<h6 class="mb-3"><%= i18n.__('contact_center.channels.webchat.greeting') %></h6>
+
+		<div class="form-check mb-2">
+			<input class="form-check-input rounded-0" type="checkbox" id="cfg-greeting-enabled" />
+			<label class="form-check-label" for="cfg-greeting-enabled"><%= i18n.__('contact_center.channels.webchat.greeting_enabled') %></label>
+		</div>
+
+		<div class="mb-3" style="max-width: 260px">
+			<label class="form-label"><%= i18n.__('contact_center.channels.webchat.greeting_delay') %></label>
+			<input type="number" class="form-control rounded-0" id="cfg-greeting-delay" value="0" min="0" />
+		</div>
+
+		<div class="row">
+			<div class="col-md-6 mb-3">
+				<div class="fw-bold mb-2"><i class="fa-solid fa-desktop me-1"></i> <%= i18n.__('contact_center.channels.webchat.desktop') %></div>
+				<div class="form-check form-switch mb-2">
+					<input class="form-check-input" type="checkbox" id="cfg-greeting-desktop-autoopen" />
+					<label class="form-check-label" for="cfg-greeting-desktop-autoopen"><%= i18n.__('contact_center.channels.webchat.auto_open') %></label>
+				</div>
+				<div class="form-check form-switch mb-0">
+					<input class="form-check-input" type="checkbox" id="cfg-greeting-desktop-sound" />
+					<label class="form-check-label" for="cfg-greeting-desktop-sound"><%= i18n.__('contact_center.channels.webchat.sound') %></label>
+				</div>
+			</div>
+			<div class="col-md-6 mb-3">
+				<div class="fw-bold mb-2"><i class="fa-solid fa-mobile-screen me-1"></i> <%= i18n.__('contact_center.channels.webchat.mobile') %></div>
+				<div class="form-check form-switch mb-2">
+					<input class="form-check-input" type="checkbox" id="cfg-greeting-mobile-autoopen" />
+					<label class="form-check-label" for="cfg-greeting-mobile-autoopen"><%= i18n.__('contact_center.channels.webchat.auto_open') %></label>
+				</div>
+				<div class="form-check form-switch mb-0">
+					<input class="form-check-input" type="checkbox" id="cfg-greeting-mobile-sound" />
+					<label class="form-check-label" for="cfg-greeting-mobile-sound"><%= i18n.__('contact_center.channels.webchat.sound') %></label>
+				</div>
+			</div>
+		</div>
+		<small class="text-muted"><%= i18n.__('contact_center.channels.webchat.auto_open_hint') %></small>
+	</div>
+
+	<!-- ── ГОДИНИ ── -->
+	<div class="tab-pane fade" id="wc-tab-hours">
+		<div class="row">
+			<div class="col-md-6 mb-3">
+				<label class="form-label"><%= i18n.__('contact_center.channels.webchat.timezone') %></label>
+				<select class="form-select rounded-0" id="cfg-hours-tz">
+					<option value="Europe/Kyiv">Europe/Kyiv</option>
+					<option value="Europe/Warsaw">Europe/Warsaw</option>
+					<option value="Europe/London">Europe/London</option>
+					<option value="Europe/Berlin">Europe/Berlin</option>
+					<option value="UTC">UTC</option>
+				</select>
+			</div>
+			<div class="col-md-6 mb-3">
+				<label class="form-label"><%= i18n.__('contact_center.channels.webchat.force_mode') %></label>
+				<select class="form-select rounded-0" id="cfg-hours-force">
+					<option value="auto"><%= i18n.__('contact_center.channels.webchat.force_auto') %></option>
+					<option value="online"><%= i18n.__('contact_center.channels.webchat.force_online') %></option>
+					<option value="offline"><%= i18n.__('contact_center.channels.webchat.force_offline') %></option>
+				</select>
+			</div>
+		</div>
+
+		<div class="mb-3">
+			<label class="form-label"><%= i18n.__('contact_center.channels.webchat.schedule') %></label>
+			<table id="wcs-scheduler" class="scheduler"></table>
+			<div class="alert alert-info rounded-0 mt-2 small mb-0"><%= i18n.__('contact_center.channels.webchat.schedule_hint') %></div>
+		</div>
+	</div>
+
+	<!-- ── ТЕКСТИ ── -->
+	<div class="tab-pane fade" id="wc-tab-texts">
+		<div class="mb-3">
+			<label class="form-label fw-bold"><%= i18n.__('contact_center.channels.webchat.locales') %></label>
+			<div id="cfg-locale-list" class="row"></div>
+		</div>
+
+		<hr />
+		<label class="form-label fw-bold"><%= i18n.__('contact_center.channels.webchat.header_title') %></label>
+		<div id="cfg-header-langs" class="row mb-3"></div>
+
+		<hr />
+		<label class="form-label fw-bold"><%= i18n.__('contact_center.channels.webchat.greeting_texts') %></label>
+		<div id="cfg-greeting-langs" class="row mb-3"></div>
+
+		<hr />
+		<label class="form-label fw-bold"><%= i18n.__('contact_center.channels.webchat.system_strings') %></label>
+		<div id="cfg-strings" class="row mb-3"></div>
+
+		<hr />
+		<label class="form-label fw-bold"><%= i18n.__('contact_center.channels.webchat.ui_strings') %></label>
+		<div id="cfg-ui" class="row mb-0"></div>
+	</div>
+
+	<!-- ── ФОРМИ І ТРИГЕРИ ── -->
+	<div class="tab-pane fade" id="wc-tab-forms">
+		<div class="d-flex justify-content-between align-items-center mb-2">
+			<label class="form-label fw-bold mb-0"><%= i18n.__('contact_center.channels.webchat.forms') %></label>
+			<button type="button" class="btn btn-outline-primary btn-sm rounded-0" id="cfg-form-add"><i class="fa-solid fa-plus"></i> <%= i18n.__('contact_center.channels.webchat.form_add') %></button>
+		</div>
+		<div id="cfg-forms-list" class="row mb-3"></div>
+
+		<hr />
+		<label class="form-label fw-bold"><%= i18n.__('contact_center.channels.webchat.triggers') %></label>
+		<div class="alert alert-info rounded-0 small"><%= i18n.__('contact_center.channels.webchat.triggers_hint') %></div>
+		<div id="cfg-triggers"></div>
+	</div>
+</div>
+
+<!-- ═══ МОДАЛКА РЕДАКТОРА ФОРМИ ═══ -->
+<div class="modal fade" id="form-modal" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered modal-xl">
+		<div class="modal-content rounded-0">
+			<div class="modal-header">
+				<h1 class="modal-title fs-5" id="form-modal-title"><%= i18n.__('contact_center.channels.webchat.form') %></h1>
+				<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+			</div>
+			<div class="modal-body">
+				<input type="hidden" id="form-orig-id" />
+				<div class="row">
+					<div class="col-md-6 mb-3">
+						<label class="form-label"><%= i18n.__('contact_center.channels.webchat.form_id') %></label>
+						<input type="text" class="form-control rounded-0" id="form-id" placeholder="contact" />
+						<small class="text-muted"><%= i18n.__('contact_center.channels.webchat.form_id_hint') %></small>
+					</div>
+					<div class="col-md-6 mb-3">
+						<label class="form-label"><%= i18n.__('contact_center.channels.webchat.form_target') %></label>
+						<select class="form-select rounded-0" id="form-target">
+							<option value="lead"><%= i18n.__('contact_center.channels.webchat.form_target_lead') %></option>
+						</select>
+					</div>
+				</div>
+				<div class="d-flex justify-content-between align-items-center mb-2">
+					<h6 class="mb-0"><%= i18n.__('contact_center.channels.webchat.form_fields') %></h6>
+					<button type="button" class="btn btn-outline-primary btn-sm rounded-0" id="form-field-add"><i class="fa-solid fa-plus"></i> <%= i18n.__('contact_center.channels.webchat.field_add') %></button>
+				</div>
+				<div id="form-fields"></div>
+				<hr />
+				<div class="mb-0">
+					<label class="form-label"><%= i18n.__('contact_center.channels.webchat.require_any') %></label>
+					<div id="form-requireany" class="border rounded-0 p-2"></div>
+					<small class="text-muted"><%= i18n.__('contact_center.channels.webchat.require_any_hint') %></small>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('contact_center.channels.webchat.close') %></button>
+				<button type="button" class="btn btn-primary rounded-0" id="form-save"><%= i18n.__('contact_center.channels.webchat.form_save') %></button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+	// ================================================================
+	// РЕДАКТОР КОНФІГУ ВІДЖЕТА
+	//
+	// Конфіг — це JSON у web_chat_sites.config. Сервер валідує його
+	// через validateConfig(), тому структуру треба зберігати точно.
+	//
+	// Партіал рендериться всередині body, до підключення jQuery,
+	// тому ініціалізація чекає на появу плагіна scheduler.
+	// ================================================================
+
+	let wcsConfig = <%- JSON.stringify(data.settings.config || {}) %>;
+	let wcsSchedulerReady = false;
+	let formModal, editingFieldsState = [], editingRequireAny = [];
+
+	function cfgGet(obj, path, def) {
+		return path.split(".").reduce((o, k) => (o && o[k] != null ? o[k] : undefined), obj) ?? def;
+	}
+	function cfgSet(obj, path, val) {
+		const keys = path.split("."); let o = obj;
+		for (let i = 0; i < keys.length - 1; i++) { if (typeof o[keys[i]] !== "object" || o[keys[i]] == null) o[keys[i]] = {}; o = o[keys[i]]; }
+		o[keys[keys.length - 1]] = val;
+	}
+
+	// ════════════════════════════════════════════════════════════════
+	// РЕДАКТОР ВІДЖЕТА
+	// Іконки, прев'ю, динамічний список кнопок — перенесено з index.html
+	// Не залежить від scheduler, тому ініціалізується одразу.
+	// ════════════════════════════════════════════════════════════════
+	(function initWidgetEditor() {
+		const ICONS = {
+			chat:'<path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>',
+			chat2:'<path d="M12 2C6.5 2 2 5.9 2 10.7c0 2.7 1.4 5.1 3.7 6.7v3.6l3.4-1.9c.9.2 1.9.4 2.9.4 5.5 0 10-3.9 10-8.8S17.5 2 12 2z"/>',
+			plus:'<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>',
+			close:'<path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3z"/>',
+			phone:'<path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.7 21 3 13.3 3 3.9 3 3.4 3.4 3 4 3h3.5c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.4 0 .7-.2 1l-2.3 2.2z"/>',
+			telegram:'<path d="M9.8 15.6 9.6 19c.4 0 .6-.2.8-.4l1.9-1.8 3.9 2.9c.7.4 1.2.2 1.4-.7l2.6-12c.2-1-.3-1.5-1-1.2L3.5 10.2c-1 .4-1 .9-.2 1.2l4.2 1.3L17 6.6c.5-.3.9-.1.6.2l-7.8 8.8z"/>',
+			email:'<path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/>',
+			instagram:'<path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm5 5a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6zm5-3.5a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z"/>',
+			cart:'<path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM7.2 14h9.5c.8 0 1.4-.4 1.7-1.1l3.6-6.6-1.7-1-3.6 6.7H8.5L4.3 2H1v2h2l3.6 7.6-1.4 2.5c-.7 1.3.2 2.9 1.7 2.9h12v-2H7.2z"/>',
+			question:'<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-2h2v2zm1.9-6.7-.9.9c-.7.7-1 1.2-1 2.3h-2v-.5c0-.8.3-1.6 1-2.3l1.2-1.2c.3-.3.5-.8.5-1.3 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.2 1.8-4 4-4s4 1.8 4 4c0 .9-.4 1.7-1.1 2.4z"/>',
+			heart:'<path d="M12 21s-7.5-4.9-10-9.3C.4 8.6 1.8 5 5 5c1.9 0 3.2 1 4 2 .8-1 2.1-2 4-2 3.2 0 4.6 3.6 3 6.7C19.5 16.1 12 21 12 21z"/>',
+			location:'<path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/>',
+		};
+		const ICON_LABELS = {
+			chat:'Чат', chat2:'Чат (округлий)', plus:'Плюс', close:'Хрестик', phone:'Телефон',
+			telegram:'Telegram', email:'Email', instagram:'Instagram', cart:'Кошик',
+			question:'Питання', heart:'Серце', location:'Локація'
+		};
+		const ICON_KEYS = Object.keys(ICONS);
+		const SWATCHES = ["#16a34a","#0057b8","#2fb25c","#e74c3c","#3498db","#8e44ad","#f1c40f","#e67e22","#7f8c8d","#34495e"];
+
+		function svgMarkup(iconKey, custom, color) {
+			if (custom && custom.trim()) return custom;
+			const inner = ICONS[iconKey] || ICONS.chat;
+			return '<svg viewBox="0 0 24 24" style="fill:' + color + '">' + inner + '</svg>';
+		}
+		function esc(s) {
+			return String(s == null ? '' : s)
+				.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+		}
+
+		// ── Стан редактора ──
+		const state = {
+			enabled: true,
+			items: []
+		};
+
+		function loadFromConfig() {
+			state.enabled = cfgGet(wcsConfig, "appearance.extraButtons.enabled", true) !== false;
+			const items = cfgGet(wcsConfig, "appearance.extraButtons.items", null);
+			if (Array.isArray(items)) {
+				state.items = items.map((it) => ({
+					label: it.label || '',
+					link: it.link || '',
+					bg: it.bg || '#607d8b',
+					iconColor: it.iconColor || '#ffffff',
+					icon: it.icon || 'chat2',
+					custom: it.custom || ''
+				}));
+			} else {
+				state.items = [
+					{ label:'Подзвонити', link:'tel:+380000000000', bg:'#4caf50', iconColor:'#ffffff', icon:'phone',    custom:'' },
+					{ label:'Telegram',   link:'https://t.me/',      bg:'#29b6f6', iconColor:'#ffffff', icon:'telegram', custom:'' },
+					{ label:'Email',      link:'mailto:',            bg:'#f4511e', iconColor:'#ffffff', icon:'email',    custom:'' },
+				];
+			}
+			document.getElementById('cfg-extra-enabled').checked = state.enabled;
+		}
+
+		// ── Прев'ю ──
+		const previewEl = document.getElementById('wc-preview');
+		const dockEl = document.getElementById('wc-dock');
+
+		function brandColor() {
+			const inp = document.getElementById('cfg-appearance-color');
+			return (inp && inp.value) || '#16a34a';
+		}
+		function position() {
+			const sel = document.getElementById('cfg-position');
+			return (sel && sel.value) || 'right';
+		}
+
+		function renderPreview() {
+			const bc = brandColor();
+			const pos = position();
+			previewEl.classList.toggle('pos-left', pos === 'left');
+
+			let html = '';
+			// Кнопка чату (завжди видима у прев'ю — це частина віджета)
+			html += '<button type="button" class="wc-fab" style="background:' + bc + '" aria-label="Чат">'
+				+ svgMarkup('chat', '', '#fff') + '</button>';
+
+			// MFB меню
+			if (state.enabled) {
+				const items = state.items.map((c, i) =>
+					'<li style="--i:' + (i + 1) + '">'
+						+ '<a class="mfb-child"'
+						+   ' href="' + esc(c.link || '#') + '"'
+						+   (c.label ? ' data-label="' + esc(c.label) + '"' : '')
+						+   ' style="background:' + c.bg + '"'
+						+   ' onclick="return false">'
+						+   svgMarkup(c.icon, c.custom, c.iconColor)
+						+ '</a>'
+					+ '</li>'
+				).join('');
+
+				html += '<div class="mfb-wrap">'
+					+   '<a href="#" class="mfb-main" style="background:' + bc + '" aria-label="Меню" onclick="return false">'
+					+     '<span class="ic resting">' + svgMarkup('plus', '', '#fff') + '</span>'
+					+     '<span class="ic active">' + svgMarkup('close', '', '#fff') + '</span>'
+					+   '</a>'
+					+   '<ul class="mfb-list">' + items + '</ul>'
+					+ '</div>';
+			}
+			dockEl.innerHTML = html;
+		}
+
+		// ── Список кнопок ──
+		const listEl = document.getElementById('cfg-extra-list');
+		let rowPickrs = []; // [{ bg, icon }]
+
+		function destroyRowPickrs() {
+			rowPickrs.forEach((p) => {
+				try { p.bg && p.bg.destroyAndRemove && p.bg.destroyAndRemove(); } catch (e) {}
+				try { p.icon && p.icon.destroyAndRemove && p.icon.destroyAndRemove(); } catch (e) {}
+			});
+			rowPickrs = [];
+		}
+
+		function updateSwatch(row, c) {
+			const sw = row.querySelector('.wc-swatch');
+			if (!sw) return;
+			sw.style.background = c.bg;
+			sw.innerHTML = svgMarkup(c.icon, c.custom, c.iconColor);
+		}
+
+		function renderList() {
+			destroyRowPickrs();
+			listEl.innerHTML = '';
+
+			if (!state.items.length) {
+				const empty = document.createElement('div');
+				empty.className = 'text-muted small mb-2';
+				empty.textContent = 'Кнопок ще немає.';
+				listEl.appendChild(empty);
+				return;
+			}
+
+			state.items.forEach((c, idx) => {
+				const row = document.createElement('div');
+				row.className = 'wc-child-row';
+				row.innerHTML =
+					'<div class="wc-child-head">'
+						+ '<span class="wc-swatch" style="background:' + c.bg + '">' + svgMarkup(c.icon, c.custom, c.iconColor) + '</span>'
+						+ '<strong>Кнопка ' + (idx + 1) + '</strong>'
+						+ '<button type="button" class="wc-del" title="Видалити" aria-label="Видалити">✕</button>'
+					+ '</div>'
+					+ '<label class="wc-field-label">Підказка</label>'
+					+ '<input type="text" class="form-control form-control-sm rounded-0 c-label" value="' + esc(c.label) + '" placeholder="напр. Viber">'
+					+ '<label class="wc-field-label mt-2">Посилання</label>'
+					+ '<input type="text" class="form-control form-control-sm rounded-0 c-link" value="' + esc(c.link) + '" placeholder="https://t.me/... або tel:+380...">'
+					+ '<div class="row g-2 mt-2">'
+						+ '<div class="col"><label class="wc-field-label">Фон</label>'
+							+ '<div class="c-pickr-bg"></div><input type="hidden" class="c-bg" value="' + esc(c.bg) + '"></div>'
+						+ '<div class="col"><label class="wc-field-label">Колір іконки</label>'
+							+ '<div class="c-pickr-ic"></div><input type="hidden" class="c-ic" value="' + esc(c.iconColor) + '"></div>'
+					+ '</div>'
+					+ '<label class="wc-field-label mt-2">Іконка</label>'
+					+ '<select class="form-select form-select-sm rounded-0 c-icon">'
+						+ ICON_KEYS.map((k) => '<option value="' + k + '"' + (k === c.icon ? ' selected' : '') + '>' + ICON_LABELS[k] + '</option>').join('')
+					+ '</select>'
+					+ '<details class="mt-2"><summary>Власний SVG (необов\'язково)</summary>'
+						+ '<textarea class="form-control form-control-sm rounded-0 c-svg mt-1" rows="3" placeholder="&lt;svg viewBox=&quot;0 0 24 24&quot;&gt;…&lt;/svg&gt;">' + esc(c.custom) + '</textarea>'
+					+ '</details>';
+
+				listEl.appendChild(row);
+
+				// Pickr для фону
+								// Pickr для фону
+				let bgPickr = null, icPickr = null;
+				if (typeof Pickr !== 'undefined') {
+					bgPickr = Pickr.create({
+						el: row.querySelector('.c-pickr-bg'),
+						theme: 'monolith',
+						default: c.bg,
+						swatches: SWATCHES,
+						components: { preview: true, opacity: false, hue: true, interaction: { input: true, save: true } },
+					});
+					bgPickr.on('init', () => { bgPickr.setColor(c.bg); });
+					bgPickr.on('save', (color) => {
+						if (color) {
+							c.bg = color.toHEXA().toString(0).slice(0, 7);
+							row.querySelector('.c-bg').value = c.bg;
+							updateSwatch(row, c);
+							renderPreview();
+						}
+						bgPickr.hide();
+					});
+
+					icPickr = Pickr.create({
+						el: row.querySelector('.c-pickr-ic'),
+						theme: 'monolith',
+						default: c.iconColor,
+						swatches: SWATCHES,
+						components: { preview: true, opacity: false, hue: true, interaction: { input: true, save: true } },
+					});
+					icPickr.on('init', () => { icPickr.setColor(c.iconColor); });
+					icPickr.on('save', (color) => {
+						if (color) {
+							c.iconColor = color.toHEXA().toString(0).slice(0, 7);
+							row.querySelector('.c-ic').value = c.iconColor;
+							updateSwatch(row, c);
+							renderPreview();
+						}
+						icPickr.hide();
+					});
+				}
+				rowPickrs.push({ bg: bgPickr, icon: icPickr });
+
+				// Події рядка
+				row.querySelector('.c-label').addEventListener('input', function () { c.label = this.value; renderPreview(); });
+				row.querySelector('.c-link').addEventListener('input', function () { c.link = this.value; renderPreview(); });
+				row.querySelector('.c-icon').addEventListener('change', function () { c.icon = this.value; updateSwatch(row, c); renderPreview(); });
+				row.querySelector('.c-svg').addEventListener('input', function () { c.custom = this.value; updateSwatch(row, c); renderPreview(); });
+				row.querySelector('.wc-del').addEventListener('click', function () {
+					state.items.splice(idx, 1);
+					renderList();
+					renderPreview();
+				});
+			});
+		}
+
+		// ── Додати кнопку ──
+		document.getElementById('cfg-extra-add').addEventListener('click', function () {
+			state.items.push({ label: 'Нова кнопка', bg: '#607d8b', iconColor: '#ffffff', icon: 'chat2', custom: '' });
+			renderList();
+			renderPreview();
+		});
+
+		// ── Перемикач MFB ──
+		document.getElementById('cfg-extra-enabled').addEventListener('change', function () {
+			state.enabled = this.checked;
+			renderPreview();
+		});
+
+		// ── Положення ──
+		document.getElementById('cfg-position').addEventListener('change', renderPreview);
+
+		// ── Старт ──
+		// Стан читаємо синхронно — щоб collectWidgetEditorConfig() був готовий
+		// ще до того, як користувач встигне натиснути «Зберегти».
+		loadFromConfig();
+
+		// Функції для зовнішнього світу — теж синхронно.
+		window.__wcWidgetEditor_updatePreview = renderPreview;
+				window.collectWidgetEditorConfig = function (cfg) {
+			cfgSet(cfg, "appearance.extraButtons.enabled", !!state.enabled);
+			cfgSet(cfg, "appearance.extraButtons.items", state.items.map((it) => ({
+				label: it.label,
+				link: it.link,
+				bg: it.bg,
+				iconColor: it.iconColor,
+				icon: it.icon,
+				custom: it.custom || '',
+				svg: svgMarkup(it.icon, it.custom, it.iconColor)
+			})));
+		};
+
+		// Перший рендер — лише коли Pickr доступний.
+		// Він вантажиться через CDN async, а цей скрипт виконується раніше.
+		let pickrTries = 0;
+		(function waitPickr() {
+			if (typeof Pickr === "undefined") {
+				if (++pickrTries > 100) {
+					console.warn("Pickr не завантажився — рендер без піпеток");
+					renderList(); renderPreview();
+					return;
+				}
+				return setTimeout(waitPickr, 50);
+			}
+			renderList();
+			renderPreview();
+		})();
+	})();
+
+	// Збір даних не залежить від scheduler: якщо плагін не завантажиться,
+	// решта налаштувань усе одно має зберігатися.
+	window.collectChannelFields = function () {
+		const cfg = wcsConfig || {};
+		if (!cfg.version) cfg.version = 1;
+
+		if (typeof window.collectWidgetConfig === "function") window.collectWidgetConfig(cfg);
+
+		return {
+			allowed_origins: document.getElementById("f_allowed_origins").value.trim(),
+			widget_config: cfg,
+		};
+	};
+
+	let schedulerWaitTries = 0;
+
+	(function waitForScheduler() {
+		if (typeof $ === "undefined" || !$.fn || !$.fn.scheduler) {
+			if (++schedulerWaitTries > 100) {
+				console.error("scheduler.js не завантажився — редактор годин недоступний");
+				return;
+			}
+			return setTimeout(waitForScheduler, 50);
+		}
+
+		$.fn.scheduler.locales["uk-UA"] = {
+			AM: "ДП", PM: "ПП", TIME_TITLE: "ЧАС", WEEK_TITLE: "ДЕНЬ",
+			WEEK_DAYS: ["ПОНЕДІЛОК", "ВІВТОРОК", "СЕРЕДА", "ЧЕТВЕР", "П'ЯТНИЦЯ", "СУБОТА", "НЕДІЛЯ"],
+			DRAG_TIP: "Перетягніть, щоб вибрати години", RESET: "Скинути вибране",
+		};
+
+		const WC_LANGS = [
+			{ code: "uk", name: "Українська" }, { code: "en", name: "English" }, { code: "pl", name: "Polski" },
+			{ code: "de", name: "Deutsch" }, { code: "fr", name: "Français" }, { code: "es", name: "Español" },
+			{ code: "it", name: "Italiano" }, { code: "pt", name: "Português" }, { code: "nl", name: "Nederlands" },
+			{ code: "cs", name: "Čeština" }, { code: "sk", name: "Slovenčina" }, { code: "ro", name: "Română" },
+			{ code: "bg", name: "Български" }, { code: "hu", name: "Magyar" }, { code: "el", name: "Ελληνικά" },
+			{ code: "tr", name: "Türkçe" }, { code: "sv", name: "Svenska" }, { code: "da", name: "Dansk" },
+			{ code: "fi", name: "Suomi" }, { code: "no", name: "Norsk" }, { code: "lt", name: "Lietuvių" },
+			{ code: "lv", name: "Latviešu" }, { code: "et", name: "Eesti" }, { code: "sl", name: "Slovenščina" },
+			{ code: "hr", name: "Hrvatski" }, { code: "sr", name: "Srpski" }, { code: "ka", name: "ქართული" },
+			{ code: "az", name: "Azərbaycan" }, { code: "kk", name: "Қазақ" }, { code: "ar", name: "العربية" },
+			{ code: "he", name: "עברית" }, { code: "zh", name: "中文" }, { code: "ja", name: "日本語" },
+			{ code: "ko", name: "한국어" }, { code: "hi", name: "हिन्दी" }, { code: "th", name: "ไทย" },
+			{ code: "vi", name: "Tiếng Việt" }, { code: "id", name: "Indonesia" },
+		];
+
+		const langName = (code) => { const l = WC_LANGS.find((x) => x.code === code); return l ? l.name : code; };
+		const escAttr = (s) => (s + "").replace(/"/g, "&quot;");
+
+		// ── Розклад: [[9,18]] ↔ [9,10,...,17] ──
+		function scheduleToScheduler(sched) {
+			const out = {}; sched = sched || {};
+			Object.keys(sched).forEach((day) => {
+				const hours = [];
+				(sched[day] || []).forEach((r) => { for (let h = r[0]; h < r[1]; h++) hours.push(h); });
+				if (hours.length) out[day] = hours;
+			});
+			return out;
+		}
+		function schedulerToSchedule(val) {
+			const out = {}; val = val || {};
+			Object.keys(val).forEach((day) => {
+				const hours = (val[day] || []).slice().sort((a, b) => a - b);
+				if (!hours.length) return;
+				const ranges = []; let start = hours[0], prev = hours[0];
+				for (let i = 1; i < hours.length; i++) {
+					if (hours[i] === prev + 1) prev = hours[i];
+					else { ranges.push([start, prev + 1]); start = hours[i]; prev = hours[i]; }
+				}
+				ranges.push([start, prev + 1]);
+				out[day] = ranges;
+			});
+			return out;
+		}
+
+		// ── Мови ──
+		function getEnabledLangs() {
+			return Array.from(document.querySelectorAll(".cfg-lang:checked")).map((c) => c.value);
+		}
+		function syncPrimarySelect(preferred) {
+			const sel = document.getElementById("cfg-locale-primary");
+			const prev = preferred || sel.value;
+			const en = getEnabledLangs();
+			sel.innerHTML = en.map((code) => `<option value="${code}">${langName(code)} (${code})</option>`).join("");
+			if (en.includes(prev)) sel.value = prev;
+			else if (en.length) sel.value = en[0];
+		}
+		function onLangsChanged() {
+			syncPrimarySelect(); renderHeaderLangs(); renderGreetingLangs(); renderTriggers(); renderStringsUi();
+		}
+		function renderLocaleUI(enabled, primary) {
+			enabled = enabled || [];
+			const listEl = document.getElementById("cfg-locale-list");
+			listEl.innerHTML = WC_LANGS.map((l) => {
+				const checked = enabled.includes(l.code) ? "checked" : "";
+				return `<div class="col-6 col-md-4 col-lg-3"><div class="form-check">
+					<input class="form-check-input rounded-0 cfg-lang" type="checkbox" id="cfg-lang-${l.code}" value="${l.code}" ${checked}>
+					<label class="form-check-label" for="cfg-lang-${l.code}">${l.name} <span class="text-muted">(${l.code})</span></label>
+				</div></div>`;
+			}).join("");
+
+			listEl.querySelectorAll(".cfg-lang").forEach((cb) => {
+				cb.addEventListener("change", function () {
+					if (getEnabledLangs().length === 0) { this.checked = true; notyf.error("Має бути хоча б одна мова"); return; }
+					onLangsChanged();
+				});
+			});
+			syncPrimarySelect(primary);
+		}
+
+		// ── Мультимовні поля ──
+		function multiLangInputs(dataAttr, basePath) {
+			return getEnabledLangs().map((code) => {
+				const v = escAttr(cfgGet(wcsConfig, basePath + "." + code, ""));
+				return `<div class="input-group input-group-sm mb-1"><span class="input-group-text rounded-0">${code}</span>
+					<input type="text" class="form-control rounded-0" ${dataAttr}="${basePath}.${code}" value="${v}"></div>`;
+			}).join("");
+		}
+		function saveDomInto(selector, attr) {
+			document.querySelectorAll(selector).forEach((t) => cfgSet(wcsConfig, t.getAttribute(attr), t.value));
+		}
+
+		function renderHeaderLangs() {
+			const box = document.getElementById("cfg-header-langs");
+			saveDomInto("#cfg-header-langs input[data-hkey]", "data-hkey");
+			box.innerHTML = getEnabledLangs().map((code) => `<div class="col-md-6 col-lg-4 mb-2">
+				<label class="form-label mb-1">${langName(code)} <span class="text-muted">(${code})</span></label>
+				<input type="text" class="form-control rounded-0" data-hkey="appearance.headerTitle.${code}" value="${escAttr(cfgGet(wcsConfig, "appearance.headerTitle." + code, ""))}">
+			</div>`).join("");
+		}
+
+		function renderGreetingLangs() {
+			const box = document.getElementById("cfg-greeting-langs");
+			saveDomInto("#cfg-greeting-langs textarea[data-gkey]", "data-gkey");
+			box.innerHTML = getEnabledLangs().map((code) => `<div class="col-md-6 col-lg-4 mb-3"><div class="border rounded-0 p-2 h-100">
+				<div class="fw-bold mb-2">${langName(code)} <span class="text-muted">(${code})</span></div>
+				<div class="mb-2"><label class="form-label mb-1 small">Робоче</label>
+					<textarea class="form-control rounded-0" rows="2" data-gkey="greeting.working.${code}">${cfgGet(wcsConfig, "greeting.working." + code, "")}</textarea></div>
+				<div class="mb-2"><label class="form-label mb-1 small">Офлайн</label>
+					<textarea class="form-control rounded-0" rows="2" data-gkey="greeting.offline.${code}">${cfgGet(wcsConfig, "greeting.offline." + code, "")}</textarea></div>
+				<div class="mb-0"><label class="form-label mb-1 small">Офлайн-підтвердження</label>
+					<textarea class="form-control rounded-0" rows="2" data-gkey="greeting.offlineAck.${code}">${cfgGet(wcsConfig, "greeting.offlineAck." + code, "")}</textarea></div>
+			</div></div>`).join("");
+		}
+
+		const TEXT_GROUPS = [
+			{ box: "cfg-strings", defs: [
+				{ key: "strings.sendFailed", label: "Помилка надсилання" },
+				{ key: "strings.rateLimited", label: "Забагато повідомлень" },
+				{ key: "strings.leadNeedContact", label: "Потрібен контакт" },
+			]},
+			{ box: "cfg-ui", defs: [
+				{ key: "ui.leadDone", label: "Контакт залишено" },
+				{ key: "ui.leadDismissed", label: "Форму згорнуто" },
+				{ key: "ui.inputPlaceholder", label: "Плейсхолдер вводу" },
+			]},
+		];
+		function renderStringsUi() {
+			TEXT_GROUPS.forEach((g) => {
+				const box = document.getElementById(g.box);
+				saveDomInto("#" + g.box + " input[data-tkey]", "data-tkey");
+				box.innerHTML = g.defs.map((d) => `<div class="col-md-6 col-lg-4 mb-3">
+					<label class="form-label mb-1 fw-bold">${d.label}</label>${multiLangInputs("data-tkey", d.key)}</div>`).join("");
+			});
+		}
+		function collectTextGroups(cfg) {
+			document.querySelectorAll("#cfg-strings input[data-tkey], #cfg-ui input[data-tkey]").forEach((t) => {
+				cfgSet(cfg, t.getAttribute("data-tkey"), t.value);
+			});
+		}
+
+		// ── Тригери ──
+		const TRIGGERS = [
+			{ path: "triggers.autoForm.working", title: "Авто-форма (робочий час)", hasForm: true, hasAfter: true },
+			{ path: "triggers.autoForm.offline", title: "Авто-форма (офлайн)", hasForm: true, hasAfter: true },
+			{ path: "triggers.onFirstMessage.working", title: "Після першого повідомлення (робочий час)", hasForm: true, hasAfter: true },
+			{ path: "triggers.onFirstMessage.offline", title: "Після першого повідомлення (офлайн)", hasForm: true, hasAfter: true },
+			{ path: "triggers.onOperatorTimeout", title: "Оператор не відповів", hasForm: true, hasAfter: true },
+			{ path: "triggers.afterClose.review", title: "Оцінка після закриття", hasForm: false, hasAfter: false },
+		];
+		function formIdOptions(selected) {
+			return '<option value="">— оберіть форму —</option>' + Object.keys(getForms()).map((id) =>
+				`<option value="${id}" ${selected === id ? "selected" : ""}>${id}</option>`).join("");
+		}
+		function renderTriggers() {
+			const box = document.getElementById("cfg-triggers");
+			document.querySelectorAll(".trg-msg").forEach((t) => cfgSet(wcsConfig, t.getAttribute("data-path") + ".message." + t.getAttribute("data-lang"), t.value));
+
+			box.innerHTML = TRIGGERS.map((tr, ti) => {
+				const enabled = !!cfgGet(wcsConfig, tr.path + ".enabled", false);
+				const formId = cfgGet(wcsConfig, tr.path + ".formId", "");
+				const afterSec = cfgGet(wcsConfig, tr.path + ".afterSec", 0);
+				const msgInputs = getEnabledLangs().map((code) => {
+					const v = (cfgGet(wcsConfig, tr.path + ".message." + code, "") + "").replace(/</g, "&lt;");
+					return `<div class="col-md-6 mb-2"><div class="input-group input-group-sm">
+						<span class="input-group-text rounded-0">${code}</span>
+						<textarea class="form-control rounded-0 trg-msg" data-path="${tr.path}" data-lang="${code}" rows="2">${v}</textarea></div></div>`;
+				}).join("");
+				const formSelect = tr.hasForm ? `<div class="col-md-6 mb-2"><label class="form-label mb-1 small">Форма</label>
+					<select class="form-select form-select-sm rounded-0 trg-form" data-path="${tr.path}">${formIdOptions(formId)}</select></div>` : "";
+				const afterInput = tr.hasAfter ? `<div class="col-md-6 mb-2"><label class="form-label mb-1 small">Затримка (сек)</label>
+					<input type="number" min="0" class="form-control form-control-sm rounded-0 trg-after" data-path="${tr.path}" value="${afterSec}"></div>` : "";
+				return `<div class="border rounded-0 p-3 mb-3">
+					<div class="form-check form-switch mb-2">
+						<input class="form-check-input trg-enabled" type="checkbox" data-path="${tr.path}" id="trg-en-${ti}" ${enabled ? "checked" : ""}>
+						<label class="form-check-label fw-bold" for="trg-en-${ti}">${tr.title}</label></div>
+					<div class="row">${formSelect}${afterInput}</div>
+					<label class="form-label mb-1 small">Текст перед формою (по мовах)</label>
+					<div class="row">${msgInputs}</div></div>`;
+			}).join("");
+		}
+		function collectTriggers(cfg) {
+			TRIGGERS.forEach((tr) => {
+				const enCb = document.querySelector('.trg-enabled[data-path="' + tr.path + '"]');
+				if (enCb) cfgSet(cfg, tr.path + ".enabled", enCb.checked);
+				if (tr.hasForm) { const fs = document.querySelector('.trg-form[data-path="' + tr.path + '"]'); if (fs) cfgSet(cfg, tr.path + ".formId", fs.value); }
+				if (tr.hasAfter) { const af = document.querySelector('.trg-after[data-path="' + tr.path + '"]'); if (af) cfgSet(cfg, tr.path + ".afterSec", parseInt(af.value, 10) || 0); }
+				document.querySelectorAll('.trg-msg[data-path="' + tr.path + '"]').forEach((t) => {
+					cfgSet(cfg, tr.path + ".message." + t.getAttribute("data-lang"), t.value);
+				});
+			});
+		}
+
+		// ── Форми ──
+		const FIELD_TYPES = [
+			{ v: "text", n: "Текст" }, { v: "email", n: "Email" }, { v: "tel", n: "Телефон" },
+			{ v: "textarea", n: "Багаторядковий" }, { v: "select", n: "Список" }, { v: "checkbox", n: "Чекбокс" },
+		];
+		function getForms() { return cfgGet(wcsConfig, "forms", {}) || {}; }
+
+		function renderFormsList() {
+			const forms = getForms();
+			const box = document.getElementById("cfg-forms-list");
+			const ids = Object.keys(forms);
+			box.innerHTML = ids.length ? ids.map((fid) => {
+				const f = forms[fid] || {};
+				const names = (f.fields || []).map((x) => x.name).join(", ");
+				return `<div class="col-md-6 col-lg-4 mb-3"><div class="border rounded-0 p-3 h-100">
+					<div class="d-flex justify-content-between align-items-start">
+						<div><div class="fw-bold">${fid}</div><div class="small text-muted">${(f.fields || []).length} пол. · ${names || "—"}</div></div>
+						<div class="text-nowrap">
+							<button type="button" class="btn btn-sm btn-primary rounded-0" data-form-edit="${fid}"><i class="fa-regular fa-pen-to-square"></i></button>
+							<button type="button" class="btn btn-sm btn-outline-danger rounded-0" data-form-del="${fid}"><i class="fa-regular fa-trash-can"></i></button>
+						</div></div></div></div>`;
+			}).join("") : '<div class="col-12 text-muted">Форм ще немає.</div>';
+
+			box.querySelectorAll("[data-form-edit]").forEach((b) => { b.onclick = function () { openFormEditor(this.getAttribute("data-form-edit")); }; });
+			box.querySelectorAll("[data-form-del]").forEach((b) => {
+				b.onclick = function () {
+					const fid = this.getAttribute("data-form-del");
+					if (!confirm("Видалити форму «" + fid + "»?")) return;
+					const forms = getForms(); delete forms[fid]; cfgSet(wcsConfig, "forms", forms);
+					renderFormsList(); renderTriggers();
+				};
+			});
+		}
+
+		function optionsToText(opts) {
+			if (!Array.isArray(opts)) return "";
+			const primary = getEnabledLangs()[0] || "uk";
+			return opts.map((o) => {
+				const lbl = (o.label && (o.label[primary] || Object.values(o.label)[0])) || o.value || "";
+				return o.value + "|" + lbl;
+			}).join("\n");
+		}
+		function textToOptions(text) {
+			const langs = getEnabledLangs();
+			return String(text || "").split("\n").map((line) => {
+				const t = line.trim(); if (!t) return null;
+				const parts = t.split("|"); const value = parts[0].trim(); const lbl = (parts[1] || parts[0]).trim();
+				if (!value) return null;
+				const label = {}; langs.forEach((c) => { label[c] = lbl; });
+				return { value: value, label: label };
+			}).filter(Boolean);
+		}
+
+		function fieldRowHtml(idx, fld) {
+			const typeOpts = FIELD_TYPES.map((t) => `<option value="${t.v}" ${fld.type === t.v ? "selected" : ""}>${t.n}</option>`).join("");
+			const labelInputs = getEnabledLangs().map((code) => {
+				const val = (fld.label && fld.label[code]) ? escAttr(fld.label[code]) : "";
+				return `<div class="col-md-6 mb-1"><div class="input-group input-group-sm">
+					<span class="input-group-text rounded-0">${code}</span>
+					<input type="text" class="form-control rounded-0 fld-label" data-lang="${code}" value="${val}" placeholder="Підпис"></div></div>`;
+			}).join("");
+			const isSelect = fld.type === "select";
+			return `<div class="border rounded-0 p-2 mb-2 fld-row" data-idx="${idx}">
+				<div class="row g-2 align-items-end">
+					<div class="col-md-3"><label class="form-label mb-1 small">Ключ (name)</label>
+						<input type="text" class="form-control form-control-sm rounded-0 fld-name" value="${escAttr(fld.name || "")}" placeholder="email"></div>
+					<div class="col-md-3"><label class="form-label mb-1 small">Тип</label>
+						<select class="form-select form-select-sm rounded-0 fld-type">${typeOpts}</select></div>
+					<div class="col-md-3"><div class="form-check mt-4">
+						<input class="form-check-input rounded-0 fld-required" type="checkbox" ${fld.required ? "checked" : ""} id="fld-req-${idx}">
+						<label class="form-check-label small" for="fld-req-${idx}">Обовʼязкове</label></div></div>
+					<div class="col-md-3 text-end"><button type="button" class="btn btn-sm btn-outline-danger rounded-0 fld-del"><i class="fa-regular fa-trash-can"></i></button></div>
+				</div>
+				<div class="row mt-2"><div class="col-12"><label class="form-label mb-1 small">Підпис (по мовах)</label></div>${labelInputs}</div>
+				<div class="fld-options mt-2" style="${isSelect ? "" : "display:none"}">
+					<label class="form-label mb-1 small">Варіанти (value|підпис, по одному в рядку)</label>
+					<textarea class="form-control rounded-0 fld-options-text" rows="3" placeholder="new|Новий">${optionsToText(fld.options)}</textarea></div>
+			</div>`;
+		}
+
+		function syncEditingFromDom() {
+			const arr = [];
+			document.querySelectorAll("#form-fields .fld-row").forEach((row) => {
+				const type = row.querySelector(".fld-type").value;
+				const name = row.querySelector(".fld-name").value.trim();
+				const label = {};
+				row.querySelectorAll(".fld-label").forEach((inp) => { const v = inp.value.trim(); if (v) label[inp.getAttribute("data-lang")] = v; });
+				const fld = { name: name, type: type, label: label };
+				if (row.querySelector(".fld-required").checked) fld.required = true;
+				if (type === "select") {
+					const ta = row.querySelector(".fld-options-text");
+					const opts = textToOptions(ta ? ta.value : "");
+					if (opts.length) fld.options = opts;
+				}
+				arr.push(fld);
+			});
+			editingFieldsState = arr;
+		}
+		function renderEditingFields() {
+			const box = document.getElementById("form-fields");
+			box.innerHTML = editingFieldsState.map((fld, i) => fieldRowHtml(i, fld)).join("");
+			box.querySelectorAll(".fld-row").forEach((row) => {
+				const idx = parseInt(row.getAttribute("data-idx"), 10);
+				row.querySelector(".fld-type").addEventListener("change", function () { syncEditingFromDom(); editingFieldsState[idx].type = this.value; renderEditingFields(); renderRequireAny(); });
+				row.querySelector(".fld-del").addEventListener("click", function () { syncEditingFromDom(); editingFieldsState.splice(idx, 1); renderEditingFields(); renderRequireAny(); });
+				row.querySelector(".fld-name").addEventListener("input", renderRequireAny);
+			});
+		}
+		function renderRequireAny() {
+			syncEditingFromDom();
+			const box = document.getElementById("form-requireany");
+			const names = editingFieldsState.map((f) => f.name).filter(Boolean);
+			if (!names.length) { box.innerHTML = '<span class="text-muted small">Спершу додайте поля.</span>'; return; }
+			box.innerHTML = names.map((n) => `<div class="form-check form-check-inline">
+				<input class="form-check-input rounded-0 req-any" type="checkbox" value="${n}" id="reqany-${n}">
+				<label class="form-check-label" for="reqany-${n}">${n}</label></div>`).join("");
+			(editingRequireAny || []).forEach((n) => { const cb = box.querySelector('.req-any[value="' + n + '"]'); if (cb) cb.checked = true; });
+		}
+		function openFormEditor(formId) {
+			const f = formId ? (getForms()[formId] || {}) : {};
+			document.getElementById("form-orig-id").value = formId || "";
+			document.getElementById("form-modal-title").textContent = formId ? ("Форма: " + formId) : "Нова форма";
+			document.getElementById("form-id").value = formId || "";
+			document.getElementById("form-target").value = f.target || "lead";
+			editingFieldsState = JSON.parse(JSON.stringify(f.fields || []));
+			editingRequireAny = Array.isArray(f.requireAnyOf) ? f.requireAnyOf.slice() : [];
+			renderEditingFields(); renderRequireAny();
+			formModal.show();
+		}
+
+		document.getElementById("cfg-form-add").onclick = function () { openFormEditor(null); };
+		document.getElementById("form-field-add").onclick = function () {
+			syncEditingFromDom(); editingFieldsState.push({ name: "", type: "text", label: {} });
+			renderEditingFields(); renderRequireAny();
+		};
+		document.getElementById("form-save").onclick = function () {
+			syncEditingFromDom();
+			const origId = document.getElementById("form-orig-id").value;
+			const newId = document.getElementById("form-id").value.trim();
+			if (!/^[a-zA-Z0-9_]+$/.test(newId)) { notyf.error("ID форми: лише латиниця, цифри, _"); return; }
+			if (!editingFieldsState.length) { notyf.error("Додайте хоча б одне поле"); return; }
+			for (const f of editingFieldsState) { if (!/^[a-zA-Z0-9_]+$/.test(f.name)) { notyf.error("Ключ поля: лише латиниця, цифри, _"); return; } }
+			const reqAny = Array.from(document.querySelectorAll("#form-requireany .req-any:checked")).map((c) => c.value);
+			const forms = getForms();
+			if (origId && origId !== newId) delete forms[origId];
+			forms[newId] = { fields: editingFieldsState, target: document.getElementById("form-target").value || "lead", requireAnyOf: reqAny };
+			cfgSet(wcsConfig, "forms", forms);
+			renderFormsList(); renderTriggers();
+			formModal.hide();
+			notyf.success("Форму збережено — не забудьте «Зберегти» внизу");
+		};
+
+		// ── Заповнення ──
+		let en = cfgGet(wcsConfig, "locales.enabled", []) || [];
+		if (!en.length) en = ["uk"];
+		renderLocaleUI(en, cfgGet(wcsConfig, "locales.primary", "uk"));
+
+		document.getElementById("cfg-position").value = cfgGet(wcsConfig, "appearance.position", "right");
+		const brandColor = cfgGet(wcsConfig, "appearance.brandColor", "#16a34a");
+		document.getElementById("cfg-appearance-color").value = brandColor;
+		let brandPickr = null;
+		if (typeof Pickr !== "undefined") {
+			brandPickr = Pickr.create({
+				el: ".pickr-brand",
+				theme: "monolith",
+				default: brandColor,
+				swatches: ["#16a34a", "#0057b8", "#2fb25c", "#e74c3c", "#3498db", "#8e44ad", "#f1c40f", "#e67e22", "#7f8c8d", "#34495e"],
+				components: {
+					preview: true,
+					opacity: false,
+					hue: true,
+					interaction: { input: true, save: true },
+				},
+			});
+			brandPickr.on("save", (color) => {
+				if (color) document.getElementById("cfg-appearance-color").value = color.toHEXA().toString(0).slice(0, 7);
+				brandPickr.hide();
+				// Оновлення прев'ю редактора віджета
+				if (typeof window.__wcWidgetEditor_updatePreview === "function") window.__wcWidgetEditor_updatePreview();
+			});
+			brandPickr.on("init", () => {
+				brandPickr.setColor(brandColor);
+			});
+		}
+		document.getElementById("cfg-greeting-enabled").checked = !!cfgGet(wcsConfig, "greeting.enabled", false);
+		document.getElementById("cfg-greeting-delay").value = cfgGet(wcsConfig, "greeting.autoOpenDelaySec", 0);
+
+		const gAuto = !!cfgGet(wcsConfig, "greeting.autoOpen", false);
+		document.getElementById("cfg-greeting-desktop-autoopen").checked = !!cfgGet(wcsConfig, "greeting.desktop.autoOpen", gAuto);
+		document.getElementById("cfg-greeting-desktop-sound").checked = !!cfgGet(wcsConfig, "greeting.desktop.sound", true);
+		document.getElementById("cfg-greeting-mobile-autoopen").checked = !!cfgGet(wcsConfig, "greeting.mobile.autoOpen", gAuto);
+		document.getElementById("cfg-greeting-mobile-sound").checked = !!cfgGet(wcsConfig, "greeting.mobile.sound", false);
+
+		document.getElementById("cfg-hours-tz").value = cfgGet(wcsConfig, "hours.timezone", "Europe/Kyiv");
+		document.getElementById("cfg-hours-force").value = cfgGet(wcsConfig, "hours.force", "auto");
+		document.getElementById("cfg-productcard").checked = !!cfgGet(wcsConfig, "productCard.enabled", false);
+
+		// Scheduler ініціалізуємо при першому показі вкладки:
+		// у прихованому блоці він рахує розміри неправильно
+		function initScheduler() {
+			if (wcsSchedulerReady) return;
+			$("#wcs-scheduler").scheduler({ locale: "uk-UA" });
+			$("#wcs-scheduler").scheduler("val", scheduleToScheduler(cfgGet(wcsConfig, "hours.schedule", {})));
+			wcsSchedulerReady = true;
+		}
+		$("#wc-tab-hours-btn").on("shown.bs.tab", initScheduler);
+
+		renderHeaderLangs(); renderGreetingLangs(); renderStringsUi();
+		renderFormsList(); renderTriggers();
+
+		formModal = new bootstrap.Modal(document.getElementById("form-modal"));
+
+		// ── Збір конфігу віджета (викликається з collectChannelFields) ──
+		window.collectWidgetConfig = function (cfg) {
+			cfgSet(cfg, "locales.primary", document.getElementById("cfg-locale-primary").value);
+			cfgSet(cfg, "locales.enabled", getEnabledLangs());
+			cfgSet(cfg, "appearance.position", document.getElementById("cfg-position").value);
+			cfgSet(cfg, "appearance.brandColor", document.getElementById("cfg-appearance-color").value);
+			document.querySelectorAll("#cfg-header-langs input[data-hkey]").forEach((t) => cfgSet(cfg, t.getAttribute("data-hkey"), t.value));
+
+			cfgSet(cfg, "greeting.enabled", document.getElementById("cfg-greeting-enabled").checked);
+			cfgSet(cfg, "greeting.autoOpen", document.getElementById("cfg-greeting-desktop-autoopen").checked);
+			cfgSet(cfg, "greeting.autoOpenDelaySec", parseInt(document.getElementById("cfg-greeting-delay").value, 10) || 0);
+			cfgSet(cfg, "greeting.desktop.autoOpen", document.getElementById("cfg-greeting-desktop-autoopen").checked);
+			cfgSet(cfg, "greeting.desktop.sound", document.getElementById("cfg-greeting-desktop-sound").checked);
+			cfgSet(cfg, "greeting.mobile.autoOpen", document.getElementById("cfg-greeting-mobile-autoopen").checked);
+			cfgSet(cfg, "greeting.mobile.sound", document.getElementById("cfg-greeting-mobile-sound").checked);
+			document.querySelectorAll("#cfg-greeting-langs textarea[data-gkey]").forEach((t) => cfgSet(cfg, t.getAttribute("data-gkey"), t.value));
+
+			cfgSet(cfg, "hours.timezone", document.getElementById("cfg-hours-tz").value);
+			cfgSet(cfg, "hours.force", document.getElementById("cfg-hours-force").value);
+			if (wcsSchedulerReady) cfgSet(cfg, "hours.schedule", schedulerToSchedule($("#wcs-scheduler").scheduler("val")));
+			// holidays прибрано з інтерфейсу — зберігаємо наявне значення без змін
+			cfgSet(cfg, "hours.holidays", cfgGet(wcsConfig, "hours.holidays", []) || []);
+			cfgSet(cfg, "productCard.enabled", document.getElementById("cfg-productcard").checked);
+
+			// ▼ Додаткові кнопки (редактор віджета)
+			if (typeof window.collectWidgetEditorConfig === "function") window.collectWidgetEditorConfig(cfg);
+
+			collectTextGroups(cfg);
+			collectTriggers(cfg);
+		};
+	})();
+</script>

@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+  <head>
+    <%- include('../../partials/head'); %>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+    <!-- tabulator -->
+    <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+    <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+    <!-- END tabulator -->
+    <style>
+      /* Стилі для таблиці статусів */
+      #orders-table .tabulator-col,
+      #orders-table .tabulator-cell {
+        border-right: 1px solid #dee2e6;
+        border-bottom: 1px solid #dee2e6;
+      }
+
+      #orders-table .tabulator-col:last-child,
+      #orders-table .tabulator-cell:last-child {
+        border-right: none;
+      }
+
+      #orders-table .tabulator-row:last-child .tabulator-cell {
+        border-bottom: none;
+      }
+    </style>
+  </head>
+
+  <body class="d-flex flex-column h-100">
+    <%- include('../../partials/header'); %>
+    <!-- Breadcrumb -->
+    <div class="breadcrumbs pt-3 pb-3">
+      <div class="container-fluid">
+        <div class="row align-items-center">
+          <div class="col">
+            <span><%= i18n.__('orders.title') %></span>
+            <div>
+              <ul class="list-inline mb-0">
+                <li class="list-inline-item">
+                  <a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('orders.breadcrumb.home') %></span></a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <%= i18n.__('orders.breadcrumb.current') %>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-auto">
+            <a href="/" class="btn btn-primary rounded-0">
+              <i class="fa-solid fa-angle-left"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- END Breadcrumb -->
+    <div class="container-fluid mt-3">
+      <div class="row">
+        <div class="col-12 mb-3">
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+              <span><%= i18n.__('orders.title') %></span>
+              <button class="btn btn-sm btn-light rounded-0" type="button" data-bs-toggle="collapse" data-bs-target="#orders-filters"><i class="fa-solid fa-filter me-1"></i> Фільтри</button>
+            </div>
+
+            <!-- Панель фільтрів -->
+            <div class="collapse" id="orders-filters">
+              <div class="card-body border-bottom bg-light">
+                <div class="row g-2">
+                  <div class="col-6 col-md-3">
+                    <label class="section-title d-block">Пошук</label>
+                    <input type="text" id="f-search" class="form-control form-control-sm rounded-0" placeholder="№, телефон, email, прізвище" />
+                  </div>
+                  <div class="col-6 col-md-2">
+                    <label class="section-title d-block">Статус</label>
+                    <select id="f-status" class="form-select form-select-sm rounded-0">
+                      <option value="">Усі</option>
+                    </select>
+                  </div>
+                  <div class="col-6 col-md-2">
+                    <label class="section-title d-block">Оплата</label>
+                    <select id="f-financial" class="form-select form-select-sm rounded-0">
+                      <option value="">Усі</option>
+                    </select>
+                  </div>
+                  <div class="col-6 col-md-2">
+                    <label class="section-title d-block">Канал</label>
+                    <select id="f-channel" class="form-select form-select-sm rounded-0">
+                      <option value="">Усі</option>
+                    </select>
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <label class="section-title d-block">Валюта</label>
+                    <select id="f-currency" class="form-select form-select-sm rounded-0">
+                      <option value="">Усі</option>
+                    </select>
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <label class="section-title d-block">Дата з</label>
+                    <input type="date" id="f-date-from" class="form-control form-control-sm rounded-0" />
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <label class="section-title d-block">Дата до</label>
+                    <input type="date" id="f-date-to" class="form-control form-control-sm rounded-0" />
+                  </div>
+                  <div class="col-12 col-md-6 d-flex align-items-end gap-2">
+                    <button class="btn btn-primary btn-sm rounded-0" onclick="applyFilters()"><i class="fa-solid fa-check me-1"></i>Застосувати</button>
+                    <button class="btn btn-outline-secondary btn-sm rounded-0" onclick="resetFilters()"><i class="fa-solid fa-xmark me-1"></i>Скинути</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="orders-table"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модалка видалення замовлення -->
+    <div class="modal fade" id="modalDeleteOrder" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-0">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5">Видалити замовлення</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0">Ви дійсно бажаєте видалити це замовлення?</p>
+            <p class="mb-0">
+              <strong>ID: <span id="delete_order_id"></span></strong>
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal">Скасувати</button>
+            <button type="button" class="btn btn-danger rounded-0" id="btn_confirm_delete_order">Видалити</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+    <script src="/assets/js/notyf/notyf.min.js"></script>
+    <script>
+      const notyf = new Notyf({
+        position: { x: "right", y: "top" },
+        duration: 4000,
+        types: [
+          { type: "success", dismissible: true, icon: false },
+          { type: "error", background: "indianred", dismissible: true, icon: false },
+        ],
+      });
+    </script>
+    <script src="/assets/js/tabulator/tabulator.min.js"></script>
+    <style>
+      .section-title {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #6c757d;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+      }
+    </style>
+    <script>
+      // Екранування для formatter-ів
+      function esc(s) {
+        return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+      }
+
+      // Мітки статусів (людською мовою)
+      const FIN_LABELS = {
+        pending: "Очікує",
+        authorized: "Авторизовано",
+        paid: "Оплачено",
+        partially_paid: "Частково",
+        partially_refunded: "Частк. повернення",
+        refunded: "Повернено",
+        voided: "Анульовано",
+      };
+      const FUL_LABELS = { unfulfilled: "Не виконано", partial: "Частково", fulfilled: "Виконано", returned: "Повернено" };
+      const FIN_COLOR = { paid: "success", pending: "secondary", authorized: "info", partially_paid: "warning", partially_refunded: "warning", refunded: "danger", voided: "dark" };
+
+      // Бейдж-хелпер (колір із БД може бути з # або без — нормалізуємо)
+      function colorBadge(text, colorText, colorBg) {
+        const ct = colorText ? (colorText[0] === "#" ? colorText : "#" + colorText) : "#fff";
+        const cb = colorBg ? (colorBg[0] === "#" ? colorBg : "#" + colorBg) : "#6c757d";
+        return '<span class="badge rounded-0" style="color:' + ct + ";background:" + cb + '">' + esc(text || "—") + "</span>";
+      }
+
+      var table = new Tabulator("#orders-table", {
+        layout: "fitColumns",
+        ajaxURL: "/api/orders/orders-list/",
+        ajaxConfig: "POST",
+        ajaxContentType: "json",
+        ajaxParams: {}, // сюди підставляються фільтри
+        paginationSize: 10,
+        paginationSizeSelector: [10, 20, 30, 50],
+        pagination: true,
+        paginationMode: "local",
+        movableColumns: true,
+        placeholder: "Замовлень немає",
+        columns: [
+          { title: "ID", field: "id", width: 70, headerSort: true },
+          {
+            title: "Джерело",
+            field: "integration_name",
+            headerSort: false,
+            formatter: function (cell) {
+              const d = cell.getRow().getData();
+              const src = d.integration_name ? colorBadge(d.integration_name, d.integration_color_text, d.integration_color_background) : '<span class="text-muted">—</span>';
+              const ch = d.source_channel ? '<div><small class="text-muted">' + esc(d.source_channel) + "</small></div>" : "";
+              return src + ch;
+            },
+          },
+          {
+            title: "№",
+            field: "reference",
+            headerSort: false,
+            formatter: function (cell) {
+              const d = cell.getRow().getData();
+              return esc(d.reference) + (d.external_number ? '<div><small class="text-muted">' + esc(d.external_number) + "</small></div>" : "");
+            },
+          },
+          {
+            title: "Сума",
+            field: "total",
+            headerSort: true,
+            hozAlign: "right",
+            formatter: function (cell) {
+              const d = cell.getRow().getData();
+              return '<span class="badge text-bg-primary rounded-0">' + esc(d.total) + " " + esc(d.currency_iso || d.currency_iso_code || "") + "</span>";
+            },
+          },
+          {
+            title: "Оплата",
+            field: "financial_status",
+            headerSort: false,
+            formatter: function (cell) {
+              const v = cell.getValue();
+              return '<span class="badge rounded-0 text-bg-' + (FIN_COLOR[v] || "secondary") + '">' + (FIN_LABELS[v] || v || "—") + "</span>";
+            },
+          },
+          {
+            title: "Виконання",
+            field: "fulfillment_status",
+            headerSort: false,
+            formatter: function (cell) {
+              const v = cell.getValue();
+              return '<span class="badge rounded-0 text-bg-light border">' + (FUL_LABELS[v] || v || "—") + "</span>";
+            },
+          },
+          {
+            title: "Статус",
+            field: "status_name",
+            headerSort: false,
+            formatter: function (cell) {
+              const d = cell.getRow().getData();
+              const icon = d.status_icon ? '<i class="' + d.status_icon + ' me-1"></i>' : "";
+              const ct = d.status_color_text || "#fff",
+                cb = d.status_color_background || "#6c757d";
+              return '<span class="badge rounded-0" style="color:' + ct + ";background:" + cb + '">' + icon + esc(d.status_name || "—") + "</span>";
+            },
+          },
+          {
+            title: "Доставка",
+            field: "delivery_name",
+            headerSort: false,
+            formatter: function (cell) {
+              const d = cell.getRow().getData();
+              return d.delivery_name ? colorBadge(d.delivery_name, d.delivery_color_text, d.delivery_color_background) : '<span class="text-muted">—</span>';
+            },
+          },
+          { title: "Створено", field: "date_add", width: 150, headerSort: true },
+          {
+            title: "",
+            field: "actions",
+            width: 100,
+            headerSort: false,
+            hozAlign: "center",
+            formatter: function (cell) {
+              const id = cell.getRow().getData().id;
+              return '<div class="d-flex justify-content-center gap-2">' + '<a href="/orders/' + id + '/" class="d-block text-primary"><i class="fa-regular fa-pen-to-square"></i></a>' + '<button type="button" class="bg-transparent border-0 text-danger delete-order-btn" data-order-id="' + id + '">' + '<i class="fa-regular fa-trash-can"></i></button>' + "</div>";
+            },
+          },
+        ],
+      });
+
+      // ── Фільтри ──
+      function currentFilters() {
+        return {
+          search: document.getElementById("f-search").value.trim(),
+          status: document.getElementById("f-status").value,
+          financial_status: document.getElementById("f-financial").value,
+          source_channel: document.getElementById("f-channel").value,
+          currency: document.getElementById("f-currency").value,
+          date_from: document.getElementById("f-date-from").value,
+          date_to: document.getElementById("f-date-to").value,
+        };
+      }
+      function applyFilters() {
+        table.setData("/api/orders/orders-list/", currentFilters(), "POST");
+      }
+      function resetFilters() {
+        ["f-search", "f-status", "f-financial", "f-channel", "f-currency", "f-date-from", "f-date-to"].forEach((id) => (document.getElementById(id).value = ""));
+        table.setData("/api/orders/orders-list/", {}, "POST");
+      }
+
+      // Наповнення випадайок фільтрів
+      fetch("/api/orders/list-filters/", { method: "POST" })
+        .then((r) => r.json())
+        .then(function (d) {
+          const st = document.getElementById("f-status");
+          (d.statuses || []).forEach((s) => st.insertAdjacentHTML("beforeend", '<option value="' + s.id + '">' + esc(s.name) + "</option>"));
+          const fin = document.getElementById("f-financial");
+          (d.financial_statuses || []).forEach((v) => fin.insertAdjacentHTML("beforeend", '<option value="' + v + '">' + (FIN_LABELS[v] || v) + "</option>"));
+          const ch = document.getElementById("f-channel");
+          (d.channels || []).forEach((v) => ch.insertAdjacentHTML("beforeend", '<option value="' + esc(v) + '">' + esc(v) + "</option>"));
+          const cur = document.getElementById("f-currency");
+          (d.currencies || []).forEach((c) => cur.insertAdjacentHTML("beforeend", '<option value="' + c.id + '">' + esc(c.currency_iso_code) + "</option>"));
+        });
+
+      // Enter у полі пошуку = застосувати
+      document.getElementById("f-search").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") applyFilters();
+      });
+    </script>
+    <!-- END tabulator -->
+    <script>
+      // ── Відкриття модалки видалення замовлення ──────────────────────────────────
+      $(document).on("click", ".delete-order-btn", function () {
+        const orderId = $(this).data("order-id");
+        document.getElementById("delete_order_id").textContent = orderId;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById("modalDeleteOrder")).show();
+      });
+
+      // ── Підтвердження видалення замовлення ──────────────────────────────────────
+      // ── Підтвердження видалення замовлення ──────────────────────────────────────
+      document.getElementById("btn_confirm_delete_order").addEventListener("click", async function () {
+        const btn = this;
+        if (btn.disabled) return;
+
+        const id = parseInt(document.getElementById("delete_order_id").textContent, 10);
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        try {
+          const res = await fetch("/api/orders/delete/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id }),
+          });
+
+          const data = await res.json().catch(() => ({}));
+
+          if (!res.ok || data.status !== "success") {
+            throw new Error(data.message || "Помилка при видаленні замовлення");
+          }
+
+          // Закриваємо модалку
+          bootstrap.Modal.getOrCreateInstance(document.getElementById("modalDeleteOrder")).hide();
+
+          // Показуємо сповіщення про успіх
+          notyf.success("Замовлення успішно видалено");
+
+          // Оновлюємо таблицю з поточними фільтрами
+          applyFilters(); // або table.setData("/api/orders/orders-list/", currentFilters(), "POST");
+        } catch (err) {
+          notyf.error(err.message);
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+        }
+      });
+    </script>
+  </body>
+</html>

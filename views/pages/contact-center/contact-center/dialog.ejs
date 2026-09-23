@@ -1,0 +1,1596 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= data.conversation.contact_name || i18n.__('contact_center.dialog.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.dialog-feed {
+				position: absolute;
+				top: 0;
+				bottom: 0;
+				left: 0;
+				right: 0;
+				overflow-y: auto;
+				overflow-x: hidden;
+				scrollbar-width: thin;
+				padding: 1rem;
+			}
+
+			.message-client,
+			.message-manager {
+				margin-bottom: 1.5rem;
+			}
+
+			.message-manager {
+				text-align: right;
+			}
+
+			.message-client .alert,
+			.message-manager .alert {
+				max-width: 70%;
+				word-break: break-word;
+				white-space: pre-wrap;
+				text-align: left;
+			}
+
+			.message-client .time,
+			.message-manager .time {
+				display: block;
+				font-size: 0.75rem;
+				color: #6c757d;
+				margin-top: 0.15rem;
+			}
+
+			.message-failed .alert {
+				border: 1px solid #dc3545;
+				background: #fdf1f2;
+			}
+
+			.msg-system {
+				text-align: center;
+				font-size: 0.78rem;
+				color: #6c757d;
+				margin: 0.75rem 0;
+			}
+
+			.msg-day {
+				text-align: center;
+				margin: 1rem 0 0.75rem;
+			}
+
+			.msg-day span {
+				background: #e3e6ea;
+				color: #495057;
+				font-size: 0.75rem;
+				padding: 0.15rem 0.6rem;
+			}
+
+			.msg-attach img {
+				max-width: 260px;
+				max-height: 260px;
+				display: block;
+				cursor: pointer;
+				border: 1px solid #e3e6ea;
+			}
+
+			.msg-attach video,
+			.msg-attach audio {
+				max-width: 280px;
+				display: block;
+			}
+
+			.msg-attach .attach-pending {
+				width: 200px;
+				height: 120px;
+				background: #eef0f3;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: #6c757d;
+				font-size: 0.8rem;
+			}
+
+			.msg-attach + .msg-attach {
+				margin-top: 0.35rem;
+			}
+
+			.msg-reply {
+				border-left: 3px solid currentColor;
+				padding-left: 0.5rem;
+				margin-bottom: 0.35rem;
+				font-size: 0.8rem;
+				opacity: 0.7;
+			}
+
+			#composer textarea {
+				resize: none;
+			}
+
+			.cc-avatar {
+				width: 40px;
+				height: 40px;
+				border-radius: 50%;
+				object-fit: cover;
+				flex-shrink: 0;
+			}
+
+			.cc-avatar-fallback {
+				width: 40px;
+				height: 40px;
+				border-radius: 50%;
+				flex-shrink: 0;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				background: #d2d8e0;
+				color: #495057;
+				font-weight: 600;
+				font-size: 1rem;
+				text-transform: uppercase;
+			}
+
+			.cc-avatar-lg,
+			.cc-avatar-fallback-lg {
+				width: 72px;
+				height: 72px;
+				font-size: 1.6rem;
+			}
+
+			.msg-reaction {
+				position: absolute;
+				bottom: -10px;
+				right: 8px;
+				background: #fff;
+				border-radius: 10px;
+				padding: 0 4px;
+				font-size: 0.85rem;
+				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+				line-height: 1.4;
+			}
+			.msg-bubble {
+				position: relative;
+			}
+
+			.cc-media-grid {
+				display: grid;
+				grid-template-columns: repeat(3, 1fr);
+				gap: 4px;
+			}
+			.cc-media-grid a {
+				display: block;
+				aspect-ratio: 1;
+				overflow: hidden;
+				background: #eef0f3;
+			}
+			.cc-media-grid img,
+			.cc-media-grid video {
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+			}
+			.cc-media-list a {
+				display: flex;
+				align-items: center;
+				gap: 0.5rem;
+				padding: 0.4rem 0.5rem;
+				border-bottom: 1px solid #eef0f3;
+				color: inherit;
+				text-decoration: none;
+				font-size: 0.85rem;
+			}
+			.cc-media-list a:hover {
+				background: #f6f8fa;
+			}
+			.cc-media-pane {
+				max-height: 380px;
+				overflow-y: auto;
+				scrollbar-width: thin;
+			}
+			.cc-media-empty {
+				text-align: center;
+				color: #6c757d;
+				font-size: 0.85rem;
+				padding: 1.5rem 0;
+			}
+			.cc-online-dot {
+				display: inline-block;
+				width: 9px;
+				height: 9px;
+				border-radius: 50%;
+				background: #adb5bd;
+				margin-left: 6px;
+				vertical-align: middle;
+			}
+			.cc-online-dot.is-online {
+				background: #28a745;
+				box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.25);
+			}
+			.cc-product img {
+				width: 100%;
+				height: 120px;
+				object-fit: contain;
+				background: #f6f8fa;
+			}
+			.cc-product-name {
+				font-weight: 600;
+				font-size: 0.9rem;
+			}
+			.cc-prod-hist-item {
+				display: flex;
+				gap: 0.5rem;
+				padding: 0.5rem;
+				border-bottom: 1px solid #eef0f3;
+			}
+			.cc-prod-hist-item img {
+				width: 44px;
+				height: 44px;
+				object-fit: contain;
+				background: #f6f8fa;
+				flex-shrink: 0;
+			}
+			.cc-typing {
+				padding: 0.25rem 1rem 0.5rem;
+				font-size: 0.8rem;
+				color: #6c757d;
+				font-style: italic;
+			}
+			.cc-typing b {
+				font-style: normal;
+				color: #495057;
+			}
+			.cc-online-dot {
+				display: inline-block;
+				width: 9px;
+				height: 9px;
+				border-radius: 50%;
+				background: #adb5bd;
+				margin-left: 6px;
+				vertical-align: middle;
+			}
+			.cc-online-dot.is-online {
+				background: #28a745;
+				box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.25);
+			}
+		</style>
+	</head>
+
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<!-- ─── ХЛІБНІ КРИХТИ ─────────────────────────────────────────── -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= data.conversation.contact_name || '—' %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('contact_center.dialog.breadcrumb.home') %></span></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/contact-center/"><%= i18n.__('contact_center.dialog.breadcrumb.contact_center') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('contact_center.dialog.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/contact-center/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3 mb-3">
+			<div class="row h-100">
+				<!-- ═══ СТРІЧКА ═══ -->
+				<div class="col-12 col-lg-8 mb-3 d-flex flex-column h-100">
+					<div class="card border-primary rounded-0 h-100 d-flex flex-column">
+						<!-- Шапка діалогу -->
+						<div class="card-header text-bg-primary rounded-0 d-flex align-items-center justify-content-between">
+							<span class="d-flex align-items-center">
+								<% if (data.conversation.contact_avatar) { %>
+								<img src="<%= data.conversation.contact_avatar %>" class="cc-avatar me-2 cc-avatar-img" alt="" referrerpolicy="no-referrer" />
+								<span class="cc-avatar-fallback me-2" style="display: none"><%= (data.conversation.contact_name || '?').trim().charAt(0) %></span>
+								<% } else { %>
+								<span class="cc-avatar-fallback me-2"><%= (data.conversation.contact_name || '?').trim().charAt(0) %></span>
+								<% } %>
+								<span>
+									<i class="<%= data.meta.icon %> me-2"></i>
+									<%= data.conversation.contact_name || '—' %> <% if (data.conversation.contact_username) { %>
+									<small class="ms-1">@<%= data.conversation.contact_username %></small>
+									<% } %>
+									<span class="cc-online-dot" id="cc_online_dot" title="—"></span>
+								</span>
+							</span>
+							<span class="badge text-bg-light rounded-0"><%= data.conversation.channel_name %></span>
+						</div>
+
+						<!-- Попередження, якщо канал вимкнено -->
+						<% if (Number(data.conversation.channel_active) !== 1) { %>
+						<div class="alert alert-warning rounded-0 mb-0 border-0 border-bottom">
+							<i class="fa-solid fa-plug-circle-xmark me-1"></i>
+							<%= i18n.__('contact_center.dialog.channel_inactive') %>
+						</div>
+						<% } %>
+
+						<!-- Повідомлення -->
+						<div class="flex-grow-1" style="position: relative; min-height: 420px">
+							<div id="feed" class="dialog-feed"></div>
+						</div>
+						<div id="cc_typing" class="cc-typing d-none"></div>
+
+						<!-- Форма відправки -->
+						<form id="composer" class="card-footer text-body-secondary bg-transparent p-0 rounded-0" autocomplete="off" style="position: relative">
+							<!-- Прев'ю обраного файлу -->
+							<div id="file_preview" class="alert alert-light border-0 border-bottom rounded-0 py-2 px-3 mb-0 d-none">
+								<div class="d-flex align-items-center justify-content-between gap-2">
+									<span class="small text-truncate" id="file_preview_name"></span>
+									<button type="button" class="btn-close" id="file_preview_clear" aria-label="Close"></button>
+								</div>
+							</div>
+
+							<!-- Панель емодзі. position:absolute — щоб не зсувати верстку -->
+							<div id="emoji_panel" style="display: none; position: absolute; bottom: 100%; left: 0; z-index: 1070; margin-bottom: 0.5rem"></div>
+
+							<textarea class="form-control border-0 rounded-0" id="composer_text" name="message" rows="3" maxlength="4000" placeholder="<%= i18n.__('contact_center.dialog.placeholder') %>"></textarea>
+
+							<div class="d-flex justify-content-between align-items-center p-3 pt-1 gap-2">
+								<div class="btn-group" role="group">
+									<button type="button" class="btn btn-outline-primary rounded-0" id="btn_emoji" title="<%= i18n.__('contact_center.dialog.emoji') %>">
+										<i class="fa-regular fa-face-smile"></i>
+									</button>
+
+									<% if (data.canSendMedia) { %>
+									<label for="composer_file" class="btn btn-outline-primary rounded-0 mb-0" id="btn_attach_label" title="<%= i18n.__('contact_center.dialog.attach') %>">
+										<i class="fa-solid fa-paperclip"></i>
+									</label>
+									<input class="form-control d-none" type="file" id="composer_file" />
+									<% } %> <% if (data.commands && data.commands.length) { %>
+									<div class="btn-group">
+										<button type="button" class="btn btn-outline-primary rounded-0 dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" id="btn_commands" title="<%= i18n.__('contact_center.dialog.commands') %>">
+											<i class="fa-solid fa-terminal"></i>
+										</button>
+										<ul class="dropdown-menu rounded-0" id="channel_commands">
+											<% data.commands.forEach(function (cmd) { %>
+											<li>
+												<a class="dropdown-item channel-command" href="#" data-command="<%= cmd.code %>"> <i class="<%= cmd.icon %> me-2"></i><%= i18n.__(cmd.label) %> </a>
+											</li>
+											<% }); %>
+										</ul>
+									</div>
+									<% } %>
+								</div>
+
+								<div class="d-flex align-items-center gap-3">
+									<small class="text-muted d-none d-md-inline"><%= i18n.__('contact_center.dialog.send_hint') %></small>
+									<button type="submit" id="btn_send" class="btn btn-outline-primary rounded-0"><%= i18n.__('contact_center.dialog.send') %></button>
+								</div>
+							</div>
+						</form>
+					</div>
+				</div>
+
+				<!-- ═══ ПАНЕЛЬ СПІВРОЗМОВНИКА ═══ -->
+				<div class="col-12 col-lg-4 mb-3 h-100">
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('contact_center.dialog.contact') %></div>
+						<div class="card-body">
+							<div class="text-center mb-3">
+								<% if (data.conversation.contact_avatar) { %>
+								<img src="<%= data.conversation.contact_avatar %>" class="cc-avatar cc-avatar-lg cc-avatar-img" alt="" referrerpolicy="no-referrer" />
+								<span class="cc-avatar-fallback cc-avatar-fallback-lg" style="display: none"><%= (data.conversation.contact_name || '?').trim().charAt(0) %></span>
+								<% } else { %>
+								<span class="cc-avatar-fallback cc-avatar-fallback-lg"><%= (data.conversation.contact_name || '?').trim().charAt(0) %></span>
+								<% } %>
+							</div>
+							<dl class="row mb-0 small">
+								<dt class="col-5"><%= i18n.__('contact_center.dialog.contact_name') %></dt>
+								<dd class="col-7"><%= data.conversation.contact_name || '—' %></dd>
+
+								<% if (data.conversation.contact_username) { %>
+								<dt class="col-5"><%= i18n.__('contact_center.dialog.contact_username') %></dt>
+								<dd class="col-7">@<%= data.conversation.contact_username %></dd>
+								<% } %> <% if (data.conversation.contact_phone) { %>
+								<dt class="col-5"><%= i18n.__('contact_center.dialog.contact_phone') %></dt>
+								<dd class="col-7"><%= data.conversation.contact_phone %></dd>
+								<% } %> <% if (data.conversation.contact_email) { %>
+								<dt class="col-5"><%= i18n.__('contact_center.dialog.contact_email') %></dt>
+								<dd class="col-7"><%= data.conversation.contact_email %></dd>
+								<% } %>
+
+								<dt class="col-5"><%= i18n.__('contact_center.dialog.channel') %></dt>
+								<dd class="col-7">
+									<i class="<%= data.meta.icon %> me-1" style="color: <%= data.meta.color %>"></i>
+									<%= data.conversation.channel_name %>
+								</dd>
+
+								<dt class="col-5"><%= i18n.__('contact_center.dialog.date_add') %></dt>
+								<dd class="col-7"><%= data.conversation.date_add %></dd>
+							</dl>
+							<% if (data.conversation.channel_type === 'webchat') { %>
+							<hr class="my-2" />
+							<div id="cc_visitor_info" class="small"><div class="text-muted">Завантаження…</div></div>
+							<% } %>
+						</div>
+					</div>
+
+					<!-- ═══ ТОВАР (тільки веб-чат) ═══ -->
+					<% if (data.conversation.channel_type === 'webchat') { %>
+					<div class="card border-primary rounded-0 mt-3" id="cc_product_card">
+						<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+							<span>Товар</span>
+							<button type="button" class="btn btn-sm btn-light rounded-0 py-0" id="cc_prod_hist_btn" data-bs-toggle="offcanvas" data-bs-target="#cc_prod_offcanvas" title="Історія переглядів">
+								<i class="fa-solid fa-clock-rotate-left"></i>
+							</button>
+						</div>
+						<div class="card-body cc-product" id="cc_product_body"></div>
+					</div>
+					<% } %>
+
+					<div class="card border-primary mt-3 rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('contact_center.dialog.actions') %></div>
+						<div class="card-body d-grid gap-2">
+							<button type="button" class="btn btn-outline-primary rounded-0" id="btn_assign">
+								<span id="assign_label"></span>
+							</button>
+							<button type="button" class="btn btn-outline-success rounded-0 btn-status" data-status="resolved"><%= i18n.__('contact_center.dialog.resolve') %></button>
+							<button type="button" class="btn btn-outline-secondary rounded-0 btn-status" data-status="archived"><%= i18n.__('contact_center.dialog.archive') %></button>
+							<button type="button" class="btn btn-outline-primary rounded-0 btn-status" data-status="open"><%= i18n.__('contact_center.dialog.reopen') %></button>
+							<hr class="my-1" />
+							<button type="button" class="btn btn-outline-danger rounded-0" id="btn_delete_dialog"><i class="fa-solid fa-trash me-1"></i> Видалити діалог</button>
+						</div>
+					</div>
+
+					<!-- ═══ МЕДІА ═══ -->
+					<div class="card border-primary rounded-0 mt-3">
+						<div class="card-header text-bg-primary rounded-0">Медіа</div>
+						<div class="card-body">
+							<ul class="nav nav-pills nav-fill gap-1 mb-2" role="tablist">
+								<li class="nav-item">
+									<button class="nav-link active rounded-0 px-2 py-1" data-cc-media="image" type="button" title="Фото"><i class="fa-regular fa-image"></i></button>
+								</li>
+								<li class="nav-item">
+									<button class="nav-link rounded-0 px-2 py-1" data-cc-media="video" type="button" title="Відео"><i class="fa-solid fa-film"></i></button>
+								</li>
+								<li class="nav-item">
+									<button class="nav-link rounded-0 px-2 py-1" data-cc-media="audio" type="button" title="Аудіо"><i class="fa-solid fa-music"></i></button>
+								</li>
+								<li class="nav-item">
+									<button class="nav-link rounded-0 px-2 py-1" data-cc-media="file" type="button" title="Файли"><i class="fa-regular fa-file"></i></button>
+								</li>
+							</ul>
+							<div class="cc-media-pane" id="cc_media_body">
+								<div class="cc-media-empty">Завантаження…</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Offcanvas: історія переглядів -->
+		<% if (data.conversation.channel_type === 'webchat') { %>
+		<div class="offcanvas offcanvas-end" tabindex="-1" id="cc_prod_offcanvas">
+			<div class="offcanvas-header text-bg-primary">
+				<h5 class="offcanvas-title">Історія переглядів</h5>
+				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+			</div>
+			<div class="offcanvas-body p-0" id="cc_prod_hist_body">
+				<div class="text-center text-muted p-4">—</div>
+			</div>
+		</div>
+		<% } %> <%- include('../../../partials/footer'); %> <%- include('../../../partials/script'); %>
+
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/emoji-mart@5.6.0/dist/browser.min.js"></script>
+		<script>
+			const notyf = new Notyf({
+				position: { x: "right", y: "top" },
+				duration: 4000,
+				types: [
+					{ type: "success", dismissible: true, icon: false },
+					{ type: "error", background: "indianred", dismissible: true, icon: false },
+				],
+			});
+		</script>
+		<script>
+			// ================================================================
+			// ПАНЕЛЬ ЕМОДЗІ — Emoji Mart
+			// Пікер монтується лениво, при першому відкритті: дані важать ~400 КБ
+			// і тягнути їх на кожне відкриття діалогу не треба.
+			// ================================================================
+			(function () {
+				var $panel = $("#emoji_panel");
+				var picker = null;
+				var mounting = false;
+
+				function insertEmoji(native) {
+					var ta = document.getElementById("composer_text");
+					if (!ta || ta.disabled) return;
+
+					var start = ta.selectionStart || 0;
+					var end = ta.selectionEnd || 0;
+
+					ta.value = ta.value.slice(0, start) + native + ta.value.slice(end);
+					ta.selectionStart = ta.selectionEnd = start + native.length;
+					ta.focus();
+				}
+
+				async function mountPicker() {
+					if (picker || mounting) return;
+					if (typeof EmojiMart === "undefined") {
+						notyf.error(T.emojiError);
+						return;
+					}
+
+					mounting = true;
+
+					try {
+						picker = new EmojiMart.Picker({
+							// Дані окремим запитом — так радить сама бібліотека
+							data: async function () {
+								var res = await fetch("https://cdn.jsdelivr.net/npm/@emoji-mart/data");
+								return res.json();
+							},
+							locale: "en",
+							theme: "light",
+							previewPosition: "none",
+							skinTonePosition: "search",
+							searchPosition: "sticky",
+							navPosition: "top",
+							perLine: 9,
+							maxFrequentRows: 1,
+							onEmojiSelect: function (emoji) {
+								insertEmoji(emoji.native);
+							},
+						});
+
+						$panel.empty().append(picker);
+					} catch (err) {
+						console.error("emoji-mart:", err);
+						notyf.error(T.emojiError);
+					} finally {
+						mounting = false;
+					}
+				}
+
+				$("#btn_emoji").on("click", async function () {
+					if ($panel.is(":visible")) {
+						$panel.hide();
+						return;
+					}
+
+					await mountPicker();
+					$panel.show();
+				});
+
+				// Закриття при кліку поза панеллю
+				$(document).on("click", function (e) {
+					if (!$(e.target).closest("#emoji_panel, #btn_emoji").length) $panel.hide();
+				});
+			})();
+		</script>
+		<script>
+			// Фолбек аватара: CSP забороняє inline onerror, тож вішаємо обробник тут.
+			// Якщо фото не завантажилось — ховаємо img, показуємо кружечок з літерою.
+			document.querySelectorAll(".cc-avatar-img").forEach(function (img) {
+				img.addEventListener("error", function () {
+					this.style.display = "none";
+					var fb = this.nextElementSibling;
+					if (fb && fb.classList.contains("cc-avatar-fallback")) fb.style.display = "inline-flex";
+				});
+				// Якщо картинка вже встигла впасти до навішування обробника
+				if (img.complete && img.naturalWidth === 0) img.dispatchEvent(new Event("error"));
+			});
+		</script>
+		<script>
+			// ================================================================
+			// ЗАВАНТАЖЕННЯ ФАЙЛУ
+			// Файл іде окремим запитом (multipart), а не разом з текстом:
+			// текст у полі стає підписом до файлу.
+			// ================================================================
+			(function () {
+				var input = document.getElementById("composer_file");
+				if (!input) return;
+
+				var $preview = $("#file_preview");
+
+				input.addEventListener("change", function () {
+					if (!this.files || !this.files.length) return;
+
+					var f = this.files[0];
+
+					// Ліміт дублює серверний — щоб не ганяти файл даремно
+					if (f.size > 50 * 1024 * 1024) {
+						notyf.error(T.fileTooBig);
+						this.value = "";
+						return;
+					}
+
+					$("#file_preview_name").text(f.name + " (" + Math.round(f.size / 1024) + " KB)");
+					$preview.removeClass("d-none");
+				});
+
+				$("#file_preview_clear").on("click", function () {
+					input.value = "";
+					$preview.addClass("d-none");
+				});
+
+				window.hasPendingFile = function () {
+					return !!(input.files && input.files.length);
+				};
+
+				window.uploadPendingFile = async function (caption) {
+					var f = input.files[0];
+					if (!f) return;
+
+					var form = new FormData();
+					form.append("file", f);
+					if (caption) form.append("caption", caption);
+
+					var btn = document.getElementById("btn_send");
+					btn.disabled = true;
+
+					try {
+						var res = await fetch("/api/contact-center/chat/" + CONV_ID + "/upload/", { method: "POST", body: form });
+						var data = await res.json();
+
+						if (data.id_message) {
+							input.value = "";
+							$preview.addClass("d-none");
+							document.getElementById("composer_text").value = "";
+
+							appendMessages(
+								[
+									{
+										id: data.id_message,
+										direction: "out",
+										type: "media",
+										text: caption || null,
+										status: data.status === "success" ? "sent" : "failed",
+										error: data.message,
+										date_add: data.date_add,
+										attachments: [data.attachment],
+									},
+								],
+								false
+							);
+						}
+
+						if (data.status !== "success") notyf.error(data.message || T.sendError);
+					} catch (err) {
+						console.error("upload:", err);
+						notyf.error(T.sendError);
+					} finally {
+						renderComposerState();
+					}
+				};
+			})();
+		</script>
+
+		<script>
+			// ================================================================
+			// КОМАНДИ КАНАЛУ
+			// ================================================================
+			$(document).on("click", ".channel-command", async function (e) {
+				e.preventDefault();
+
+				var command = $(this).data("command");
+				var text = document.getElementById("composer_text").value.trim();
+
+				try {
+					var res = await fetch("/api/contact-center/chat/" + CONV_ID + "/command/", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ command: command, text: text }),
+					});
+
+					var data = await res.json();
+
+					if (data.id_message) {
+						document.getElementById("composer_text").value = "";
+						appendMessages(
+							[
+								{
+									id: data.id_message,
+									direction: "out",
+									type: "system",
+									text: data.text,
+									status: data.status === "success" ? "sent" : "failed",
+									error: data.message,
+									date_add: data.date_add,
+									attachments: [],
+								},
+							],
+							false
+						);
+					}
+
+					if (data.status !== "success") notyf.error(data.message || T.sendError);
+				} catch (err) {
+					console.error("command:", err);
+					notyf.error(T.sendError);
+				}
+			});
+		</script>
+		<script>
+			// ================================================================
+			// КОНСТАНТИ
+			// ================================================================
+			const CONV_ID = <%= data.conversation.id %>;
+			const CURRENT_USER_ID = Number("<%= user.userId %>");
+			const isUk = "<%= i18n.__('lang_iso') %>" === "uk";
+			const CHANNEL_TYPE = "<%= data.conversation.channel_type %>";
+			// Канали, що НЕ повідомляють про прочитання — галочки статусу не показуємо
+			const NO_READ_STATUS = ["telegram"];
+
+			let convManagerId = <%= data.conversation.id_manager === null ? 'null' : data.conversation.id_manager %>;
+
+			const T = {
+				empty: "<%= i18n.__('contact_center.dialog.empty') %>",
+				loadError: "<%= i18n.__('contact_center.dialog.load_error') %>",
+				sendError: "<%= i18n.__('contact_center.dialog.send_error') %>",
+				failed: "<%= i18n.__('contact_center.dialog.failed') %>",
+				pending: "<%= i18n.__('contact_center.dialog.pending') %>",
+				attachLoading: "<%= i18n.__('contact_center.dialog.attach_loading') %>",
+				attachFailed: "<%= i18n.__('contact_center.dialog.attach_failed') %>",
+				take: "<%= i18n.__('contact_center.dialog.take') %>",
+				release: "<%= i18n.__('contact_center.dialog.release') %>",
+				takenByOther: "<%= i18n.__('contact_center.dialog.taken_by_other') %>",
+				today: "<%= i18n.__('contact_center.dialog.today') %>",
+				yesterday: "<%= i18n.__('contact_center.dialog.yesterday') %>",
+				saved: "<%= i18n.__('contact_center.dialog.saved') %>",
+				location: "<%= i18n.__('contact_center.dialog.location') %>",
+				placeholder: "<%= i18n.__('contact_center.dialog.placeholder') %>",
+				lockedFree: "<%= i18n.__('contact_center.dialog.locked_free') %>",
+				lockedOther: "<%= i18n.__('contact_center.dialog.locked_other') %>",
+				fileTooBig: "<%= i18n.__('contact_center.dialog.file_too_big') %>",
+				emojiError: "<%= i18n.__('contact_center.dialog.emoji_error') %>",
+				statusSent: "<%= i18n.__('contact_center.dialog.status_sent') %>",
+				statusDelivered: "<%= i18n.__('contact_center.dialog.status_delivered') %>",
+				statusRead: "<%= i18n.__('contact_center.dialog.status_read') %>",
+			};
+
+			function escapeHtml(str) {
+				return String(str == null ? "" : str).replace(/[&<>"']/g, function (c) {
+					return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+				});
+			}
+
+			// Дата приходить як "YYYY-MM-DD HH:MM:SS" з MySQL або ISO з socket.
+			// Якщо не розпарсилась — повертаємо поточну, щоб не показувати NaN.
+			function parseDate(value) {
+				if (!value) return new Date();
+				const d = new Date(String(value).replace(" ", "T"));
+				return isNaN(d) ? new Date() : d;
+			}
+		</script>
+
+		<script>
+			// ================================================================
+			// РЕНДЕР ПОВІДОМЛЕННЯ
+			// Канало-незалежний. type/subtype канонічні для всіх каналів,
+			// тому Discord чи Facebook не додають сюди жодної гілки.
+			// ================================================================
+			function renderAttachment(a) {
+				// Явна помилка завантаження — показуємо тільки при status='failed'
+				if (a.status === "failed") {
+					return '<div class="msg-attach"><div class="attach-pending text-danger">' + T.attachFailed + "</div></div>";
+				}
+
+				// Файлу ще немає (качається з каналу) — показуємо стан завантаження,
+				// а не помилку. Спрацьовує і коли status='pending'/'processing',
+				// і коли вкладення прийшло по socket ще без status і без path.
+				if (!a.path) {
+					return '<div class="msg-attach"><div class="attach-pending">' + T.attachLoading + "</div></div>";
+				}
+
+				const url = escapeHtml(a.path);
+				const name = escapeHtml(a.file_name || "");
+
+				if (a.type === "image" || a.type === "sticker") {
+					const src = a.thumb_path ? escapeHtml(a.thumb_path) : url;
+					return '<div class="msg-attach"><a href="' + url + '" target="_blank" rel="noopener"><img src="' + src + '" alt="' + name + '"></a></div>';
+				}
+
+				if (a.type === "video") {
+					return '<div class="msg-attach"><video src="' + url + '" controls preload="metadata"></video></div>';
+				}
+
+				if (a.type === "audio") {
+					return '<div class="msg-attach"><audio src="' + url + '" controls preload="metadata"></audio></div>';
+				}
+
+				const size = a.size ? " (" + Math.round(a.size / 1024) + " KB)" : "";
+				return '<div class="msg-attach"><a href="' + url + '" target="_blank" rel="noopener" class="d-inline-flex align-items-center gap-2">' + '<i class="fa-regular fa-file"></i><span>' + (name || url) + size + "</span></a></div>";
+			}
+
+			function renderMessage(m) {
+				// Системні — окремим рядком по центру
+				if (m.type === "system") {
+					// Запити контакту/локації — дії менеджера, показуємо з іконкою
+					const icons = { request_contact: "fa-solid fa-address-card", request_location: "fa-solid fa-location-dot" };
+					const icon = icons[m.subtype] ? '<i class="' + icons[m.subtype] + ' me-1"></i>' : "";
+					const err = m.status === "failed" ? ' <i class="fa-solid fa-triangle-exclamation text-danger" title="' + escapeHtml(m.error || "") + '"></i>' : "";
+
+					return '<div class="msg-system" data-msg-id="' + m.id + '">' + icon + escapeHtml(m.text || "") + err + "</div>";
+				}
+
+				const out = m.direction === "out";
+				const rowClass = out ? "message-manager" : "message-client";
+				const alertClass = out ? "alert-primary" : "alert-light";
+				const failed = m.status === "failed" ? " message-failed" : "";
+
+				let inner = "";
+
+				// Цитата
+				if (m.reply_text) {
+					inner += '<div class="msg-reply">' + escapeHtml(m.reply_text) + "</div>";
+				}
+
+				// Вкладення
+				if (m.attachments && m.attachments.length) {
+					m.attachments.forEach(function (a) {
+						inner += renderAttachment(a);
+					});
+				}
+
+				// Локація
+				if (m.type === "location" && m.lat && m.lng) {
+					const href = "https://www.google.com/maps?q=" + m.lat + "," + m.lng;
+					inner += '<div class="msg-attach"><a href="' + href + '" target="_blank" rel="noopener"><i class="fa-solid fa-location-dot me-1"></i>' + T.location + "</a></div>";
+				}
+
+				// Текст
+				if (m.text) {
+					inner += "<div>" + escapeHtml(m.text) + "</div>";
+				}
+
+				// Час без секунд: ГГ:ХХ ДД.ММ.РРРР
+				const d = parseDate(m.date_add);
+				const pad = function (n) {
+					return String(n).padStart(2, "0");
+				};
+				let meta = pad(d.getHours()) + ":" + pad(d.getMinutes()) + " " + pad(d.getDate()) + "." + pad(d.getMonth() + 1) + "." + d.getFullYear();
+
+				if (out) {
+					if (m.manager_name) meta = escapeHtml(m.manager_name) + " · " + meta;
+
+					const showStatus = NO_READ_STATUS.indexOf(CHANNEL_TYPE) === -1;
+
+					// pending/failed показуємо завжди (це наш стан, не залежить від каналу).
+					// Галочки прочитання — лише для каналів, що його повідомляють.
+					if (m.status === "pending") meta += ' <i class="fa-regular fa-clock" title="' + T.pending + '"></i>';
+					else if (m.status === "failed") meta += ' <i class="fa-solid fa-triangle-exclamation text-danger" title="' + escapeHtml(m.error || T.failed) + '"></i>';
+					else if (showStatus && m.status === "read") meta += ' <i class="fa-solid fa-check-double text-primary msg-status" title="' + T.statusRead + '"></i>';
+					else if (showStatus && m.status === "delivered") meta += ' <i class="fa-solid fa-check-double msg-status" title="' + T.statusDelivered + '"></i>';
+					else if (showStatus) meta += ' <i class="fa-solid fa-check msg-status" title="' + T.statusSent + '"></i>';
+				}
+
+				// Реакція клієнта (emoji під бульбашкою) — при завантаженні з БД
+				const reactionBadge = m.reaction ? '<span class="msg-reaction">' + escapeHtml(m.reaction) + "</span>" : "";
+
+				return '<div class="' + rowClass + failed + '" data-msg-id="' + m.id + '">' + '<div class="alert msg-bubble ' + alertClass + ' rounded-0 d-inline-block mb-0 p-2">' + inner + reactionBadge + "</div>" + '<span class="time m-0">' + meta + "</span></div>";
+			}
+
+			function dayLabel(date) {
+				const now = new Date();
+				const d = new Date(date);
+
+				if (d.toDateString() === now.toDateString()) return T.today;
+
+				const yesterday = new Date(now.getTime() - 86400000);
+				if (d.toDateString() === yesterday.toDateString()) return T.yesterday;
+
+				return d.toLocaleDateString(isUk ? "uk-UA" : "en-US", { day: "2-digit", month: "long", year: "numeric" });
+			}
+		</script>
+
+		<script>
+			// ================================================================
+			// ЗАВАНТАЖЕННЯ СТРІЧКИ
+			// ================================================================
+			const feed = document.getElementById("feed");
+
+			let oldestId = null;
+			let hasMore = true;
+			let loading = false;
+			let lastDayKey = null;
+
+			// Вставка з розділювачами днів. prepend — для підвантаження історії вгору.
+			function appendMessages(messages, prepend) {
+				if (!messages.length) return;
+
+				let html = "";
+				let prevDay = prepend ? null : lastDayKey;
+
+				messages.forEach(function (m) {
+					const d = parseDate(m.date_add);
+					const key = d.toDateString();
+
+					if (key !== prevDay) {
+						html += '<div class="msg-day"><span>' + dayLabel(d) + "</span></div>";
+						prevDay = key;
+					}
+
+					html += renderMessage(m);
+				});
+
+				if (prepend) {
+					const before = feed.scrollHeight;
+					feed.insertAdjacentHTML("afterbegin", html);
+					// Тримаємо позицію прокрутки на місці після вставки історії
+					feed.scrollTop = feed.scrollHeight - before;
+				} else {
+					feed.insertAdjacentHTML("beforeend", html);
+					lastDayKey = prevDay;
+					feed.scrollTop = feed.scrollHeight;
+				}
+			}
+
+			async function loadMessages(before) {
+				if (loading || (before && !hasMore)) return;
+				loading = true;
+
+				try {
+					const res = await fetch("/api/contact-center/chat/" + CONV_ID + "/messages/", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ before: before || null, limit: 50 }),
+					});
+
+					const data = await res.json();
+					const messages = data.messages || [];
+
+					if (!before && !messages.length) {
+						feed.innerHTML = '<p class="text-center text-muted mt-4">' + T.empty + "</p>";
+						hasMore = false;
+						return;
+					}
+
+					if (messages.length) {
+						if (!oldestId || messages[0].id < oldestId) oldestId = messages[0].id;
+						appendMessages(messages, !!before);
+					}
+
+					hasMore = !!data.hasMore;
+				} catch (err) {
+					console.error("load messages:", err);
+					notyf.error(T.loadError);
+				} finally {
+					loading = false;
+				}
+			}
+
+			// Троттлимо: серія повідомлень не має давати серію запитів
+			let readTimer = null;
+			function markConversationRead() {
+				clearTimeout(readTimer);
+				readTimer = setTimeout(function () {
+					fetch("/api/contact-center/chat/" + CONV_ID + "/read/", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({}),
+					}).catch(function () {});
+				}, 400);
+			}
+
+			// Повернувся на вкладку — теж прочитав
+			document.addEventListener("visibilitychange", function () {
+				if (!document.hidden) markConversationRead();
+			});
+
+			// Підвантаження історії при прокрутці вгору
+			feed.addEventListener("scroll", function () {
+				if (feed.scrollTop < 80 && hasMore && !loading) loadMessages(oldestId);
+			});
+
+			loadMessages(null);
+		</script>
+
+		<script>
+			// ================================================================
+			// ВІДПРАВКА
+			// ================================================================
+			const composer = document.getElementById("composer");
+			const composerText = document.getElementById("composer_text");
+
+			async function sendMessage() {
+				const text = composerText.value.trim();
+
+				if (convManagerId === null || Number(convManagerId) !== CURRENT_USER_ID) {
+					notyf.error(convManagerId === null ? T.lockedFree : T.lockedOther);
+					return;
+				}
+
+				// Обраний файл має пріоритет: текст стає підписом до нього
+				if (typeof window.hasPendingFile === "function" && window.hasPendingFile()) {
+					await window.uploadPendingFile(text);
+					return;
+				}
+
+				if (!text) return;
+
+				const btn = document.getElementById("btn_send");
+				if (btn.disabled) return;
+
+				btn.disabled = true;
+				composerText.disabled = true;
+
+				try {
+					const res = await fetch("/api/contact-center/chat/" + CONV_ID + "/send/", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ text: text }),
+					});
+
+					const data = await res.json();
+
+					// Повідомлення записано в БД у будь-якому разі — показуємо його,
+					// навіть якщо канал відхилив відправку.
+					if (data.id_message) {
+						composerText.value = "";
+						appendMessages(
+							[
+								{
+									id: data.id_message,
+									direction: "out",
+									type: "text",
+									text: text,
+									status: data.status === "success" ? "sent" : "failed",
+									error: data.message,
+									date_add: data.date_add,
+									attachments: [],
+								},
+							],
+							false
+						);
+					}
+
+					if (data.status !== "success") notyf.error(data.message || T.sendError);
+				} catch (err) {
+					console.error("send:", err);
+					notyf.error(T.sendError);
+				} finally {
+					// Стан відновлюємо через renderComposerState:
+					// діалог міг перейти іншому менеджеру, поки йшов запит
+					renderComposerState();
+					if (!composerText.disabled) composerText.focus();
+				}
+			}
+
+			composer.addEventListener("submit", function (e) {
+				e.preventDefault();
+				sendMessage();
+			});
+
+			// Enter — відправити, Shift+Enter — новий рядок
+			composerText.addEventListener("keydown", function (e) {
+				if (e.key === "Enter" && !e.shiftKey) {
+					e.preventDefault();
+					sendMessage();
+				}
+			});
+		</script>
+
+		<script>
+			// ================================================================
+			// ДІЇ НАД ДІАЛОГОМ
+			// ================================================================
+			// Форма відповіді доступна тільки власнику діалогу
+			function renderComposerState() {
+				const mine = convManagerId !== null && Number(convManagerId) === CURRENT_USER_ID;
+				const text = document.getElementById("composer_text");
+				const btn = document.getElementById("btn_send");
+				let $hint = $("#composer_locked");
+
+				text.disabled = !mine;
+				btn.disabled = !mine;
+
+				// Панель інструментів блокується разом із полем введення
+				$("#btn_emoji, #btn_commands").prop("disabled", !mine);
+				$("#btn_attach_label").toggleClass("disabled", !mine);
+				if (!mine) {
+					$("#emoji_panel").hide();
+					$("#file_preview").addClass("d-none");
+					if (document.getElementById("composer_file")) document.getElementById("composer_file").value = "";
+				}
+
+				if (mine) {
+					$hint.remove();
+					text.placeholder = T.placeholder;
+					$("#composer").find("small.text-muted").show();
+					return;
+				}
+
+				$("#composer").find("small.text-muted").hide();
+
+				text.value = "";
+				text.placeholder = "";
+
+				if (!$hint.length) {
+					$("#composer").prepend('<div id="composer_locked" class="alert alert-secondary rounded-0 border-0 border-bottom mb-0 py-2 px-3 small"></div>');
+					$hint = $("#composer_locked");
+				}
+
+				$hint.text(convManagerId === null ? T.lockedFree : T.lockedOther);
+			}
+
+			function renderAssignButton() {
+				const btn = document.getElementById("btn_assign");
+				const label = document.getElementById("assign_label");
+
+				if (convManagerId === null) {
+					label.textContent = T.take;
+					btn.disabled = false;
+					btn.className = "btn btn-outline-primary rounded-0";
+				} else if (Number(convManagerId) === CURRENT_USER_ID) {
+					label.textContent = T.release;
+					btn.disabled = false;
+					btn.className = "btn btn-outline-secondary rounded-0";
+				} else {
+					label.textContent = T.takenByOther;
+					btn.disabled = true;
+					btn.className = "btn btn-outline-secondary rounded-0";
+				}
+
+				renderComposerState();
+			}
+
+			renderAssignButton();
+
+			document.getElementById("btn_assign").addEventListener("click", async function () {
+				const release = convManagerId !== null && Number(convManagerId) === CURRENT_USER_ID;
+
+				try {
+					const res = await fetch("/api/contact-center/chat/" + CONV_ID + "/assign/", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ release: release }),
+					});
+
+					const data = await res.json();
+					if (data.status !== "success") throw new Error();
+
+					convManagerId = data.id_manager;
+					renderAssignButton();
+					notyf.success(T.saved);
+				} catch (err) {
+					notyf.error(T.sendError);
+				}
+			});
+
+			document.querySelectorAll(".btn-status").forEach(function (btn) {
+				btn.addEventListener("click", async function () {
+					try {
+						const res = await fetch("/api/contact-center/chat/" + CONV_ID + "/status/", {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ status: this.dataset.status }),
+						});
+
+						const data = await res.json();
+						if (data.status !== "success") throw new Error();
+
+						notyf.success(T.saved);
+						setTimeout(function () {
+							window.location.href = "/contact-center/";
+						}, 700);
+					} catch (err) {
+						notyf.error(T.sendError);
+					}
+				});
+			});
+
+			document.getElementById("btn_delete_dialog").addEventListener("click", async function () {
+				if (!confirm("Видалити діалог назавжди разом з усіма повідомленнями та файлами? Дію неможливо скасувати.")) return;
+
+				const btn = this;
+				btn.disabled = true;
+
+				try {
+					const res = await fetch("/api/contact-center/chat/" + CONV_ID + "/delete/", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({}),
+					});
+					const data = await res.json();
+					if (data.status !== "success") throw new Error(data.message || "");
+
+					notyf.success("Діалог видалено");
+					setTimeout(function () {
+						window.location.href = "/contact-center/";
+					}, 700);
+				} catch (err) {
+					btn.disabled = false;
+					notyf.error("Не вдалося видалити діалог");
+				}
+			});
+		</script>
+
+		<script>
+			// ================================================================
+			// SOCKET — вхідні повідомлення в цьому діалозі
+			// ================================================================
+			socket.emit("room", "io_conversation_" + CONV_ID);
+
+			socket.on("cc:message", function (data) {
+				if (!data || !data.message) return;
+				if (Number(data.conversation && data.conversation.id) !== CONV_ID) return;
+
+				// Своє вихідне вже намальовано локально
+				if (data.message.direction === "out" && Number(data.message.id_manager) === CURRENT_USER_ID) return;
+
+				if (document.querySelector('[data-msg-id="' + data.message.id + '"]')) return;
+
+				feed.querySelector("p.text-muted") && (feed.innerHTML = "");
+				appendMessages([data.message], false);
+
+				// Менеджер дивиться на діалог — отже прочитав.
+				// Без цього клієнт не отримає другу галочку до перезавантаження.
+				if (data.message.direction === "in" && !document.hidden) markConversationRead();
+			});
+
+			// Вкладення довантажилось — підміняємо заглушку
+			socket.on("cc:attachment_ready", function (data) {
+				if (!data || !data.id_message) return;
+
+				const row = document.querySelector('[data-msg-id="' + data.id_message + '"]');
+				if (!row) return;
+
+				const holders = row.querySelectorAll(".msg-attach");
+				const holder = holders[data.sort_order || 0];
+				if (holder) holder.outerHTML = renderAttachment(data.attachment);
+			});
+
+			// Клієнт прочитав вихідні до up_to — перемальовуємо галочки на сині
+			socket.on("cc:read_receipt", function (data) {
+				if (!data || Number(data.id_conversation) !== CONV_ID) return;
+
+				const upTo = Number(data.up_to) || 0;
+
+				// Проходимо по вихідних повідомленнях з id <= up_to і статусом sent/delivered
+				document.querySelectorAll("[data-msg-id]").forEach(function (row) {
+					const mid = Number(row.getAttribute("data-msg-id"));
+					if (!mid || mid > upTo) return;
+
+					const icon = row.querySelector(".msg-status");
+					if (!icon) return; // не вихідне або вже не має галочки
+
+					// Замінюємо на дві сині
+					icon.className = "fa-solid fa-check-double text-primary msg-status";
+					icon.setAttribute("title", T.statusRead);
+				});
+			});
+
+			// Реакція клієнта на повідомлення
+			socket.on("cc:reaction", function (data) {
+				if (!data || Number(data.id_conversation) !== CONV_ID) return;
+
+				const row = document.querySelector('[data-msg-id="' + data.id_message + '"]');
+				if (!row) return;
+
+				let badge = row.querySelector(".msg-reaction");
+
+				if (!data.reaction) {
+					// Реакцію прибрано
+					if (badge) badge.remove();
+					return;
+				}
+
+				if (!badge) {
+					badge = document.createElement("span");
+					badge.className = "msg-reaction";
+					const bubble = row.querySelector(".msg-bubble") || row;
+					bubble.appendChild(badge);
+				}
+				badge.textContent = data.reaction;
+			});
+
+			// Клієнт друкує — показуємо індикатор із текстом прев'ю
+			let typingTimer = null;
+			socket.on("cc:typing", function (data) {
+				if (!data || Number(data.id_conversation) !== CONV_ID) return;
+
+				const box = document.getElementById("cc_typing");
+				if (!box) return;
+
+				const text = String(data.text || "").trim();
+				clearTimeout(typingTimer);
+
+				if (!text) {
+					box.classList.add("d-none");
+					box.innerHTML = "";
+					return;
+				}
+
+				box.innerHTML = "друкує: <b>" + escapeHtml(text) + "</b>";
+				box.classList.remove("d-none");
+
+				typingTimer = setTimeout(function () {
+					box.classList.add("d-none");
+					box.innerHTML = "";
+				}, 4000);
+			});
+
+			socket.on("cc:presence", function (data) {
+				if (!data || Number(data.id_conversation || data.id) !== CONV_ID) return;
+				const dot = document.getElementById("cc_online_dot");
+				if (!dot) return;
+				if (data.online) {
+					dot.classList.add("is-online");
+					dot.title = "Онлайн";
+				} else {
+					dot.classList.remove("is-online");
+					dot.title = "Офлайн";
+				}
+			});
+
+			socket.on("cc:message", function (data) {
+				if (data && data.message && data.message.direction === "in") {
+					const box = document.getElementById("cc_typing");
+					if (box) {
+						box.classList.add("d-none");
+						box.innerHTML = "";
+					}
+				}
+			});
+		</script>
+		<script>
+			// ================================================================
+			// МЕДІАТЕКА — окрема картка. Лениве завантаження при першому показі.
+			// ================================================================
+			(function () {
+				let loaded = false;
+				let mediaData = null;
+				let activeType = "image";
+
+				const body = document.getElementById("cc_media_body");
+				if (!body) return;
+
+				function fmtSize(s) {
+					return s ? " (" + Math.round(s / 1024) + " KB)" : "";
+				}
+
+				function render(type) {
+					activeType = type;
+					const items = (mediaData && mediaData[type]) || [];
+
+					if (!items.length) {
+						body.innerHTML = '<div class="cc-media-empty">Немає файлів</div>';
+						return;
+					}
+
+					if (type === "image" || type === "video") {
+						let html = '<div class="cc-media-grid">';
+						items.forEach(function (a) {
+							const url = escapeHtml(a.path);
+							if (type === "image") {
+								const src = a.thumb_path ? escapeHtml(a.thumb_path) : url;
+								html += '<a href="' + url + '" target="_blank" rel="noopener"><img src="' + src + '" loading="lazy" alt=""></a>';
+							} else {
+								html += '<a href="' + url + '" target="_blank" rel="noopener"><video src="' + url + '" preload="metadata"></video></a>';
+							}
+						});
+						html += "</div>";
+						body.innerHTML = html;
+						return;
+					}
+
+					let html = '<div class="cc-media-list">';
+					items.forEach(function (a) {
+						const url = escapeHtml(a.path);
+						const name = escapeHtml(a.file_name || url.split("/").pop());
+						const icon = type === "audio" ? "fa-solid fa-music" : "fa-regular fa-file";
+						html += '<a href="' + url + '" target="_blank" rel="noopener"><i class="' + icon + '"></i><span class="text-truncate">' + name + fmtSize(a.size) + "</span></a>";
+					});
+					html += "</div>";
+					body.innerHTML = html;
+				}
+
+				async function loadMedia() {
+					if (loaded) return;
+					try {
+						const res = await fetch("/api/contact-center/chat/" + CONV_ID + "/media/", {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({}),
+						});
+						mediaData = await res.json();
+						loaded = true;
+						render(activeType);
+					} catch (err) {
+						body.innerHTML = '<div class="cc-media-empty text-danger">' + T.loadError + "</div>";
+					}
+				}
+
+				document.querySelectorAll("[data-cc-media]").forEach(function (btn) {
+					btn.addEventListener("click", function () {
+						document.querySelectorAll("[data-cc-media]").forEach(function (b) {
+							b.classList.remove("active");
+						});
+						this.classList.add("active");
+						render(this.getAttribute("data-cc-media"));
+					});
+				});
+
+				// Картка видима одразу → вантажимо при завантаженні сторінки
+				loadMedia();
+			})();
+		</script>
+		<% if (data.conversation.channel_type === 'webchat') { %>
+		<script>
+			// ================================================================
+			// КАРТКА ТОВАРУ (веб-чат): поточний + історія (offcanvas)
+			// ================================================================
+			(function () {
+				const card = document.getElementById("cc_product_card");
+				const body = document.getElementById("cc_product_body");
+				const histBody = document.getElementById("cc_prod_hist_body");
+				if (!card || !body) return;
+
+				let lastProduct = null; // останній відомий товар (для стану "вийшов з товару")
+
+				function renderProduct(p, isLast) {
+					if (!p || !p.name) {
+						body.innerHTML = '<div class="text-muted small text-center py-2">Клієнт ще не переглядав товари</div>';
+						return;
+					}
+					let html = "";
+					if (isLast) html += '<div class="small text-muted mb-1"><i class="fa-regular fa-clock me-1"></i>Останній переглянутий</div>';
+					if (p.image) html += '<a href="' + escapeHtml(p.url || "#") + '" target="_blank" rel="noopener"><img src="' + escapeHtml(p.image) + '" alt=""></a>';
+					html += '<div class="cc-product-name mt-2">' + escapeHtml(p.name) + "</div>";
+					if (p.brand) html += '<div class="small text-muted">' + escapeHtml(p.brand) + "</div>";
+					if (p.price) html += '<div class="text-success fw-semibold">' + escapeHtml(p.price) + " " + escapeHtml(p.currency || "") + "</div>";
+					if (p.availability) {
+						const av = { in: "✓ В наявності", out: "✕ Немає", preorder: "Передзамовлення", backorder: "Під замовлення" }[p.availability] || p.availability;
+						const cls = p.availability === "in" ? "text-success" : p.availability === "out" ? "text-danger" : "text-muted";
+						html += '<div class="small ' + cls + '">' + escapeHtml(av) + "</div>";
+					}
+					if (p.sku) html += '<div class="small text-muted">Артикул: ' + escapeHtml(p.sku) + "</div>";
+					if (p.gtin) html += '<div class="small text-muted">GTIN: ' + escapeHtml(p.gtin) + "</div>";
+					if (p.rating) html += '<div class="small">★ ' + escapeHtml(p.rating) + (p.reviewCount ? ' <span class="text-muted">(' + escapeHtml(p.reviewCount) + ")</span>" : "") + "</div>";
+					if (p.description) html += '<div class="small text-muted mt-1" style="max-height:60px;overflow:hidden">' + escapeHtml(p.description) + "</div>";
+					if (p.url) html += '<a href="' + escapeHtml(p.url) + '" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary rounded-0 mt-2 w-100">Відкрити сторінку</a>';
+					body.innerHTML = html;
+				}
+
+				function renderHistory(items) {
+					if (!items || !items.length) {
+						histBody.innerHTML = '<div class="text-center text-muted p-4">Немає переглядів</div>';
+						return;
+					}
+					histBody.innerHTML = items
+						.map(function (it) {
+							const p = it.product || {};
+							const img = p.image ? '<img src="' + escapeHtml(p.image) + '" alt="">' : '<div style="width:44px;height:44px;background:#f6f8fa;flex-shrink:0"></div>';
+							const price = p.price ? '<div class="small text-success">' + escapeHtml(p.price) + " " + escapeHtml(p.currency || "") + "</div>" : "";
+							const views = it.views ? '<span class="badge text-bg-secondary ms-1">' + it.views + "</span>" : "";
+							return '<a href="' + escapeHtml(p.url || "#") + '" target="_blank" rel="noopener" class="cc-prod-hist-item text-reset text-decoration-none">' + img + '<div class="flex-grow-1"><div class="small fw-semibold">' + escapeHtml(p.name || "—") + views + "</div>" + price + "</div></a>";
+						})
+						.join("");
+				}
+
+				function renderHistoryPrepend(p) {
+					if (!p || !p.name || !histBody) return;
+					const empty = histBody.querySelector(".text-muted");
+					if (empty) histBody.innerHTML = "";
+					const img = p.image ? '<img src="' + escapeHtml(p.image) + '" alt="">' : '<div style="width:44px;height:44px;background:#f6f8fa;flex-shrink:0"></div>';
+					const price = p.price ? '<div class="small text-success">' + escapeHtml(p.price) + " " + escapeHtml(p.currency || "") + "</div>" : "";
+					const el = '<a href="' + escapeHtml(p.url || "#") + '" target="_blank" rel="noopener" class="cc-prod-hist-item text-reset text-decoration-none">' + img + '<div class="flex-grow-1"><div class="small fw-semibold">' + escapeHtml(p.name) + "</div>" + price + "</div></a>";
+					histBody.insertAdjacentHTML("afterbegin", el);
+				}
+
+				// Початкове завантаження: поточний
+				fetch("/api/contact-center/chat/" + CONV_ID + "/products/", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({}),
+				})
+					.then(function (r) {
+						return r.json();
+					})
+					.then(function (data) {
+						const history = data.history || [];
+						if (history.length) lastProduct = history[0].product;
+						if (data.current && data.current.name) {
+							renderProduct(data.current, false);
+						} else if (lastProduct) {
+							renderProduct(lastProduct, true);
+						} else {
+							renderProduct(null);
+						}
+						renderHistory(history);
+					})
+					.catch(function () {});
+
+				// Наживо: клієнт відкрив товар (product) або вийшов на не-товар (null)
+								function loadProducts(showLastIfNoCurrent) {
+					fetch("/api/contact-center/chat/" + CONV_ID + "/products/", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({}),
+					})
+						.then(function (r) { return r.json(); })
+						.then(function (data) {
+							const history = data.history || [];
+							if (history.length) lastProduct = history[0].product;
+							if (data.current && data.current.name) {
+								renderProduct(data.current, false);
+							} else if (lastProduct) {
+								renderProduct(lastProduct, true);
+							} else {
+								renderProduct(null);
+							}
+							renderHistory(history);
+						})
+						.catch(function () {});
+				}
+
+				socket.on("cc:product", function (data) {
+					if (!data || Number(data.id_conversation) !== CONV_ID) return;
+					if (data.product && data.product.name) {
+						lastProduct = data.product;
+						renderProduct(data.product, false);
+						renderHistoryPrepend(data.product);
+					} else {
+						// Клієнт пішов з товару (або перезавантажив на не-товарі) —
+						// перезапитуємо, щоб показати останній переглянутий з історії
+						loadProducts(true);
+					}
+				});
+			})();
+		</script>
+		<% } %>
+		<script>
+			// Початковий онлайн-статус + жива поточна сторінка + інфо клієнта
+			function ccSetOnlineDot(online) {
+				const dot = document.getElementById("cc_online_dot");
+				if (!dot) return;
+				dot.classList.toggle("is-online", !!online);
+				dot.title = online ? "Онлайн" : "Офлайн";
+			}
+			fetch("/api/contact-center/chat/" + CONV_ID + "/online/", {
+				method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}),
+			}).then(function (r) { return r.json(); }).then(function (d) { ccSetOnlineDot(!!d.online); }).catch(function () {});
+
+			<% if (data.conversation.channel_type === 'webchat') { %>
+			function ccRenderVisitorInfo(info, pageUrl) {
+				const box = document.getElementById("cc_visitor_info");
+				if (!box) return;
+				info = info || {};
+				const rows = [];
+				const cur = pageUrl || info.pageUrl;
+				if (cur) rows.push('<div class="mb-1"><span class="text-muted">Зараз на:</span><br><a href="' + escapeHtml(cur) + '" target="_blank" rel="noopener" class="text-truncate d-inline-block" style="max-width:100%">' + escapeHtml(cur) + "</a></div>");
+				if (info.ip) rows.push('<div><span class="text-muted">IP:</span> ' + escapeHtml(info.ip) + "</div>");
+				if (info.referrer) rows.push('<div><span class="text-muted">Джерело:</span> ' + escapeHtml(info.referrer) + "</div>");
+				if (info.utm && (info.utm.source || info.utm.campaign)) rows.push('<div><span class="text-muted">UTM:</span> ' + escapeHtml([info.utm.source, info.utm.medium, info.utm.campaign].filter(Boolean).join(" / ")) + "</div>");
+				if (info.timezone) rows.push('<div><span class="text-muted">Часовий пояс:</span> ' + escapeHtml(info.timezone) + "</div>");
+				if (info.platform) rows.push('<div><span class="text-muted">ОС:</span> ' + escapeHtml(info.platform) + "</div>");
+				if (info.screen) rows.push('<div><span class="text-muted">Екран:</span> ' + escapeHtml(info.screen) + "</div>");
+				if (info.connection) rows.push('<div><span class="text-muted">Зʼєднання:</span> ' + escapeHtml(info.connection) + "</div>");
+				box.innerHTML = rows.length ? rows.join("") : '<div class="text-muted">Немає даних</div>';
+			}
+			let ccVisitorInfo = null;
+			fetch("/api/contact-center/chat/" + CONV_ID + "/visitor-info/", {
+				method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}),
+			}).then(function (r) { return r.json(); }).then(function (d) { ccVisitorInfo = d.info || {}; ccRenderVisitorInfo(ccVisitorInfo); }).catch(function () {});
+
+			// Жива зміна сторінки
+			socket.on("cc:visitor_page", function (data) {
+				if (!data || Number(data.id_conversation) !== CONV_ID) return;
+				if (!ccVisitorInfo) ccVisitorInfo = {};
+				ccVisitorInfo.pageUrl = data.page_url;
+				ccRenderVisitorInfo(ccVisitorInfo);
+			});
+			<% } %>
+		</script>
+	</body>
+</html>

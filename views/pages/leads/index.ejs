@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+
+<head>
+    <%- include('../../partials/head'); %>
+        <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+        <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+</head>
+
+<body class="d-flex flex-column h-100">
+    <%- include('../../partials/header'); %>
+        <!-- Breadcrumb -->
+        <div class="breadcrumbs pt-3 pb-3">
+            <div class="container-fluid">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <span>
+                            Ліди
+                        </span>
+                        <div>
+                            <ul class="list-inline mb-0">
+                                <li class="list-inline-item">
+                                    <a href="/"><i class="fas fa-home"></i> <span>Головна</span></a>
+                                </li>
+                                <li class="list-inline-item">
+                                    <i class="fas fa-chevron-right"></i>
+                                    Ліди
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <a href="/customers/" class="btn btn-primary rounded-0">
+                            <i class="fa-solid fa-angle-left"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- END Breadcrumb -->
+        <div class="container-fluid mt-3">
+            <div class="row">
+                <div class="col-12 mb-3">
+                    <div class="card border-primary rounded-0">
+                        <div
+                            class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+                            <span>
+                                <% if (i18n.__('lang_iso')==='uk' ) { %>Ліди<% } else { %>Leads<% } %>
+                            </span>
+                        </div>
+                        <div id="leads-table"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <%- include('../../partials/footer'); %>
+            <%- include('../../partials/script'); %>
+                <script src="/assets/js/tabulator/tabulator.min.js"></script>
+
+                <script>
+                    // Температура → іконка
+                    var tempIcon = {
+                        cold: '<i class="fa-solid fa-snowflake text-info" title="Cold"></i>',
+                        warm: '<i class="fa-solid fa-sun text-warning" title="Warm"></i>',
+                        hot: '<i class="fa-solid fa-fire text-danger" title="Hot"></i>'
+                    };
+
+                    // Пріоритет → badge
+                    var priorityBadge = {
+                        0: '<span class="badge rounded-0 text-bg-secondary">Low</span>',
+                        1: '<span class="badge rounded-0 text-bg-primary">Normal</span>',
+                        2: '<span class="badge rounded-0 text-bg-warning text-dark">High</span>',
+                        3: '<span class="badge rounded-0 text-bg-danger">Urgent</span>'
+                    };
+
+                    var table = new Tabulator("#leads-table", {
+                        layout: "fitColumns",
+                        ajaxURL: "/api/leads/list/",
+                        ajaxConfig: "POST",
+                        pagination: true,
+                        paginationMode: "local",
+                        paginationSize: 20,
+                        paginationSizeSelector: [10, 20, 50, 100],
+                        movableColumns: true,
+                        initialSort: [{ column: "date_add", dir: "desc" }],
+                        columns: [
+                            {
+                                title: "ID",
+                                field: "id",
+                                width: 70,
+                                headerSort: true
+                            },
+                            {
+                                title: "Назва",
+                                field: "title",
+                                widthGrow: 2,
+                                headerSort: true,
+                                formatter: function (cell) {
+                                    var d = cell.getRow().getData();
+                                    var converted = d.is_converted
+                                        ? ' <i class="fa-solid fa-check-circle text-success ms-1" title="Конвертовано"></i>'
+                                        : '';
+                                    var duplicate = d.is_duplicate
+                                        ? ' <i class="fa-solid fa-copy text-warning ms-1" title="Дублікат"></i>'
+                                        : '';
+                                    return cell.getValue() + converted + duplicate;
+                                }
+                            },
+                            {
+                                title: "Контакт",
+                                field: "contact_info",
+                                widthGrow: 2,
+                                headerSort: false,
+                                formatter: function (cell) {
+                                    var ci = cell.getValue() || {};
+                                    var lines = [];
+                                    if (ci.name) lines.push('<strong>' + ci.name + '</strong>');
+                                    if (ci.phone) lines.push('<a href="tel:' + ci.phone + '">' + ci.phone + '</a>');
+                                    if (ci.email) lines.push('<a href="mailto:' + ci.email + '">' + ci.email + '</a>');
+                                    if (ci.company) lines.push('<small class="text-muted">' + ci.company + '</small>');
+                                    return lines.join('<br>');
+                                }
+                            },
+                            {
+                                title: "Статус",
+                                field: "status_name",
+                                widthGrow: 1,
+                                headerSort: true,
+                                formatter: function (cell) {
+                                    var d = cell.getRow().getData();
+                                    if (!d.status_name) return '—';
+                                    var icon = d.status_icon
+                                        ? '<i class="' + d.status_icon + ' me-1"></i>'
+                                        : '';
+                                    return '<span class="badge rounded-0" style="color:' +
+                                        d.status_color_text + ';background:' +
+                                        d.status_color_background + '">' +
+                                        icon + d.status_name + '</span>';
+                                }
+                            },
+                            {
+                                title: "Stage",
+                                field: "stage_name",
+                                widthGrow: 1,
+                                headerSort: true,
+                                formatter: function (cell) {
+                                    var d = cell.getRow().getData();
+                                    if (!d.stage_name) return '—';
+                                    return '<span class="badge rounded-0" style="background:' +
+                                        d.stage_color + '">' + d.stage_name + '</span>';
+                                }
+                            },
+                            {
+                                title: "🌡",
+                                field: "temperature",
+                                width: 60,
+                                headerSort: false,
+                                hozAlign: "center",
+                                formatter: function (cell) {
+                                    return tempIcon[cell.getValue()] || cell.getValue();
+                                }
+                            },
+                            {
+                                title: "Score",
+                                field: "score",
+                                width: 90,
+                                headerSort: true,
+                                hozAlign: "center",
+                                formatter: function (cell) {
+                                    var d = cell.getRow().getData();
+                                    var gradeColor = { A: 'success', B: 'primary', C: 'warning', D: 'secondary' };
+                                    var color = gradeColor[d.grade] || 'secondary';
+                                    return '<span class="badge rounded-0 text-bg-' + color + '">' +
+                                        cell.getValue() + ' <strong>' + d.grade + '</strong></span>';
+                                }
+                            },
+                            {
+                                title: "Сума",
+                                field: "value",
+                                width: 110,
+                                headerSort: true,
+                                hozAlign: "right",
+                                formatter: function (cell) {
+                                    return '<span class="badge rounded-0 text-bg-primary">' +
+                                        parseFloat(cell.getValue()).toLocaleString('uk-UA') + ' ₴</span>';
+                                }
+                            },
+                            {
+                                title: "Пріоритет",
+                                field: "priority",
+                                width: 100,
+                                headerSort: true,
+                                hozAlign: "center",
+                                formatter: function (cell) {
+                                    return priorityBadge[cell.getValue()] || cell.getValue();
+                                }
+                            },
+                            {
+                                title: "Джерело",
+                                field: "source_name",
+                                widthGrow: 1,
+                                headerSort: true,
+                                formatter: function (cell) {
+                                    return cell.getValue() || '—';
+                                }
+                            },
+                            {
+                                title: "Теги",
+                                field: "tags",
+                                widthGrow: 1,
+                                headerSort: false,
+                                formatter: function (cell) {
+                                    var tags = cell.getValue() || [];
+                                    if (!tags.length) return '—';
+                                    return tags.map(function (t) {
+                                        return '<span class="badge rounded-0 me-1" style="background:' +
+                                            t.color + '">' + t.name + '</span>';
+                                    }).join('');
+                                }
+                            },
+                            {
+                                title: "Додано",
+                                field: "date_add",
+                                width: 140,
+                                headerSort: true,
+                                sorter: "string"
+                            },
+                            {
+                                title: "",
+                                field: "id",
+                                width: 50,
+                                headerSort: false,
+                                hozAlign: "center",
+                                formatter: function (cell) {
+                                    return '<a href="/leads/' + cell.getValue() + '" class="text-primary">' +
+                                        '<i class="fa-regular fa-pen-to-square"></i></a>';
+                                }
+                            }
+                        ]
+                    });
+                </script>
+</body>
+
+</html>

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+<head>
+    <title>
+        <%= targetUser.last_name %> <%= targetUser.first_name %>
+    </title>
+    <%- include('../../partials/head'); %>
+    <!-- tabulator -->
+    <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+    <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+    <!-- END tabulator -->
+</head>
+<body class="d-flex flex-column h-100">
+    <%- include('../../partials/header'); %>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumbs pt-3 pb-3">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col">
+                    <span><%= i18n.__('lang_iso') === 'uk' ? 'Налаштування' : 'Settings' %></span>
+                    <div>
+                        <ul class="list-inline mb-0">
+                            <li class="list-inline-item">
+                                <a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('lang_iso') === 'uk' ? 'Головна' : 'Home' %></span></a>
+                            </li>
+                            <li class="list-inline-item">
+                                <i class="fas fa-chevron-right"></i>
+                                <a href="/users"><%= i18n.__('lang_iso') === 'uk' ? 'Користувачі' : 'Users' %></a>
+                            </li>
+                            <li class="list-inline-item">
+                                <i class="fas fa-chevron-right"></i>
+                                <%= targetUser.last_name %> <%= targetUser.first_name %>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-auto d-flex gap-2">
+                    <a href="/users/<%= targetUser.id %>/edit" class="btn btn-warning rounded-0">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </a>
+                    <a href="/users" class="btn btn-primary rounded-0">
+                        <i class="fa-solid fa-angle-left"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- END Breadcrumb -->
+
+    <div class="container-fluid mt-3 mb-4">
+        <div class="row g-3">
+
+            <!-- ─── LEFT ─── -->
+            <div class="col-12 col-md-3">
+
+                <!-- Avatar -->
+                <div class="card border-primary rounded-0 mb-3">
+                    <div class="card-header text-bg-primary rounded-0">
+                        <%= i18n.__('lang_iso') === 'uk' ? 'Фото профілю' : 'Profile photo' %>
+                    </div>
+                    <div class="card-body text-center">
+                        <img src="<%= targetUser.avatar
+                                ? '/uploads/users/' + targetUser.id + '/' + targetUser.avatar
+                                : '/assets/img/avatar-placeholder.png' %>"
+                             alt="avatar"
+                             class="img-fluid rounded-circle border mb-3"
+                             style="width:120px;height:120px;object-fit:cover;">
+                        <h6 class="mb-1 fw-semibold">
+                            <%= [targetUser.last_name, targetUser.first_name, targetUser.patronymic].filter(Boolean).join(' ') || '—' %>
+                        </h6>
+                        <small class="text-muted"><%= targetUser.email %></small>
+                    </div>
+                </div>
+
+                <!-- Quick info -->
+                <div class="card border-primary rounded-0">
+                    <div class="card-header text-bg-primary rounded-0">
+                        <%= i18n.__('lang_iso') === 'uk' ? 'Загальна інформація' : 'General info' %>
+                    </div>
+                    <ul class="list-group list-group-flush">
+
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
+                            <span class="text-muted small"><%= i18n.__('lang_iso') === 'uk' ? 'ID' : 'ID' %></span>
+                            <span><%= targetUser.id %></span>
+                        </li>
+
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
+                            <span class="text-muted small"><%= i18n.__('lang_iso') === 'uk' ? 'Статус' : 'Status' %></span>
+                            <%
+                                const activeMap = {
+                                    0: ['secondary', i18n.__('lang_iso') === 'uk' ? 'Неактивний'  : 'Inactive'],
+                                    1: ['success',   i18n.__('lang_iso') === 'uk' ? 'Активний'    : 'Active'],
+                                    2: ['danger',    i18n.__('lang_iso') === 'uk' ? 'Заблокований': 'Blocked'],
+                                    3: ['warning',   i18n.__('lang_iso') === 'uk' ? 'Запрошений'  : 'Invited'],
+                                };
+                                const [aColor, aLabel] = activeMap[targetUser.active] || ['secondary', '—'];
+                            %>
+                            <span class="badge text-bg-<%= aColor %>"><%= aLabel %></span>
+                        </li>
+
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
+                            <span class="text-muted small"><%= i18n.__('lang_iso') === 'uk' ? 'Стать' : 'Gender' %></span>
+                            <span><%=
+                                targetUser.gender === 1 ? (i18n.__('lang_iso') === 'uk' ? 'Чоловік' : 'Male')   :
+                                targetUser.gender === 2 ? (i18n.__('lang_iso') === 'uk' ? 'Жінка'   : 'Female') :
+                                                          (i18n.__('lang_iso') === 'uk' ? 'Не вказано' : 'Unknown')
+                            %></span>
+                        </li>
+
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
+                            <span class="text-muted small"><%= i18n.__('lang_iso') === 'uk' ? 'Дата нар.' : 'Birthday' %></span>
+                            <span><%= targetUser.birthday ? new Date(targetUser.birthday).toLocaleDateString(i18n.__('lang_iso') === 'uk' ? 'uk-UA' : 'en-GB') : '—' %></span>
+                        </li>
+
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
+                            <span class="text-muted small"><%= i18n.__('lang_iso') === 'uk' ? 'Телефон' : 'Phone' %></span>
+                            <span><%= targetUser.phone || '—' %></span>
+                        </li>
+
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
+                            <span class="text-muted small"><%= i18n.__('lang_iso') === 'uk' ? 'Мова' : 'Language' %></span>
+                            <span><%= targetUser.id_lang === 1 ? 'Українська' : targetUser.id_lang === 2 ? 'English' : targetUser.id_lang %></span>
+                        </li>
+
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
+                            <span class="text-muted small">2FA</span>
+                            <span class="badge text-bg-<%= targetUser.tfa_enabled ? 'success' : 'secondary' %>">
+                                <%= targetUser.tfa_enabled ? 'ON' : 'OFF' %>
+                            </span>
+                        </li>
+
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
+                            <span class="text-muted small"><%= i18n.__('lang_iso') === 'uk' ? 'Групи' : 'Groups' %></span>
+                            <span>
+                                <% if (groups && groups.length) { %>
+                                    <% groups.forEach(function(g) { %>
+                                        <span class="badge text-bg-primary me-1"><%= g.name || g.id %></span>
+                                    <% }); %>
+                                <% } else { %>
+                                    —
+                                <% } %>
+                            </span>
+                        </li>
+
+                        <% if (targetUser.failed_login_attempts > 0 || targetUser.locked_until) { %>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
+                            <span class="text-muted small"><%= i18n.__('lang_iso') === 'uk' ? 'Невд. входів' : 'Failed logins' %></span>
+                            <span class="badge text-bg-danger"><%= targetUser.failed_login_attempts %></span>
+                        </li>
+                        <% } %>
+
+                    </ul>
+                </div>
+
+            </div>
+            <!-- ─── END LEFT ─── -->
+
+            <!-- ─── RIGHT ─── -->
+            <div class="col-12 col-md-9">
+
+                <!-- Activity dates -->
+                <div class="card border-primary rounded-0 mb-3">
+                    <div class="card-header text-bg-primary rounded-0">
+                        <%= i18n.__('lang_iso') === 'uk' ? 'Активність' : 'Activity' %>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="row g-0 text-center">
+                            <%
+                                function fmtDt(val) {
+                                    if (!val) return '—';
+                                    return new Date(val).toLocaleString(
+                                        i18n.__('lang_iso') === 'uk' ? 'uk-UA' : 'en-GB',
+                                        { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }
+                                    );
+                                }
+                                const activityItems = [
+                                    { label: i18n.__('lang_iso') === 'uk' ? 'Зареєстрований'     : 'Registered',   val: targetUser.date_add },
+                                    { label: i18n.__('lang_iso') === 'uk' ? 'Останній вхід'       : 'Last login',   val: targetUser.date_last_login },
+                                    { label: i18n.__('lang_iso') === 'uk' ? 'Онлайн з'            : 'Online since', val: targetUser.date_online_since },
+                                    { label: i18n.__('lang_iso') === 'uk' ? 'Останній раз онлайн' : 'Last seen',    val: targetUser.date_last_seen },
+                                ];
+                            %>
+                            <% activityItems.forEach(function(item, i) { %>
+                            <div class="col-6 col-sm-3 py-3 <%= i < activityItems.length - 1 ? 'border-end' : '' %> border-bottom">
+                                <div class="text-muted small mb-1"><%= item.label %></div>
+                                <div class="fw-semibold"><%= fmtDt(item.val) %></div>
+                            </div>
+                            <% }); %>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Login log -->
+                <div class="card border-primary rounded-0">
+                    <div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+                        <span><%= i18n.__('lang_iso') === 'uk' ? 'Журнал входів' : 'Login log' %></span>
+                        <span id="log-count" class="badge bg-light text-dark">
+                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                        </span>
+                    </div>
+                    <div class="card-body p-2">
+                        <div id="login-log-table"></div>
+                    </div>
+                </div>
+
+            </div>
+            <!-- ─── END RIGHT ─── -->
+
+        </div>
+    </div>
+
+    <%- include('../../partials/footer'); %>
+    <%- include('../../partials/script'); %>
+
+    <!-- tabulator -->
+    <script src="/assets/js/tabulator/tabulator.min.js"></script>
+    <!-- END tabulator -->
+
+    <script>
+    (function () {
+        const isUk  = '<%= i18n.__("lang_iso") %>' === 'uk';
+        const userId = <%= targetUser.id %>;
+
+        function fmtDate(val) {
+            if (!val) return '—';
+            return new Date(val).toLocaleString(isUk ? 'uk-UA' : 'en-GB', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        }
+
+        // ─── Tabulator: журнал входів ─────────────────────────────────────────
+        const table = new Tabulator('#login-log-table', {
+            layout:              'fitColumns',
+            pagination:          'local',
+            paginationSize:       15,
+            paginationSizeSelector: [10, 15, 25, 50],
+            initialSort:         [{ column: 'date_add', dir: 'desc' }],
+            placeholder:         isUk ? 'Немає записів' : 'No records',
+            locale:              isUk ? 'uk' : 'en',
+            langs: {
+                uk: {
+                    pagination: {
+                        first: '«', first_title: 'Перша',
+                        last:  '»', last_title:  'Остання',
+                        prev:  '‹', prev_title:  'Попередня',
+                        next:  '›', next_title:  'Наступна',
+                        all:   'Всі',
+                    },
+                },
+            },
+            columns: [
+                {
+                    title: '#', field: 'id', width: 65,
+                    hozAlign: 'center', headerHozAlign: 'center',
+                },
+                {
+                    title:  isUk ? 'Дата' : 'Date',
+                    field:  'date_add',
+                    width:  155,
+                    formatter: cell => fmtDate(cell.getValue()),
+                    sorter: 'string',
+                },
+                { title: 'IP', field: 'ip', minWidth: 120 },
+                {
+                    title: isUk ? 'Країна' : 'Country',
+                    field: 'country', width: 80,
+                    hozAlign: 'center', headerHozAlign: 'center',
+                    formatter: cell => cell.getValue() || '—',
+                },
+                {
+                    title: isUk ? 'Місто' : 'City',
+                    field: 'city', minWidth: 100,
+                    formatter: cell => cell.getValue() || '—',
+                },
+                {
+                    title: isUk ? 'Пристрій' : 'Device',
+                    field: 'device', width: 95,
+                    hozAlign: 'center', headerHozAlign: 'center',
+                    formatter: cell => ['Desktop','Mobile','Tablet'][cell.getValue()] ?? cell.getValue(),
+                },
+                {
+                    title: isUk ? 'Статус' : 'Status',
+                    field: 'status', width: 105,
+                    hozAlign: 'center', headerHozAlign: 'center',
+                    formatter: cell => cell.getValue()
+                        ? `<span class="badge text-bg-success">${isUk ? 'Успішно' : 'Success'}</span>`
+                        : `<span class="badge text-bg-danger">${isUk ? 'Невдала' : 'Failed'}</span>`,
+                },
+                {
+                    title: 'User-Agent',
+                    field: 'user_agent', minWidth: 200,
+                    formatter: cell => {
+                        const v = cell.getValue() || '';
+                        return `<span title="${v.replace(/"/g,'&quot;')}" style="max-width:280px" class="d-inline-block text-truncate">${v}</span>`;
+                    },
+                    tooltip: cell => cell.getValue(),
+                },
+            ],
+        });
+
+        // ─── AJAX підвантаження логів ─────────────────────────────────────────
+        fetch(`/api/users/${userId}/login-log`, { method: 'POST' })
+            .then(r => r.json())
+            .then(json => {
+                if (json.status !== 'success') throw new Error('api error');
+                table.setData(json.data);
+                document.getElementById('log-count').textContent = json.data.length;
+            })
+            .catch(err => {
+                console.error('[login-log]', err);
+                document.getElementById('log-count').textContent = '!';
+            });
+    })();
+    </script>
+</body>
+</html>

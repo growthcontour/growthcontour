@@ -1,0 +1,2063 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+  <head>
+    <title><%= i18n.__('index.title') %></title>
+    <%- include('../../partials/head'); %>
+    <!-- Сторонні бібліотеки -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+    <!-- END Сторонні бібліотеки -->
+    <!-- Full calendar -->
+    <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+    <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css" rel="stylesheet" />
+    <style>
+      /* ── Календар: базове ─────────────────────────────── */
+      #userCalendar .fc-daygrid-event-harness {
+        margin-bottom: 2px;
+      }
+
+      #userCalendar .fc-event {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+      }
+
+      #userCalendar .fc-event:focus {
+        outline: none;
+        box-shadow: none;
+      }
+
+      #userCalendar .fc-daygrid-day.fc-day-today {
+        background-color: rgba(13, 110, 253, 0.06) !important;
+      }
+
+      #userCalendar .fc-col-header-cell {
+        background: var(--bs-light);
+        font-weight: 600;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+
+      #userCalendar .fc-daygrid-day-number {
+        font-size: 0.8rem;
+        padding: 4px 6px;
+      }
+
+      /* ── Картка події ─────────────────────────────────── */
+      .ce-chip {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 6px;
+        font-size: 0.72rem;
+        line-height: 1.25;
+        border-left: 3px solid var(--ce-color, #6c757d);
+        background: color-mix(in srgb, var(--ce-color, #6c757d) 12%, #fff);
+        color: #212529;
+        overflow: hidden;
+        cursor: pointer;
+        transition:
+          background 0.12s ease,
+          transform 0.12s ease;
+      }
+
+      .ce-chip:hover {
+        background: color-mix(in srgb, var(--ce-color, #6c757d) 22%, #fff);
+        transform: translateX(1px);
+      }
+
+      .ce-chip__icon {
+        flex: 0 0 auto;
+        color: var(--ce-color, #6c757d);
+        font-size: 0.7rem;
+      }
+
+      .ce-chip__time {
+        flex: 0 0 auto;
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+        opacity: 0.75;
+      }
+
+      .ce-chip__title {
+        flex: 1 1 auto;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 500;
+      }
+
+      .ce-chip__meta {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        opacity: 0.65;
+        font-size: 0.65rem;
+      }
+
+      /* Подія на весь день — суцільна заливка */
+      .ce-chip--allday {
+        background: var(--ce-color, #6c757d);
+        color: #fff;
+        border-left: none;
+        padding: 4px 8px;
+        font-weight: 500;
+      }
+
+      .ce-chip--allday:hover {
+        background: color-mix(in srgb, var(--ce-color, #6c757d) 85%, #000);
+      }
+
+      .ce-chip--allday .ce-chip__icon,
+      .ce-chip--allday .ce-chip__meta {
+        color: #fff;
+        opacity: 0.85;
+      }
+
+      /* Стани */
+      .ce-chip--done .ce-chip__title {
+        text-decoration: line-through;
+        opacity: 0.55;
+      }
+
+      .ce-chip--canceled {
+        opacity: 0.45;
+      }
+
+      .ce-chip--canceled .ce-chip__title {
+        text-decoration: line-through;
+      }
+
+      /* Чужа подія — пунктир */
+      .ce-chip--guest {
+        border-left-style: dashed;
+      }
+
+      /* Пріоритет — крапка справа */
+      .ce-chip__prio {
+        flex: 0 0 auto;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+      }
+
+      .ce-prio-3 {
+        background: #fd7e14;
+      }
+      .ce-prio-4 {
+        background: #dc3545;
+      }
+
+      /* ── Вигляд тижня/дня ─────────────────────────────── */
+      .fc-timeGridWeek-view .ce-chip,
+      .fc-timeGridDay-view .ce-chip {
+        height: 100%;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        background: color-mix(in srgb, var(--ce-color, #6c757d) 18%, #fff);
+      }
+
+      .fc-timeGridWeek-view .ce-chip__title,
+      .fc-timeGridDay-view .ce-chip__title {
+        white-space: normal;
+        line-height: 1.2;
+      }
+
+      /* ── Поповер ──────────────────────────────────────── */
+      .ce-pop {
+        max-width: 320px;
+      }
+
+      .ce-pop .popover-header {
+        background: var(--ce-color, #6c757d);
+        color: #fff;
+        border-bottom: none;
+        font-size: 0.85rem;
+        border-radius: 0;
+      }
+
+      .ce-pop .popover-body {
+        font-size: 0.8rem;
+        padding: 0.6rem 0.75rem;
+      }
+
+      .ce-pop .popover-arrow::after {
+        border-top-color: var(--ce-color, #6c757d);
+      }
+
+      .ce-pop__row {
+        display: flex;
+        align-items: flex-start;
+        gap: 7px;
+        margin-bottom: 5px;
+      }
+
+      .ce-pop__row:last-child {
+        margin-bottom: 0;
+      }
+
+      .ce-pop__row i {
+        flex: 0 0 14px;
+        margin-top: 2px;
+        color: var(--bs-secondary);
+        font-size: 0.75rem;
+      }
+
+      .ce-pop__desc {
+        color: var(--bs-secondary);
+        font-style: italic;
+        border-top: 1px solid var(--bs-border-color);
+        padding-top: 6px;
+        margin-top: 6px;
+      }
+      /* ── Чужа подія ───────────────────────────────────── */
+      .ce-chip--foreign {
+        border-left-style: dotted;
+        opacity: 0.82;
+      }
+
+      .ce-chip--foreign .ce-chip__title {
+        font-weight: 400;
+      }
+
+      .ce-chip__owner {
+        flex: 0 0 auto;
+        font-size: 0.62rem;
+        opacity: 0.7;
+        font-style: italic;
+      }
+
+      /* Замасковано (busy) */
+      .ce-chip--masked {
+        background: repeating-linear-gradient(45deg, rgba(173, 181, 189, 0.18), rgba(173, 181, 189, 0.18) 6px, rgba(173, 181, 189, 0.3) 6px, rgba(173, 181, 189, 0.3) 12px);
+        border-left-color: #adb5bd;
+        color: var(--bs-secondary);
+      }
+
+      /* ── Відсутність: фонова смуга ────────────────────── */
+      #userCalendar .fc-bg-event {
+        opacity: 1 !important;
+      }
+
+      .ce-absence {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 8px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: #fff;
+        background: var(--ce-color, #fd7e14);
+        opacity: 0.9;
+      }
+
+      .ce-absence i {
+        font-size: 0.68rem;
+      }
+
+      /* Панель фільтрів */
+      .card-header .form-check-input {
+        cursor: pointer;
+      }
+
+      .card-header .form-check-label {
+        cursor: pointer;
+        user-select: none;
+      }
+    </style>
+    <!-- END Full calendar -->
+    <style>
+      .status-dot {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        margin-top: 5px;
+      }
+
+      .status-dot.online {
+        background-color: #28a745;
+        animation: pulse 2s infinite;
+      }
+
+      .status-dot.offline {
+        background-color: #adb5bd;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+
+        50% {
+          opacity: 0.4;
+        }
+      }
+
+      .user-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 10px 16px;
+        border-bottom: 1px solid #f0f0f0;
+      }
+
+      .user-row:last-child {
+        border-bottom: none;
+      }
+
+      .user-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .user-name {
+        font-weight: 500;
+        font-size: 14px;
+      }
+
+      .you-badge {
+        font-size: 11px;
+        font-weight: 400;
+        color: #6c757d;
+        margin-left: 4px;
+      }
+
+      .user-meta {
+        font-size: 12px;
+        color: #6c757d;
+        margin-top: 2px;
+      }
+
+      .user-meta.online {
+        color: #28a745;
+        font-weight: 500;
+      }
+
+      .user-groups {
+        font-size: 11px;
+        color: #adb5bd;
+        margin-top: 2px;
+      }
+
+      .section-divider {
+        padding: 4px 16px;
+        background: #f8f9fa;
+        font-size: 11px;
+        color: #adb5bd;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .skeleton-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 16px;
+        border-bottom: 1px solid #f0f0f0;
+      }
+
+      .skeleton-circle {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #e9ecef;
+        flex-shrink: 0;
+      }
+
+      .skeleton-line {
+        height: 12px;
+        border-radius: 4px;
+        background: linear-gradient(90deg, #e9ecef 25%, #f8f9fa 50%, #e9ecef 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.2s infinite;
+      }
+
+      @keyframes shimmer {
+        0% {
+          background-position: 200% 0;
+        }
+
+        100% {
+          background-position: -200% 0;
+        }
+      }
+    </style>
+  </head>
+
+  <body class="d-flex flex-column h-100">
+    <%- include('../../partials/header'); %>
+    <div class="container-fluid mt-3">
+      <div class="row">
+        <!-- Ласкаво просимо -->
+        <div class="col-12 col-lg-6 mb-3">
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0"><%= i18n.__('lang_iso')==='en' ? 'Welcome' : 'Ласкаво просимо' %></div>
+            <div class="card-body">
+              <% if (i18n.__('lang_iso')==='en' ) { %>
+              <p>Thank you for using the Growth contour system.</p>
+              <p>If you have any questions contact us at <a href="mailto:support@growthcontour.com">support@growthcontour.com</a>.</p>
+              <div class="alert alert-warning rounded-0 mb-0">The system is currently in beta testing.</div>
+              <% } else { %>
+              <p>Дякуємо що користуєтесь системою Growth contour.</p>
+              <p>Якщо у Вас є питання можете з нами зв'язатися через пошту <a href="mailto:support@growthcontour.com">support@growthcontour.com</a>.</p>
+              <div class="alert alert-warning rounded-0 mb-0">Зараз система знаходиться в бета тестуванні.</div>
+              <% } %>
+            </div>
+          </div>
+        </div>
+
+        <!-- Користувачі -->
+        <div class="col-12 col-lg-6 mb-3">
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+              <span> <%= i18n.__('lang_iso')==='en' ? 'Users' : 'Користувачі' %> </span>
+              <span id="users-counter" style="display: none">
+                <span class="badge bg-success me-1" id="online-count">0</span>
+                <span class="badge bg-light text-secondary" id="total-count">0</span>
+              </span>
+            </div>
+
+            <!-- Skeleton -->
+            <div id="users-skeleton">
+              <div class="skeleton-row">
+                <div class="skeleton-circle"></div>
+                <div style="flex: 1">
+                  <div class="skeleton-line" style="width: 55%"></div>
+                  <div class="skeleton-line mt-1" style="width: 30%"></div>
+                </div>
+              </div>
+              <div class="skeleton-row">
+                <div class="skeleton-circle"></div>
+                <div style="flex: 1">
+                  <div class="skeleton-line" style="width: 40%"></div>
+                  <div class="skeleton-line mt-1" style="width: 25%"></div>
+                </div>
+              </div>
+              <div class="skeleton-row">
+                <div class="skeleton-circle"></div>
+                <div style="flex: 1">
+                  <div class="skeleton-line" style="width: 65%"></div>
+                  <div class="skeleton-line mt-1" style="width: 35%"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Список -->
+            <div id="online-users-list" style="display: none"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- ========== Блок аналітики ========== -->
+    <div class="container-fluid py-3" id="analytics">
+      <!-- Панель фільтрів -->
+      <div class="card border-primary rounded-0 mb-3">
+        <div class="card-header text-bg-primary rounded-0">Фільтри</div>
+        <div class="card-body">
+          <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+              <label class="form-label small text-muted mb-1">Сайт</label>
+              <select class="form-select rounded-0" id="flt-integration">
+                <option value="all">Всі сайти</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small text-muted mb-1">З</label>
+              <input type="date" class="form-control rounded-0" id="flt-date-from" />
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small text-muted mb-1">По</label>
+              <input type="date" class="form-control rounded-0" id="flt-date-to" />
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small text-muted mb-1">Період</label>
+              <select class="form-select rounded-0" id="flt-granularity">
+                <option value="day">По днях</option>
+                <option value="week">По тижнях</option>
+                <option value="month">По місяцях</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <div class="btn-group w-100" role="group">
+                <button type="button" class="btn btn-outline-secondary rounded-0" data-range="7">7 дн</button>
+                <button type="button" class="btn btn-outline-secondary rounded-0 active" data-range="30">30 дн</button>
+                <button type="button" class="btn btn-outline-secondary rounded-0" data-range="90">90 дн</button>
+                <button type="button" class="btn btn-primary rounded-0" id="btn-apply">Оновити</button>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="flt-split" />
+                <label class="form-check-label small" for="flt-split">Порівняти сайти між собою</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI -->
+      <div class="row g-3 mb-3" id="kpi-row">
+        <div class="col-6 col-lg-3">
+          <div class="card h-100 border-primary rounded-0">
+            <div class="card-body">
+              <div class="small text-muted">Виручка</div>
+              <div class="fs-4 fw-semibold" id="kpi-revenue">—</div>
+              <div class="small" id="kpi-revenue-d"></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card h-100 border-primary rounded-0">
+            <div class="card-body">
+              <div class="small text-muted">Замовлень</div>
+              <div class="fs-4 fw-semibold" id="kpi-orders">—</div>
+              <div class="small" id="kpi-orders-d"></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card h-100 border-primary rounded-0">
+            <div class="card-body">
+              <div class="small text-muted">Середній чек</div>
+              <div class="fs-4 fw-semibold" id="kpi-avg">—</div>
+              <div class="small" id="kpi-avg-d"></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card h-100 border-primary rounded-0">
+            <div class="card-body">
+              <div class="small text-muted">Чиста виручка</div>
+              <div class="fs-4 fw-semibold" id="kpi-net">—</div>
+              <div class="small" id="kpi-net-d"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Динаміка -->
+      <div class="card border-primary rounded-0 mb-3">
+        <div class="card-header text-bg-primary rounded-0">Динаміка продажів</div>
+        <div class="card-body">
+          <div id="chart-timeseries" style="width: 100%; height: 360px"></div>
+        </div>
+      </div>
+
+      <!-- Статуси + Канали -->
+      <div class="row g-3 mb-3">
+        <div class="col-lg-5">
+          <div class="card h-100 border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0">Статуси замовлень</div>
+            <div class="card-body">
+              <div id="chart-statuses" style="width: 100%; height: 320px"></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-7">
+          <div class="card h-100 border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0">Канали продажів</div>
+            <div class="card-body">
+              <div id="chart-channels" style="width: 100%; height: 320px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ТОП товарів + Кинуті кошики -->
+      <div class="row g-3 mb-3">
+        <div class="col-lg-7">
+          <div class="card h-100 border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+              <span>ТОП товарів</span>
+              <select class="form-select form-select-sm rounded-0 w-auto" id="flt-product-metric">
+                <option value="revenue">За виручкою</option>
+                <option value="qty">За кількістю</option>
+              </select>
+            </div>
+            <div class="card-body">
+              <div id="chart-products" style="width: 100%; height: 340px"></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-5">
+          <div class="card h-100 border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0">Кинуті кошики</div>
+            <div class="card-body">
+              <div id="chart-carts" style="width: 100%; height: 260px"></div>
+              <div class="small text-muted mt-2" id="carts-info"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Здоров'я інтеграцій -->
+      <div class="card border-primary rounded-0 mb-3">
+        <div class="card-header text-bg-primary rounded-0">Здоров'я інтеграцій</div>
+        <div class="card-body">
+          <div id="chart-health" style="width: 100%; height: 280px"></div>
+        </div>
+      </div>
+    </div>
+    <!-- ========== Кінець блоку аналітики ========== -->
+
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-md-6">
+          <!-- ================================================== -->
+          <!-- КАЛЕНДАР -->
+          <!-- ================================================== -->
+          <div class="card border-primary rounded-0 mb-3">
+            <div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+              <span><i class="fa-solid fa-calendar-days me-1"></i><%= i18n.__('index.calendar.title') %></span>
+
+              <div class="d-flex align-items-center gap-3 flex-wrap">
+                <div class="form-check form-switch mb-0">
+                  <input class="form-check-input" type="checkbox" id="ce_layer_company" checked />
+                  <label class="form-check-label small" for="ce_layer_company"> <i class="fa-solid fa-building me-1"></i><%= i18n.__('index.calendar.layer.company') %> </label>
+                </div>
+
+                <div class="form-check form-switch mb-0">
+                  <input class="form-check-input" type="checkbox" id="ce_layer_busy" />
+                  <label class="form-check-label small" for="ce_layer_busy"> <i class="fa-solid fa-user-clock me-1"></i><%= i18n.__('index.calendar.layer.busy') %> </label>
+                </div>
+
+                <button class="btn btn-light btn-sm rounded-0" id="btnAddCalendarEvent"><i class="fa-solid fa-plus me-1"></i><%= i18n.__('index.calendar.add') %></button>
+              </div>
+            </div>
+            <div class="card-body p-2">
+              <div id="userCalendar"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="modalCalendarEvent" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content rounded-0">
+          <div class="modal-header text-bg-primary rounded-0">
+            <h5 class="modal-title" id="modalCalendarEventTitle"><%= i18n.__('index.calendar.modal.title') %></h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="formCalendarEvent" novalidate>
+              <input type="hidden" id="ce_id" />
+
+              <div class="row g-3">
+                <!-- Тип події -->
+                <div class="col-12 col-md-6">
+                  <label class="form-label small fw-semibold"><%= i18n.__('index.calendar.field.type') %></label>
+                  <select class="form-select form-select-sm rounded-0" id="ce_event_type">
+                    <option value=""><%= i18n.__('index.calendar.field.type_empty') %></option>
+                  </select>
+                </div>
+
+                <!-- Пріоритет -->
+                <div class="col-12 col-md-6">
+                  <label class="form-label small fw-semibold"><%= i18n.__('index.calendar.field.priority') %></label>
+                  <select class="form-select form-select-sm rounded-0" id="ce_priority">
+                    <option value="1"><%= i18n.__('index.calendar.priority.1') %></option>
+                    <option value="2" selected><%= i18n.__('index.calendar.priority.2') %></option>
+                    <option value="3"><%= i18n.__('index.calendar.priority.3') %></option>
+                    <option value="4"><%= i18n.__('index.calendar.priority.4') %></option>
+                  </select>
+                </div>
+
+                <!-- Назва -->
+                <div class="col-12">
+                  <label class="form-label small fw-semibold"><%= i18n.__('index.calendar.field.title') %> <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control form-control-sm rounded-0" id="ce_title" maxlength="255" required placeholder="<%= i18n.__('index.calendar.placeholder.title') %>" />
+                  <div class="invalid-feedback"><%= i18n.__('index.calendar.msg.need_title') %></div>
+                </div>
+
+                <!-- Опис -->
+                <div class="col-12">
+                  <label class="form-label small fw-semibold"><%= i18n.__('index.calendar.field.description') %></label>
+                  <textarea class="form-control form-control-sm rounded-0" id="ce_description" rows="3" placeholder="<%= i18n.__('index.calendar.placeholder.description') %>"></textarea>
+                </div>
+
+                <!-- Місце -->
+                <div class="col-12 col-md-6">
+                  <label class="form-label small fw-semibold"><%= i18n.__('index.calendar.field.location') %></label>
+                  <input type="text" class="form-control form-control-sm rounded-0" id="ce_location" maxlength="255" placeholder="<%= i18n.__('index.calendar.placeholder.location') %>" />
+                </div>
+
+                <!-- Посилання -->
+                <div class="col-12 col-md-6">
+                  <label class="form-label small fw-semibold"><%= i18n.__('index.calendar.field.location_url') %></label>
+                  <input type="url" class="form-control form-control-sm rounded-0" id="ce_location_url" maxlength="500" placeholder="https://" />
+                  <div class="invalid-feedback"><%= i18n.__('index.calendar.msg.bad_url') %></div>
+                </div>
+
+                <!-- Увесь день -->
+                <div class="col-12 d-flex gap-4 flex-wrap">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="ce_all_day" />
+                    <label class="form-check-label small fw-semibold" for="ce_all_day"><%= i18n.__('index.calendar.field.all_day') %></label>
+                  </div>
+
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="ce_is_busy" checked />
+                    <label class="form-check-label small fw-semibold" for="ce_is_busy"><%= i18n.__('index.calendar.field.is_busy') %></label>
+                  </div>
+                </div>
+
+                <!-- Дата початку -->
+                <div class="col-6 col-md-3">
+                  <label class="form-label small fw-semibold"><%= i18n.__('index.calendar.field.date_start') %> <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control form-control-sm rounded-0" id="ce_date_start" placeholder="дд.мм.рррр" required />
+                  <div class="invalid-feedback"><%= i18n.__('index.calendar.msg.need_dates') %></div>
+                </div>
+
+                <!-- Час початку -->
+                <div class="col-6 col-md-3" id="ce_time_start_block">
+                  <label class="form-label small fw-semibold"><%= i18n.__('index.calendar.field.time_start') %> <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control form-control-sm rounded-0" id="ce_time_start" placeholder="гг:хх" />
+                  <div class="invalid-feedback"><%= i18n.__('index.calendar.msg.need_time') %></div>
+                </div>
+
+                <!-- Дата кінця -->
+                <div class="col-6 col-md-3">
+                  <label class="form-label small fw-semibold"><%= i18n.__('index.calendar.field.date_end') %> <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control form-control-sm rounded-0" id="ce_date_end" placeholder="дд.мм.рррр" required />
+                  <div class="invalid-feedback" id="ce_date_end_feedback"><%= i18n.__('index.calendar.msg.need_dates') %></div>
+                </div>
+
+                <!-- Час кінця -->
+                <div class="col-6 col-md-3" id="ce_time_end_block">
+                  <label class="form-label small fw-semibold"><%= i18n.__('index.calendar.field.time_end') %> <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control form-control-sm rounded-0" id="ce_time_end" placeholder="гг:хх" />
+                  <div class="invalid-feedback"><%= i18n.__('index.calendar.msg.need_time') %></div>
+                </div>
+
+                <!-- Видимість -->
+                <div class="col-12 col-md-6">
+                  <label class="form-label small fw-semibold"> <i class="fa-solid fa-eye me-1 text-muted"></i><%= i18n.__('index.calendar.visibility.label') %> </label>
+                  <select class="form-select form-select-sm rounded-0" id="ce_visibility">
+                    <option value="1" selected><%= i18n.__('index.calendar.visibility.1') %></option>
+                    <option value="2"><%= i18n.__('index.calendar.visibility.2') %></option>
+                    <option value="4"><%= i18n.__('index.calendar.visibility.4') %></option>
+                  </select>
+                </div>
+
+                <!-- Кого сповістити -->
+                <div class="col-12 col-md-6">
+                  <label class="form-label small fw-semibold"> <i class="fa-solid fa-bell me-1 text-muted"></i><%= i18n.__('index.calendar.notify_scope.label') %> </label>
+                  <select class="form-select form-select-sm rounded-0" id="ce_notify_scope">
+                    <option value="0"><%= i18n.__('index.calendar.notify_scope.0') %></option>
+                    <option value="1"><%= i18n.__('index.calendar.notify_scope.1') %></option>
+                    <option value="2" selected><%= i18n.__('index.calendar.notify_scope.2') %></option>
+                    <% if (can('users.list', 'edit')) { %>
+                    <option value="4"><%= i18n.__('index.calendar.notify_scope.4') %></option>
+                    <% } %>
+                  </select>
+                  <div class="form-text small" id="ce_notify_hint"></div>
+                </div>
+
+                <!-- Статус -->
+                <div class="col-12 col-md-6">
+                  <label class="form-label small fw-semibold"><%= i18n.__('index.calendar.field.status') %></label>
+                  <select class="form-select form-select-sm rounded-0" id="ce_status">
+                    <option value="1" selected><%= i18n.__('index.calendar.status.1') %></option>
+                    <option value="2"><%= i18n.__('index.calendar.status.2') %></option>
+                    <option value="3"><%= i18n.__('index.calendar.status.3') %></option>
+                  </select>
+                </div>
+
+                <!-- Нагадування -->
+                <div class="col-12 col-md-6">
+                  <label class="form-label small fw-semibold"><%= i18n.__('index.calendar.field.reminder') %></label>
+                  <select class="form-select form-select-sm rounded-0" id="ce_reminder_minutes">
+                    <option value=""><%= i18n.__('index.calendar.reminder.none') %></option>
+                    <option value="10"><%= i18n.__('index.calendar.reminder.10') %></option>
+                    <option value="30" selected><%= i18n.__('index.calendar.reminder.30') %></option>
+                    <option value="60"><%= i18n.__('index.calendar.reminder.60') %></option>
+                    <option value="1440"><%= i18n.__('index.calendar.reminder.1440') %></option>
+                  </select>
+                </div>
+
+                <!-- Учасники -->
+                <div class="col-12">
+                  <label class="form-label small fw-semibold">
+                    <%= i18n.__('index.calendar.field.participants') %>
+                    <span class="text-muted fw-normal"><%= i18n.__('index.calendar.field.participants_hint') %></span>
+                  </label>
+                  <div class="position-relative">
+                    <input type="text" class="form-control form-control-sm rounded-0" id="ce_user_search" autocomplete="off" placeholder="<%= i18n.__('index.calendar.placeholder.search') %>" />
+                    <div class="list-group position-absolute w-100 shadow-sm" id="ce_user_results" style="display: none; z-index: 1080; max-height: 200px; overflow-y: auto"></div>
+                  </div>
+                  <div class="d-flex flex-wrap gap-2 mt-2" id="ce_participants"></div>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer rounded-0 justify-content-between">
+            <button type="button" class="btn btn-outline-danger btn-sm rounded-0" id="btnDeleteCalendarEvent" style="display: none"><i class="fa-solid fa-trash me-1"></i><%= i18n.__('index.calendar.btn.delete') %></button>
+            <div class="ms-auto d-flex gap-2">
+              <button type="button" class="btn btn-secondary btn-sm rounded-0" data-bs-dismiss="modal"><%= i18n.__('index.calendar.btn.cancel') %></button>
+              <button type="button" class="btn btn-primary btn-sm rounded-0" id="btnSaveCalendarEvent"><i class="fa-solid fa-floppy-disk me-1"></i><%= i18n.__('index.calendar.btn.save') %></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="modalConfirmDelete" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-0">
+          <div class="modal-header text-bg-danger rounded-0">
+            <h5 class="modal-title"><%= i18n.__('index.calendar.confirm.title') %></h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0" id="modalConfirmText"></p>
+          </div>
+          <div class="modal-footer rounded-0">
+            <button type="button" class="btn btn-secondary btn-sm rounded-0" data-bs-dismiss="modal"><%= i18n.__('index.calendar.btn.cancel') %></button>
+            <button type="button" class="btn btn-danger btn-sm rounded-0" id="btnConfirmDelete"><i class="fa-solid fa-trash me-1"></i><%= i18n.__('index.calendar.btn.delete') %></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+    <!-- Notyf -->
+    <script src="/assets/js/notyf/notyf.min.js"></script>
+    <script>
+      const notyf = new Notyf({
+        position: { x: "right", y: "top" },
+        duration: 4000,
+        types: [
+          { type: "success", dismissible: true, icon: false },
+          { type: "error", background: "indianred", dismissible: true, icon: false },
+        ],
+      });
+    </script>
+    <!-- END Notyf -->
+    <!-- Full calendar -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/l10n/<%= i18n.__('lang_iso') %>.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.15/locales/<%= i18n.__('lang_iso') %>.global.min.js"></script>
+    <script>
+      // ============================================================
+      // ОСОБИСТИЙ КАЛЕНДАР
+      // ============================================================
+
+      var LANG = "<%= i18n.__('lang_iso') %>";
+      var ceParticipants = {};
+      var ceSearchTimer = null;
+      var userCalendar;
+
+      var CE_STATUS = {
+        1: "<%= i18n.__('index.calendar.status.1') %>",
+        2: "<%= i18n.__('index.calendar.status.2') %>",
+        3: "<%= i18n.__('index.calendar.status.3') %>",
+      };
+
+      var CE_VISIBILITY = {
+        1: "<%= i18n.__('index.calendar.visibility.1') %>",
+        2: "<%= i18n.__('index.calendar.visibility.2') %>",
+        4: "<%= i18n.__('index.calendar.visibility.4') %>",
+      };
+
+      var CE_PRIORITY = {
+        1: "<%= i18n.__('index.calendar.priority.1') %>",
+        2: "<%= i18n.__('index.calendar.priority.2') %>",
+        3: "<%= i18n.__('index.calendar.priority.3') %>",
+        4: "<%= i18n.__('index.calendar.priority.4') %>",
+      };
+
+      var CE_FIELDS = "#ce_title, #ce_description, #ce_location, #ce_location_url, #ce_priority, #ce_status, " + "#ce_reminder_minutes, #ce_all_day, #ce_event_type, #ce_user_search, " + "#ce_date_start, #ce_time_start, #ce_date_end, #ce_time_end, " + "#ce_visibility, #ce_notify_scope, #ce_is_busy";
+
+      // ------------------------------------------------------------
+      // Flatpickr
+      // ------------------------------------------------------------
+      var fpStartDate = flatpickr("#ce_date_start", { dateFormat: "d.m.Y", locale: LANG, allowInput: true });
+      var fpEndDate = flatpickr("#ce_date_end", { dateFormat: "d.m.Y", locale: LANG, allowInput: true });
+      var fpStartTime = flatpickr("#ce_time_start", { enableTime: true, noCalendar: true, dateFormat: "H:i", time_24hr: true, minuteIncrement: 5, locale: LANG, allowInput: true });
+      var fpEndTime = flatpickr("#ce_time_end", { enableTime: true, noCalendar: true, dateFormat: "H:i", time_24hr: true, minuteIncrement: 5, locale: LANG, allowInput: true });
+
+      $("#ce_all_day").on("change", function () {
+        $("#ce_time_start_block, #ce_time_end_block").toggle(!$(this).is(":checked"));
+      });
+
+      // ------------------------------------------------------------
+      // Дати: d.m.Y + H:i -> локальний ISO без UTC
+      // ------------------------------------------------------------
+      function ceCombine(dateStr, timeStr, isAllDay, isEnd) {
+        if (!dateStr) return null;
+        var p = dateStr.split(".");
+        var iso = p[2] + "-" + p[1] + "-" + p[0];
+        if (isAllDay) return iso + "T" + (isEnd ? "23:59:00" : "00:00:00");
+        return iso + "T" + (timeStr || "00:00") + ":00";
+      }
+
+      function cePad(n) {
+        return String(n).padStart(2, "0");
+      }
+
+      function ceSplit(dt) {
+        if (!dt) return { date: "", time: "" };
+        var d = new Date(dt);
+        return {
+          date: cePad(d.getDate()) + "." + cePad(d.getMonth() + 1) + "." + d.getFullYear(),
+          time: cePad(d.getHours()) + ":" + cePad(d.getMinutes()),
+        };
+      }
+
+      function ceToLocal(d) {
+        return d.getFullYear() + "-" + cePad(d.getMonth() + 1) + "-" + cePad(d.getDate()) + "T" + cePad(d.getHours()) + ":" + cePad(d.getMinutes()) + ":00";
+      }
+
+      // ------------------------------------------------------------
+      // Валідація (Bootstrap 5)
+      // ------------------------------------------------------------
+      function ceClearValidation() {
+        $("#formCalendarEvent").find(".is-invalid").removeClass("is-invalid");
+        $("#ce_date_end_feedback").text("<%= i18n.__('index.calendar.msg.need_dates') %>");
+      }
+
+      function ceInvalid(selector, message) {
+        var $el = $(selector).addClass("is-invalid");
+        if (message) $el.siblings(".invalid-feedback").text(message);
+      }
+
+      function ceValidate() {
+        ceClearValidation();
+
+        var ok = true;
+        var allDay = $("#ce_all_day").is(":checked");
+
+        if (!$.trim($("#ce_title").val())) {
+          ceInvalid("#ce_title");
+          ok = false;
+        }
+
+        var urlEl = document.getElementById("ce_location_url");
+        if (urlEl.value && !urlEl.checkValidity()) {
+          ceInvalid("#ce_location_url");
+          ok = false;
+        }
+
+        var ds = $("#ce_date_start").val();
+        var de = $("#ce_date_end").val();
+
+        if (!ds) {
+          ceInvalid("#ce_date_start");
+          ok = false;
+        }
+        if (!de) {
+          ceInvalid("#ce_date_end");
+          ok = false;
+        }
+
+        if (!allDay) {
+          if (!$("#ce_time_start").val()) {
+            ceInvalid("#ce_time_start");
+            ok = false;
+          }
+          if (!$("#ce_time_end").val()) {
+            ceInvalid("#ce_time_end");
+            ok = false;
+          }
+        }
+
+        if (ok) {
+          var start = ceCombine(ds, $("#ce_time_start").val(), allDay, false);
+          var end = ceCombine(de, $("#ce_time_end").val(), allDay, true);
+
+          if (new Date(end) < new Date(start)) {
+            ceInvalid("#ce_date_end", "<%= i18n.__('index.calendar.msg.date_order') %>");
+            ok = false;
+          }
+        }
+
+        if (!ok) {
+          $("#formCalendarEvent").find(".is-invalid").first().trigger("focus");
+        }
+
+        return ok;
+      }
+
+      // Знімаємо підсвітку при редагуванні
+      $(document).on("input change", CE_FIELDS, function () {
+        $(this).removeClass("is-invalid");
+      });
+
+      // ------------------------------------------------------------
+      // Учасники
+      // ------------------------------------------------------------
+      function ceRenderParticipants() {
+        var $box = $("#ce_participants").empty();
+        var ids = Object.keys(ceParticipants);
+
+        if (!ids.length) {
+          $box.append($('<span class="text-muted small">').text("<%= i18n.__('index.calendar.only_you') %>"));
+          return;
+        }
+
+        var readonly = $("#ce_user_search").prop("disabled");
+
+        ids.forEach(function (id) {
+          var $badge = $('<span class="badge text-bg-light border rounded-0 d-inline-flex align-items-center gap-1 py-2">');
+          $badge.append('<i class="fa-solid fa-user text-primary"></i>');
+          $badge.append($("<span>").text(ceParticipants[id]));
+          if (!readonly) {
+            $badge.append($('<button type="button" class="btn-close ms-1 ce-user-remove" style="font-size:.6rem">').attr("data-id", id));
+          }
+          $box.append($badge);
+        });
+      }
+
+      $("#ce_user_search").on("input", function () {
+        clearTimeout(ceSearchTimer);
+        var q = $.trim($(this).val());
+        var $res = $("#ce_user_results");
+
+        if (q.length < 2) {
+          $res.hide();
+          return;
+        }
+
+        ceSearchTimer = setTimeout(function () {
+          $.post("/api/calendar/users/search", { q: q })
+            .done(function (users) {
+              $res.empty();
+              if (!users.length) {
+                $res.append($('<div class="list-group-item small text-muted">').text("<%= i18n.__('index.calendar.not_found') %>"));
+              } else {
+                users.forEach(function (u) {
+                  $res.append($('<button type="button" class="list-group-item list-group-item-action small py-1 ce-user-add">').attr("data-id", u.id).attr("data-name", u.user_name).text(u.user_name));
+                });
+              }
+              $res.show();
+            })
+            .fail(function () {
+              $res.hide();
+            });
+        }, 300);
+      });
+
+      $(document).on("click", ".ce-user-add", function () {
+        ceParticipants[$(this).data("id")] = $(this).data("name");
+        ceRenderParticipants();
+        $("#ce_user_search").val("");
+        $("#ce_user_results").hide();
+      });
+
+      $(document).on("click", ".ce-user-remove", function () {
+        delete ceParticipants[$(this).data("id")];
+        ceRenderParticipants();
+      });
+
+      $(document).on("click", function (e) {
+        if (!$(e.target).closest("#ce_user_search, #ce_user_results").length) {
+          $("#ce_user_results").hide();
+        }
+      });
+
+      // ------------------------------------------------------------
+      // Типи подій
+      // ------------------------------------------------------------
+      var ceEventTypes = {};
+
+      function ceLoadEventTypes(selectedId) {
+        return $.post("/api/calendar/event-types").done(function (types) {
+          var $sel = $("#ce_event_type");
+          $sel.find("option:gt(0)").remove();
+          ceEventTypes = {};
+
+          types.forEach(function (t) {
+            ceEventTypes[t.id] = t;
+            $sel.append($("<option>").val(t.id).text(t.name));
+          });
+
+          if (selectedId) $sel.val(selectedId);
+        });
+      }
+
+      // ------------------------------------------------------------
+      // Попередження про широку розсилку
+      // ------------------------------------------------------------
+      function ceUpdateNotifyHint() {
+        var scope = parseInt($("#ce_notify_scope").val());
+        var $hint = $("#ce_notify_hint");
+
+        if (scope === 4) {
+          $hint.text("<%= i18n.__('index.calendar.notify_scope.warn_company') %>").addClass("text-danger");
+        } else {
+          $hint.text("").removeClass("text-danger");
+        }
+      }
+
+      $("#ce_notify_scope").on("change", ceUpdateNotifyHint);
+
+      // Видимість не може бути вужчою за розсилку
+      $("#ce_visibility").on("change", function () {
+        var vis = parseInt($(this).val());
+        var scope = parseInt($("#ce_notify_scope").val());
+
+        if (scope > vis && scope !== 1) {
+          $("#ce_notify_scope").val(vis >= 2 ? 2 : 2);
+          ceUpdateNotifyHint();
+        }
+      });
+
+      // Тип події підставляє видимість за замовчуванням
+      $("#ce_event_type").on("change", function () {
+        var t = ceEventTypes[$(this).val()];
+        if (!t) return;
+
+        $("#ce_visibility").val(t.default_visibility || 1);
+
+        // Відсутність: не сповіщаємо нікого, час не зайнятий
+        if (t.is_absence) {
+          $("#ce_notify_scope").val(0);
+          $("#ce_is_busy").prop("checked", false);
+          $("#ce_all_day").prop("checked", true).trigger("change");
+        }
+
+        ceUpdateNotifyHint();
+      });
+
+      // ------------------------------------------------------------
+      // Модалка — створення
+      // ------------------------------------------------------------
+      function ceOpenCreate(start) {
+        ceClearValidation();
+
+        $("#ce_id").val("");
+        $("#modalCalendarEventTitle").text("<%= i18n.__('index.calendar.modal.create') %>");
+        $("#btnDeleteCalendarEvent").hide();
+        $("#btnSaveCalendarEvent").show();
+        ceLoadEventTypes();
+
+        $("#ce_title, #ce_description, #ce_location, #ce_location_url").val("");
+        $("#ce_priority").val(2);
+        $("#ce_status").val(1);
+        $("#ce_reminder_minutes").val(30);
+        $("#ce_all_day").prop("checked", false);
+        $("#ce_visibility").val(1);
+        $("#ce_notify_scope").val(2);
+        $("#ce_is_busy").prop("checked", true);
+        ceUpdateNotifyHint();
+        $("#ce_time_start_block, #ce_time_end_block").show();
+        $("#ce_user_search").val("");
+        $(CE_FIELDS).prop("disabled", false);
+
+        ceParticipants = {};
+        ceRenderParticipants();
+
+        var d = start || new Date();
+        var s = ceSplit(d);
+        fpStartDate.setDate(s.date, true);
+        fpEndDate.setDate(s.date, true);
+        fpStartTime.setDate(s.time, true);
+        fpEndTime.setDate(s.time, true);
+
+        $("#modalCalendarEvent").modal("show");
+      }
+
+      // ------------------------------------------------------------
+      // Модалка — редагування
+      // ------------------------------------------------------------
+      function ceOpenEdit(eventId) {
+        $.post("/api/calendar/events/" + eventId)
+          .done(function (d) {
+            ceClearValidation();
+
+            // Замаскована чужа подія — деталей немає, показувати нічого
+            if (d.masked) {
+              notyf.error("<%= i18n.__('index.calendar.busy') %>");
+              return;
+            }
+
+            $("#ce_id").val(d.id);
+            $("#modalCalendarEventTitle").text(d.is_owner ? "<%= i18n.__('index.calendar.modal.edit') %>" : "<%= i18n.__('index.calendar.modal.view') %>");
+
+            ceLoadEventTypes(d.id_event_type || "");
+            $("#ce_title").val(d.title);
+            $("#ce_description").val(d.description || "");
+            $("#ce_location").val(d.location || "");
+            $("#ce_location_url").val(d.location_url || "");
+            $("#ce_priority").val(d.priority);
+            $("#ce_status").val(d.status);
+            $("#ce_reminder_minutes").val(d.reminder_minutes === null ? "" : d.reminder_minutes);
+            $("#ce_all_day").prop("checked", d.all_day == 1);
+            $("#ce_time_start_block, #ce_time_end_block").toggle(d.all_day != 1);
+            $("#ce_visibility").val(d.visibility || 1);
+            $("#ce_notify_scope").val(d.notify_scope === undefined ? 2 : d.notify_scope);
+            $("#ce_is_busy").prop("checked", d.is_busy != 0);
+            ceUpdateNotifyHint();
+
+            var s = ceSplit(d.date_start);
+            var e = ceSplit(d.date_end);
+            fpStartDate.setDate(s.date, true);
+            fpStartTime.setDate(s.time, true);
+            fpEndDate.setDate(e.date, true);
+            fpEndTime.setDate(e.time, true);
+
+            ceParticipants = {};
+            (d.participants || []).forEach(function (p) {
+              if (!p.is_owner) ceParticipants[p.id_user] = p.user_name;
+            });
+
+            // Не автор або чужа подія — лише перегляд
+            var editable = !!d.is_owner && !d.readonly;
+            $(CE_FIELDS).prop("disabled", !editable);
+            $("#btnSaveCalendarEvent").toggle(editable);
+            $("#btnDeleteCalendarEvent").toggle(editable);
+
+            ceRenderParticipants();
+
+            $("#modalCalendarEvent").modal("show");
+          })
+          .fail(function () {
+            notyf.error("<%= i18n.__('index.calendar.msg.error') %>");
+          });
+      }
+
+      $("#btnAddCalendarEvent").on("click", function () {
+        ceOpenCreate();
+      });
+
+      // ------------------------------------------------------------
+      // Збереження
+      // ------------------------------------------------------------
+      $("#btnSaveCalendarEvent").on("click", function () {
+        if (!ceValidate()) return;
+
+        var allDay = $("#ce_all_day").is(":checked");
+        var reminder = $("#ce_reminder_minutes").val();
+        var eventType = $("#ce_event_type").val();
+        var id = $("#ce_id").val();
+
+        $.ajax({
+          url: id ? "/api/calendar/events/" + id + "/edit" : "/api/calendar/events/add",
+          method: "POST",
+          contentType: "application/json",
+          data: JSON.stringify({
+            title: $.trim($("#ce_title").val()),
+            description: $("#ce_description").val() || null,
+            location: $("#ce_location").val() || null,
+            location_url: $("#ce_location_url").val() || null,
+            date_start: ceCombine($("#ce_date_start").val(), $("#ce_time_start").val(), allDay, false),
+            date_end: ceCombine($("#ce_date_end").val(), $("#ce_time_end").val(), allDay, true),
+            all_day: allDay ? 1 : 0,
+            tz_offset: -new Date().getTimezoneOffset(),
+            priority: parseInt($("#ce_priority").val()),
+            status: parseInt($("#ce_status").val()),
+            id_event_type: eventType ? parseInt(eventType) : null,
+            reminder_minutes: reminder === "" ? null : parseInt(reminder),
+            visibility: parseInt($("#ce_visibility").val()),
+            notify_scope: parseInt($("#ce_notify_scope").val()),
+            is_busy: $("#ce_is_busy").is(":checked") ? 1 : 0,
+            participant_ids: Object.keys(ceParticipants).map(Number),
+          }),
+        })
+          .done(function () {
+            $("#modalCalendarEvent").modal("hide");
+            userCalendar.refetchEvents();
+            notyf.success("<%= i18n.__('index.calendar.msg.saved') %>");
+          })
+          .fail(function (xhr) {
+            notyf.error(xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : "<%= i18n.__('index.calendar.msg.error') %>");
+          });
+      });
+
+      // ------------------------------------------------------------
+      // Видалення
+      // ------------------------------------------------------------
+      $("#btnDeleteCalendarEvent").on("click", function () {
+        var id = $("#ce_id").val();
+        if (!id) return;
+
+        $("#modalCalendarEvent").modal("hide");
+        $("#modalConfirmText").text("<%= i18n.__('index.calendar.msg.confirm_delete') %>");
+        $("#modalConfirmDelete").modal("show");
+
+        $("#btnConfirmDelete")
+          .off("click")
+          .on("click", function () {
+            $.post("/api/calendar/events/" + id + "/delete")
+              .done(function () {
+                $("#modalConfirmDelete").modal("hide");
+                userCalendar.refetchEvents();
+                notyf.success("<%= i18n.__('index.calendar.msg.deleted') %>");
+              })
+              .fail(function () {
+                notyf.error("<%= i18n.__('index.calendar.msg.error') %>");
+              });
+          });
+      });
+
+      // ------------------------------------------------------------
+      // Перенесення (drag & drop, resize)
+      // ------------------------------------------------------------
+      function ceReschedule(info) {
+        $.ajax({
+          url: "/api/calendar/events/" + info.event.id + "/reschedule",
+          method: "POST",
+          contentType: "application/json",
+          data: JSON.stringify({
+            date_start: ceToLocal(info.event.start),
+            date_end: ceToLocal(info.event.end || info.event.start),
+          }),
+        })
+          .done(function () {
+            notyf.success("<%= i18n.__('index.calendar.msg.moved') %>");
+          })
+          .fail(function (xhr) {
+            info.revert();
+            notyf.error(xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : "<%= i18n.__('index.calendar.msg.error') %>");
+          });
+      }
+
+      // ------------------------------------------------------------
+      // Шари календаря (перемикачі в шапці)
+      // ------------------------------------------------------------
+      var ceLayerTimer = null;
+
+      function ceSaveLayers() {
+        clearTimeout(ceLayerTimer);
+        ceLayerTimer = setTimeout(function () {
+          $.ajax({
+            url: "/api/calendar/settings/save",
+            method: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({
+              show_company: $("#ce_layer_company").is(":checked") ? 1 : 0,
+              show_busy: $("#ce_layer_busy").is(":checked") ? 1 : 0,
+            }),
+          });
+        }, 800);
+      }
+
+      $("#ce_layer_company, #ce_layer_busy").on("change", function () {
+        userCalendar.refetchEvents();
+        ceSaveLayers();
+      });
+
+      // ------------------------------------------------------------
+      // Налаштування календаря
+      // ------------------------------------------------------------
+      function ceLoadSettings() {
+        return $.post("/api/calendar/settings").done(function (s) {
+          $("#ce_layer_company").prop("checked", s.show_company != 0);
+          $("#ce_layer_busy").prop("checked", s.show_busy == 1);
+          if (s.default_reminder !== null && s.default_reminder !== undefined) {
+            $("#ce_reminder_minutes").val(String(s.default_reminder));
+          }
+        });
+      }
+
+      // ------------------------------------------------------------
+      // Кастомний рендер картки події
+      // ------------------------------------------------------------
+
+      // ------------------------------------------------------------
+      // Кастомний рендер картки події
+      // ------------------------------------------------------------
+      function ceRenderEvent(arg) {
+        var p = arg.event.extendedProps;
+        var color = arg.event.backgroundColor || "#6c757d";
+        var isMonth = arg.view.type === "dayGridMonth";
+
+        // Відсутність (відпустка/лікарняний) чужої людини — фонова смуга
+        if (arg.event.display === "background") {
+          var $abs = $('<div class="ce-absence">').css("--ce-color", color);
+          $abs.append($("<i>").addClass(p.type_icon || "fa-solid fa-plane"));
+          $abs.append($("<span>").text(p.owner_name || arg.event.title));
+          return { domNodes: [$abs[0]] };
+        }
+
+        var $chip = $('<div class="ce-chip">').css("--ce-color", color);
+
+        if (arg.event.allDay) $chip.addClass("ce-chip--allday");
+        if (p.status === 2) $chip.addClass("ce-chip--done");
+        if (p.status === 3) $chip.addClass("ce-chip--canceled");
+        if (!p.is_owner && p.is_mine) $chip.addClass("ce-chip--guest");
+        if (!p.is_mine) $chip.addClass("ce-chip--foreign");
+        if (p.visibility === 2 && !p.is_mine) $chip.addClass("ce-chip--masked");
+
+        // Іконка типу
+        $chip.append($('<i class="ce-chip__icon">').addClass(p.type_icon || "fa-solid fa-circle"));
+
+        // Час — тільки в місяці й лише для подій з часом
+        if (isMonth && !arg.event.allDay && arg.event.start) {
+          $chip.append($('<span class="ce-chip__time">').text(cePad(arg.event.start.getHours()) + ":" + cePad(arg.event.start.getMinutes())));
+        }
+
+        $chip.append($('<span class="ce-chip__title">').text(arg.event.title));
+
+        // Чия подія — для чужих
+        if (!p.is_mine && p.owner_name) {
+          $chip.append($('<span class="ce-chip__owner">').text(p.owner_name));
+        }
+
+        // Метадані
+        var $meta = $('<span class="ce-chip__meta">');
+
+        if (p.is_shared && p.participants_cnt > 1) {
+          $meta.append('<i class="fa-solid fa-users"></i>').append($("<span>").text(p.participants_cnt));
+        }
+        if (p.location) {
+          $meta.append('<i class="fa-solid fa-location-dot"></i>');
+        }
+        if (p.visibility === 4) {
+          $meta.append('<i class="fa-solid fa-building"></i>');
+        }
+        if ($meta.children().length) $chip.append($meta);
+
+        // Пріоритет — тільки високий і критичний, тільки для своїх
+        if (p.is_mine && p.priority >= 3) {
+          $chip.append($('<span class="ce-chip__prio">').addClass("ce-prio-" + p.priority));
+        }
+
+        return { domNodes: [$chip[0]] };
+      }
+
+      // ------------------------------------------------------------
+      // Поповер з деталями
+      // ------------------------------------------------------------
+      function cePopoverBody(ev) {
+        var p = ev.extendedProps;
+        var $box = $("<div>");
+
+        var row = function (icon, text) {
+          if (!text) return;
+          $box.append($('<div class="ce-pop__row">').append($("<i>").addClass(icon)).append($("<span>").text(text)));
+        };
+
+        // Час
+        var timeText;
+        if (ev.allDay) {
+          timeText = "<%= i18n.__('index.calendar.field.all_day') %>";
+        } else {
+          var s = ev.start;
+          var e = ev.end;
+          timeText = cePad(s.getHours()) + ":" + cePad(s.getMinutes());
+          if (e) timeText += " – " + cePad(e.getHours()) + ":" + cePad(e.getMinutes());
+        }
+        row("fa-solid fa-clock", timeText);
+
+        row("fa-solid fa-tag", p.type_name);
+        row("fa-solid fa-location-dot", p.location);
+
+        if (!p.is_mine && p.owner_name) {
+          row("fa-solid fa-user-tie", p.owner_name);
+        }
+
+        if (p.visibility === 4) {
+          row("fa-solid fa-building", CE_VISIBILITY[4]);
+        } else if (p.visibility === 2 && !p.is_mine) {
+          row("fa-solid fa-lock", CE_VISIBILITY[2]);
+        }
+
+        if (p.is_shared && p.participants_cnt > 1) {
+          row("fa-solid fa-users", p.participants_cnt);
+        }
+
+        if (!p.is_owner) {
+          row("fa-solid fa-user", "<%= i18n.__('index.calendar.modal.view') %>");
+        }
+
+        if (p.priority >= 3) {
+          row("fa-solid fa-flag", CE_PRIORITY[p.priority] || "");
+        }
+
+        if (p.status !== 1) {
+          row("fa-solid fa-circle-check", CE_STATUS[p.status] || "");
+        }
+
+        if (p.description) {
+          var short = p.description.length > 140 ? p.description.slice(0, 140) + "…" : p.description;
+          $box.append($('<div class="ce-pop__desc">').text(short));
+        }
+
+        return $box.html();
+      }
+
+      function ceBindPopover(info) {
+        var color = info.event.backgroundColor || "#6c757d";
+
+        var pop = new bootstrap.Popover(info.el, {
+          container: "body",
+          trigger: "hover focus",
+          placement: "auto",
+          html: true,
+          sanitize: false,
+          customClass: "ce-pop",
+          delay: { show: 250, hide: 80 },
+          title: info.event.title,
+          content: cePopoverBody(info.event),
+        });
+
+        // Колір шапки поповера з типу події
+        info.el.addEventListener("inserted.bs.popover", function () {
+          var tip = pop.tip;
+          if (tip) tip.style.setProperty("--ce-color", color);
+        });
+
+        info.el._cePopover = pop;
+      }
+
+      function ceUnbindPopover(info) {
+        if (info.el._cePopover) {
+          info.el._cePopover.dispose();
+          info.el._cePopover = null;
+        }
+      }
+
+      // ------------------------------------------------------------
+      // FullCalendar
+      // ------------------------------------------------------------
+      $(function () {
+        userCalendar = new FullCalendar.Calendar(document.getElementById("userCalendar"), {
+          initialView: "dayGridMonth",
+          locale: LANG,
+          firstDay: 1,
+          height: 700,
+          themeSystem: "bootstrap5",
+          nowIndicator: true,
+          selectable: true,
+          editable: true,
+          dayMaxEvents: 4,
+          moreLinkText: function (n) {
+            return "+" + n;
+          },
+          eventOrder: "start,-allDay,title",
+          slotMinTime: "07:00:00",
+          slotMaxTime: "22:00:00",
+          expandRows: true,
+          displayEventTime: false,
+          eventResizableFromStart: true,
+          headerToolbar: {
+            left: "prev,next today",
+            center: "title",
+            right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
+          },
+          buttonText: {
+            today: "<%= i18n.__('index.calendar.fc.today') %>",
+            month: "<%= i18n.__('index.calendar.fc.month') %>",
+            week: "<%= i18n.__('index.calendar.fc.week') %>",
+            day: "<%= i18n.__('index.calendar.fc.day') %>",
+            list: "<%= i18n.__('index.calendar.fc.list') %>",
+          },
+
+          events: function (info, success, failure) {
+            $.ajax({
+              url: "/api/calendar/events",
+              method: "POST",
+              contentType: "application/json",
+              data: JSON.stringify({
+                start: info.startStr.slice(0, 19),
+                end: info.endStr.slice(0, 19),
+                show_company: $("#ce_layer_company").is(":checked") ? 1 : 0,
+                show_busy: $("#ce_layer_busy").is(":checked") ? 1 : 0,
+              }),
+            })
+              .done(function (events) {
+                success(events);
+              })
+              .fail(function () {
+                failure();
+              });
+          },
+
+          select: function (info) {
+            ceOpenCreate(info.start);
+          },
+          eventClick: function (info) {
+            var p = info.event.extendedProps;
+            // Замаскована подія — відкривати нічого
+            if (p.visibility === 2 && !p.is_mine) return;
+            ceOpenEdit(info.event.id);
+          },
+          eventDrop: function (info) {
+            if (!info.event.extendedProps.is_owner) {
+              info.revert();
+              return;
+            }
+            ceReschedule(info);
+          },
+          eventResize: function (info) {
+            if (!info.event.extendedProps.is_owner) {
+              info.revert();
+              return;
+            }
+            ceReschedule(info);
+          },
+          eventContent: ceRenderEvent,
+          eventDidMount: ceBindPopover,
+          eventWillUnmount: ceUnbindPopover,
+        });
+
+        ceLoadSettings().always(function () {
+          userCalendar.render();
+        });
+      });
+    </script>
+
+    <!-- END Full calendar -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js"></script>
+    <script>
+      var charts = {};
+      var currency = "₴";
+
+      function initChart(id) {
+        if (!charts[id]) {
+          charts[id] = echarts.init(document.getElementById(id));
+        }
+        return charts[id];
+      }
+
+      function fmtMoney(v) {
+        v = Number(v) || 0;
+        return v.toLocaleString("uk-UA", { maximumFractionDigits: 0 }) + " " + currency;
+      }
+
+      function fmtNum(v) {
+        return (Number(v) || 0).toLocaleString("uk-UA", { maximumFractionDigits: 0 });
+      }
+
+      function fmtDelta(el, v) {
+        var e = document.getElementById(el);
+        v = Number(v) || 0;
+        var sign = v > 0 ? "+" : "";
+        e.textContent = sign + v.toFixed(1) + "% до попер. періоду";
+        e.className = "small " + (v > 0 ? "text-success" : v < 0 ? "text-danger" : "text-muted");
+      }
+
+      function getFilters() {
+        var sel = document.getElementById("flt-integration").value;
+        return {
+          id_integration: sel,
+          date_from: document.getElementById("flt-date-from").value,
+          date_to: document.getElementById("flt-date-to").value,
+          granularity: document.getElementById("flt-granularity").value,
+          split_by_integration: document.getElementById("flt-split").checked,
+          id_lang: 2,
+        };
+      }
+
+      function post(url, body) {
+        return fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }).then(function (r) {
+          if (!r.ok) throw new Error(url + " -> " + r.status);
+          return r.json();
+        });
+      }
+
+      function localDay(d) {
+        var p = function (n) {
+          return n < 10 ? "0" + n : "" + n;
+        };
+        return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+      }
+
+      function setRange(days) {
+        var to = new Date();
+        var from = new Date();
+        from.setDate(from.getDate() - (days - 1));
+        document.getElementById("flt-date-to").value = localDay(to);
+        document.getElementById("flt-date-from").value = localDay(from);
+      }
+      /* ---------- Завантаження ---------- */
+
+      function loadIntegrations() {
+        return post("/api/analytics/integrations/", {}).then(function (d) {
+          var sel = document.getElementById("flt-integration");
+          d.items.forEach(function (i) {
+            var o = document.createElement("option");
+            o.value = i.id;
+            o.textContent = i.name + " (" + fmtNum(i.orders_count) + ")";
+            sel.appendChild(o);
+          });
+        });
+      }
+
+      function loadSummary(f) {
+        return post("/api/analytics/summary/", f).then(function (d) {
+          var c = d.current;
+          document.getElementById("kpi-revenue").textContent = fmtMoney(c.revenue);
+          document.getElementById("kpi-orders").textContent = fmtNum(c.orders_valid);
+          document.getElementById("kpi-avg").textContent = fmtMoney(c.avg_check);
+          document.getElementById("kpi-net").textContent = fmtMoney(c.net_revenue);
+          fmtDelta("kpi-revenue-d", d.delta.revenue);
+          fmtDelta("kpi-orders-d", d.delta.orders_valid);
+          fmtDelta("kpi-avg-d", d.delta.avg_check);
+          fmtDelta("kpi-net-d", d.delta.net_revenue);
+        });
+      }
+
+      function loadTimeseries(f) {
+        var ch = initChart("chart-timeseries");
+        ch.showLoading();
+        return post("/api/analytics/timeseries/", f).then(function (d) {
+          var split = f.split_by_integration;
+          var series = d.series.map(function (s) {
+            return {
+              name: s.name,
+              type: s.type,
+              smooth: s.smooth || false,
+              yAxisIndex: s.yAxisIndex || 0,
+              areaStyle: s.metric === "revenue" && !split ? { opacity: 0.08 } : null,
+              data: s.data,
+            };
+          });
+
+          ch.setOption(
+            {
+              tooltip: { trigger: "axis", axisPointer: { type: "cross" } },
+              legend: { data: d.legend, top: 0 },
+              grid: { left: 60, right: 60, top: 40, bottom: 40 },
+              xAxis: { type: "category", data: d.xAxis, boundaryGap: false },
+              yAxis: split
+                ? [{ type: "value", name: currency }]
+                : [
+                    { type: "value", name: currency },
+                    { type: "value", name: "шт", splitLine: { show: false } },
+                  ],
+              dataZoom: [{ type: "inside" }, { type: "slider", height: 18, bottom: 5 }],
+              series: series,
+            },
+            true
+          );
+          ch.hideLoading();
+        });
+      }
+
+      function loadStatuses(f) {
+        var ch = initChart("chart-statuses");
+        return post("/api/analytics/statuses/", f).then(function (d) {
+          ch.setOption(
+            {
+              tooltip: {
+                trigger: "item",
+                formatter: function (p) {
+                  return p.name + "<br>" + fmtNum(p.value) + " шт (" + p.percent + "%)<br>" + fmtMoney(p.data.revenue);
+                },
+              },
+              legend: { type: "scroll", orient: "vertical", right: 0, top: "middle" },
+              series: [
+                {
+                  type: "pie",
+                  radius: ["45%", "70%"],
+                  center: ["38%", "50%"],
+                  label: { show: false },
+                  data: d.data,
+                },
+              ],
+            },
+            true
+          );
+        });
+      }
+
+      function loadChannels(f) {
+        var ch = initChart("chart-channels");
+        return post("/api/analytics/channels/", f).then(function (d) {
+          ch.setOption(
+            {
+              tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+              legend: { top: 0 },
+              grid: { left: 60, right: 60, top: 40, bottom: 30 },
+              xAxis: { type: "category", data: d.xAxis },
+              yAxis: [
+                { type: "value", name: currency },
+                { type: "value", name: "шт", splitLine: { show: false } },
+              ],
+              series: [
+                { name: "Виручка", type: "bar", data: d.series[0].data },
+                { name: "Замовлення", type: "bar", yAxisIndex: 1, data: d.series[1].data },
+              ],
+            },
+            true
+          );
+        });
+      }
+
+      function loadProducts(f) {
+        var ch = initChart("chart-products");
+        var body = Object.assign({}, f, {
+          metric: document.getElementById("flt-product-metric").value,
+          limit: 10,
+        });
+        return post("/api/analytics/top-products/", body).then(function (d) {
+          var isQty = body.metric === "qty";
+          ch.setOption(
+            {
+              tooltip: {
+                trigger: "axis",
+                axisPointer: { type: "shadow" },
+                formatter: function (p) {
+                  var v = p[0].value;
+                  return p[0].name + "<br>" + (isQty ? fmtNum(v) + " шт" : fmtMoney(v));
+                },
+              },
+              grid: { left: 180, right: 40, top: 20, bottom: 30 },
+              xAxis: { type: "value" },
+              yAxis: {
+                type: "category",
+                data: d.yAxis,
+                axisLabel: {
+                  width: 170,
+                  overflow: "truncate",
+                },
+              },
+              series: [
+                {
+                  type: "bar",
+                  data: d.series[0].data,
+                  itemStyle: { color: "#3498db" },
+                },
+              ],
+            },
+            true
+          );
+        });
+      }
+
+      function loadCarts(f) {
+        var ch = initChart("chart-carts");
+        return post("/api/analytics/abandoned-carts/", f).then(function (d) {
+          ch.setOption(
+            {
+              tooltip: { trigger: "item" },
+              legend: { type: "scroll", bottom: 0 },
+              series: [
+                {
+                  type: "pie",
+                  radius: "60%",
+                  center: ["50%", "45%"],
+                  label: { show: false },
+                  data: d.data,
+                },
+              ],
+            },
+            true
+          );
+
+          document.getElementById("carts-info").innerHTML = "Відновлено: <b>" + d.recovery_rate.toFixed(1) + "%</b> · " + "повернуто " + fmtMoney(d.recovered_amount) + " · " + "втрачено " + fmtMoney(d.lost_amount);
+        });
+      }
+
+      function loadHealth(f) {
+        var ch = initChart("chart-health");
+        return post("/api/analytics/integration-health/", f).then(function (d) {
+          ch.setOption(
+            {
+              tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+              legend: { top: 0 },
+              grid: { left: 60, right: 40, top: 40, bottom: 30 },
+              xAxis: { type: "category", data: ["Вхідні (inbox)", "Вихідні (outbox)"] },
+              yAxis: { type: "value" },
+              series: [
+                { name: "Успішно", type: "bar", stack: "s", itemStyle: { color: "#27ae60" }, data: [d.inbox.done, d.outbox.done] },
+                { name: "В черзі", type: "bar", stack: "s", itemStyle: { color: "#f39c12" }, data: [d.inbox.pending, d.outbox.pending] },
+                { name: "Помилки", type: "bar", stack: "s", itemStyle: { color: "#e74c3c" }, data: [d.inbox.failed, d.outbox.failed] },
+              ],
+            },
+            true
+          );
+        });
+      }
+
+      function loadAll() {
+        var f = getFilters();
+        Promise.all([loadSummary(f), loadTimeseries(f), loadStatuses(f), loadChannels(f), loadProducts(f), loadCarts(f), loadHealth(f)]).catch(function (e) {
+          console.error(e);
+        });
+      }
+
+      /* ---------- Події ---------- */
+
+      document.getElementById("btn-apply").addEventListener("click", loadAll);
+      document.getElementById("flt-integration").addEventListener("change", loadAll);
+      document.getElementById("flt-granularity").addEventListener("change", loadAll);
+      document.getElementById("flt-split").addEventListener("change", loadAll);
+      document.getElementById("flt-product-metric").addEventListener("change", function () {
+        loadProducts(getFilters());
+      });
+
+      document.querySelectorAll("[data-range]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          document.querySelectorAll("[data-range]").forEach(function (b) {
+            b.classList.remove("active");
+          });
+          this.classList.add("active");
+          setRange(parseInt(this.dataset.range, 10));
+          loadAll();
+        });
+      });
+
+      window.addEventListener("resize", function () {
+        Object.keys(charts).forEach(function (k) {
+          charts[k].resize();
+        });
+      });
+
+      /* ---------- Старт ---------- */
+
+      setRange(30);
+      loadIntegrations()
+        .then(loadAll)
+        .catch(function (e) {
+          console.error(e);
+          loadAll();
+        });
+    </script>
+    <script>
+      var currentUserId = Number("<%= user.id %>");
+      var lang = "<%= i18n.__('lang_iso') %>";
+
+      var TR = {
+        you: lang === "uk" ? "Ви" : "You",
+        justNow: lang === "uk" ? "щойно" : "just now",
+        minAgo: lang === "uk" ? "хв тому" : "min ago",
+        neverOnline: lang === "uk" ? "Ще не входив" : "Never logged in",
+        at: lang === "uk" ? "о" : "at",
+        offline: lang === "uk" ? "Не в мережі" : "Offline",
+        lessThanMin: lang === "uk" ? "< 1 хв" : "< 1 min",
+        onlineFor: lang === "uk" ? "В мережі" : "Online for",
+        yesterday: lang === "uk" ? "вчора" : "yesterday",
+      };
+
+      var usersMap = {};
+      var rendered = false;
+
+      // ── Форматування тривалості ───────────────────────────────────────────
+      function formatDuration(dateStr) {
+        if (!dateStr) return TR.lessThanMin;
+        var diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+        var hrs = Math.floor(diff / 3600);
+        var mins = Math.floor((diff % 3600) / 60);
+
+        if (diff < 60) return TR.lessThanMin;
+        if (diff < 3600) return mins + (lang === "uk" ? " хв" : " min");
+        if (mins === 0) return hrs + (lang === "uk" ? " год" : "h");
+        return hrs + (lang === "uk" ? " год " : "h ") + mins + (lang === "uk" ? " хв" : " min");
+      }
+
+      // ── Форматування last seen ────────────────────────────────────────────
+      function formatLastSeen(dateStr) {
+        if (!dateStr) return TR.neverOnline;
+        var date = new Date(dateStr);
+        var diffMin = Math.floor((Date.now() - date.getTime()) / 60000);
+        var diffHr = Math.floor(diffMin / 60);
+        var diffDay = Math.floor(diffHr / 24);
+
+        if (diffMin < 1) return TR.justNow;
+        if (diffMin < 60) return diffMin + " " + TR.minAgo;
+        if (diffHr < 24) {
+          var h = date.getHours().toString().padStart(2, "0");
+          var m = date.getMinutes().toString().padStart(2, "0");
+          return TR.at + " " + h + ":" + m;
+        }
+        if (diffDay === 1) return TR.yesterday;
+        return lang === "uk" ? date.toLocaleDateString("uk-UA") : date.toLocaleDateString("en-GB");
+      }
+
+      // ── Завантажуємо актуальні дані з БД ─────────────────────────────────
+      function loadUsers(callback) {
+        $.ajax({
+          type: "POST",
+          url: "/api/users/online-list",
+          dataType: "json",
+          success: function (response) {
+            if (response.status !== "success") return;
+            usersMap = {};
+            response.data.forEach(function (u) {
+              usersMap[u.id] = u;
+            });
+            if (callback) callback();
+          },
+        });
+      }
+
+      // ── Повний рендер ─────────────────────────────────────────────────────
+      function renderAllUsers() {
+        var $list = $("#online-users-list");
+        var onlineList = [];
+        var offlineList = [];
+
+        Object.values(usersMap).forEach(function (u) {
+          if (u.online) onlineList.push(u);
+          else offlineList.push(u);
+        });
+
+        // Онлайн: хто довше в мережі — вище
+        onlineList.sort(function (a, b) {
+          if (!a.date_online_since) return 1;
+          if (!b.date_online_since) return -1;
+          return new Date(a.date_online_since) - new Date(b.date_online_since);
+        });
+
+        // Офлайн: хто нещодавно виходив — вище
+        offlineList.sort(function (a, b) {
+          if (!a.date_last_seen && !b.date_last_seen) return 0;
+          if (!a.date_last_seen) return 1;
+          if (!b.date_last_seen) return -1;
+          return new Date(b.date_last_seen) - new Date(a.date_last_seen);
+        });
+
+        $list.empty();
+
+        $("#online-count").text(onlineList.length);
+        $("#total-count").text(Object.keys(usersMap).length);
+
+        onlineList.forEach(function (u) {
+          $list.append(buildUserRow(u, true));
+        });
+
+        if (onlineList.length > 0 && offlineList.length > 0) {
+          $list.append('<div class="section-divider">' + TR.offline + "</div>");
+        }
+
+        offlineList.forEach(function (u) {
+          $list.append(buildUserRow(u, false));
+        });
+
+        if (!rendered) {
+          $("#users-skeleton").hide();
+          $("#online-users-list").show();
+          $("#users-counter").show();
+          rendered = true;
+        }
+      }
+
+      // ── Будуємо рядок юзера ───────────────────────────────────────────────
+      function buildUserRow(u, isOnline) {
+        var name = ((u.last_name || "") + " " + (u.first_name || "")).trim();
+        if (!name) name = "User #" + u.id;
+
+        var meLabel = Number(u.id) === currentUserId ? '<span class="you-badge">(' + TR.you + ")</span>" : "";
+
+        var metaHtml = isOnline ? '<div class="user-meta online">' + TR.onlineFor + " " + formatDuration(u.date_online_since) + "</div>" : '<div class="user-meta">' + formatLastSeen(u.date_last_seen) + "</div>";
+
+        var groupsHtml = u.groups ? '<div class="user-groups">' + u.groups + "</div>" : "";
+
+        return $('<div class="user-row">' + '<span class="status-dot ' + (isOnline ? "online" : "offline") + '"></span>' + '<div class="user-info">' + '<div class="user-name">' + name + meLabel + "</div>" + metaHtml + groupsHtml + "</div>" + "</div>");
+      }
+
+      // ── Сокет ─────────────────────────────────────────────────────────────
+      // При кожній події завантажуємо актуальні дані з БД і рендеримо
+      // Сервер розсилає кожні 30 секунд — дані завжди актуальні
+      socket.on("users:online", function () {
+        loadUsers(renderAllUsers);
+      });
+    </script>
+  </body>
+</html>

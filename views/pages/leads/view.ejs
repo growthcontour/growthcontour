@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+<head>
+    <%- include('../../partials/head'); %>
+    <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+    <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+    <style>
+        .editable {
+            cursor: pointer;
+            border-bottom: 1px dashed #adb5bd;
+            min-height: 22px;
+            display: inline-block;
+            min-width: 60px;
+        }
+        .editable:hover { border-bottom-color: #0d6efd; }
+        .editable.saving { opacity: .5; pointer-events: none; }
+        .editable-input {
+            border: 1px solid #0d6efd;
+            border-radius: 0;
+            padding: 2px 6px;
+            font-size: inherit;
+            width: 100%;
+        }
+        .pipeline-steps { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; }
+        .pipeline-step {
+            padding: 5px 14px;
+            border-radius: 0;
+            font-size: 12px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            opacity: .55;
+            transition: opacity .15s;
+        }
+        .pipeline-step.active { opacity: 1; border-color: rgba(0,0,0,.25); }
+        .pipeline-step:hover  { opacity: .85; }
+        .score-bar { height: 6px; border-radius: 3px; background: #e9ecef; }
+        .score-bar-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+        .tab-content { min-height: 300px; }
+        .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase;
+                         color: #6c757d; letter-spacing: .5px; margin-bottom: 8px; }
+    </style>
+</head>
+<body class="d-flex flex-column h-100">
+<%- include('../../partials/header'); %>
+
+<div class="container-fluid py-3">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="/leads">Ліди</a></li>
+            <li class="breadcrumb-item active">#<%= lead.id %> <%= lead.title %></li>
+        </ol>
+    </nav>
+
+    <!-- Pipeline steps -->
+    <div class="pipeline-steps" id="pipeline-steps">
+        <% stages.forEach(function(st) { %>
+        <button class="pipeline-step <%= lead.id_stage == st.id ? 'active' : '' %>"
+                style="background:<%= st.color %>;color:#fff"
+                data-id="<%= st.id %>"
+                onclick="setStage(<%= st.id %>)">
+            <%= st.name %>
+            <small class="ms-1 opacity-75"><%= st.probability %>%</small>
+        </button>
+        <% }); %>
+    </div>
+
+    <div class="row g-3">
+
+        <!-- ЛІВА КОЛОНКА -->
+        <div class="col-12 col-xl-8">
+
+            <!-- Заголовок -->
+            <div class="card rounded-0 border-primary mb-3">
+                <div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+                    <span class="editable fw-bold fs-5 text-white"
+                          data-field="title" data-type="text"
+                          data-value="<%= lead.title %>"><%= lead.title || '—' %></span>
+                    <div class="d-flex gap-2 align-items-center">
+                        <% if (lead.is_converted) { %>
+                        <span class="badge bg-success rounded-0"><i class="fa-solid fa-circle-check me-1"></i>Конвертовано</span>
+                        <% } %>
+                        <% if (lead.is_duplicate) { %>
+                        <span class="badge bg-warning text-dark rounded-0"><i class="fa-solid fa-copy me-1"></i>Дублікат</span>
+                        <% } %>
+                        <a href="/leads" class="btn btn-sm btn-light rounded-0"><i class="fa-solid fa-arrow-left"></i></a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3">
+                            <div class="section-title">Статус</div>
+                            <select class="form-select form-select-sm rounded-0"
+                                    onchange="saveField('id_status', this.value)">
+                                <% statuses.forEach(function(s) { %>
+                                <option value="<%= s.id %>" <%= lead.id_status == s.id ? 'selected' : '' %>>
+                                    <%= s.name %>
+                                </option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title">Пріоритет</div>
+                            <select class="form-select form-select-sm rounded-0"
+                                    onchange="saveField('id_priority', this.value)"
+                                    id="sel-priority">
+                                <% priorities.forEach(function(p) { %>
+                                <option value="<%= p.id %>"
+                                        data-color-text="<%= p.color_text %>"
+                                        data-color-bg="<%= p.color_background %>"
+                                        <%= lead.id_priority == p.id ? 'selected' : '' %>>
+                                    <%= p.name %>
+                                </option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title">Температура</div>
+                            <select class="form-select form-select-sm rounded-0"
+                                    onchange="saveField('id_temperature', this.value)"
+                                    id="sel-temperature">
+                                <% temperatures.forEach(function(t) { %>
+                                <option value="<%= t.id %>"
+                                        data-slug="<%= t.slug %>"
+                                        data-color-text="<%= t.color_text %>"
+                                        data-color-bg="<%= t.color_background %>"
+                                        data-icon="<%= t.icon %>"
+                                        <%= lead.id_temperature == t.id ? 'selected' : '' %>>
+                                    <%= t.name %>
+                                </option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title">Кваліфікація</div>
+                            <select class="form-select form-select-sm rounded-0"
+                                    onchange="saveField('id_qualification', this.value)"
+                                    id="sel-qualification">
+                                <% qualifications.forEach(function(q) { %>
+                                <option value="<%= q.id %>"
+                                        data-slug="<%= q.slug %>"
+                                        data-color-text="<%= q.color_text %>"
+                                        data-color-bg="<%= q.color_background %>"
+                                        <%= lead.id_qualification == q.id ? 'selected' : '' %>>
+                                    <%= q.name %>
+                                </option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title">Сума (₴)</div>
+                            <span class="editable" data-field="value" data-type="number"
+                                  data-value="<%= lead.value %>">
+                                <%= parseFloat(lead.value || 0).toLocaleString('uk-UA') %>
+                            </span>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title">Дата закриття</div>
+                            <span class="editable" data-field="expected_close_date" data-type="date"
+                                  data-value="<%= lead.expected_close_date ? new Date(lead.expected_close_date).toISOString().slice(0,10) : '' %>">
+                                <%= lead.expected_close_date ? new Date(lead.expected_close_date).toLocaleDateString('uk-UA') : '—' %>
+                            </span>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title">Джерело</div>
+                            <select class="form-select form-select-sm rounded-0"
+                                    onchange="saveField('id_source', this.value)">
+                                <option value="">—</option>
+                                <% sources.forEach(function(src) { %>
+                                <option value="<%= src.id %>" <%= lead.id_source == src.id ? 'selected' : '' %>>
+                                    <%= src.name %>
+                                </option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title">Сайт</div>
+                            <span class="editable" data-field="website" data-type="text"
+                                  data-value="<%= lead.website %>"><%= lead.website || '—' %></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Нотатка -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2">Нотатка</div>
+                <div class="card-body">
+                    <span class="editable d-block w-100" data-field="note" data-type="textarea"
+                          data-value="<%= lead.note %>"><%= lead.note || '—' %></span>
+                </div>
+            </div>
+
+            <!-- Контактна інформація -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2">Контактна інформація</div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <% [
+                            {key:'name',     label:"Ім'я"},
+                            {key:'phone',    label:'Телефон'},
+                            {key:'email',    label:'Email'},
+                            {key:'company',  label:'Компанія'},
+                            {key:'position', label:'Посада'}
+                        ].forEach(function(f) { %>
+                        <div class="col-12 col-md-6">
+                            <div class="section-title"><%= f.label %></div>
+                            <span class="editable"
+                                  data-field="contact_info"
+                                  data-subfield="<%= f.key %>"
+                                  data-type="text"
+                                  data-value="<%= lead.contact_info[f.key] || '' %>">
+                                <%= lead.contact_info[f.key] || '—' %>
+                            </span>
+                        </div>
+                        <% }); %>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Score -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center">
+                    <span>Score</span>
+                    <span class="badge rounded-0
+                        <%= lead.grade=='A'?'text-bg-success':lead.grade=='B'?'text-bg-primary':lead.grade=='C'?'text-bg-warning':'text-bg-secondary' %>">
+                        <%= lead.score %> / <strong><%= lead.grade %></strong>
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="section-title">Fit Score</div>
+                            <span class="editable" data-field="score_fit" data-type="number"
+                                  data-value="<%= lead.score_fit %>"><%= lead.score_fit %></span>
+                            <div class="score-bar mt-1">
+                                <div class="score-bar-fill bg-primary"
+                                     style="width:<%= Math.min(lead.score_fit, 100) %>%"></div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="section-title">Activity Score</div>
+                            <span class="editable" data-field="score_activity" data-type="number"
+                                  data-value="<%= lead.score_activity %>"><%= lead.score_activity %></span>
+                            <div class="score-bar mt-1">
+                                <div class="score-bar-fill bg-info"
+                                     style="width:<%= Math.min(lead.score_activity, 100) %>%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Програш -->
+            <div class="card rounded-0 mb-3" id="loss-section"
+                 style="<%= lead.id_loss_reason || lead.loss_note ? '' : 'display:none' %>">
+                <div class="card-header fw-semibold py-2 text-danger">Причина програшу</div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-12 col-md-6">
+                            <div class="section-title">Причина</div>
+                            <select class="form-select form-select-sm rounded-0"
+                                    onchange="saveField('id_loss_reason', this.value)">
+                                <option value="">—</option>
+                                <% loss_reasons.forEach(function(r) { %>
+                                <option value="<%= r.id %>" <%= lead.id_loss_reason == r.id ? 'selected' : '' %>>
+                                    <%= r.name %>
+                                </option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="section-title">Коментар</div>
+                            <span class="editable" data-field="loss_note" data-type="textarea"
+                                  data-value="<%= lead.loss_note || '' %>"><%= lead.loss_note || '—' %></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Теги -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2">Теги</div>
+                <div class="card-body d-flex flex-wrap gap-2 align-items-center" id="tags-container">
+                    <% tags.forEach(function(t) { %>
+                    <span class="badge rounded-0" style="background:<%= t.color %>" data-tag-id="<%= t.id %>">
+                        <%= t.name %>
+                        <i class="fa-solid fa-xmark ms-1" style="cursor:pointer"
+                           onclick="removeTag(<%= t.id %>)"></i>
+                    </span>
+                    <% }); %>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm rounded-0 dropdown-toggle"
+                                data-bs-toggle="dropdown">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                        <ul class="dropdown-menu rounded-0">
+                            <% all_tags.forEach(function(t) { %>
+                            <li>
+                                <a class="dropdown-item" href="#"
+                                   onclick="addTag(<%= t.id %>); return false;">
+                                    <span class="badge rounded-0 me-1"
+                                          style="background:<%= t.color %>">&nbsp;</span>
+                                    <%= t.name %>
+                                </a>
+                            </li>
+                            <% }); %>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ПРАВА КОЛОНКА -->
+        <div class="col-12 col-xl-4">
+
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2">SLA</div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <div class="section-title">Дедлайн відповіді</div>
+                        <% if (lead.response_deadline) { %>
+                            <% var rd = new Date(lead.response_deadline); var now = new Date(); %>
+                            <span class="badge rounded-0 <%= rd < now ? 'text-bg-danger' : 'text-bg-success' %>">
+                                <%= rd.toLocaleString('uk-UA') %>
+                            </span>
+                        <% } else { %><span class="text-muted">—</span><% } %>
+                    </div>
+                    <div>
+                        <div class="section-title">Перша відповідь</div>
+                        <span class="<%= lead.first_response_at ? '' : 'text-muted' %>">
+                            <%= lead.first_response_at
+                                ? new Date(lead.first_response_at).toLocaleString('uk-UA') : '—' %>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2">Захоплення</div>
+                <div class="card-body" style="font-size:13px">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr><td class="text-muted">Тип</td>
+                            <td><span class="badge text-bg-secondary rounded-0"><%= lead.capture_type %></span></td></tr>
+                        <tr><td class="text-muted">Ref</td><td><%= lead.capture_ref || '—' %></td></tr>
+                        <tr><td class="text-muted">Сайт</td><td><%= lead.website || '—' %></td></tr>
+                        <tr><td class="text-muted">Джерело</td>
+                            <td><%= lead.source_name || lead.lead_source || '—' %></td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2">Дати</div>
+                <div class="card-body" style="font-size:13px">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr><td class="text-muted">Створено</td>
+                            <td><%= new Date(lead.date_add).toLocaleString('uk-UA') %></td></tr>
+                        <tr><td class="text-muted">Змінено</td>
+                            <td><%= new Date(lead.date_edit).toLocaleString('uk-UA') %></td></tr>
+                        <% if (lead.converted_at) { %>
+                        <tr><td class="text-muted">Конвертовано</td>
+                            <td><%= new Date(lead.converted_at).toLocaleString('uk-UA') %></td></tr>
+                        <% } %>
+                        <% if (lead.score_decay_at) { %>
+                        <tr><td class="text-muted">Score decay</td>
+                            <td><%= new Date(lead.score_decay_at).toLocaleString('uk-UA') %></td></tr>
+                        <% } %>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ТАБИ -->
+    <div class="card rounded-0 mt-1">
+        <div class="card-header p-0">
+            <ul class="nav nav-tabs border-0" id="lead-tabs">
+                <li class="nav-item">
+                    <button class="nav-link active rounded-0" data-bs-toggle="tab"
+                            data-bs-target="#tab-history">
+                        <i class="fa-solid fa-clock-rotate-left me-1"></i> Історія
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link rounded-0" data-bs-toggle="tab"
+                            data-bs-target="#tab-activities" onclick="loadActivities()">
+                        <i class="fa-solid fa-phone me-1"></i> Активності
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link rounded-0" data-bs-toggle="tab"
+                            data-bs-target="#tab-files" onclick="loadFiles()">
+                        <i class="fa-solid fa-paperclip me-1"></i> Файли
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link rounded-0" data-bs-toggle="tab"
+                            data-bs-target="#tab-conversion">
+                        <i class="fa-solid fa-arrow-right-arrow-left me-1"></i> Конверсія
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link rounded-0" data-bs-toggle="tab"
+                            data-bs-target="#tab-utm">
+                        <i class="fa-solid fa-chart-line me-1"></i> UTM
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link rounded-0" data-bs-toggle="tab"
+                            data-bs-target="#tab-fingerprint">
+                        <i class="fa-solid fa-fingerprint me-1"></i> Fingerprint
+                    </button>
+                </li>
+            </ul>
+        </div>
+        <div class="tab-content p-3">
+
+            <!-- ТАБ: Історія -->
+            <div class="tab-pane fade show active" id="tab-history">
+                <div id="history-table"></div>
+            </div>
+
+            <!-- ТАБ: Активності -->
+            <div class="tab-pane fade" id="tab-activities">
+                <div class="mb-3">
+                    <button class="btn btn-primary btn-sm rounded-0">
+                        <i class="fa-solid fa-plus me-1"></i> Додати активність
+                    </button>
+                </div>
+                <div id="activities-list"><p class="text-muted">Завантаження...</p></div>
+            </div>
+
+            <!-- ТАБ: Файли -->
+            <div class="tab-pane fade" id="tab-files">
+                <div class="mb-3">
+                    <button class="btn btn-primary btn-sm rounded-0">
+                        <i class="fa-solid fa-upload me-1"></i> Завантажити файл
+                    </button>
+                </div>
+                <div id="files-list"><p class="text-muted">Завантаження...</p></div>
+            </div>
+
+            <!-- ТАБ: Конверсія -->
+            <div class="tab-pane fade" id="tab-conversion">
+                <% if (lead.is_converted) { %>
+                <div class="alert alert-success rounded-0">
+                    <i class="fa-solid fa-circle-check me-2"></i>
+                    Лід сконвертовано
+                    <%= lead.converted_at ? new Date(lead.converted_at).toLocaleString('uk-UA') : '' %>
+                </div>
+                <% } else { %>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-success btn-sm rounded-0" onclick="convertLead('order')">
+                        <i class="fa-solid fa-cart-shopping me-1"></i> В замовлення
+                    </button>
+                    <button class="btn btn-outline-success btn-sm rounded-0" onclick="convertLead('client')">
+                        <i class="fa-solid fa-user me-1"></i> В клієнта
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm rounded-0" onclick="convertLead('deal')">
+                        <i class="fa-solid fa-handshake me-1"></i> В угоду
+                    </button>
+                </div>
+                <% } %>
+            </div>
+
+            <!-- ТАБ: UTM -->
+            <div class="tab-pane fade" id="tab-utm">
+                <table class="table table-sm table-bordered mb-0" style="font-size:13px">
+                    <% var utmLabels = {
+                        source:'Source', medium:'Medium', campaign:'Campaign',
+                        term:'Term', content:'Content', referrer:'Referrer'
+                    }; %>
+                    <% Object.keys(utmLabels).forEach(function(k) { %>
+                    <tr>
+                        <td class="text-muted fw-semibold" style="width:120px"><%= utmLabels[k] %></td>
+                        <td><%= lead.utm[k] || '—' %></td>
+                    </tr>
+                    <% }); %>
+                </table>
+            </div>
+
+            <!-- ТАБ: Fingerprint -->
+            <div class="tab-pane fade" id="tab-fingerprint">
+                <table class="table table-sm table-bordered mb-0" style="font-size:13px">
+                    <% var fpLabels = {
+                        ip:'IP', country:'Країна', city:'Місто', browser:'Браузер',
+                        os:'ОС', device:'Пристрій', page:'Сторінка', session_sec:'Час сесії (сек)'
+                    }; %>
+                    <% Object.keys(fpLabels).forEach(function(k) { %>
+                    <tr>
+                        <td class="text-muted fw-semibold" style="width:150px"><%= fpLabels[k] %></td>
+                        <td><%= lead.fingerprint[k] || '—' %></td>
+                    </tr>
+                    <% }); %>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+<%- include('../../partials/footer'); %>
+<%- include('../../partials/script'); %>
+<script src="/assets/js/tabulator/tabulator.min.js"></script>
+<script>
+const LEAD_ID = <%= lead.id %>;
+
+// Локалізація — передаємо з сервера через i18n
+const FIELD_LABELS  = <%- JSON.stringify(i18n.__('leads.fields')) %>;
+const ACTION_LABELS = <%- JSON.stringify(i18n.__('leads.history.actions')) %>;
+const SOURCE_LABELS = <%- JSON.stringify(i18n.__('leads.history.sources')) %>;
+const LANG_SYSTEM   = "<%= i18n.__('leads.history.system') %>";
+const LANG_NO_DATA  = "<%= i18n.__('leads.history.no_data') %>";
+const ENUM_LABELS   = {
+    temperature:   <%- JSON.stringify(i18n.__('leads.temperature')) %>,
+    qualification: <%- JSON.stringify(i18n.__('leads.qualification')) %>,
+    priority:      <%- JSON.stringify(i18n.__('leads.priority')) %>,
+    capture_type:  <%- JSON.stringify(i18n.__('leads.capture_type')) %>
+};
+
+// JSON-кеш для підполів contact_info тощо
+var jsonFieldCache = {
+    contact_info: <%- JSON.stringify(lead.contact_info || {}) %>,
+    utm:          <%- JSON.stringify(lead.utm || {}) %>,
+    fingerprint:  <%- JSON.stringify(lead.fingerprint || {}) %>
+};
+
+// ============================================================
+// ЗБЕРЕЖЕННЯ ПОЛЯ
+// ============================================================
+function saveField(field, value) {
+    return fetch('/api/leads/' + LEAD_ID + '/field/', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ field, value })
+    }).then(r => r.json());
+}
+
+// ============================================================
+// INLINE EDIT
+// ============================================================
+document.querySelectorAll('.editable').forEach(function(el) {
+    el.addEventListener('click', function() {
+        if (el.querySelector('input,textarea')) return;
+
+        var field    = el.dataset.field;
+        var subfield = el.dataset.subfield;
+        var type     = el.dataset.type || 'text';
+        var val      = el.dataset.value || '';
+        var original = el.innerHTML;
+
+        var input;
+        if (type === 'textarea') {
+            input = document.createElement('textarea');
+            input.rows = 3;
+        } else {
+            input = document.createElement('input');
+            input.type = type;
+        }
+        input.className = 'editable-input';
+        input.value = val;
+        el.innerHTML = '';
+        el.appendChild(input);
+        input.focus();
+
+        function commit() {
+            var newVal = input.value.trim();
+            if (newVal === val) { el.innerHTML = original; return; } // не змінилось
+            el.classList.add('saving');
+
+            var saveVal = subfield
+                ? (jsonFieldCache[field][subfield] = newVal, jsonFieldCache[field])
+                : newVal;
+
+            saveField(field, saveVal).then(function(data) {
+                el.classList.remove('saving');
+                el.dataset.value = newVal;
+                el.textContent = newVal || '—';
+                if (data.changed && historyLoaded) {
+                    historyTable.setData('/api/leads/' + LEAD_ID + '/history/', {}, 'POST');
+                }
+                if (field === 'score_fit' || field === 'score_activity') location.reload();
+            }).catch(function() {
+                el.classList.remove('saving');
+                el.innerHTML = original;
+            });
+        }
+
+        input.addEventListener('blur', commit);
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && type !== 'textarea') commit();
+            if (e.key === 'Escape') el.innerHTML = original;
+        });
+    });
+});
+
+// ============================================================
+// PIPELINE STAGE
+// ============================================================
+function setStage(id_stage) {
+    saveField('id_stage', id_stage).then(function(data) {
+        if (!data.changed) return;
+        document.querySelectorAll('.pipeline-step').forEach(function(btn) {
+            btn.classList.toggle('active', parseInt(btn.dataset.id) === parseInt(id_stage));
+        });
+        if (historyLoaded) {
+            historyTable.setData('/api/leads/' + LEAD_ID + '/history/', {}, 'POST');
+        }
+    });
+}
+
+// ============================================================
+// ТЕГИ
+// ============================================================
+function addTag(id_tag) {
+    fetch('/api/leads/' + LEAD_ID + '/tag/add/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_tag })
+    }).then(r => r.json()).then(function(d) { if (d.ok) location.reload(); });
+}
+function removeTag(id_tag) {
+    fetch('/api/leads/' + LEAD_ID + '/tag/remove/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_tag })
+    }).then(r => r.json()).then(function(d) {
+        if (d.ok) {
+            var el = document.querySelector('[data-tag-id="' + id_tag + '"]');
+            if (el) el.remove();
+        }
+    });
+}
+
+// ============================================================
+// КОНВЕРСІЯ
+// ============================================================
+function convertLead(type) {
+    if (!confirm('Конвертувати лід в ' + type + '?')) return;
+    fetch('/api/leads/' + LEAD_ID + '/convert/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ converted_to: type })
+    }).then(r => r.json()).then(function(d) { if (d.ok) location.reload(); });
+}
+
+// ============================================================
+// HISTORY — Tabulator
+// ============================================================
+var historyTable = null;
+var historyLoaded = false;
+
+function renderDiff(h) {
+    var o, n;
+    if (h.field_name === 'id_status') {
+        o = h.status_old_name || h.value_old || '—';
+        n = h.status_new_name || h.value_new || '—';
+    } else if (h.field_name === 'id_stage') {
+        o = h.stage_old_name || h.value_old || '—';
+        n = h.stage_new_name || h.value_new || '—';
+    } else if (h.field_name && ENUM_LABELS[h.field_name]) {
+        var map = ENUM_LABELS[h.field_name];
+        o = map[h.value_old] || h.value_old || '—';
+        n = map[h.value_new] || h.value_new || '—';
+    } else if (['contact_info','utm','fingerprint','custom_fields'].includes(h.field_name)) {
+        return '<span class="text-muted fst-italic small">оновлено</span>';
+    } else {
+        o = h.value_old || '—';
+        n = h.value_new || '—';
+    }
+    return '<span class="text-muted text-decoration-line-through me-1">' + o + '</span>'
+         + '<i class="fa-solid fa-arrow-right mx-1 text-muted" style="font-size:10px"></i>'
+         + '<span class="text-success fw-semibold">' + n + '</span>';
+}
+
+(function initHistory() {
+    historyLoaded = true;
+    historyTable = new Tabulator("#history-table", {
+        layout: "fitColumns",
+        ajaxURL: "/api/leads/" + LEAD_ID + "/history/",
+        ajaxConfig: "POST",
+        pagination: true,
+        paginationMode: "local",
+        paginationSize: 15,
+        paginationSizeSelector: [15, 30, 50],
+        initialSort: [{ column: "date_add", dir: "desc" }],
+        placeholder: LANG_NO_DATA,
+        columns: [
+            {
+                title: "Подія", field: "action_type", widthGrow: 1, headerSort: true,
+                formatter: function(cell) {
+                    var h = cell.getRow().getData();
+                    var label = ACTION_LABELS[h.action_type] || h.action_type;
+                    var colorMap = {
+                        field_change:'warning', status_change:'success', stage_change:'primary',
+                        converted:'info', sla_breach:'danger', automation_fired:'secondary',
+                        comment:'primary', file_attached:'secondary', deleted:'danger', restored:'success'
+                    };
+                    return '<span class="badge rounded-0 text-bg-' + (colorMap[h.action_type]||'secondary') + '">'
+                         + label + '</span>';
+                }
+            },
+            {
+                title: "Поле", field: "field_name", widthGrow: 1, headerSort: true,
+                formatter: function(cell) {
+                    var v = cell.getValue();
+                    return v ? (FIELD_LABELS[v] || v) : '—';
+                }
+            },
+            {
+                title: "Зміна", field: "value_old", widthGrow: 3, headerSort: false,
+                formatter: function(cell) {
+                    var h = cell.getRow().getData();
+                    var diff = (h.value_old !== null || h.value_new !== null) ? renderDiff(h) : '';
+                    var comment = h.comment
+                        ? '<div class="mt-1 fst-italic text-muted small">' + h.comment + '</div>' : '';
+                    return diff + comment || '—';
+                }
+            },
+            {
+                title: "Хто", field: "manager_name", width: 160, headerSort: true,
+                formatter: function(cell) {
+                    var h   = cell.getRow().getData();
+                    var who = (cell.getValue()||'').trim() || LANG_SYSTEM;
+                    var src = SOURCE_LABELS[h.source] || h.source || '';
+                    return '<div>' + who + '</div>'
+                         + (src ? '<small class="text-muted">' + src + '</small>' : '');
+                }
+            },
+            {
+                title: "Дата", field: "date_add", width: 145, headerSort: true, sorter: "string"
+            }
+        ]
+    });
+})();
+
+// ============================================================
+// ACTIVITIES
+// ============================================================
+var activitiesLoaded = false;
+function loadActivities() {
+    if (activitiesLoaded) return;
+    activitiesLoaded = true;
+    fetch('/api/leads/' + LEAD_ID + '/activities/', { method: 'POST' })
+        .then(r => r.json())
+        .then(function(rows) {
+            var typeIcon = {
+                call:'fa-phone', email:'fa-envelope', meeting:'fa-handshake',
+                task:'fa-check', note:'fa-note-sticky', whatsapp:'fa-whatsapp',
+                telegram:'fa-telegram', demo:'fa-desktop', other:'fa-circle'
+            };
+            var statusBadge = {
+                planned:'text-bg-primary', done:'text-bg-success',
+                cancelled:'text-bg-secondary', missed:'text-bg-danger'
+            };
+            if (!rows.length) {
+                document.getElementById('activities-list').innerHTML = '<p class="text-muted">Активностей немає</p>';
+                return;
+            }
+            document.getElementById('activities-list').innerHTML = rows.map(function(a) {
+                return '<div class="d-flex gap-3 mb-3 border-bottom pb-3">'
+                     + '<div style="width:32px;text-align:center">'
+                     + '<i class="fa-solid ' + (typeIcon[a.type]||'fa-circle') + ' text-primary"></i></div>'
+                     + '<div class="flex-grow-1">'
+                     + '<div class="d-flex justify-content-between">'
+                     + '<strong>' + (a.subject || a.type) + '</strong>'
+                     + '<span class="badge rounded-0 ' + (statusBadge[a.status]||'text-bg-secondary') + '">' + a.status + '</span>'
+                     + '</div>'
+                     + '<small class="text-muted">' + (a.manager_name||'—') + ' · ' + (a.scheduled_at||a.date_add) + '</small>'
+                     + (a.body ? '<div class="mt-1 small">' + a.body + '</div>' : '')
+                     + '</div></div>';
+            }).join('');
+        });
+}
+
+// ============================================================
+// FILES
+// ============================================================
+var filesLoaded = false;
+function loadFiles() {
+    if (filesLoaded) return;
+    filesLoaded = true;
+    fetch('/api/leads/' + LEAD_ID + '/files/', { method: 'POST' })
+        .then(r => r.json())
+        .then(function(rows) {
+            if (!rows.length) {
+                document.getElementById('files-list').innerHTML = '<p class="text-muted">Файлів немає</p>';
+                return;
+            }
+            document.getElementById('files-list').innerHTML = rows.map(function(f) {
+                return '<div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">'
+                     + '<div><i class="fa-solid fa-file me-2 text-muted"></i>'
+                     + '<a href="/' + f.path + '" target="_blank">' + f.name + '</a>'
+                     + '<small class="text-muted ms-2">' + (f.category||'') + ' · '
+                     + Math.round(f.size/1024) + ' KB</small></div>'
+                     + '<small class="text-muted">' + f.date_add + '</small></div>';
+            }).join('');
+        });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+  <head>
+    <title><%= i18n.__('contact_center.channels.edit.title') %></title>
+    <%- include('../../../partials/head'); %>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/monolith.min.css" />
+    <style>.pickr .pcr-button{border:1px solid #eee;border-radius:0}</style>
+    <link href="/assets/css/scheduler/scheduler.css" rel="stylesheet" />
+    <style>
+      .channel-head-icon {
+        font-size: 2rem;
+        line-height: 1;
+      }
+
+      .copy-field {
+        cursor: pointer;
+      }
+    </style>
+  </head>
+
+  <body class="d-flex flex-column h-100">
+    <%- include('../../../partials/header'); %>
+
+    <!-- ─── ХЛІБНІ КРИХТИ ─────────────────────────────────────────── -->
+    <div class="breadcrumbs pt-3 pb-3">
+      <div class="container-fluid">
+        <div class="row align-items-center">
+          <div class="col">
+            <span><%= data.channel.name %></span>
+            <div>
+              <ul class="list-inline mb-0">
+                <li class="list-inline-item">
+                  <a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('contact_center.channels.breadcrumb.home') %></span></a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <a href="/contact-center/"><%= i18n.__('contact_center.channels.breadcrumb.contact_center') %></a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <a href="/contact-center/channels/"><%= i18n.__('contact_center.channels.breadcrumb.current') %></a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <%= i18n.__(data.meta.label) %>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-auto">
+            <a href="/contact-center/channels/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── ОСНОВНИЙ КОНТЕНТ ──────────────────────────────────────── -->
+    <div class="container-fluid mt-3">
+      <form id="channel-form">
+        <input type="hidden" id="channel_id" value="<%= data.channel.id %>" />
+        <input type="hidden" id="channel_type" value="<%= data.channel.type %>" />
+
+        <!-- ═══ БЛОК 1: ЗАГАЛЬНЕ ═══ -->
+        <div class="card border-primary rounded-0 mb-3">
+          <div class="card-header text-bg-primary rounded-0 d-flex align-items-center justify-content-between">
+            <span><%= i18n.__('contact_center.channels.edit.general.title') %></span>
+            <span class="badge text-bg-light rounded-0">#<%= data.channel.id %></span>
+          </div>
+          <div class="card-body">
+            <div class="row align-items-center mb-3">
+              <div class="col-auto">
+                <span class="channel-head-icon" style="color: <%= data.meta.color %>">
+                  <i class="<%= data.meta.icon %>"></i>
+                </span>
+              </div>
+              <div class="col">
+                <div class="fw-semibold"><%= i18n.__(data.meta.label) %></div>
+                <div class="text-muted small"><%= i18n.__('contact_center.channels.edit.general.type_locked') %></div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="f_name" class="form-label"><%= i18n.__('contact_center.channels.edit.general.name') %> <span class="text-danger">*</span></label>
+              <input type="text" class="form-control rounded-0" id="f_name" name="name" maxlength="255" required value="<%= data.channel.name %>" />
+              <small class="text-muted"><%= i18n.__('contact_center.channels.edit.general.name_hint') %></small>
+            </div>
+
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" value="1" id="f_status" name="status" <%= Number(data.channel.status) === 1 ? 'checked' : '' %> <%= Number(data.channel.is_configured) === 1 ? '' : 'disabled' %> />
+              <label class="form-check-label" for="f_status"><%= i18n.__('contact_center.channels.edit.general.status') %></label>
+              <% if (Number(data.channel.is_configured) !== 1) { %>
+              <div class="text-muted small"><%= i18n.__('contact_center.channels.not_configured_hint') %></div>
+              <% } %>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ БЛОК 2: ПІДКЛЮЧЕННЯ (специфіка типу) ═══ -->
+        <div class="card border-primary rounded-0 mb-3">
+          <div class="card-header text-bg-primary rounded-0"><%= i18n.__('contact_center.channels.edit.connection.title') %></div>
+          <div class="card-body">
+            <!-- Поля конкретного типу каналу -->
+            <%- include(data.typeView) %>
+          </div>
+        </div>
+
+                <!-- ═══ БЛОК 3: СПОВІЩЕННЯ ═══ -->
+        <div class="card border-primary rounded-0 mb-3">
+          <div class="card-header text-bg-primary rounded-0"><%= i18n.__('contact_center.channels.edit.notify.title') %></div>
+          <div class="card-body">
+            <p class="text-muted small"><%= i18n.__('contact_center.channels.edit.notify.hint') %></p>
+
+            <!-- Пошук користувачів CRM -->
+            <div class="mb-3">
+              <label class="form-label"><%= i18n.__('contact_center.channels.edit.notify.users') %></label>
+              <div class="position-relative">
+                <input type="text" class="form-control rounded-0" id="rec_user_search" autocomplete="off" placeholder="<%= i18n.__('contact_center.channels.edit.notify.users_ph') %>" />
+                <div class="list-group position-absolute w-100 shadow-sm" id="rec_user_results" style="display: none; z-index: 1080; max-height: 200px; overflow-y: auto"></div>
+              </div>
+              <div class="d-flex flex-wrap gap-2 mt-2" id="rec_users"></div>
+            </div>
+
+            <!-- Групи CRM -->
+            <div class="mb-3">
+              <label class="form-label"><%= i18n.__('contact_center.channels.edit.notify.groups') %></label>
+              <select class="form-select rounded-0" id="rec_group_select">
+                <option value=""><%= i18n.__('contact_center.channels.edit.notify.groups_ph') %></option>
+              </select>
+              <div class="d-flex flex-wrap gap-2 mt-2" id="rec_groups"></div>
+            </div>
+
+            <hr />
+
+            <!-- Про що сповіщати -->
+            <div class="form-check mb-2">
+              <input class="form-check-input rounded-0" type="checkbox" value="1" id="f_on_new_conversation" checked />
+              <label class="form-check-label" for="f_on_new_conversation"><%= i18n.__('contact_center.channels.edit.notify.on_new_conversation') %></label>
+            </div>
+                        <div class="form-check mb-0">
+              <input class="form-check-input rounded-0" type="checkbox" value="1" id="f_on_new_message" />
+              <label class="form-check-label" for="f_on_new_message"><%= i18n.__('contact_center.channels.edit.notify.on_new_message') %></label>
+              <div class="form-text"><%= i18n.__('contact_center.channels.edit.notify.on_new_message_hint') %></div>
+            </div>
+
+            <hr />
+
+            <!-- ── Telegram-сповіщення каналу ── -->
+            <h6 class="mb-2">Сповіщення в Telegram</h6>
+
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" value="1" id="f_tg_enabled"
+                     <%= Number((data.notify||{}).tg_enabled) === 1 ? 'checked' : '' %> />
+              <label class="form-check-label" for="f_tg_enabled">Надсилати сповіщення в Telegram</label>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="f_tg_token">Токен бота</label>
+              <input type="text" class="form-control rounded-0" id="f_tg_token" name="tg_bot_token" autocomplete="off"
+                     placeholder="<%= (data.notify||{}).has_token ? ('•••••• ' + ((data.notify||{}).tg_bot_token_last4 || '')) : '123456789:AA...' %>" />
+              <small class="text-muted">
+                <% if ((data.notify||{}).has_token) { %>
+                  Токен збережено<%= (data.notify||{}).tg_bot_username ? (' (@' + data.notify.tg_bot_username + ')') : '' %>. Залиште порожнім, щоб не міняти.
+                <% } else { %>
+                  Формат: <code>123456789:AA...</code>
+                <% } %>
+              </small>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="f_tg_chat_id">ID чату / каналу</label>
+              <input type="text" class="form-control rounded-0" id="f_tg_chat_id" name="tg_chat_id"
+                     value="<%= (data.notify||{}).tg_chat_id || '' %>" placeholder="-1001234567890" />
+              <small class="text-muted">Для каналів/супергруп зазвичай починається з <code>-100</code>. Бота треба додати в чат (адміністратором).</small>
+            </div>
+
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" value="1" id="f_tg_use_thread"
+                     <%= Number((data.notify||{}).tg_use_thread) === 1 ? 'checked' : '' %> />
+              <label class="form-check-label" for="f_tg_use_thread">Надсилати в гілку (тему форуму)</label>
+            </div>
+            <div class="mb-3" id="tg_thread_wrap" style="<%= Number((data.notify||{}).tg_use_thread) === 1 ? '' : 'display:none' %>">
+              <label class="form-label" for="f_tg_thread_id">ID гілки (message_thread_id)</label>
+              <input type="number" class="form-control rounded-0" id="f_tg_thread_id" name="tg_thread_id"
+                     value="<%= (data.notify||{}).tg_thread_id != null ? data.notify.tg_thread_id : '' %>" placeholder="12" />
+              <small class="text-muted">Працює лише в супергрупах з увімкненими Темами (Topics).</small>
+            </div>
+
+            <button type="button" class="btn btn-outline-primary rounded-0" id="btn_tg_test">Надіслати тестове</button>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-12 mb-4 d-flex gap-2">
+            <button type="button" id="btn_save" class="btn btn-primary rounded-0"><%= i18n.__('contact_center.channels.edit.save') %></button>
+            <a href="/contact-center/channels/" class="btn btn-secondary rounded-0"><%= i18n.__('contact_center.channels.edit.back') %></a>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <%- include('../../../partials/footer'); %> <%- include('../../../partials/script'); %>
+    <script src="/assets/js/scheduler/scheduler.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
+    
+    <!-- Notyf -->
+    <script src="/assets/js/notyf/notyf.min.js"></script>
+    <script>
+      const notyf = new Notyf({
+        position: { x: "right", y: "top" },
+        duration: 4000,
+        types: [
+          { type: "success", dismissible: true, icon: false },
+          { type: "error", background: "indianred", dismissible: true, icon: false },
+        ],
+      });
+    </script>
+
+    <script>
+      // ── Копіювання значення поля в буфер ────────────────────────────────────
+      // Використовується типовими партіалами (webhook URL, ключ віджета тощо).
+      $(document).on("click", ".copy-field", function () {
+        const input = document.getElementById($(this).data("target"));
+        if (!input) return;
+        navigator.clipboard.writeText(input.value).then(function () {
+          notyf.success("<%= i18n.__('contact_center.channels.edit.copied') %>");
+        });
+      });
+    </script>
+    <script>
+      // ================================================================
+      // ОТРИМУВАЧІ СПОВІЩЕНЬ
+      // Зберігаються як аудиторії для існуючої системи notify():
+      // kind збігається з audience — user | group.
+      // ================================================================
+      (function () {
+        var recUsers = {};
+        var recGroups = {};
+
+        // Початковий стан із сервера
+        <% (data.recipients || []).forEach(function (r) { %>
+        <% if (r.kind === 'user') { %>
+        recUsers["<%= r.ref %>"] = "<%= r.name || ('User #' + r.ref) %>";
+        <% } else if (r.kind === 'group') { %>
+        recGroups["<%= r.ref %>"] = "<%= r.name || ('Group #' + r.ref) %>";
+        <% } %>
+        <% }); %>
+
+        function badge(id, name) {
+          return $('<span class="badge text-bg-light border rounded-0 d-inline-flex align-items-center gap-1 py-2">')
+            .append($("<span>").text(name))
+            .append($('<button type="button" class="btn-close ms-1" style="font-size:.6rem">').attr("data-id", id));
+        }
+
+        function renderUsers() {
+          var $box = $("#rec_users").empty();
+          Object.keys(recUsers).forEach(function (id) {
+            $box.append(badge(id, recUsers[id]));
+          });
+        }
+
+        function renderGroups() {
+          var $box = $("#rec_groups").empty();
+          Object.keys(recGroups).forEach(function (id) {
+            $box.append(badge(id, recGroups[id]));
+          });
+        }
+
+        // ── Пошук користувачів ──
+        var searchTimer = null;
+        $("#rec_user_search").on("input", function () {
+          clearTimeout(searchTimer);
+          var q = $.trim($(this).val());
+          var $res = $("#rec_user_results");
+
+          if (q.length < 2) {
+            $res.hide();
+            return;
+          }
+
+          searchTimer = setTimeout(function () {
+            $.post("/api/calendar/users/search", { q: q }).done(function (users) {
+              $res.empty();
+              (users || []).forEach(function (u) {
+                var name = u.user_name || [u.first_name, u.last_name].filter(Boolean).join(" ") || "#" + u.id;
+                $res.append($('<button type="button" class="list-group-item list-group-item-action small py-1">').attr("data-id", u.id).attr("data-name", name).text(name));
+              });
+              $res.toggle(!!(users && users.length));
+            });
+          }, 300);
+        });
+
+        $("#rec_user_results").on("click", "button", function () {
+          recUsers[$(this).data("id")] = $(this).data("name");
+          renderUsers();
+          $("#rec_user_search").val("");
+          $("#rec_user_results").hide();
+        });
+
+        $("#rec_users").on("click", ".btn-close", function () {
+          delete recUsers[$(this).data("id")];
+          renderUsers();
+        });
+
+        // ── Групи ──
+        $.post("/api/users/groups/list").done(function (resp) {
+          var list = (resp && resp.data) || [];
+          var $sel = $("#rec_group_select");
+          list.forEach(function (g) {
+            $sel.append($("<option>").val(g.id).text(g.name));
+          });
+          renderGroups();
+        });
+
+        $("#rec_group_select").on("change", function () {
+          var id = $(this).val();
+          if (!id) return;
+          recGroups[id] = $(this).find("option:selected").text();
+          this.value = "";
+          renderGroups();
+        });
+
+        $("#rec_groups").on("click", ".btn-close", function () {
+          delete recGroups[$(this).data("id")];
+          renderGroups();
+        });
+
+        renderUsers();
+        renderGroups();
+
+        $(document).on("click", function (e) {
+          if (!$(e.target).closest("#rec_user_search, #rec_user_results").length) $("#rec_user_results").hide();
+        });
+
+        // Віддаємо підсумковий список у загальне збереження каналу
+        window.collectRecipients = function () {
+          var onNewConv = document.getElementById("f_on_new_conversation").checked ? 1 : 0;
+          var onNewMsg = document.getElementById("f_on_new_message").checked ? 1 : 0;
+          var out = [];
+
+          Object.keys(recUsers).forEach(function (id) {
+            out.push({ kind: "user", ref: id, on_new_conversation: onNewConv, on_new_message: onNewMsg });
+          });
+          Object.keys(recGroups).forEach(function (id) {
+            out.push({ kind: "group", ref: id, on_new_conversation: onNewConv, on_new_message: onNewMsg });
+          });
+
+          return out;
+        };
+
+        // Початковий стан прапорців із першого запису
+        <% if (data.recipients && data.recipients.length) { %>
+        document.getElementById("f_on_new_conversation").checked = <%= (data.recipients[0].options && data.recipients[0].options.on_new_conversation) ? 'true' : 'false' %>;
+        document.getElementById("f_on_new_message").checked = <%= (data.recipients[0].options && data.recipients[0].options.on_new_message) ? 'true' : 'false' %>;
+        <% } %>
+      })();
+    </script>
+    <script>
+      // ── Збір даних форми ────────────────────────────────────────────────────
+      // Спільні поля збираються тут, типові — функцією collectChannelFields(),
+      // яку оголошує партіал свого типу. Так каркас не знає про поля каналу.
+      function buildChannelPayload() {
+        const payload = {
+          name: document.getElementById("f_name").value,
+          status: document.getElementById("f_status").checked ? 1 : 0,
+        };
+
+        if (typeof window.collectChannelFields === "function") {
+          Object.assign(payload, window.collectChannelFields());
+        }
+
+        if (typeof window.collectRecipients === "function") {
+          payload.recipients = window.collectRecipients();
+        }
+
+        payload.notify = {
+          push_enabled: document.getElementById("f_push_enabled") ? (document.getElementById("f_push_enabled").checked ? 1 : 0) : 0,
+          tg_enabled: document.getElementById("f_tg_enabled").checked ? 1 : 0,
+          tg_bot_token: document.getElementById("f_tg_token").value.trim(),
+          tg_chat_id: document.getElementById("f_tg_chat_id").value.trim(),
+          tg_use_thread: document.getElementById("f_tg_use_thread").checked ? 1 : 0,
+          tg_thread_id: document.getElementById("f_tg_thread_id").value.trim() || null,
+        };
+
+        return payload;
+      }
+
+      function clearChannelErrors() {
+        document.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+        document.querySelectorAll(".invalid-feedback").forEach((el) => el.remove());
+      }
+
+      // ── Збереження ──────────────────────────────────────────────────────────
+      document.getElementById("btn_save").addEventListener("click", async function () {
+        const btn = this;
+        if (btn.disabled) return;
+
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        try {
+          const res = await fetch("/api/contact-center/channels/" + document.getElementById("channel_id").value + "/update/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(buildChannelPayload()),
+          });
+
+          const data = await res.json().catch(() => ({}));
+          clearChannelErrors();
+
+          if (!res.ok || data.status !== "success") {
+            if (data.status === "error" && Array.isArray(data.errors) && data.errors.length) {
+              let firstMsg = "";
+              data.errors.forEach((item) => {
+                if (!firstMsg) firstMsg = item.message;
+                if (!item.field) return;
+                document.querySelectorAll('[name="' + item.field + '"]').forEach((input) => {
+                  input.classList.add("is-invalid");
+                  input.insertAdjacentHTML("afterend", '<div class="invalid-feedback d-block">' + item.message + "</div>");
+                });
+              });
+              notyf.error(firstMsg || "<%= i18n.__('contact_center.channels.notify.error') %>");
+              return;
+            }
+            notyf.error(data.message || "<%= i18n.__('contact_center.channels.notify.error') %>");
+            return;
+          }
+
+          notyf.success("<%= i18n.__('contact_center.channels.notify.saved') %>");
+
+          // Токен змінено → канал треба перевірити заново, сторінку перезавантажуємо,
+          // щоб стани (маска токена, перемикач, бейдж) не розійшлися з БД.
+          if (data.reload) window.location.reload();
+        } catch (err) {
+          notyf.error(err.message);
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+        }
+      });
+    </script>
+
+    <script>
+      // ── Telegram-сповіщення: показ поля гілки + кнопка тесту ──
+      document.getElementById("f_tg_use_thread").addEventListener("change", function () {
+        document.getElementById("tg_thread_wrap").style.display = this.checked ? "" : "none";
+      });
+
+      document.getElementById("btn_tg_test").addEventListener("click", async function () {
+        const btn = this,
+          orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        try {
+          const res = await fetch("/api/contact-center/channels/" + document.getElementById("channel_id").value + "/notify/test-telegram/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tg_bot_token: document.getElementById("f_tg_token").value.trim(),
+              tg_chat_id: document.getElementById("f_tg_chat_id").value.trim(),
+              tg_use_thread: document.getElementById("f_tg_use_thread").checked ? 1 : 0,
+              tg_thread_id: document.getElementById("f_tg_thread_id").value.trim() || null,
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (data.ok) notyf.success("Telegram: тест успішний" + (data.bot && data.bot.username ? " (@" + data.bot.username + ")" : ""));
+          else notyf.error(data.error || "Помилка тесту");
+        } catch (e) {
+          notyf.error(e.message);
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = orig;
+        }
+      });
+    </script>
+  </body>
+</html>

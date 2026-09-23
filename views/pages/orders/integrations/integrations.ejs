@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('orders.integrations.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/monolith.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<style>
+			#integrations-table .tabulator-col,
+			#integrations-table .tabulator-cell {
+				border-right: 1px solid #dee2e6;
+				border-bottom: 1px solid #dee2e6;
+			}
+			#integrations-table .tabulator-col:last-child,
+			#integrations-table .tabulator-cell:last-child {
+				border-right: none;
+			}
+			#integrations-table .tabulator-row:last-child .tabulator-cell {
+				border-bottom: none;
+			}
+			.section-title {
+				font-size: 11px;
+				font-weight: 700;
+				text-transform: uppercase;
+				color: #6c757d;
+				letter-spacing: 0.5px;
+				margin-bottom: 4px;
+			}
+			.src-badge {
+				display: inline-block;
+				padding: 2px 8px;
+				font-size: 12px;
+				border-radius: 0;
+			}
+			.invalid-feedback {
+				display: block;
+			}
+			.invalid-feedback {
+				display: block;
+			}
+			.pickr .pcr-button {
+				border: 1px solid #eee;
+				border-radius: 0;
+			}
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<!-- Breadcrumb -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('orders.integrations.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('orders.integrations.breadcrumb.home') %></span></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/orders"><%= i18n.__('orders.integrations.breadcrumb.orders') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('orders.integrations.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/orders" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- END Breadcrumb -->
+
+		<div class="container-fluid mt-3">
+			<div class="row">
+				<div class="col-12 mb-3">
+					<button type="button" class="btn btn-primary rounded-0 mb-3" id="btn_add_integration"><i class="fa-solid fa-plus me-1"></i><%= i18n.__('orders.integrations.add_button') %></button>
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('orders.integrations.title') %></div>
+						<div id="integrations-table"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- ─── МОДАЛКА: ДОДАВАННЯ / РЕДАГУВАННЯ ───────────────────────────────── -->
+		<div class="modal fade" id="modalIntegration" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered modal-lg">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5">
+							<span id="int_modal_title"><%= i18n.__('orders.integrations.modal.title_add') %></span>
+							<span class="text-muted" id="int_id_wrap">#<span id="int_id_label"></span></span>
+						</h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" id="int_id" />
+
+						<div class="mb-3">
+							<label class="form-label"><%= i18n.__('orders.integrations.fields.name') %></label>
+							<input type="text" class="form-control rounded-0" id="int_name" />
+						</div>
+
+						<div class="row">
+							<div class="col-12 col-md-6 mb-3">
+								<label class="form-label"><%= i18n.__('orders.integrations.fields.platform') %></label>
+								<select class="form-select rounded-0" id="int_platform">
+									<option value=""><%= i18n.__('orders.integrations.platform.none') %></option>
+									<option value="opencart">OpenCart</option>
+									<option value="woocommerce">WooCommerce</option>
+									<option value="prestashop">PrestaShop</option>
+									<option value="shopify">Shopify</option>
+									<option value="amazon">Amazon</option>
+									<option value="rozetka">Rozetka</option>
+									<option value="prom">Prom</option>
+									<option value="custom">Custom</option>
+								</select>
+							</div>
+							<div class="col-12 col-md-6 mb-3">
+								<label class="form-label"><%= i18n.__('orders.integrations.fields.status') %></label>
+								<select class="form-select rounded-0" id="int_status">
+									<option value="active"><%= i18n.__('orders.integrations.status_opt.active') %></option>
+									<option value="disabled"><%= i18n.__('orders.integrations.status_opt.disabled') %></option>
+								</select>
+							</div>
+						</div>
+
+						<!-- Стартовий статус — лише для custom-інтеграцій -->
+						<div class="row d-none" id="int_default_status_wrap">
+							<div class="col-12 mb-3">
+								<label class="form-label">Стартовий статус замовлення (custom)</label>
+								<select class="form-select rounded-0" id="int_default_status">
+									<option value="">— оберіть статус —</option>
+								</select>
+								<small class="text-muted">Усі замовлення від цієї інтеграції створюватимуться з цим статусом. ID статусу з запиту ігнорується.</small>
+							</div>
+						</div>
+
+						<div class="mb-3">
+							<label class="form-label"><%= i18n.__('orders.integrations.fields.base_url') %></label>
+							<input type="text" class="form-control rounded-0" id="int_base_url" placeholder="https://shop.com" />
+						</div>
+
+						<div class="mb-3">
+							<label class="form-label"><%= i18n.__('orders.integrations.fields.callback_url') %></label>
+							<input type="text" class="form-control rounded-0" id="int_callback_url" placeholder="https://shop.com/index.php?route=extension/module/growthcontour/receive" />
+							<small class="text-muted"><%= i18n.__('orders.integrations.hint.callback_url') %></small>
+						</div>
+
+						<div class="mb-3">
+							<label class="form-label"><%= i18n.__('orders.integrations.fields.outbound_token') %></label>
+							<input type="text" class="form-control rounded-0" id="int_outbound_token" />
+							<small class="text-muted"><%= i18n.__('orders.integrations.hint.outbound_token') %></small>
+						</div>
+
+						<div class="row">
+							<div class="col-12 col-md-6 mb-3">
+								<div class="form-check">
+									<input type="checkbox" class="form-check-input rounded-0" id="int_sync_orders_out" value="1" checked />
+									<label class="form-check-label" for="int_sync_orders_out"><%= i18n.__('orders.integrations.fields.sync_orders_out') %></label>
+								</div>
+							</div>
+							<div class="col-12 col-md-6 mb-3">
+								<div class="form-check">
+									<input type="checkbox" class="form-check-input rounded-0" id="int_sync_status_out" value="1" checked />
+									<label class="form-check-label" for="int_sync_status_out"><%= i18n.__('orders.integrations.fields.sync_status_out') %></label>
+								</div>
+							</div>
+						</div>
+
+						<div class="row">
+							<div class="col-6 col-md-4 mb-3">
+								<label class="form-label"><%= i18n.__('orders.integrations.fields.color_background') %></label>
+								<div class="pickr-color" data-target="int_color_background"></div>
+								<input type="hidden" id="int_color_background" value="#607d8b" />
+							</div>
+							<div class="col-6 col-md-4 mb-3">
+								<label class="form-label"><%= i18n.__('orders.integrations.fields.color_text') %></label>
+								<div class="pickr-color" data-target="int_color_text"></div>
+								<input type="hidden" id="int_color_text" value="#ffffff" />
+							</div>
+							<div class="col-12 col-md-4 mb-3">
+								<label class="form-label"><%= i18n.__('orders.integrations.fields.preview') %></label>
+								<div><span class="src-badge" id="int_preview">example</span></div>
+							</div>
+						</div>
+
+						<div class="mb-3">
+							<label class="form-label"><%= i18n.__('orders.integrations.fields.note') %></label>
+							<input type="text" class="form-control rounded-0" id="int_note" />
+						</div>
+					</div>
+
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('orders.integrations.modal.close') %></button>
+						<button type="button" class="btn btn-primary rounded-0" id="btn_save_integration"><%= i18n.__('orders.integrations.modal.save') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- ─── END МОДАЛКА ────────────────────────────────────────────────────── -->
+
+		<!-- ─── МОДАЛКА: ПІДТВЕРДЖЕННЯ ВИДАЛЕННЯ ───────────────────────────────── -->
+		<div class="modal fade" id="modalDeleteIntegration" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5"><%= i18n.__('orders.integrations.delete_modal.title') %></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<p class="mb-2"><%= i18n.__('orders.integrations.delete_modal.confirm_text') %></p>
+						<p class="mb-0">
+							<strong id="delete_int_name"></strong> <span class="text-muted">#<span id="delete_int_id"></span></span>
+						</p>
+						<div class="alert alert-danger rounded-0 mt-3 mb-0 d-none" id="delete_int_blocked"></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('orders.integrations.delete_modal.close') %></button>
+						<button type="button" class="btn btn-danger rounded-0" id="btn_confirm_delete_integration"><%= i18n.__('orders.integrations.delete_modal.delete') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- ─── END ─────────────────────────────────────────────────────────────── -->
+
+		<%- include('../../../partials/footer'); %> <%- include('../../../partials/script'); %>
+		<script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
+
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			const notyf = new Notyf({
+				position: { x: "right", y: "top" },
+				duration: 4000,
+				types: [
+					{ type: "success", dismissible: true, icon: false },
+					{ type: "error", background: "indianred", dismissible: true, icon: false },
+				],
+			});
+
+			function esc(s) {
+				return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+			}
+
+			const STATUS_BADGE = { active: "text-bg-success", disabled: "text-bg-secondary" };
+			const STATUS_LABEL = {
+				active: "<%= i18n.__('orders.integrations.status_opt.active') %>",
+				disabled: "<%= i18n.__('orders.integrations.status_opt.disabled') %>",
+			};
+		</script>
+
+		<!-- Прев'ю бейджа кольору в модалці -->
+		<!-- Pickr для кольорів + прев'ю бейджа -->
+		<script>
+			function updateIntPreview() {
+				const bg = document.getElementById("int_color_background").value || "#607d8b";
+				const tc = document.getElementById("int_color_text").value || "#ffffff";
+				const name = document.getElementById("int_name").value || "example";
+				const el = document.getElementById("int_preview");
+				el.style.backgroundColor = bg;
+				el.style.color = tc;
+				el.textContent = name;
+			}
+
+			function initPickr(triggerSelector, inputId, defaultColor) {
+				const pickr = Pickr.create({
+					el: triggerSelector,
+					theme: "monolith",
+					default: defaultColor,
+					swatches: ["#0057b8", "#2fb25c", "#e74c3c", "#3498db", "#8e44ad", "#27ae60", "#f1c40f", "#e67e22", "#7f8c8d", "#34495e", "#607d8b", "#ffffff", "#000000"],
+					components: {
+						preview: true,
+						opacity: false,
+						hue: true,
+						interaction: { input: true, save: true },
+					},
+				});
+
+				const input = document.getElementById(inputId);
+				pickr.on("save", (color) => {
+					if (color) {
+						input.value = color.toHEXA().toString(0).slice(0, 7); // #rrggbb
+						updateIntPreview();
+					}
+					pickr.hide();
+				});
+				return pickr;
+			}
+
+			const pickrIntBg = initPickr('[data-target="int_color_background"]', "int_color_background", "#607d8b");
+			const pickrIntText = initPickr('[data-target="int_color_text"]', "int_color_text", "#ffffff");
+
+			// Назва впливає лише на прев'ю
+			document.getElementById("int_name").addEventListener("input", updateIntPreview);
+
+			// ── Стартовий статус для custom ────────────────────────────────────────
+			let ORDER_STATUSES = [];
+
+			async function loadOrderStatuses() {
+				try {
+					const res = await fetch("/api/orders/statuses/list/", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: "{}",
+					});
+					ORDER_STATUSES = await res.json();
+					const sel = document.getElementById("int_default_status");
+					const keep = sel.value;
+					sel.innerHTML = '<option value="">— оберіть статус —</option>' + ORDER_STATUSES.map((s) => '<option value="' + s.id + '">' + esc(s.text || "#" + s.id) + "</option>").join("");
+					sel.value = keep;
+				} catch (e) {
+					/* мовчазний фолбек — select лишиться порожнім */
+				}
+			}
+			loadOrderStatuses();
+
+			// Показ/приховування селекта стартового статусу залежно від платформи
+			function syncDefaultStatusVisibility() {
+				const isCustom = document.getElementById("int_platform").value === "custom";
+				document.getElementById("int_default_status_wrap").classList.toggle("d-none", !isCustom);
+			}
+			document.getElementById("int_platform").addEventListener("change", syncDefaultStatusVisibility);
+		</script>
+
+		<!-- Додавання -->
+		<script>
+			document.getElementById("btn_add_integration").addEventListener("click", function () {
+				document.getElementById("int_id").value = "";
+				document.getElementById("int_id_wrap").classList.add("d-none");
+				document.getElementById("int_modal_title").textContent = "<%= i18n.__('orders.integrations.modal.title_add') %>";
+				document.getElementById("int_name").value = "";
+				document.getElementById("int_platform").value = "";
+				document.getElementById("int_status").value = "active";
+				document.getElementById("int_default_status").value = "";
+				syncDefaultStatusVisibility();
+				document.getElementById("int_base_url").value = "";
+				document.getElementById("int_callback_url").value = "";
+				document.getElementById("int_outbound_token").value = "";
+				document.getElementById("int_sync_orders_out").checked = true;
+				document.getElementById("int_sync_status_out").checked = true;
+				document.getElementById("int_color_background").value = "#607d8b";
+				document.getElementById("int_color_text").value = "#ffffff";
+				pickrIntBg.setColor("#607d8b");
+				pickrIntText.setColor("#ffffff");
+				document.getElementById("int_note").value = "";
+				updateIntPreview();
+				bootstrap.Modal.getOrCreateInstance(document.getElementById("modalIntegration")).show();
+			});
+		</script>
+
+		<!-- Редагування -->
+		<script>
+			$(document).on("click", ".edit-integration-btn", function () {
+				const id = $(this).data("id");
+				$.ajax({
+					type: "POST",
+					url: "/api/orders/integrations/get/",
+					dataType: "json",
+					data: { id },
+					success: function (i) {
+						document.getElementById("int_id").value = i.id;
+						document.getElementById("int_id_label").textContent = i.id;
+						document.getElementById("int_id_wrap").classList.remove("d-none");
+						document.getElementById("int_modal_title").textContent = "<%= i18n.__('orders.integrations.modal.title_edit') %>";
+						document.getElementById("int_name").value = i.name || "";
+						document.getElementById("int_platform").value = i.platform || "";
+						document.getElementById("int_status").value = i.status || "active";
+						document.getElementById("int_default_status").value = i.default_status_id || "";
+						syncDefaultStatusVisibility();
+						document.getElementById("int_base_url").value = i.base_url || "";
+						document.getElementById("int_callback_url").value = i.callback_url || "";
+						document.getElementById("int_outbound_token").value = i.outbound_token || "";
+						document.getElementById("int_sync_orders_out").checked = Number(i.sync_orders_out) === 1;
+						document.getElementById("int_sync_status_out").checked = Number(i.sync_status_out) === 1;
+						document.getElementById("int_color_background").value = i.color_background || "#607d8b";
+						document.getElementById("int_color_text").value = i.color_text || "#ffffff";
+						pickrIntBg.setColor(i.color_background || "#607d8b");
+						pickrIntText.setColor(i.color_text || "#ffffff");
+						document.getElementById("int_note").value = i.note || "";
+						updateIntPreview();
+						bootstrap.Modal.getOrCreateInstance(document.getElementById("modalIntegration")).show();
+					},
+					error: function (XHR) {
+						notyf.error((XHR.responseJSON || {}).message || "Error");
+					},
+				});
+			});
+		</script>
+
+		<!-- Збереження (add/update — визначається наявністю int_id) -->
+		<script>
+			document.getElementById("btn_save_integration").addEventListener("click", async function () {
+				const btn = this;
+				if (btn.disabled) return;
+				const original = btn.innerHTML;
+				btn.disabled = true;
+				btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+				const id = document.getElementById("int_id").value;
+				const url = id ? "/api/orders/integrations/update/" : "/api/orders/integrations/add/";
+
+				const payload = {
+					id: id || undefined,
+					name: document.getElementById("int_name").value,
+					platform: document.getElementById("int_platform").value,
+					status: document.getElementById("int_status").value,
+					default_status_id: document.getElementById("int_default_status").value || null,
+					base_url: document.getElementById("int_base_url").value,
+					callback_url: document.getElementById("int_callback_url").value,
+					outbound_token: document.getElementById("int_outbound_token").value,
+					sync_orders_out: document.getElementById("int_sync_orders_out").checked ? 1 : 0,
+					sync_status_out: document.getElementById("int_sync_status_out").checked ? 1 : 0,
+					color_background: document.getElementById("int_color_background").value,
+					color_text: document.getElementById("int_color_text").value,
+					note: document.getElementById("int_note").value,
+				};
+
+				try {
+					const res = await fetch(url, {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify(payload),
+					});
+					const data = await res.json().catch(() => ({}));
+					if (!res.ok || data.status !== "success") throw new Error(data.message || "Error");
+					bootstrap.Modal.getOrCreateInstance(document.getElementById("modalIntegration")).hide();
+					notyf.success("<%= i18n.__('orders.integrations.modal.saved') %>");
+					table.replaceData();
+				} catch (err) {
+					notyf.error(err.message);
+				} finally {
+					btn.disabled = false;
+					btn.innerHTML = original;
+				}
+			});
+		</script>
+
+		<!-- Видалення з таблиці (кнопка + модалка підтвердження) -->
+		<script>
+			$(document).on("click", ".delete-integration-btn", function () {
+				document.getElementById("delete_int_id").textContent = $(this).data("id");
+				document.getElementById("delete_int_name").textContent = $(this).data("name") || "";
+				document.getElementById("delete_int_blocked").classList.add("d-none");
+				document.getElementById("delete_int_blocked").textContent = "";
+				bootstrap.Modal.getOrCreateInstance(document.getElementById("modalDeleteIntegration")).show();
+			});
+
+			document.getElementById("btn_confirm_delete_integration").addEventListener("click", async function () {
+				const btn = this;
+				if (btn.disabled) return;
+				const id = parseInt(document.getElementById("delete_int_id").textContent, 10);
+				const original = btn.innerHTML;
+				btn.disabled = true;
+				btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+				try {
+					const res = await fetch("/api/orders/integrations/delete/", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ id }),
+					});
+					const data = await res.json().catch(() => ({}));
+
+					// Заблоковано залежностями — показуємо попередження, не закриваємо
+					if (res.status === 409) {
+						const w = document.getElementById("delete_int_blocked");
+						w.textContent = data.message || "Видалення заблоковано.";
+						w.classList.remove("d-none");
+						return;
+					}
+					if (!res.ok || data.status !== "success") throw new Error(data.message || "Error");
+
+					bootstrap.Modal.getOrCreateInstance(document.getElementById("modalDeleteIntegration")).hide();
+					notyf.success(data.message || "OK");
+					table.replaceData();
+				} catch (err) {
+					notyf.error(err.message);
+				} finally {
+					btn.disabled = false;
+					btn.innerHTML = original;
+				}
+			});
+		</script>
+
+		<!-- Tabulator -->
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			var table = new Tabulator("#integrations-table", {
+			  layout: "fitColumns",
+			  ajaxURL: "/api/orders/integrations/list/",
+			  ajaxConfig: "POST",
+			  paginationSize: 10,
+			  paginationSizeSelector: [10, 20, 30, 40],
+			  pagination: true,
+			  movableColumns: true,
+			  placeholder: "<%= i18n.__('orders.integrations.table.empty') %>",
+			  columns: [
+			    { title: "<%= i18n.__('orders.integrations.columns.id') %>", field: "id", headerSort: false, widthGrow: 1 },
+			    { title: "<%= i18n.__('orders.integrations.columns.name') %>", field: "name", headerSort: false, widthGrow: 3,
+			      formatter: function (cell) {
+			        const d = cell.getRow().getData();
+			        const bg = d.color_background || '#607d8b';
+			        const tc = d.color_text || '#ffffff';
+			        const badge = '<span class="src-badge" style="background:' + esc(bg) + ';color:' + esc(tc) + ';">' + esc(d.name) + '</span>';
+			        const plat = d.platform ? ' <small class="text-muted">' + esc(d.platform) + '</small>' : '';
+			        const url = d.base_url ? '<small class="text-muted d-block">' + esc(d.base_url) + '</small>' : '';
+			        return '<div>' + badge + plat + '</div>' + url;
+			      },
+			    },
+			    { title: "<%= i18n.__('orders.integrations.columns.sync') %>", field: "sync_orders_out", headerSort: false, widthGrow: 2,
+			      formatter: function (cell) {
+			        const d = cell.getRow().getData();
+			        const on = '<i class="fa-solid fa-check text-success"></i>';
+			        const off = '<i class="fa-solid fa-xmark text-muted"></i>';
+			        return '<small><%= i18n.__('orders.integrations.columns.orders_out') %>: ' + (d.sync_orders_out ? on : off)
+			          + ' &nbsp; <%= i18n.__('orders.integrations.columns.status_out') %>: ' + (d.sync_status_out ? on : off) + '</small>';
+			      },
+			    },
+			    { title: "<%= i18n.__('orders.integrations.columns.tokens') %>", field: "tokens_count", headerSort: false, widthGrow: 1,
+			      formatter: (cell) => cell.getValue() || 0 },
+			    { title: "<%= i18n.__('orders.integrations.columns.status') %>", field: "status", headerSort: false, widthGrow: 1,
+			      formatter: function (cell) {
+			        const s = cell.getValue();
+			        return '<span class="badge rounded-0 ' + (STATUS_BADGE[s] || 'text-bg-secondary') + '">' + (STATUS_LABEL[s] || s) + '</span>';
+			      },
+			    },
+			    { title: "<%= i18n.__('orders.integrations.columns.date_add') %>", field: "date_add", headerSort: false, widthGrow: 2 },
+			              { title: "", field: "id", headerSort: false, width: 100,
+			      formatter: function (cell) {
+			        const d = cell.getRow().getData();
+			        const id = d.id;
+			        return '<div class="d-flex justify-content-center gap-2">'
+			          + '<button type="button" class="bg-transparent border-0 text-primary edit-integration-btn" data-id="' + id + '" title="<%= i18n.__('orders.integrations.actions.edit') %>"><i class="fa-regular fa-pen-to-square"></i></button>'
+			                          + '<button type="button" class="bg-transparent border-0 text-danger delete-integration-btn" data-id="' + id + '" data-name="' + esc(d.name) + '" title="<%= i18n.__('orders.integrations.actions.delete') %>"><i class="fa-regular fa-trash-can"></i></button>'
+			          + '</div>';
+			      },
+			    },
+			  ],
+			});
+		</script>
+	</body>
+</html>

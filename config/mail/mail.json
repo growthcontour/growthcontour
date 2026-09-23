@@ -1,0 +1,9 @@
+{
+    "host": "growthcontour.com",
+    "port": 465,
+    "secure": true,
+    "user": "",
+    "pass": "",
+    "from_name": "Growth Contour",
+    "from_email": "test@growthcontour.com"
+}
