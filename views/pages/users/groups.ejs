@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><% if (i18n.__('lang_iso') === 'uk') { %>Список користувачів<% } else { %>User list<% } %></title>
+		<%- include('../../partials/head'); %>
+		<!-- tabulator -->
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<!-- END tabulator -->
+		<!-- select2 -->
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+		<!-- END select2 -->
+	</head>
+
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+		<div class="container-fluid">
+			<div class="row">
+				<div class="col-12 col-md-3 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0">Права</div>
+						<div class="card-body">
+							<h5 class="card-title">Special title treatment</h5>
+							<p class="card-text">With supporting text below as a natural lead-in to additional content.</p>
+							<a href="#" class="btn btn-primary">Go somewhere</a>
+						</div>
+					</div>
+				</div>
+				<div class="col-12 col-md-9 mb-3">
+					<p>123 123 123</p>
+				</div>
+			</div>
+		</div>
+		<%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+		<!-- select2 -->
+		<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+		<script>
+			$("#modal_form_access_sheets_carrier_companies_add").select2({
+				ajax: {
+					url: "/api/access-sheets/carrier-companies",
+					dataType: "json",
+					type: "POST",
+					processResults: function (data, params) {
+						return {
+							results: data,
+						};
+					},
+				},
+				theme: "bootstrap-5",
+			});
+		</script>
+		<!-- END select2 -->
+		<!-- END tabulator -->
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			var table = new Tabulator("#users-table", {
+				layout: "fitColumns",
+				ajaxURL: "/api/users/list-users/",
+				ajaxConfig: "POST",
+				paginationSize: 5,
+				paginationSizeSelector: [10, 20, 30, 40],
+				pagination: true,
+				movableColumns: true,
+				columns: [
+					{
+						title: "<% if (i18n.__('lang_iso') === 'en') { %>First Name<% } else { %>Ім'я<% } %>",
+						field: "first_name",
+						sorter: "string",
+						headerSort: false,
+						widthGrow: "1",
+					},
+					{
+						title: "<% if (i18n.__('lang_iso') === 'en') { %>Last Name<% } else { %>Прізвище<% } %>",
+						field: "last_name",
+						sorter: "string",
+						headerSort: false,
+					},
+					{
+						title: "<% if (i18n.__('lang_iso') === 'en') { %>Patronymic<% } else { %>По батькові<% } %>",
+						field: "patronymic",
+						sorter: "string",
+						headerSort: false,
+					},
+					{
+						title: "Email",
+						field: "email",
+						sorter: "string",
+						headerSort: false,
+					},
+					{
+						title: "<% if (i18n.__('lang_iso') === 'en') { %>Sex<% } else { %>Стать<% } %>",
+						field: "gender",
+						sorter: "string",
+						headerSort: false,
+						formatter: function (cell, formatterParams, onRendered) {
+							if (cell.getRow().getData().gender == 1) {
+								return '<div class="">Mr.</div>';
+							} else if (cell.getRow().getData().gender == 2) {
+								return '<div class="">Mrs.</div>';
+							} else {
+								return '<div class="">Not specified</div>';
+							}
+						},
+					},
+					{
+						title: "<% if (i18n.__('lang_iso') === 'en') { %>Groups<% } else { %>Групи<% } %>",
+						field: "group_name",
+						sorter: "string",
+						headerSort: false,
+					},
+					{
+						title: "<% if (i18n.__('lang_iso') === 'en') { %>Groups note<% } else { %>Примітка груп<% } %>",
+						field: "group_none",
+						sorter: "string",
+						headerSort: false,
+					},
+					{
+						title: "",
+						field: "",
+						headerSort: false,
+						widthGrow: "1",
+						formatter: function (cell, formatterParams, onRendered) {
+							return '<a href="/orders/' + cell.getRow().getData().id + '" class="text-center d-block"><i class="fa-regular fa-pen-to-square"></i></a>';
+						},
+					},
+				],
+			});
+		</script>
+		<!-- tabulator -->
+	</body>
+</html>

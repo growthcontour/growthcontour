@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Growth contour — Вхід</title>
+		<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet" />
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/login/style.css" rel="stylesheet" />
+		<style>
+			a {
+				text-decoration: none;
+			}
+
+			.form-control:focus {
+				box-shadow: none;
+			}
+		</style>
+	</head>
+
+	<body class="d-flex flex-column h-100 bg-body-tertiary">
+		<div class="d-flex align-items-center justify-content-center vh-100">
+			<div class="container">
+				<div class="row justify-content-center">
+					<div class="col-12 col-lg-5">
+						<div class="form w-100" style="background: #fff; padding: 10px 15px">
+							<div class="row mb-3">
+								<div class="col-12">
+									<p class="text-primary" style="font-size: 26px; font-weight: bold">Growth contour</p>
+								</div>
+							</div>
+							<form id="authorization_form">
+								<div class="mb-3">
+									<label for="email" class="form-label"> Email </label>
+									<input id="email" name="email" type="email" autocomplete="username" class="form-control rounded-0" />
+								</div>
+								<div class="mb-3">
+									<label for="password" class="form-label"> <%= i18n.__('authorization.password') %> </label>
+									<input id="password" name="password" type="password" autocomplete="current-password" class="form-control rounded-0" />
+								</div>
+								<button type="submit" class="btn btn-primary rounded-0 w-100"><%= i18n.__('authorization.sign_in') %></button>
+							</form>
+
+							<!-- ── Форма 2FA ── -->
+							<form id="tfa_form" style="display: none">
+								<p class="text-muted" style="font-size: 14px"><%= i18n.__('authorization.tfa.enter_code') %></p>
+								<div class="mb-3">
+									<label for="tfa_code" class="form-label"> <%= i18n.__('authorization.tfa.code') %> </label>
+									<input id="tfa_code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" class="form-control rounded-0" />
+								</div>
+								<input type="hidden" id="tfa_backup" name="backup" value="false" />
+								<button type="submit" class="btn btn-primary rounded-0 w-100 mb-2"><%= i18n.__('authorization.tfa.confirm') %></button>
+								<a href="#" id="toggle_backup" class="d-block text-center" style="font-size: 13px"> <%= i18n.__('authorization.tfa.use_backup') %> </a>
+							</form>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<footer>
+			<div class="container-fluid bg-body-tertiary pt-3 pb-3">
+				<div class="row">
+					<div class="col-12 text-center">
+						<p class="m-0">Growth contour <%= new Date().getFullYear()%></p>
+					</div>
+				</div>
+			</div>
+		</footer>
+		<script src="https://unpkg.com/@popperjs/core@2"></script>
+		<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			const notyf = new Notyf({
+				position: {
+					x: "right",
+					y: "top",
+				},
+				types: [
+					{
+						type: "success",
+						dismissible: true,
+						icon: false,
+					},
+					{
+						type: "error",
+						background: "indianred",
+						dismissible: true,
+						icon: false,
+					},
+				],
+			});
+		</script>
+		<!-- i18n -->
+		<script>
+			$(document).ready(function () {
+				$("#lang li a").on("click", function () {
+					var a = {
+						lang: $(this).attr("data-lang"),
+					};
+					$.ajax({
+						type: "POST",
+						url: "/lang",
+						data: a,
+						dataType: "json",
+						success: function (a) {
+							location.reload();
+						},
+						error: function (a) {},
+					});
+				});
+			});
+		</script>
+		<!-- END i18n -->
+		<script>
+			$(document).ready(function () {
+				$("#authorization_form").submit(function (event) {
+					// Скидаємо попередні помилки (усі, навіть дубльовані)
+					$("#authorization_form #email, #authorization_form #password").removeClass("is-invalid");
+					$("#authorization_form .invalid-feedback").remove();
+
+					// Зберігаємо посилання на кнопку та інпути
+					var $submitBtn = $(this).find('button[type="submit"]');
+					var $emailInput = $("#authorization_form input[name='email']");
+					var $passwordInput = $("#authorization_form input[name='password']");
+
+					// Зберігаємо оригінальний HTML кнопки
+					var originalBtnHtml = $submitBtn.html();
+
+					if ($submitBtn.prop("disabled")) {
+						return false;
+					}
+
+					// Змінюємо кнопку на стан завантаження
+					$submitBtn.html('<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> ' + '<span role="status">Loading...</span>');
+
+					// Блокуємо інпути
+					$emailInput.prop("disabled", true);
+					$passwordInput.prop("disabled", true);
+					$submitBtn.prop("disabled", true);
+
+					var data = {
+						email: $emailInput.val(),
+						password: $passwordInput.val(),
+					};
+
+					$.ajax({
+						type: "POST",
+						url: "/login/",
+						data: data,
+						dataType: "json",
+						encode: true,
+
+						success: function (data) {
+							if (data.status === "success") {
+								window.location.href = data.url || "/administrator/dashboard";
+								return;
+							}
+
+							if (data.status === "tfa_required") {
+								// Пароль пройдено. Сервер зберіг проміжний стан у сесії.
+								// Прибираємо креденшели зі сторінки повністю — далі шлемо лише код.
+								$emailInput.val("");
+								$passwordInput.val("");
+								$("#authorization_form").hide();
+								$("#tfa_form").show();
+								$("#tfa_code").focus();
+								return;
+							}
+
+							// Будь-який інший успішний за HTTP статус — знімаємо стан завантаження.
+							$submitBtn.html(originalBtnHtml);
+							$emailInput.prop("disabled", false);
+							$passwordInput.prop("disabled", false);
+							$submitBtn.prop("disabled", false);
+						},
+
+						error: function (XHR) {
+							const data = XHR.responseJSON || {};
+
+							// Повертаємо кнопку до початкового вигляду при помилці
+							$submitBtn.html(originalBtnHtml);
+
+							// Розблоковуємо інпути при помилці
+							$emailInput.prop("disabled", false);
+							$passwordInput.prop("disabled", false);
+							$submitBtn.prop("disabled", false);
+
+							// Валідаційні помилки полів (400)
+							if (data.status === "error" && data.errors) {
+								// Збираємо УНІКАЛЬНІ поля з помилками (AJV може дати кілька
+								// помилок на одне поле — format, pattern, minLength тощо).
+								var fieldsWithError = {};
+								$.each(data.errors, function (index, item) {
+									if (item.field) fieldsWithError[item.field] = true;
+								});
+
+								if (fieldsWithError.email) {
+									$emailInput.addClass("is-invalid");
+									$emailInput.after('<div id="validation_authorization_form_email" class="invalid-feedback"><%= i18n.__("authorization.error.please_fill_out_this_field") %></div>');
+								}
+								if (fieldsWithError.password) {
+									$passwordInput.addClass("is-invalid");
+									$passwordInput.after('<div id="validation_authorization_form_password" class="invalid-feedback"><%= i18n.__("authorization.error.please_fill_out_this_field") %></div>');
+								}
+
+								notyf.error("<%= i18n.__('authorization.error.fill_in_all_required_fields') %>");
+								return;
+							}
+
+							// Акаунт не активний — перевіряємо ПЕРШИМ (конкретніший випадок)
+							if (data.status === "invalid" && data.errors?.[0]?.field === "account_not_active") {
+								notyf.error("<%= i18n.__('authorization.error.account_not_active') %>");
+								return;
+							}
+
+							// Невірний email або пароль (401)
+							if (data.status === "invalid") {
+								notyf.error("<%= i18n.__('authorization.error.incorrect_email_or_password') %>");
+								return;
+							}
+
+							// Акаунт заблокований після невдалих спроб (locked)
+							if (data.status === "locked" || data.status === "rate_limited") {
+								notyf.error(data.message || "");
+								return;
+							}
+
+							// Обмеження частоти запитів (rate limiter, 429)
+							if (data.status === "rate_limited") {
+								const minutes = data.errors?.[0]?.minutes || 15;
+								notyf.error("<%= i18n.__('authorization.error.authorization_blocked') %>".replace("{{minutes}}", minutes).replace("{{seconds}}", 0));
+								return;
+							}
+						},
+					});
+
+					return false;
+				});
+			});
+		</script>
+		<script>
+			$(document).ready(function () {
+				var backupMode = false;
+
+				$("#toggle_backup").on("click", function (e) {
+					e.preventDefault();
+					backupMode = !backupMode;
+					$("#tfa_backup").val(backupMode ? "true" : "false");
+					$("#tfa_code")
+						.val("")
+						.attr("maxlength", backupMode ? 10 : 6)
+						.attr("inputmode", backupMode ? "text" : "numeric")
+						.focus();
+					$(this).text(backupMode ? "<%= i18n.__('authorization.tfa.use_app') %>" : "<%= i18n.__('authorization.tfa.use_backup') %>");
+				});
+
+				$("#tfa_form").submit(function (event) {
+					$("#tfa_code").removeClass("is-invalid");
+					$("#validation_tfa_code").detach();
+
+					var $btn = $(this).find('button[type="submit"]');
+					var $code = $("#tfa_code");
+					var originalHtml = $btn.html();
+
+					if ($btn.prop("disabled")) return false;
+
+					// Перевірка порожнечі до відправки
+					var codeVal = $code.val().trim();
+					if (!codeVal) {
+						$code.addClass("is-invalid").focus();
+						notyf.error("<%= i18n.__('authorization.error.please_fill_out_this_field') %>");
+						return false;
+					}
+
+					$btn.html('<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> ' + '<span role="status">Loading...</span>');
+					$code.prop("disabled", true);
+					$btn.prop("disabled", true);
+
+					$.ajax({
+						type: "POST",
+						url: "/login/tfa/",
+						data: {
+							two_factor_code: $code.val(),
+							backup: $("#tfa_backup").val(),
+						},
+						dataType: "json",
+
+						success: function (data) {
+							if (data.status === "success") {
+								window.location.href = data.url || "/";
+							}
+						},
+
+						error: function (XHR) {
+							const data = XHR.responseJSON || {};
+
+							$btn.html(originalHtml);
+							$code.prop("disabled", false).val("");
+							$btn.prop("disabled", false);
+
+							// Порожнє поле коду (бекенд: status "error", message "Потрібен код 2FA")
+							if (data.status === "error") {
+								$code.addClass("is-invalid");
+								$code.after('<div id="validation_tfa_code" class="invalid-feedback"><%= i18n.__("authorization.error.please_fill_out_this_field") %></div>');
+								notyf.error("<%= i18n.__('authorization.error.please_fill_out_this_field') %>");
+								$code.focus();
+								return;
+							}
+
+							// Невірний код 2FA
+							if (data.status === "invalid") {
+								$code.addClass("is-invalid").val("").focus();
+								notyf.error("<%= i18n.__('authorization.tfa.error.invalid_code') %>");
+								return;
+							}
+
+							if (data.status === "locked") {
+								const minutes = data.errors?.[0]?.minutes || 0;
+								notyf.error("<%= i18n.__('authorization.tfa.error.locked') %>".replace("{{minutes}}", minutes));
+								return;
+							}
+
+							if (data.status === "challenge_expired") {
+								notyf.error("<%= i18n.__('authorization.tfa.error.expired') %>");
+								setTimeout(function () {
+									location.reload();
+								}, 1500);
+								return;
+							}
+						},
+					});
+
+					return false;
+				});
+			});
+		</script>
+	</body>
+</html>

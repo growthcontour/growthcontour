@@ -1,0 +1,198 @@
+<header>
+  <div class="container-fluid">
+    <div class="row pt-3 pb-3">
+      <div class="col-12 col-lg-4">
+        <p class="header-logo mb-0">
+          <a href="/" style="display: block">
+            <img src="/assets/images/logo/logo.png" class="img-fluid" />
+          </a>
+        </p>
+      </div>
+      <div class="col-12 col-lg-8 text-lg-end">
+        <ul class="list-inline justify-content-end mb-0">
+          <li class="list-inline-item">
+            <div class="dropdown">
+              <button class="btn btn-primary position-relative rounded-0 notification-button" type="button" data-bs-toggle="offcanvas" data-bs-target="#notification_panel" aria-controls="notification_panel">
+                <i class="fa-regular fa-bell"></i>
+              </button>
+            </div>
+          </li>
+          <li class="list-inline-item">
+            <div class="dropdown">
+              <button class="btn btn-primary rounded-0" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                <i class="fa-solid fa-gear"></i>
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end rounded-0">
+                <li><a class="dropdown-item" href="/profile/"> <%= i18n.__('header.menu.profile') %> </a></li>
+                <li><a class="dropdown-item" href="/security/"> <%= i18n.__('header.menu.security') %> </a></li>
+                <li>
+                  <hr class="dropdown-divider" />
+                </li>
+                <li><a class="dropdown-item" href="/logout/"> <%= i18n.__('header.menu.logout') %> </a></li>
+              </ul>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="header-navbar">
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-12">
+          <ul class="nav">
+            <li class="nav-item">
+              <a class="nav-link<% if (header.navbar === 'home') { %> active<% } %>" href="/"><%= i18n.__('header.nav.home') %></a>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link<% if (header.navbar === 'contact-center') { %> active<% } %>" href="#" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false"><%= i18n.__('header.nav.contact_center') %> <i class="fa-solid fa-angle-down"></i></a>
+              <ul class="dropdown-menu rounded-0">
+                <li><a class="dropdown-item" href="/contact-center/"><%= i18n.__('header.nav.contact_center') %></a></li>
+                <li><a class="dropdown-item" href="/contact-center/channels/"><%= i18n.__('contact_center.channels.title') %></a></li>
+              </ul>
+            </li>
+            <li class="nav-item"></li>
+            <li class="nav-item dropdown dropdown-nav">
+              <a class="nav-link dropdown-toggle<% if (header.navbar === 'orders') { %> active<% } %>" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false"> <%= i18n.__('header.nav.orders') %> </a>
+              <div class="dropdown-menu rounded-0" aria-labelledby="service">
+                <div class="row">
+                  <div class="col-lg-3">
+                    <div class="navbar-block">
+                      <span> <%= i18n.__('header.nav.orders') %> </span>
+                      <ul class="list-unstyled navbar-list">
+                        <li><a href="/orders/"> <%= i18n.__('header.nav.orders') %> </a></li>
+                        <li><a href="/orders/status/"> <%= i18n.__('header.nav.orders_status') %> </a></li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div class="col-lg-3">
+                    <div class="navbar-block">
+                      <span class="mb-2"> <%= i18n.__('header.nav.clients') %> </span>
+                      <ul class="list-unstyled navbar-list">
+                        <li><a href="/orders/clients/"> <%= i18n.__('header.nav.clients') %> </a></li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div class="col-lg-3">
+                    <div class="navbar-block">
+                      <span class="mb-2"> <%= i18n.__('header.nav.settings') %> </span>
+                      <ul class="list-unstyled navbar-list">
+                        <li><a href="/orders/integrations/"> <%= i18n.__('header.nav.integrations') %> </a></li>
+                        <li><a href="/orders/tokens/"> <%= i18n.__('header.nav.tokens') %> </a></li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div class="col-lg-3">
+                    <div class="navbar-block">
+                      <span class="mb-2"> <%= i18n.__('header.nav.abandoned_cart') %> </span>
+                      <ul class="list-unstyled navbar-list">
+                        <li><a href="/orders/abandoned-cart/"> <%= i18n.__('header.nav.abandoned_cart') %> </a></li>
+                        <li><a href="/orders/abandoned-cart/event/"> <%= i18n.__('header.nav.events') %> </a></li>
+                        <li><a href="/orders/abandoned-cart/services/"> <%= i18n.__('header.nav.services') %> </a></li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </li>
+            <li class="nav-item dropdown dropdown-nav">
+              <a class="nav-link dropdown-toggle" href="service/"> <%= i18n.__('header.nav.catalog') %> </a>
+              <div class="dropdown-menu rounded-0" aria-labelledby="service">
+                <div class="row">
+                  <div class="col-lg-3">
+                    <div class="navbar-block">
+                      <span> <%= i18n.__('header.nav.localization') %> </span>
+                      <ul class="list-unstyled navbar-list">
+                        <li><a href="service/rozrobka-sajtu/landing-page"> <%= i18n.__('header.nav.currencies') %> </a></li>
+                        <li><a href="service/rozrobka-sajtu/sajt-vіzitka"> <%= i18n.__('header.nav.languages') %> </a></li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div class="col-lg-3">
+                    <div class="navbar-block">
+                      <span><%= i18n.__('header.nav.site_support') %></span>
+                      <ul class="list-unstyled navbar-list">
+                        <li><a href="service/pіdtrimka-sajtu/texnіchnij-audit-sajtu"><%= i18n.__('header.nav.technical_site_audit') %></a></li>
+                        <li><a href="service/pіdtrimka-sajtu/admіnіstruvannya-sajtu"><%= i18n.__('header.nav.site_administration') %></a></li>
+                        <li><a href="service/pіdtrimka-sajtu/optimіzaczіya-sajtu"><%= i18n.__('header.nav.site_optimization') %></a></li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div class="col-lg-3">
+                    <div class="navbar-block">
+                      <span><%= i18n.__('header.nav.content_management') %></span>
+                      <ul class="list-unstyled navbar-list">
+                        <li><a href="service/kontent-menedzhment/napovnennya-sajtu"><%= i18n.__('header.nav.site_content_filling') %></a></li>
+                        <li><a href="service/kontent-menedzhment/kopіrajting"><%= i18n.__('header.nav.copywriting') %></a></li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div class="col-lg-3">
+                    <div class="navbar-block">
+                      <span><%= i18n.__('header.nav.internet_marketing') %></span>
+                      <ul class="list-unstyled navbar-list">
+                        <li><a href="service/іnternet-marketing/іnternet-prisutnіst"><%= i18n.__('header.nav.internet_presence') %></a></li>
+                        <li><a href="service/іnternet-marketing/optimіzaczіya-sajtu"><%= i18n.__('header.nav.site_optimization') %></a></li>
+                        <li><a href="service/іnternet-marketing/email-marketing"><%= i18n.__('header.nav.email_marketing') %></a></li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link<% if (header.navbar === 'customers') { %> active<% } %>" href="#" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false"> <%= i18n.__('header.nav.customers') %> <i class="fa-solid fa-angle-down"></i> </a>
+              <ul class="dropdown-menu rounded-0">
+                <li><a class="dropdown-item" href="/customers/"> <%= i18n.__('header.nav.customers') %> </a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link<% if (header.navbar === 'leads') { %> active<% } %>" href="#" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false"> <%= i18n.__('header.nav.leads') %> <i class="fa-solid fa-angle-down"></i> </a>
+              <ul class="dropdown-menu rounded-0">
+                <li><a class="dropdown-item" href="/leads/"> <%= i18n.__('header.nav.leads') %> </a></li>
+                <li><a class="dropdown-item" href="#"><%= i18n.__('header.nav.test') %></a></li>
+                <li><a class="dropdown-item" href="#"><%= i18n.__('header.nav.test') %></a></li>
+                <li>
+                  <hr class="dropdown-divider" />
+                </li>
+                <li><a class="dropdown-item" href="/leads/settings/"> <%= i18n.__('header.nav.settings') %> </a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link<% if (header.navbar === 'deals') { %> active<% } %>" href="#" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false"> <%= i18n.__('header.nav.deals') %> <i class="fa-solid fa-angle-down"></i> </a>
+              <ul class="dropdown-menu rounded-0">
+                <li><a class="dropdown-item" href="/deals/"> <%= i18n.__('header.nav.deals') %> </a></li>
+                <li>
+                  <hr class="dropdown-divider" />
+                </li>
+                <li><a class="dropdown-item" href="/leads/settings/"> <%= i18n.__('header.nav.settings') %> </a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link<% if (header.navbar === 'users') { %> active<% } %>" href="#" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false"> <%= i18n.__('header.nav.users') %> <i class="fa-solid fa-angle-down"></i> </a>
+              <ul class="dropdown-menu rounded-0">
+                <li>
+                  <a class="dropdown-item<% if (header.subnavbar === 'users') { %> active<% } %>" href="/users/"> <%= i18n.__('header.nav.users') %> </a>
+                </li>
+                <li><a class="dropdown-item<% if (header.subnavbar === 'groups') { %> active<% } %>" href="/users/groups"><%= i18n.__('header.nav.groups') %></a></li>
+                <li><a class="dropdown-item<% if (header.subnavbar === 'access') { %> active<% } %>" href="/users/access"><%= i18n.__('header.nav.permissions') %></a></li>
+              </ul>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link<% if (header.navbar === 'faq') { %> active<% } %>" href="/faq/"><%= i18n.__('header.nav.faq') %></a>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link<% if (header.navbar === 'settings') { %> active<% } %>" href="#" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false"> <%= i18n.__('header.nav.settings') %> <i class="fa-solid fa-angle-down"></i> </a>
+              <ul class="dropdown-menu rounded-0">
+                <li>
+                  <a class="dropdown-item<% if (header.subnavbar === 'integration') { %> active<% } %>" href="/settings/integration/"> <%= i18n.__('header.nav.integration') %> </a>
+                </li>
+                <li><a class="dropdown-item<% if (header.subnavbar === 'integration') { %> active<% } %>" href="/settings/email"><%= i18n.__('header.nav.email') %></a></li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>

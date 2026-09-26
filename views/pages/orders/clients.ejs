@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+  <head>
+    <%- include('../../partials/head'); %>
+    <!-- tabulator -->
+    <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+    <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+    <!-- END tabulator -->
+  </head>
+
+  <body class="d-flex flex-column h-100">
+    <%- include('../../partials/header'); %>
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-12 mb-3">
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0">Orders (<span>5</span>)</div>
+            <div id="products-table"></div>
+            <div class="card-footer text-bg-primary rounded-0">Total: 0.00</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+    <!-- END tabulator -->
+    <script src="/assets/js/tabulator/tabulator.min.js"></script>
+    <script>
+      //initialize table
+      var table = new Tabulator("#products-table", {
+        layout: "fitColumns",
+        ajaxURL: "/api/orders/clients-list/",
+        ajaxConfig: "POST",
+        paginationSize: 5,
+        paginationSizeSelector: [10, 20, 30, 40],
+        pagination: true,
+        movableColumns: true,
+        columns: [
+          {
+            title: "ID",
+            field: "id",
+            headerSort: false,
+            widthGrow: "1",
+          },
+          {
+            title: "First name",
+            field: "first_name",
+            sorter: "string",
+            headerSort: false,
+          },
+          {
+            title: "Last name",
+            field: "last_name",
+            sorter: "string",
+            headerSort: false,
+          },
+          {
+            title: "Patronymic",
+            field: "patronymic",
+            sorter: "string",
+            headerSort: false,
+          },
+          {
+            title: "Email",
+            field: "email",
+            sorter: "string",
+            headerSort: false,
+          },
+          {
+            title: "Phone",
+            field: "phone",
+            sorter: "string",
+            headerSort: false,
+            widthGrow: "1",
+          },
+          {
+            title: "Gender",
+            field: "gender",
+            sorter: "string",
+            headerSort: false,
+            widthGrow: "1",
+            formatter: function (cell, formatterParams, onRendered) {
+              if (cell.getRow().getData().gender === 1) {
+                return '<div class="">Mr.</div>';
+              } else if (cell.getRow().getData().gender === 2) {
+                return '<div class="">Mrs.</div>';
+              } else {
+                return '<div class="">Not specified</div>';
+              }
+            },
+          },
+          {
+            title: "Groups",
+            field: "groups",
+            sorter: "string",
+            headerSort: false,
+            widthGrow: "1",
+            formatter: function (cell, formatterParams, onRendered) {
+              return (
+                '<div class="badge rounded-0 text-center" style="color:' +
+                cell.getRow().getData().groups_color_text +
+                ";background:" +
+                cell.getRow().getData().groups_color_background +
+                '">' +
+                cell.getRow().getData().groups_name +
+                "</div>"
+              );
+            },
+          },
+          {
+            title: "Edit",
+            field: "",
+            headerSort: false,
+            widthGrow: "1",
+            formatter: function (cell, formatterParams, onRendered) {
+              return '<a href="/orders/clients/' + cell.getRow().getData().id + '" class="text-center d-block"><i class="fa-regular fa-pen-to-square"></i></a>';
+            },
+          },
+        ],
+      });
+    </script>
+    <!-- tabulator -->
+  </body>
+</html>

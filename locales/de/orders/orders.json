@@ -1,0 +1,17 @@
+{
+    "orders": {
+        "title": "Bestellungen",
+        "columns": {
+            "id": "ID",
+            "source": "Quelle",
+            "reference": "Referenz",
+            "delivery": "Lieferung",
+            "total": "Gesamt",
+            "payment": "Zahlung",
+            "status": "Status",
+            "date_add": "Hinzugefügt am",
+            "date_edit": "Bearbeitet am",
+            "edit": "Bearbeiten"
+        }
+    }
+}

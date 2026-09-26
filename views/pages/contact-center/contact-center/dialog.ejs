@@ -1,0 +1,2341 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= data.conversation.contact_name || i18n.__('contact_center.dialog.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0/css/select2.min.css" />
+		<style>
+			.dialog-feed {
+				position: absolute;
+				top: 0;
+				bottom: 0;
+				left: 0;
+				right: 0;
+				overflow-y: auto;
+				overflow-x: hidden;
+				scrollbar-width: thin;
+				padding: 1rem;
+			}
+
+			.message-client,
+			.message-manager {
+				margin-bottom: 1.5rem;
+			}
+
+			.message-manager {
+				text-align: right;
+			}
+
+			.message-client .alert,
+			.message-manager .alert {
+				max-width: 70%;
+				word-break: break-word;
+				white-space: pre-wrap;
+				text-align: left;
+			}
+
+			.message-client .time,
+			.message-manager .time {
+				display: block;
+				font-size: 0.75rem;
+				color: #6c757d;
+				margin-top: 0.15rem;
+			}
+
+			.message-failed .alert {
+				border: 1px solid #dc3545;
+				background: #fdf1f2;
+			}
+
+			.msg-system {
+				text-align: center;
+				font-size: 0.78rem;
+				color: #6c757d;
+				margin: 0.75rem 0;
+			}
+
+			.msg-day {
+				text-align: center;
+				margin: 1rem 0 0.75rem;
+			}
+
+			.msg-day span {
+				background: #e3e6ea;
+				color: #495057;
+				font-size: 0.75rem;
+				padding: 0.15rem 0.6rem;
+			}
+
+			.msg-attach img {
+				max-width: 260px;
+				max-height: 260px;
+				display: block;
+				cursor: pointer;
+				border: 1px solid #e3e6ea;
+			}
+
+			.msg-attach video,
+			.msg-attach audio {
+				max-width: 280px;
+				display: block;
+			}
+
+			.msg-attach .attach-pending {
+				width: 200px;
+				height: 120px;
+				background: #eef0f3;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: #6c757d;
+				font-size: 0.8rem;
+			}
+
+			.msg-attach + .msg-attach {
+				margin-top: 0.35rem;
+			}
+
+			.msg-reply {
+				border-left: 3px solid currentColor;
+				padding-left: 0.5rem;
+				margin-bottom: 0.35rem;
+				font-size: 0.8rem;
+				opacity: 0.7;
+			}
+
+			#composer textarea {
+				resize: none;
+			}
+
+			.cc-avatar {
+				width: 40px;
+				height: 40px;
+				border-radius: 50%;
+				object-fit: cover;
+				flex-shrink: 0;
+			}
+
+			.cc-avatar-fallback {
+				width: 40px;
+				height: 40px;
+				border-radius: 50%;
+				flex-shrink: 0;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				background: #d2d8e0;
+				color: #495057;
+				font-weight: 600;
+				font-size: 1rem;
+				text-transform: uppercase;
+			}
+
+			.cc-avatar-lg,
+			.cc-avatar-fallback-lg {
+				width: 72px;
+				height: 72px;
+				font-size: 1.6rem;
+			}
+
+			.msg-reaction {
+				position: absolute;
+				bottom: -10px;
+				right: 8px;
+				background: #fff;
+				border-radius: 10px;
+				padding: 0 4px;
+				font-size: 0.85rem;
+				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+				line-height: 1.4;
+			}
+			.msg-bubble {
+				position: relative;
+			}
+
+			.cc-media-grid {
+				display: grid;
+				grid-template-columns: repeat(3, 1fr);
+				gap: 4px;
+			}
+			.cc-media-grid a {
+				display: block;
+				aspect-ratio: 1;
+				overflow: hidden;
+				background: #eef0f3;
+			}
+			.cc-media-grid img,
+			.cc-media-grid video {
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+			}
+			.cc-media-list a {
+				display: flex;
+				align-items: center;
+				gap: 0.5rem;
+				padding: 0.4rem 0.5rem;
+				border-bottom: 1px solid #eef0f3;
+				color: inherit;
+				text-decoration: none;
+				font-size: 0.85rem;
+			}
+			.cc-media-list a:hover {
+				background: #f6f8fa;
+			}
+			.cc-media-pane {
+				max-height: 380px;
+				overflow-y: auto;
+				scrollbar-width: thin;
+			}
+			.cc-media-empty {
+				text-align: center;
+				color: #6c757d;
+				font-size: 0.85rem;
+				padding: 1.5rem 0;
+			}
+			.cc-online-dot {
+				display: inline-block;
+				width: 9px;
+				height: 9px;
+				border-radius: 50%;
+				background: #adb5bd;
+				margin-left: 6px;
+				vertical-align: middle;
+			}
+			.cc-online-dot.is-online {
+				background: #28a745;
+				box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.25);
+			}
+			.cc-product img {
+				width: 100%;
+				height: 120px;
+				object-fit: contain;
+				background: #f6f8fa;
+			}
+			.cc-product-name {
+				font-weight: 600;
+				font-size: 0.9rem;
+			}
+			.cc-prod-hist-item {
+				display: flex;
+				gap: 0.5rem;
+				padding: 0.5rem;
+				border-bottom: 1px solid #eef0f3;
+			}
+			.cc-prod-hist-item img {
+				width: 44px;
+				height: 44px;
+				object-fit: contain;
+				background: #f6f8fa;
+				flex-shrink: 0;
+			}
+			.cc-typing {
+				padding: 0.25rem 1rem 0.5rem;
+				font-size: 0.8rem;
+				color: #6c757d;
+				font-style: italic;
+			}
+			.cc-typing b {
+				font-style: normal;
+				color: #495057;
+			}
+			.cc-online-dot {
+				display: inline-block;
+				width: 9px;
+				height: 9px;
+				border-radius: 50%;
+				background: #adb5bd;
+				margin-left: 6px;
+				vertical-align: middle;
+			}
+			.cc-online-dot.is-online {
+				background: #28a745;
+				box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.25);
+			}
+			.message-manager .msg-bubble {
+				position: relative;
+			}
+			.msg-edit-btn {
+				position: absolute;
+				top: -10px;
+				left: -8px;
+				background: #fff;
+				border: 1px solid #dee2e6;
+				border-radius: 50%;
+				width: 24px;
+				height: 24px;
+				display: none;
+				align-items: center;
+				justify-content: center;
+				cursor: pointer;
+				font-size: 11px;
+				color: #6c757d;
+			}
+			.message-manager:hover .msg-edit-btn {
+				display: inline-flex;
+			}
+			.msg-edited-mark {
+				font-size: 0.7rem;
+				opacity: 0.6;
+				margin-left: 4px;
+			}
+			@media (hover: none) {
+				.msg-edit-btn {
+					display: inline-flex;
+				}
+			}
+		</style>
+	</head>
+
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<!-- ─── ХЛІБНІ КРИХТИ ─────────────────────────────────────────── -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= data.conversation.contact_name || '—' %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('contact_center.dialog.breadcrumb.home') %></span></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/contact-center/"><%= i18n.__('contact_center.dialog.breadcrumb.contact_center') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('contact_center.dialog.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/contact-center/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3 mb-3">
+			<div class="row h-100">
+				<!-- ═══ СТРІЧКА ═══ -->
+				<div class="col-12 col-lg-8 mb-3 d-flex flex-column h-100">
+					<div class="card border-primary rounded-0 h-100 d-flex flex-column">
+						<!-- Шапка діалогу -->
+						<div class="card-header text-bg-primary rounded-0 d-flex align-items-center justify-content-between">
+							<span class="d-flex align-items-center">
+								<% if (data.conversation.contact_avatar) { %>
+								<img src="<%= data.conversation.contact_avatar %>" class="cc-avatar me-2 cc-avatar-img" alt="" referrerpolicy="no-referrer" />
+								<span class="cc-avatar-fallback me-2" style="display: none"><%= (data.conversation.contact_name || '?').trim().charAt(0) %></span>
+								<% } else { %>
+								<span class="cc-avatar-fallback me-2"><%= (data.conversation.contact_name || '?').trim().charAt(0) %></span>
+								<% } %>
+								<span>
+									<i class="<%= data.meta.icon %> me-2"></i>
+									<%= data.conversation.contact_name || '—' %> <% if (data.conversation.contact_username) { %>
+									<small class="ms-1">@<%= data.conversation.contact_username %></small>
+									<% } %>
+									<span class="cc-online-dot" id="cc_online_dot" title="—"></span>
+								</span>
+							</span>
+							<span class="badge text-bg-light rounded-0"><%= data.conversation.channel_name %></span>
+						</div>
+
+						<!-- Попередження, якщо канал вимкнено -->
+						<% if (Number(data.conversation.channel_active) !== 1) { %>
+						<div class="alert alert-warning rounded-0 mb-0 border-0 border-bottom">
+							<i class="fa-solid fa-plug-circle-xmark me-1"></i>
+							<%= i18n.__('contact_center.dialog.channel_inactive') %>
+						</div>
+						<% } %>
+
+						<!-- Повідомлення -->
+						<div class="flex-grow-1" style="position: relative; min-height: 420px">
+							<div id="feed" class="dialog-feed"></div>
+						</div>
+						<div id="cc_typing" class="cc-typing d-none"></div>
+
+						<!-- Форма відправки -->
+						<form id="composer" class="card-footer text-body-secondary bg-transparent p-0 rounded-0" autocomplete="off" style="position: relative">
+							<!-- Прев'ю обраного файлу -->
+							<div id="file_preview" class="alert alert-light border-0 border-bottom rounded-0 py-2 px-3 mb-0 d-none">
+								<div class="d-flex align-items-center justify-content-between gap-2">
+									<span class="small text-truncate" id="file_preview_name"></span>
+									<button type="button" class="btn-close" id="file_preview_clear" aria-label="Close"></button>
+								</div>
+							</div>
+
+							<!-- Панель емодзі. position:absolute — щоб не зсувати верстку -->
+							<div id="emoji_panel" style="display: none; position: absolute; bottom: 100%; left: 0; z-index: 1070; margin-bottom: 0.5rem"></div>
+
+							<textarea class="form-control border-0 rounded-0" id="composer_text" name="message" rows="3" maxlength="4000" placeholder="<%= i18n.__('contact_center.dialog.placeholder') %>"></textarea>
+
+							<div class="d-flex justify-content-between align-items-center p-3 pt-1 gap-2">
+								<div class="btn-group" role="group">
+									<button type="button" class="btn btn-outline-primary rounded-0" id="btn_emoji" title="<%= i18n.__('contact_center.dialog.emoji') %>">
+										<i class="fa-regular fa-face-smile"></i>
+									</button>
+
+									<button type="button" class="btn btn-outline-primary rounded-0" id="btn_create_menu" title="Створити" data-bs-toggle="dropdown">
+										<i class="fa-solid fa-table-list"></i>
+									</button>
+									<ul class="dropdown-menu">
+										<li>
+											<a class="dropdown-item" href="#" id="mn_send_form"><i class="fa-solid fa-clipboard-list me-2"></i>Надіслати форму</a>
+										</li>
+										<li>
+											<a class="dropdown-item" href="#" id="mn_create_lead"><i class="fa-solid fa-bullseye me-2"></i>Створити лід</a>
+										</li>
+										<li>
+											<a class="dropdown-item" href="#" id="mn_create_order"><i class="fa-solid fa-cart-shopping me-2"></i>Створити замовлення</a>
+										</li>
+									</ul>
+
+									<% if (data.canSendMedia) { %>
+									<label for="composer_file" class="btn btn-outline-primary rounded-0 mb-0" id="btn_attach_label" title="<%= i18n.__('contact_center.dialog.attach') %>">
+										<i class="fa-solid fa-paperclip"></i>
+									</label>
+									<input class="form-control d-none" type="file" id="composer_file" />
+									<% } %> <% if (data.commands && data.commands.length) { %>
+									<div class="btn-group">
+										<button type="button" class="btn btn-outline-primary rounded-0 dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" id="btn_commands" title="<%= i18n.__('contact_center.dialog.commands') %>">
+											<i class="fa-solid fa-terminal"></i>
+										</button>
+										<ul class="dropdown-menu rounded-0" id="channel_commands">
+											<% data.commands.forEach(function (cmd) { %>
+											<li>
+												<a class="dropdown-item channel-command" href="#" data-command="<%= cmd.code %>"> <i class="<%= cmd.icon %> me-2"></i><%= i18n.__(cmd.label) %> </a>
+											</li>
+											<% }); %>
+										</ul>
+									</div>
+									<% } %>
+								</div>
+
+								<div class="d-flex align-items-center gap-3">
+									<small class="text-muted d-none d-md-inline"><%= i18n.__('contact_center.dialog.send_hint') %></small>
+									<button type="submit" id="btn_send" class="btn btn-outline-primary rounded-0"><%= i18n.__('contact_center.dialog.send') %></button>
+								</div>
+							</div>
+						</form>
+					</div>
+				</div>
+
+				<!-- ═══ ПАНЕЛЬ СПІВРОЗМОВНИКА ═══ -->
+				<div class="col-12 col-lg-4 mb-3 h-100">
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('contact_center.dialog.contact') %></div>
+						<div class="card-body">
+							<div class="text-center mb-3">
+								<% if (data.conversation.contact_avatar) { %>
+								<img src="<%= data.conversation.contact_avatar %>" class="cc-avatar cc-avatar-lg cc-avatar-img" alt="" referrerpolicy="no-referrer" />
+								<span class="cc-avatar-fallback cc-avatar-fallback-lg" style="display: none"><%= (data.conversation.contact_name || '?').trim().charAt(0) %></span>
+								<% } else { %>
+								<span class="cc-avatar-fallback cc-avatar-fallback-lg"><%= (data.conversation.contact_name || '?').trim().charAt(0) %></span>
+								<% } %>
+							</div>
+							<dl class="row mb-0 small">
+								<dt class="col-5"><%= i18n.__('contact_center.dialog.contact_name') %></dt>
+								<dd class="col-7"><%= data.conversation.contact_name || '—' %></dd>
+
+								<% if (data.conversation.contact_username) { %>
+								<dt class="col-5"><%= i18n.__('contact_center.dialog.contact_username') %></dt>
+								<dd class="col-7">@<%= data.conversation.contact_username %></dd>
+								<% } %> <% if (data.conversation.contact_phone) { %>
+								<dt class="col-5"><%= i18n.__('contact_center.dialog.contact_phone') %></dt>
+								<dd class="col-7"><%= data.conversation.contact_phone %></dd>
+								<% } %> <% if (data.conversation.contact_email) { %>
+								<dt class="col-5"><%= i18n.__('contact_center.dialog.contact_email') %></dt>
+								<dd class="col-7"><%= data.conversation.contact_email %></dd>
+								<% } %>
+
+								<dt class="col-5"><%= i18n.__('contact_center.dialog.channel') %></dt>
+								<dd class="col-7">
+									<i class="<%= data.meta.icon %> me-1" style="color: <%= data.meta.color %>"></i>
+									<%= data.conversation.channel_name %>
+								</dd>
+
+								<dt class="col-5"><%= i18n.__('contact_center.dialog.date_add') %></dt>
+								<dd class="col-7"><%= data.conversation.date_add %></dd>
+							</dl>
+							<% if (data.conversation.channel_type === 'webchat') { %>
+							<hr class="my-2" />
+							<div id="cc_visitor_info" class="small"><div class="text-muted">Завантаження…</div></div>
+							<% } %>
+						</div>
+					</div>
+
+					<!-- ═══ ТОВАР (тільки веб-чат) ═══ -->
+					<% if (data.conversation.channel_type === 'webchat') { %>
+					<div class="card border-primary rounded-0 mt-3" id="cc_product_card">
+						<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+							<span>Товар</span>
+							<button type="button" class="btn btn-sm btn-light rounded-0 py-0" id="cc_prod_hist_btn" data-bs-toggle="offcanvas" data-bs-target="#cc_prod_offcanvas" title="Історія переглядів">
+								<i class="fa-solid fa-clock-rotate-left"></i>
+							</button>
+						</div>
+						<div class="card-body cc-product" id="cc_product_body"></div>
+					</div>
+					<% } %>
+
+					<div class="card border-primary mt-3 rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('contact_center.dialog.actions') %></div>
+						<div class="card-body d-grid gap-2">
+							<button type="button" class="btn btn-outline-primary rounded-0" id="btn_assign">
+								<span id="assign_label"></span>
+							</button>
+							<button type="button" class="btn btn-outline-primary rounded-0 d-none" id="btn_transfer"><i class="fa-solid fa-people-arrows me-1"></i> Передати менеджеру</button>
+							<button type="button" class="btn btn-outline-success rounded-0 btn-status" data-status="resolved" id="btn_resolve"><%= i18n.__('contact_center.dialog.resolve') %></button>
+							<button type="button" class="btn btn-outline-secondary rounded-0 btn-status" data-status="archived" id="btn_archive"><%= i18n.__('contact_center.dialog.archive') %></button>
+							<button type="button" class="btn btn-outline-primary rounded-0 btn-status" data-status="open" id="btn_reopen"><span id="reopen_label"><%= i18n.__('contact_center.dialog.reopen') %></span></button>
+							<hr class="my-1" />
+							<button type="button" class="btn btn-outline-danger rounded-0" id="btn_delete_dialog"><i class="fa-solid fa-trash me-1"></i> Видалити діалог</button>
+						</div>
+					</div>
+
+					<!-- ═══ МЕДІА ═══ -->
+					<div class="card border-primary rounded-0 mt-3">
+						<div class="card-header text-bg-primary rounded-0" role="button" data-bs-toggle="collapse" data-bs-target="#cc_media_collapse" style="cursor: pointer">Медіа <i class="fa-solid fa-chevron-down float-end mt-1"></i></div>
+						<div class="collapse" id="cc_media_collapse">
+							<div class="card-body">
+								<ul class="nav nav-pills nav-fill gap-1 mb-2" role="tablist">
+									<li class="nav-item">
+										<button class="nav-link active rounded-0 px-2 py-1" data-cc-media="image" type="button" title="Фото"><i class="fa-regular fa-image"></i></button>
+									</li>
+									<li class="nav-item">
+										<button class="nav-link rounded-0 px-2 py-1" data-cc-media="video" type="button" title="Відео"><i class="fa-solid fa-film"></i></button>
+									</li>
+									<li class="nav-item">
+										<button class="nav-link rounded-0 px-2 py-1" data-cc-media="audio" type="button" title="Аудіо"><i class="fa-solid fa-music"></i></button>
+									</li>
+									<li class="nav-item">
+										<button class="nav-link rounded-0 px-2 py-1" data-cc-media="file" type="button" title="Файли"><i class="fa-regular fa-file"></i></button>
+									</li>
+								</ul>
+								<div class="cc-media-pane" id="cc_media_body">
+									<div class="cc-media-empty">Завантаження…</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Модалка передачі діалогу -->
+		<div class="modal fade" id="transferModal" tabindex="-1">
+			<div class="modal-dialog">
+				<div class="modal-content rounded-0">
+					<div class="modal-header text-bg-primary rounded-0">
+						<h5 class="modal-title">Передати діалог</h5>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<label class="form-label" for="transfer_select">Оберіть менеджера</label>
+						<select id="transfer_select" class="form-control" style="width: 100%"></select>
+						<div class="small text-muted mt-2">Діалог одразу перейде обраному менеджеру.</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Модалка видалення діалогу -->
+		<div class="modal fade" id="deleteModal" tabindex="-1">
+			<div class="modal-dialog">
+				<div class="modal-content rounded-0">
+					<div class="modal-header text-bg-danger rounded-0">
+						<h5 class="modal-title"><i class="fa-solid fa-triangle-exclamation me-2"></i>Видалити діалог</h5>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<p class="mb-2">Діалог буде видалено <strong>назавжди</strong> разом з усіма повідомленнями та файлами.</p>
+						<p class="text-danger small mb-3">Цю дію неможливо скасувати.</p>
+						<div class="form-check">
+							<input class="form-check-input" type="checkbox" value="1" id="delete_confirm_chk" />
+							<label class="form-check-label" for="delete_confirm_chk">Я розумію, що дію не можна скасувати</label>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal">Скасувати</button>
+						<button type="button" class="btn btn-danger rounded-0" id="delete_confirm_btn" disabled><i class="fa-solid fa-trash me-1"></i> Видалити назавжди</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="modal fade" id="sendFormModal" tabindex="-1">
+			<div class="modal-dialog">
+				<div class="modal-content rounded-0">
+					<div class="modal-header text-bg-primary rounded-0">
+						<h5 class="modal-title">Надіслати форму клієнту</h5>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body" id="send_form_body">
+						<div class="text-muted">Завантаження…</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="modal fade" id="createLeadModal" tabindex="-1">
+			<div class="modal-dialog">
+				<div class="modal-content rounded-0">
+					<div class="modal-header text-bg-primary rounded-0">
+						<h5 class="modal-title"><i class="fa-solid fa-bullseye me-2"></i>Створити лід</h5>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<div class="mb-2">
+							<label class="form-label small">Назва</label>
+							<input type="text" class="form-control rounded-0" id="lead_title" />
+						</div>
+						<div class="row g-2">
+							<div class="col-md-6 mb-2"><label class="form-label small">Ім'я</label><input type="text" class="form-control rounded-0" id="lead_name" /></div>
+							<div class="col-md-6 mb-2"><label class="form-label small">Телефон</label><input type="text" class="form-control rounded-0" id="lead_phone" /></div>
+							<div class="col-md-6 mb-2"><label class="form-label small">Email</label><input type="text" class="form-control rounded-0" id="lead_email" /></div>
+							<div class="col-md-6 mb-2"><label class="form-label small">Сума (₴)</label><input type="text" class="form-control rounded-0" id="lead_value" /></div>
+						</div>
+						<div class="mb-2"><label class="form-label small">Коментар</label><textarea class="form-control rounded-0" id="lead_note" rows="2"></textarea></div>
+						<div class="small text-muted" id="lead_product_hint"></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal">Скасувати</button>
+						<button type="button" class="btn btn-primary rounded-0" id="lead_create_btn">Створити лід</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="modal fade" id="createOrderModal" tabindex="-1">
+			<div class="modal-dialog modal-lg">
+				<div class="modal-content rounded-0">
+					<div class="modal-header text-bg-primary rounded-0">
+						<h5 class="modal-title"><i class="fa-solid fa-cart-shopping me-2"></i>Створити замовлення</h5>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<div class="row g-2 mb-3">
+							<div class="col-md-6"><label class="form-label small">Ім'я</label><input type="text" class="form-control rounded-0" id="ord_firstname" /></div>
+							<div class="col-md-6"><label class="form-label small">Прізвище</label><input type="text" class="form-control rounded-0" id="ord_lastname" /></div>
+							<div class="col-md-6"><label class="form-label small">Телефон</label><input type="text" class="form-control rounded-0" id="ord_phone" /></div>
+							<div class="col-md-6"><label class="form-label small">Email</label><input type="text" class="form-control rounded-0" id="ord_email" /></div>
+						</div>
+
+						<label class="form-label small">Товари</label>
+						<div id="ord_items"></div>
+						<button type="button" class="btn btn-sm btn-outline-secondary rounded-0 mt-1" id="ord_add_item"><i class="fa-solid fa-plus me-1"></i>Додати товар</button>
+
+						<div class="mt-3"><label class="form-label small">Коментар</label><textarea class="form-control rounded-0" id="ord_note" rows="2"></textarea></div>
+						<div class="text-end mt-2 fw-semibold">Разом: <span id="ord_total">0.00</span> ₴</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal">Скасувати</button>
+						<button type="button" class="btn btn-primary rounded-0" id="ord_create_btn">Створити замовлення</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Offcanvas: історія переглядів -->
+		<% if (data.conversation.channel_type === 'webchat') { %>
+		<div class="offcanvas offcanvas-end" tabindex="-1" id="cc_prod_offcanvas">
+			<div class="offcanvas-header text-bg-primary">
+				<h5 class="offcanvas-title">Історія переглядів</h5>
+				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+			</div>
+			<div class="offcanvas-body p-0" id="cc_prod_hist_body">
+				<div class="text-center text-muted p-4">—</div>
+			</div>
+		</div>
+		<% } %> <%- include('../../../partials/footer'); %> <%- include('../../../partials/script'); %>
+
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/emoji-mart@5.6.0/dist/browser.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0/js/select2.min.js"></script>
+		<script>
+			const notyf = new Notyf({
+				position: { x: "right", y: "top" },
+				duration: 4000,
+				types: [
+					{ type: "success", dismissible: true, icon: false },
+					{ type: "error", background: "indianred", dismissible: true, icon: false },
+				],
+			});
+		</script>
+		<script>
+			// ================================================================
+			// ПАНЕЛЬ ЕМОДЗІ — Emoji Mart
+			// Пікер монтується лениво, при першому відкритті: дані важать ~400 КБ
+			// і тягнути їх на кожне відкриття діалогу не треба.
+			// ================================================================
+			(function () {
+				var $panel = $("#emoji_panel");
+				var picker = null;
+				var mounting = false;
+
+				function insertEmoji(native) {
+					var ta = document.getElementById("composer_text");
+					if (!ta || ta.disabled) return;
+
+					var start = ta.selectionStart || 0;
+					var end = ta.selectionEnd || 0;
+
+					ta.value = ta.value.slice(0, start) + native + ta.value.slice(end);
+					ta.selectionStart = ta.selectionEnd = start + native.length;
+					ta.focus();
+				}
+
+				async function mountPicker() {
+					if (picker || mounting) return;
+					if (typeof EmojiMart === "undefined") {
+						notyf.error(T.emojiError);
+						return;
+					}
+
+					mounting = true;
+
+					try {
+						picker = new EmojiMart.Picker({
+							// Дані окремим запитом — так радить сама бібліотека
+							data: async function () {
+								var res = await fetch("https://cdn.jsdelivr.net/npm/@emoji-mart/data");
+								return res.json();
+							},
+							locale: "en",
+							theme: "light",
+							previewPosition: "none",
+							skinTonePosition: "search",
+							searchPosition: "sticky",
+							navPosition: "top",
+							perLine: 9,
+							maxFrequentRows: 1,
+							onEmojiSelect: function (emoji) {
+								insertEmoji(emoji.native);
+							},
+						});
+
+						$panel.empty().append(picker);
+					} catch (err) {
+						console.error("emoji-mart:", err);
+						notyf.error(T.emojiError);
+					} finally {
+						mounting = false;
+					}
+				}
+
+				$("#btn_emoji").on("click", async function () {
+					if ($panel.is(":visible")) {
+						$panel.hide();
+						return;
+					}
+
+					await mountPicker();
+					$panel.show();
+				});
+
+				// Закриття при кліку поза панеллю
+				$(document).on("click", function (e) {
+					if (!$(e.target).closest("#emoji_panel, #btn_emoji").length) $panel.hide();
+				});
+			})();
+		</script>
+		<script>
+			// Фолбек аватара: CSP забороняє inline onerror, тож вішаємо обробник тут.
+			// Якщо фото не завантажилось — ховаємо img, показуємо кружечок з літерою.
+			document.querySelectorAll(".cc-avatar-img").forEach(function (img) {
+				img.addEventListener("error", function () {
+					this.style.display = "none";
+					var fb = this.nextElementSibling;
+					if (fb && fb.classList.contains("cc-avatar-fallback")) fb.style.display = "inline-flex";
+				});
+				// Якщо картинка вже встигла впасти до навішування обробника
+				if (img.complete && img.naturalWidth === 0) img.dispatchEvent(new Event("error"));
+			});
+		</script>
+		<script>
+			// ================================================================
+			// ЗАВАНТАЖЕННЯ ФАЙЛУ
+			// Файл іде окремим запитом (multipart), а не разом з текстом:
+			// текст у полі стає підписом до файлу.
+			// ================================================================
+			(function () {
+				var input = document.getElementById("composer_file");
+				if (!input) return;
+
+				var $preview = $("#file_preview");
+
+				input.addEventListener("change", function () {
+					if (!this.files || !this.files.length) return;
+
+					var f = this.files[0];
+
+					// Ліміт дублює серверний — щоб не ганяти файл даремно
+					if (f.size > 50 * 1024 * 1024) {
+						notyf.error(T.fileTooBig);
+						this.value = "";
+						return;
+					}
+
+					$("#file_preview_name").text(f.name + " (" + Math.round(f.size / 1024) + " KB)");
+					$preview.removeClass("d-none");
+				});
+
+				$("#file_preview_clear").on("click", function () {
+					input.value = "";
+					$preview.addClass("d-none");
+				});
+
+				window.hasPendingFile = function () {
+					return !!(input.files && input.files.length);
+				};
+
+				window.uploadPendingFile = async function (caption) {
+					var f = input.files[0];
+					if (!f) return;
+
+					var form = new FormData();
+					form.append("file", f);
+					if (caption) form.append("caption", caption);
+
+					var btn = document.getElementById("btn_send");
+					btn.disabled = true;
+
+					try {
+						var res = await fetch("/api/contact-center/chat/" + CONV_ID + "/upload/", { method: "POST", body: form });
+						var data = await res.json();
+
+						if (data.id_message) {
+							input.value = "";
+							$preview.addClass("d-none");
+							document.getElementById("composer_text").value = "";
+
+							appendMessages(
+								[
+									{
+										id: data.id_message,
+										direction: "out",
+										type: "media",
+										text: caption || null,
+										id_manager: CURRENT_USER_ID,
+										status: data.status === "success" ? "sent" : "failed",
+										error: data.message,
+										date_add: data.date_add,
+										attachments: [data.attachment],
+									},
+								],
+								false
+							);
+						}
+
+						if (data.status !== "success") notyf.error(data.message || T.sendError);
+					} catch (err) {
+						console.error("upload:", err);
+						notyf.error(T.sendError);
+					} finally {
+						renderComposerState();
+					}
+				};
+			})();
+		</script>
+
+		<script>
+			// ================================================================
+			// КОМАНДИ КАНАЛУ
+			// ================================================================
+			$(document).on("click", ".channel-command", async function (e) {
+				e.preventDefault();
+
+				var command = $(this).data("command");
+				var text = document.getElementById("composer_text").value.trim();
+
+				try {
+					var res = await fetch("/api/contact-center/chat/" + CONV_ID + "/command/", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ command: command, text: text }),
+					});
+
+					var data = await res.json();
+
+					if (data.id_message) {
+						document.getElementById("composer_text").value = "";
+						appendMessages(
+							[
+								{
+									id: data.id_message,
+									direction: "out",
+									type: "system",
+									text: data.text,
+									status: data.status === "success" ? "sent" : "failed",
+									error: data.message,
+									date_add: data.date_add,
+									attachments: [],
+								},
+							],
+							false
+						);
+					}
+
+					if (data.status !== "success") notyf.error(data.message || T.sendError);
+				} catch (err) {
+					console.error("command:", err);
+					notyf.error(T.sendError);
+				}
+			});
+		</script>
+		<script>
+			// ================================================================
+			// КОНСТАНТИ
+			// ================================================================
+			const CONV_ID = <%= data.conversation.id %>;
+			const CURRENT_USER_ID = Number("<%= user.userId %>");
+			const isUk = "<%= i18n.__('lang_iso') %>" === "uk";
+			const CHANNEL_TYPE = "<%= data.conversation.channel_type %>";
+			// Канали, що НЕ повідомляють про прочитання — галочки статусу не показуємо
+			const NO_READ_STATUS = ["telegram"];
+
+			let convManagerId = <%= data.conversation.id_manager === null ? 'null' : data.conversation.id_manager %>;
+			let convStatus = "<%= data.conversation.status %>";
+
+			const T = {
+				empty: "<%= i18n.__('contact_center.dialog.empty') %>",
+				loadError: "<%= i18n.__('contact_center.dialog.load_error') %>",
+				sendError: "<%= i18n.__('contact_center.dialog.send_error') %>",
+				failed: "<%= i18n.__('contact_center.dialog.failed') %>",
+				pending: "<%= i18n.__('contact_center.dialog.pending') %>",
+				attachLoading: "<%= i18n.__('contact_center.dialog.attach_loading') %>",
+				attachFailed: "<%= i18n.__('contact_center.dialog.attach_failed') %>",
+				take: "<%= i18n.__('contact_center.dialog.take') %>",
+				release: "<%= i18n.__('contact_center.dialog.release') %>",
+				takenByOther: "<%= i18n.__('contact_center.dialog.taken_by_other') %>",
+				today: "<%= i18n.__('contact_center.dialog.today') %>",
+				yesterday: "<%= i18n.__('contact_center.dialog.yesterday') %>",
+				saved: "<%= i18n.__('contact_center.dialog.saved') %>",
+				location: "<%= i18n.__('contact_center.dialog.location') %>",
+				placeholder: "<%= i18n.__('contact_center.dialog.placeholder') %>",
+				lockedFree: "<%= i18n.__('contact_center.dialog.locked_free') %>",
+				lockedOther: "<%= i18n.__('contact_center.dialog.locked_other') %>",
+				fileTooBig: "<%= i18n.__('contact_center.dialog.file_too_big') %>",
+				emojiError: "<%= i18n.__('contact_center.dialog.emoji_error') %>",
+				statusSent: "<%= i18n.__('contact_center.dialog.status_sent') %>",
+				statusDelivered: "<%= i18n.__('contact_center.dialog.status_delivered') %>",
+				statusRead: "<%= i18n.__('contact_center.dialog.status_read') %>",
+			};
+
+			function escapeHtml(str) {
+				return String(str == null ? "" : str).replace(/[&<>"']/g, function (c) {
+					return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+				});
+			}
+
+			// Дата приходить як "YYYY-MM-DD HH:MM:SS" з MySQL або ISO з socket.
+			// Якщо не розпарсилась — повертаємо поточну, щоб не показувати NaN.
+			function parseDate(value) {
+				if (!value) return new Date();
+				const d = new Date(String(value).replace(" ", "T"));
+				return isNaN(d) ? new Date() : d;
+			}
+		</script>
+
+		<script>
+			// ================================================================
+			// РЕНДЕР ПОВІДОМЛЕННЯ
+			// Канало-незалежний. type/subtype канонічні для всіх каналів,
+			// тому Discord чи Facebook не додають сюди жодної гілки.
+			// ================================================================
+			function renderAttachment(a) {
+				// Явна помилка завантаження — показуємо тільки при status='failed'
+				if (a.status === "failed") {
+					return '<div class="msg-attach"><div class="attach-pending text-danger">' + T.attachFailed + "</div></div>";
+				}
+
+				// Файлу ще немає (качається з каналу) — показуємо стан завантаження,
+				// а не помилку. Спрацьовує і коли status='pending'/'processing',
+				// і коли вкладення прийшло по socket ще без status і без path.
+				if (!a.path) {
+					return '<div class="msg-attach"><div class="attach-pending">' + T.attachLoading + "</div></div>";
+				}
+
+				const url = escapeHtml(a.path);
+				const name = escapeHtml(a.file_name || "");
+
+				if (a.type === "image" || a.type === "sticker") {
+					const src = a.thumb_path ? escapeHtml(a.thumb_path) : url;
+					return '<div class="msg-attach"><a href="' + url + '" target="_blank" rel="noopener"><img src="' + src + '" alt="' + name + '"></a></div>';
+				}
+
+				if (a.type === "video") {
+					return '<div class="msg-attach"><video src="' + url + '" controls preload="metadata"></video></div>';
+				}
+
+				if (a.type === "audio") {
+					return '<div class="msg-attach"><audio src="' + url + '" controls preload="metadata"></audio></div>';
+				}
+
+				const size = a.size ? " (" + Math.round(a.size / 1024) + " KB)" : "";
+				return '<div class="msg-attach"><a href="' + url + '" target="_blank" rel="noopener" class="d-inline-flex align-items-center gap-2">' + '<i class="fa-regular fa-file"></i><span>' + (name || url) + size + "</span></a></div>";
+			}
+
+			function renderMessage(m) {
+				// Заявка з форми — виділена картка
+				if (m.type === "lead_data") {
+					const d = parseDate(m.date_add);
+					const pad = function (n) {
+						return String(n).padStart(2, "0");
+					};
+					const t = pad(d.getHours()) + ":" + pad(d.getMinutes()) + " " + pad(d.getDate()) + "." + pad(d.getMonth() + 1) + "." + d.getFullYear();
+					return '<div class="message-client" data-msg-id="' + m.id + '">' + '<div class="alert alert-warning rounded-0 d-inline-block mb-0 p-2" style="max-width:70%;white-space:pre-wrap">' + '<i class="fa-solid fa-clipboard-list me-1"></i>' + escapeHtml(m.text || "") + "</div>" + '<span class="time m-0">' + t + "</span></div>";
+				}
+
+				// Системні — окремим рядком по центру
+				if (m.type === "system") {
+					// Запити контакту/локації — дії менеджера, показуємо з іконкою
+					const icons = { request_contact: "fa-solid fa-address-card", request_location: "fa-solid fa-location-dot" };
+					const icon = icons[m.subtype] ? '<i class="' + icons[m.subtype] + ' me-1"></i>' : "";
+					const err = m.status === "failed" ? ' <i class="fa-solid fa-triangle-exclamation text-danger" title="' + escapeHtml(m.error || "") + '"></i>' : "";
+
+					return '<div class="msg-system" data-msg-id="' + m.id + '">' + icon + escapeHtml(m.text || "") + err + "</div>";
+				}
+
+				const out = m.direction === "out";
+				const rowClass = out ? "message-manager" : "message-client";
+				const alertClass = out ? "alert-primary" : "alert-light";
+				const failed = m.status === "failed" ? " message-failed" : "";
+
+				let inner = "";
+
+				// Цитата
+				if (m.reply_text) {
+					inner += '<div class="msg-reply">' + escapeHtml(m.reply_text) + "</div>";
+				}
+
+				// Вкладення
+				if (m.attachments && m.attachments.length) {
+					m.attachments.forEach(function (a) {
+						inner += renderAttachment(a);
+					});
+				}
+
+				// Локація
+				if (m.type === "location" && m.lat && m.lng) {
+					const href = "https://www.google.com/maps?q=" + m.lat + "," + m.lng;
+					inner += '<div class="msg-attach"><a href="' + href + '" target="_blank" rel="noopener"><i class="fa-solid fa-location-dot me-1"></i>' + T.location + "</a></div>";
+				}
+
+				// Текст
+				if (m.text) {
+					inner += "<div>" + escapeHtml(m.text) + "</div>";
+				}
+
+				// Час без секунд: ГГ:ХХ ДД.ММ.РРРР
+				const d = parseDate(m.date_add);
+				const pad = function (n) {
+					return String(n).padStart(2, "0");
+				};
+				let meta = pad(d.getHours()) + ":" + pad(d.getMinutes()) + " " + pad(d.getDate()) + "." + pad(d.getMonth() + 1) + "." + d.getFullYear();
+
+				if (out) {
+					if (m.manager_name) meta = escapeHtml(m.manager_name) + " · " + meta;
+
+					const showStatus = NO_READ_STATUS.indexOf(CHANNEL_TYPE) === -1;
+
+					// pending/failed показуємо завжди (це наш стан, не залежить від каналу).
+					// Галочки прочитання — лише для каналів, що його повідомляють.
+					if (m.status === "pending") meta += ' <i class="fa-regular fa-clock" title="' + T.pending + '"></i>';
+					else if (m.status === "failed") meta += ' <i class="fa-solid fa-triangle-exclamation text-danger" title="' + escapeHtml(m.error || T.failed) + '"></i>';
+					else if (showStatus && m.status === "read") meta += ' <i class="fa-solid fa-check-double text-primary msg-status" title="' + T.statusRead + '"></i>';
+					else if (showStatus && m.status === "delivered") meta += ' <i class="fa-solid fa-check-double msg-status" title="' + T.statusDelivered + '"></i>';
+					else if (showStatus) meta += ' <i class="fa-solid fa-check msg-status" title="' + T.statusSent + '"></i>';
+				}
+
+				// Мітка "змінено"
+				if (m.date_edited) meta += '<span class="msg-edited-mark">(змінено)</span>';
+
+				// Реакція клієнта (emoji під бульбашкою) — при завантаженні з БД
+				const reactionBadge = m.reaction ? '<span class="msg-reaction">' + escapeHtml(m.reaction) + "</span>" : "";
+
+				// Кнопка редагування — лише своє текстове вихідне, не видалене
+				const canEdit = out && m.type === "text" && !m.date_deleted && Number(m.id_manager) === CURRENT_USER_ID && convManagerId !== null && Number(convManagerId) === CURRENT_USER_ID;
+				const editBtn = canEdit ? '<span class="msg-edit-btn" data-edit-id="' + m.id + '" title="Редагувати"><i class="fa-solid fa-pen"></i></span>' : "";
+
+				return '<div class="' + rowClass + failed + '" data-msg-id="' + m.id + '" data-text="' + escapeHtml(m.text || "") + '">' + '<div class="alert msg-bubble ' + alertClass + ' rounded-0 d-inline-block mb-0 p-2">' + editBtn + inner + reactionBadge + "</div>" + '<span class="time m-0">' + meta + "</span></div>";
+			}
+
+			function dayLabel(date) {
+				const now = new Date();
+				const d = new Date(date);
+
+				if (d.toDateString() === now.toDateString()) return T.today;
+
+				const yesterday = new Date(now.getTime() - 86400000);
+				if (d.toDateString() === yesterday.toDateString()) return T.yesterday;
+
+				return d.toLocaleDateString(isUk ? "uk-UA" : "en-US", { day: "2-digit", month: "long", year: "numeric" });
+			}
+		</script>
+
+		<script>
+			// ================================================================
+			// ЗАВАНТАЖЕННЯ СТРІЧКИ
+			// ================================================================
+			const feed = document.getElementById("feed");
+
+			let oldestId = null;
+			let hasMore = true;
+			let loading = false;
+			let lastDayKey = null;
+
+			// Вставка з розділювачами днів. prepend — для підвантаження історії вгору.
+			function appendMessages(messages, prepend) {
+				if (!messages.length) return;
+
+				let html = "";
+				let prevDay = prepend ? null : lastDayKey;
+
+				messages.forEach(function (m) {
+					const d = parseDate(m.date_add);
+					const key = d.toDateString();
+
+					if (key !== prevDay) {
+						html += '<div class="msg-day"><span>' + dayLabel(d) + "</span></div>";
+						prevDay = key;
+					}
+
+					html += renderMessage(m);
+				});
+
+				if (prepend) {
+					const before = feed.scrollHeight;
+					feed.insertAdjacentHTML("afterbegin", html);
+					// Тримаємо позицію прокрутки на місці після вставки історії
+					feed.scrollTop = feed.scrollHeight - before;
+				} else {
+					feed.insertAdjacentHTML("beforeend", html);
+					lastDayKey = prevDay;
+					feed.scrollTop = feed.scrollHeight;
+				}
+			}
+
+			async function loadMessages(before) {
+				if (loading || (before && !hasMore)) return;
+				loading = true;
+
+				try {
+					const res = await fetch("/api/contact-center/chat/" + CONV_ID + "/messages/", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ before: before || null, limit: 50 }),
+					});
+
+					const data = await res.json();
+					const messages = data.messages || [];
+
+					if (!before && !messages.length) {
+						feed.innerHTML = '<p class="text-center text-muted mt-4">' + T.empty + "</p>";
+						hasMore = false;
+						return;
+					}
+
+					if (messages.length) {
+						if (!oldestId || messages[0].id < oldestId) oldestId = messages[0].id;
+						appendMessages(messages, !!before);
+					}
+
+					hasMore = !!data.hasMore;
+				} catch (err) {
+					console.error("load messages:", err);
+					notyf.error(T.loadError);
+				} finally {
+					loading = false;
+				}
+			}
+
+			// Троттлимо: серія повідомлень не має давати серію запитів
+			let readTimer = null;
+			function markConversationRead() {
+				clearTimeout(readTimer);
+				readTimer = setTimeout(function () {
+					fetch("/api/contact-center/chat/" + CONV_ID + "/read/", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({}),
+					}).catch(function () {});
+				}, 400);
+			}
+
+			// Повернувся на вкладку — теж прочитав
+			document.addEventListener("visibilitychange", function () {
+				if (!document.hidden) markConversationRead();
+			});
+
+			// Підвантаження історії при прокрутці вгору
+			feed.addEventListener("scroll", function () {
+				if (feed.scrollTop < 80 && hasMore && !loading) loadMessages(oldestId);
+			});
+
+			loadMessages(null);
+		</script>
+
+		<script>
+			// ================================================================
+			// ВІДПРАВКА
+			// ================================================================
+			const composer = document.getElementById("composer");
+			const composerText = document.getElementById("composer_text");
+
+			async function sendMessage() {
+				// Режим редагування: зберігаємо зміну, а не шлемо нове
+				if (typeof window.__ccEditingId === "function" && window.__ccEditingId()) {
+					await window.__ccSaveEdit();
+					return;
+				}
+
+				const text = composerText.value.trim();
+
+				if (convManagerId === null || Number(convManagerId) !== CURRENT_USER_ID) {
+					notyf.error(convManagerId === null ? T.lockedFree : T.lockedOther);
+					return;
+				}
+
+				// Обраний файл має пріоритет: текст стає підписом до нього
+				if (typeof window.hasPendingFile === "function" && window.hasPendingFile()) {
+					await window.uploadPendingFile(text);
+					return;
+				}
+
+				if (!text) return;
+
+				const btn = document.getElementById("btn_send");
+				if (btn.disabled) return;
+
+				btn.disabled = true;
+				composerText.disabled = true;
+
+				try {
+					const res = await fetch("/api/contact-center/chat/" + CONV_ID + "/send/", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ text: text }),
+					});
+
+					const data = await res.json();
+
+					// Повідомлення записано в БД у будь-якому разі — показуємо його,
+					// навіть якщо канал відхилив відправку.
+					if (data.id_message) {
+						composerText.value = "";
+						appendMessages(
+							[
+								{
+									id: data.id_message,
+									direction: "out",
+									type: "text",
+									text: text,
+									id_manager: CURRENT_USER_ID,
+									status: data.status === "success" ? "sent" : "failed",
+									error: data.message,
+									date_add: data.date_add,
+									attachments: [],
+								},
+							],
+							false
+						);
+					}
+
+					if (data.status !== "success") notyf.error(data.message || T.sendError);
+				} catch (err) {
+					console.error("send:", err);
+					notyf.error(T.sendError);
+				} finally {
+					// Стан відновлюємо через renderComposerState:
+					// діалог міг перейти іншому менеджеру, поки йшов запит
+					renderComposerState();
+					if (!composerText.disabled) composerText.focus();
+				}
+			}
+
+			composer.addEventListener("submit", function (e) {
+				e.preventDefault();
+				sendMessage();
+			});
+
+			// Enter — відправити, Shift+Enter — новий рядок
+			composerText.addEventListener("keydown", function (e) {
+				if (e.key === "Enter" && !e.shiftKey) {
+					e.preventDefault();
+					sendMessage();
+				}
+			});
+
+			// ── Менеджер друкує → індикатор клієнту (throttled) ──
+			(function () {
+				let lastTyping = 0;
+				const ta = document.getElementById("composer_text");
+				if (!ta) return;
+				ta.addEventListener("input", function () {
+					// шлемо не частіше разу на 2с
+					const now = Date.now();
+					if (now - lastTyping < 2000) return;
+					lastTyping = now;
+					// тільки якщо я власник діалогу
+					if (convManagerId === null || Number(convManagerId) !== CURRENT_USER_ID) return;
+					fetch("/api/contact-center/chat/" + CONV_ID + "/typing/", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({}),
+					}).catch(function () {});
+				});
+			})();
+		</script>
+
+		<script>
+			// ================================================================
+			// ДІЇ НАД ДІАЛОГОМ
+			// ================================================================
+			// Форма відповіді доступна тільки власнику діалогу
+			function renderComposerState() {
+				const mine = convManagerId !== null && Number(convManagerId) === CURRENT_USER_ID;
+				const text = document.getElementById("composer_text");
+				const btn = document.getElementById("btn_send");
+				let $hint = $("#composer_locked");
+
+				text.disabled = !mine;
+				btn.disabled = !mine;
+
+				// Панель інструментів блокується разом із полем введення
+				$("#btn_emoji, #btn_commands").prop("disabled", !mine);
+				$("#btn_attach_label").toggleClass("disabled", !mine);
+				if (!mine) {
+					$("#emoji_panel").hide();
+					$("#file_preview").addClass("d-none");
+					if (document.getElementById("composer_file")) document.getElementById("composer_file").value = "";
+				}
+
+				if (mine) {
+					$hint.remove();
+					text.placeholder = T.placeholder;
+					$("#composer").find("small.text-muted").show();
+					return;
+				}
+
+				$("#composer").find("small.text-muted").hide();
+
+				text.value = "";
+				text.placeholder = "";
+
+				if (!$hint.length) {
+					$("#composer").prepend('<div id="composer_locked" class="alert alert-secondary rounded-0 border-0 border-bottom mb-0 py-2 px-3 small"></div>');
+					$hint = $("#composer_locked");
+				}
+
+				$hint.text(convManagerId === null ? T.lockedFree : T.lockedOther);
+			}
+
+			function renderAssignButton() {
+				const btn = document.getElementById("btn_assign");
+				const label = document.getElementById("assign_label");
+
+				if (convManagerId === null) {
+					label.textContent = T.take;
+					btn.disabled = false;
+					btn.className = "btn btn-outline-primary rounded-0";
+				} else if (Number(convManagerId) === CURRENT_USER_ID) {
+					label.textContent = T.release;
+					btn.disabled = false;
+					btn.className = "btn btn-outline-secondary rounded-0";
+					document.getElementById("btn_transfer").classList.remove("d-none");
+				} else {
+					label.textContent = T.takenByOther;
+					btn.disabled = true;
+					btn.className = "btn btn-outline-secondary rounded-0";
+				}
+
+				// «Передати» видно лише власнику
+				const transferBtn = document.getElementById("btn_transfer");
+				if (transferBtn) {
+					if (convManagerId !== null && Number(convManagerId) === CURRENT_USER_ID) transferBtn.classList.remove("d-none");
+					else transferBtn.classList.add("d-none");
+				}
+
+				renderStatusButtons();
+				renderComposerState();
+			}
+
+			// Кнопки статусу — залежно від того, чи це мій діалог, і його поточного стану
+			function renderStatusButtons() {
+				const mine = convManagerId !== null && Number(convManagerId) === CURRENT_USER_ID;
+				const bResolve = document.getElementById("btn_resolve");
+				const bArchive = document.getElementById("btn_archive");
+				const bReopen = document.getElementById("btn_reopen");
+				const reopenLabel = document.getElementById("reopen_label");
+
+				// Не мій діалог — жодних дій зі статусом
+				if (!mine) {
+					bResolve.classList.add("d-none");
+					bArchive.classList.add("d-none");
+					bReopen.classList.add("d-none");
+					return;
+				}
+
+				const closed = convStatus === "resolved" || convStatus === "archived";
+
+				// Активний → Завершити / В архів; Закритий → повернути в роботу
+				bResolve.classList.toggle("d-none", closed);
+				bArchive.classList.toggle("d-none", closed);
+				bReopen.classList.toggle("d-none", !closed);
+
+				if (closed) {
+					reopenLabel.textContent = convStatus === "archived" ? "Розархівувати" : "Повернути в роботу";
+				}
+			}
+
+			renderAssignButton();
+
+			document.getElementById("btn_assign").addEventListener("click", async function () {
+				const release = convManagerId !== null && Number(convManagerId) === CURRENT_USER_ID;
+
+				try {
+					const res = await fetch("/api/contact-center/chat/" + CONV_ID + "/assign/", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ release: release }),
+					});
+
+					const data = await res.json();
+					if (data.status !== "success") throw new Error();
+
+					convManagerId = data.id_manager;
+					renderAssignButton();
+					notyf.success(T.saved);
+				} catch (err) {
+					notyf.error(T.sendError);
+				}
+			});
+
+			// ── Передача діалогу (Select2 + серверна пагінація) ──
+			(function () {
+				const btnTransfer = document.getElementById("btn_transfer");
+				if (!btnTransfer) return;
+
+				const modalEl = document.getElementById("transferModal");
+				const modal = new bootstrap.Modal(modalEl);
+				const $select = $("#transfer_select");
+				let inited = false;
+
+				function initSelect() {
+					if (inited) return;
+					inited = true;
+					$select.select2({
+						dropdownParent: $(modalEl),
+						placeholder: "Пошук за іменем…",
+						minimumInputLength: 0, // 0 → показує перші 10 одразу
+						width: "100%",
+						ajax: {
+							url: "/api/contact-center/managers/search/",
+							type: "POST",
+							dataType: "json",
+							delay: 250,
+							data: function (params) {
+								return { q: params.term || "", page: params.page || 1 };
+							},
+							processResults: function (data, params) {
+								params.page = params.page || 1;
+								return { results: data.results || [], pagination: { more: !!(data.pagination && data.pagination.more) } };
+							},
+							cache: true,
+						},
+					});
+				}
+
+				btnTransfer.addEventListener("click", function () {
+					initSelect();
+					$select.val(null).trigger("change");
+					modal.show();
+				});
+
+				// Фокус у поле пошуку при відкритті
+				modalEl.addEventListener("shown.bs.modal", function () {
+					if (inited) $select.select2("open");
+				});
+
+				$select.on("select2:select", async function (e) {
+					const toId = e.params.data.id;
+					const name = e.params.data.text;
+					try {
+						const res = await fetch("/api/contact-center/chat/" + CONV_ID + "/assign/", {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ transfer_to: toId }),
+						});
+						const data = await res.json();
+						if (data.status !== "success") throw new Error(data.message || "");
+						convManagerId = data.id_manager;
+						renderAssignButton();
+						modal.hide();
+						notyf.success("Діалог передано: " + name);
+						setTimeout(function () {
+							window.location.href = "/contact-center/";
+						}, 800);
+					} catch (err) {
+						notyf.error(err.message || T.sendError);
+					}
+				});
+			})();
+
+			document.querySelectorAll(".btn-status").forEach(function (btn) {
+				btn.addEventListener("click", async function () {
+					const newStatus = this.dataset.status;
+					try {
+						const res = await fetch("/api/contact-center/chat/" + CONV_ID + "/status/", {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ status: newStatus }),
+						});
+
+						const data = await res.json();
+						if (data.status !== "success") throw new Error();
+
+						convStatus = newStatus;
+						notyf.success(T.saved);
+
+						// Закрив діалог (resolved/archived) — повертаємось до списку.
+						// Повернув у роботу (open) — лишаємось, лише оновлюємо кнопки.
+						if (newStatus === "resolved" || newStatus === "archived") {
+							setTimeout(function () {
+								window.location.href = "/contact-center/";
+							}, 700);
+						} else {
+							renderStatusButtons();
+						}
+					} catch (err) {
+						notyf.error(T.sendError);
+					}
+				});
+			});
+
+			(function () {
+				const openBtn = document.getElementById("btn_delete_dialog");
+				const modalEl = document.getElementById("deleteModal");
+				const modal = new bootstrap.Modal(modalEl);
+				const chk = document.getElementById("delete_confirm_chk");
+				const confirmBtn = document.getElementById("delete_confirm_btn");
+
+				// Відкриття модалки — галочку і кнопку щоразу скидаємо
+				openBtn.addEventListener("click", function () {
+					chk.checked = false;
+					confirmBtn.disabled = true;
+					modal.show();
+				});
+
+				// Кнопка активна лише при поставленій галочці
+				chk.addEventListener("change", function () {
+					confirmBtn.disabled = !this.checked;
+				});
+
+				// Підтвердження видалення
+				confirmBtn.addEventListener("click", async function () {
+					if (!chk.checked) return;
+
+					confirmBtn.disabled = true;
+					const orig = confirmBtn.innerHTML;
+					confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+					try {
+						const res = await fetch("/api/contact-center/chat/" + CONV_ID + "/delete/", {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({}),
+						});
+						const data = await res.json();
+						if (data.status !== "success") throw new Error(data.message || "");
+
+						notyf.success("Діалог видалено");
+						setTimeout(function () {
+							window.location.href = "/contact-center/";
+						}, 700);
+					} catch (err) {
+						confirmBtn.disabled = false;
+						confirmBtn.innerHTML = orig;
+						notyf.error(err.message || "Не вдалося видалити діалог");
+					}
+				});
+			})();
+		</script>
+
+		<script>
+			// ================================================================
+			// SOCKET — вхідні повідомлення в цьому діалозі
+			// ================================================================
+			socket.emit("room", "io_conversation_" + CONV_ID);
+
+			socket.on("cc:message", function (data) {
+				if (!data || !data.message) return;
+				if (Number(data.conversation && data.conversation.id) !== CONV_ID) return;
+
+				// Своє вихідне вже намальовано локально
+				if (data.message.direction === "out" && Number(data.message.id_manager) === CURRENT_USER_ID) return;
+
+				if (document.querySelector('[data-msg-id="' + data.message.id + '"]')) return;
+
+				feed.querySelector("p.text-muted") && (feed.innerHTML = "");
+				appendMessages([data.message], false);
+
+				// Менеджер дивиться на діалог — отже прочитав.
+				// Без цього клієнт не отримає другу галочку до перезавантаження.
+				if (data.message.direction === "in" && !document.hidden) markConversationRead();
+			});
+
+			// Вкладення довантажилось — підміняємо заглушку
+			socket.on("cc:attachment_ready", function (data) {
+				if (!data || !data.id_message) return;
+
+				const row = document.querySelector('[data-msg-id="' + data.id_message + '"]');
+				if (!row) return;
+
+				const holders = row.querySelectorAll(".msg-attach");
+				const holder = holders[data.sort_order || 0];
+				if (holder) holder.outerHTML = renderAttachment(data.attachment);
+			});
+
+			// Клієнт прочитав вихідні до up_to — перемальовуємо галочки на сині
+			socket.on("cc:read_receipt", function (data) {
+				if (!data || Number(data.id_conversation) !== CONV_ID) return;
+
+				const upTo = Number(data.up_to) || 0;
+
+				// Проходимо по вихідних повідомленнях з id <= up_to і статусом sent/delivered
+				document.querySelectorAll("[data-msg-id]").forEach(function (row) {
+					const mid = Number(row.getAttribute("data-msg-id"));
+					if (!mid || mid > upTo) return;
+
+					const icon = row.querySelector(".msg-status");
+					if (!icon) return; // не вихідне або вже не має галочки
+
+					// Замінюємо на дві сині
+					icon.className = "fa-solid fa-check-double text-primary msg-status";
+					icon.setAttribute("title", T.statusRead);
+				});
+			});
+
+			// Реакція клієнта на повідомлення
+			socket.on("cc:reaction", function (data) {
+				if (!data || Number(data.id_conversation) !== CONV_ID) return;
+
+				const row = document.querySelector('[data-msg-id="' + data.id_message + '"]');
+				if (!row) return;
+
+				let badge = row.querySelector(".msg-reaction");
+
+				if (!data.reaction) {
+					// Реакцію прибрано
+					if (badge) badge.remove();
+					return;
+				}
+
+				if (!badge) {
+					badge = document.createElement("span");
+					badge.className = "msg-reaction";
+					const bubble = row.querySelector(".msg-bubble") || row;
+					bubble.appendChild(badge);
+				}
+				badge.textContent = data.reaction;
+			});
+
+			// Клієнт друкує — показуємо індикатор із текстом прев'ю
+			let typingTimer = null;
+			socket.on("cc:typing", function (data) {
+				if (!data || Number(data.id_conversation) !== CONV_ID) return;
+
+				const box = document.getElementById("cc_typing");
+				if (!box) return;
+
+				const text = String(data.text || "").trim();
+				clearTimeout(typingTimer);
+
+				if (!text) {
+					box.classList.add("d-none");
+					box.innerHTML = "";
+					return;
+				}
+
+				box.innerHTML = "друкує: <b>" + escapeHtml(text) + "</b>";
+				box.classList.remove("d-none");
+
+				typingTimer = setTimeout(function () {
+					box.classList.add("d-none");
+					box.innerHTML = "";
+				}, 4000);
+			});
+
+			socket.on("cc:presence", function (data) {
+				if (!data || Number(data.id_conversation || data.id) !== CONV_ID) return;
+				const dot = document.getElementById("cc_online_dot");
+				if (!dot) return;
+				if (data.online) {
+					dot.classList.add("is-online");
+					dot.title = "Онлайн";
+				} else {
+					dot.classList.remove("is-online");
+					dot.title = "Офлайн";
+				}
+			});
+
+			socket.on("cc:message", function (data) {
+				if (data && data.message && data.message.direction === "in") {
+					const box = document.getElementById("cc_typing");
+					if (box) {
+						box.classList.add("d-none");
+						box.innerHTML = "";
+					}
+				}
+			});
+		</script>
+		<script>
+			// ================================================================
+			// МЕДІАТЕКА — окрема картка. Лениве завантаження при першому показі.
+			// ================================================================
+			(function () {
+				let loaded = false;
+				let mediaData = null;
+				let activeType = "image";
+
+				const body = document.getElementById("cc_media_body");
+				if (!body) return;
+
+				function fmtSize(s) {
+					return s ? " (" + Math.round(s / 1024) + " KB)" : "";
+				}
+
+				function render(type) {
+					activeType = type;
+					const items = (mediaData && mediaData[type]) || [];
+
+					if (!items.length) {
+						body.innerHTML = '<div class="cc-media-empty">Немає файлів</div>';
+						return;
+					}
+
+					if (type === "image" || type === "video") {
+						let html = '<div class="cc-media-grid">';
+						items.forEach(function (a) {
+							const url = escapeHtml(a.path);
+							if (type === "image") {
+								const src = a.thumb_path ? escapeHtml(a.thumb_path) : url;
+								html += '<a href="' + url + '" target="_blank" rel="noopener"><img src="' + src + '" loading="lazy" alt=""></a>';
+							} else {
+								html += '<a href="' + url + '" target="_blank" rel="noopener"><video src="' + url + '" preload="metadata"></video></a>';
+							}
+						});
+						html += "</div>";
+						body.innerHTML = html;
+						return;
+					}
+
+					let html = '<div class="cc-media-list">';
+					items.forEach(function (a) {
+						const url = escapeHtml(a.path);
+						const name = escapeHtml(a.file_name || url.split("/").pop());
+						const icon = type === "audio" ? "fa-solid fa-music" : "fa-regular fa-file";
+						html += '<a href="' + url + '" target="_blank" rel="noopener"><i class="' + icon + '"></i><span class="text-truncate">' + name + fmtSize(a.size) + "</span></a>";
+					});
+					html += "</div>";
+					body.innerHTML = html;
+				}
+
+				async function loadMedia() {
+					if (loaded) return;
+					try {
+						const res = await fetch("/api/contact-center/chat/" + CONV_ID + "/media/", {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({}),
+						});
+						mediaData = await res.json();
+						loaded = true;
+						render(activeType);
+					} catch (err) {
+						body.innerHTML = '<div class="cc-media-empty text-danger">' + T.loadError + "</div>";
+					}
+				}
+
+				document.querySelectorAll("[data-cc-media]").forEach(function (btn) {
+					btn.addEventListener("click", function () {
+						document.querySelectorAll("[data-cc-media]").forEach(function (b) {
+							b.classList.remove("active");
+						});
+						this.classList.add("active");
+						render(this.getAttribute("data-cc-media"));
+					});
+				});
+
+				// Картка видима одразу → вантажимо при завантаженні сторінки
+				loadMedia();
+			})();
+		</script>
+
+		<% if (data.conversation.channel_type === 'webchat') { %>
+		<script>
+			// ================================================================
+			// КАРТКА ТОВАРУ (веб-чат): поточний + історія (offcanvas)
+			// ================================================================
+			(function () {
+				const card = document.getElementById("cc_product_card");
+				const body = document.getElementById("cc_product_body");
+				const histBody = document.getElementById("cc_prod_hist_body");
+				if (!card || !body) return;
+
+				let lastProduct = null; // останній відомий товар (для стану "вийшов з товару")
+
+				function renderProduct(p, isLast) {
+					if (!p || !p.name) {
+						body.innerHTML = '<div class="text-muted small text-center py-2">Клієнт ще не переглядав товари</div>';
+						return;
+					}
+					let html = "";
+					if (isLast) html += '<div class="small text-muted mb-1"><i class="fa-regular fa-clock me-1"></i>Останній переглянутий</div>';
+					if (p.image) html += '<a href="' + escapeHtml(p.url || "#") + '" target="_blank" rel="noopener"><img src="' + escapeHtml(p.image) + '" alt=""></a>';
+					html += '<div class="cc-product-name mt-2">' + escapeHtml(p.name) + "</div>";
+					if (p.brand) html += '<div class="small text-muted">' + escapeHtml(p.brand) + "</div>";
+					if (p.price) html += '<div class="text-success fw-semibold">' + escapeHtml(p.price) + " " + escapeHtml(p.currency || "") + "</div>";
+					if (p.availability) {
+						const av = { in: "✓ В наявності", out: "✕ Немає", preorder: "Передзамовлення", backorder: "Під замовлення" }[p.availability] || p.availability;
+						const cls = p.availability === "in" ? "text-success" : p.availability === "out" ? "text-danger" : "text-muted";
+						html += '<div class="small ' + cls + '">' + escapeHtml(av) + "</div>";
+					}
+					if (p.sku) html += '<div class="small text-muted">Артикул: ' + escapeHtml(p.sku) + "</div>";
+					if (p.gtin) html += '<div class="small text-muted">GTIN: ' + escapeHtml(p.gtin) + "</div>";
+					if (p.rating) html += '<div class="small">★ ' + escapeHtml(p.rating) + (p.reviewCount ? ' <span class="text-muted">(' + escapeHtml(p.reviewCount) + ")</span>" : "") + "</div>";
+					if (p.description) html += '<div class="small text-muted mt-1" style="max-height:60px;overflow:hidden">' + escapeHtml(p.description) + "</div>";
+					if (p.url) html += '<a href="' + escapeHtml(p.url) + '" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary rounded-0 mt-2 w-100">Відкрити сторінку</a>';
+					body.innerHTML = html;
+				}
+
+				function renderHistory(items) {
+					if (!items || !items.length) {
+						histBody.innerHTML = '<div class="text-center text-muted p-4">Немає переглядів</div>';
+						return;
+					}
+					histBody.innerHTML = items
+						.map(function (it) {
+							const p = it.product || {};
+							const img = p.image ? '<img src="' + escapeHtml(p.image) + '" alt="">' : '<div style="width:44px;height:44px;background:#f6f8fa;flex-shrink:0"></div>';
+							const price = p.price ? '<div class="small text-success">' + escapeHtml(p.price) + " " + escapeHtml(p.currency || "") + "</div>" : "";
+							const views = it.views ? '<span class="badge text-bg-secondary ms-1">' + it.views + "</span>" : "";
+							return '<a href="' + escapeHtml(p.url || "#") + '" target="_blank" rel="noopener" class="cc-prod-hist-item text-reset text-decoration-none">' + img + '<div class="flex-grow-1"><div class="small fw-semibold">' + escapeHtml(p.name || "—") + views + "</div>" + price + "</div></a>";
+						})
+						.join("");
+				}
+
+				function renderHistoryPrepend(p) {
+					if (!p || !p.name || !histBody) return;
+					const empty = histBody.querySelector(".text-muted");
+					if (empty) histBody.innerHTML = "";
+					const img = p.image ? '<img src="' + escapeHtml(p.image) + '" alt="">' : '<div style="width:44px;height:44px;background:#f6f8fa;flex-shrink:0"></div>';
+					const price = p.price ? '<div class="small text-success">' + escapeHtml(p.price) + " " + escapeHtml(p.currency || "") + "</div>" : "";
+					const el = '<a href="' + escapeHtml(p.url || "#") + '" target="_blank" rel="noopener" class="cc-prod-hist-item text-reset text-decoration-none">' + img + '<div class="flex-grow-1"><div class="small fw-semibold">' + escapeHtml(p.name) + "</div>" + price + "</div></a>";
+					histBody.insertAdjacentHTML("afterbegin", el);
+				}
+
+				// Початкове завантаження: поточний
+				fetch("/api/contact-center/chat/" + CONV_ID + "/products/", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({}),
+				})
+					.then(function (r) {
+						return r.json();
+					})
+					.then(function (data) {
+						const history = data.history || [];
+						if (history.length) lastProduct = history[0].product;
+						if (data.current && data.current.name) {
+							renderProduct(data.current, false);
+						} else if (lastProduct) {
+							renderProduct(lastProduct, true);
+						} else {
+							renderProduct(null);
+						}
+						renderHistory(history);
+					})
+					.catch(function () {});
+
+				// Наживо: клієнт відкрив товар (product) або вийшов на не-товар (null)
+				function loadProducts(showLastIfNoCurrent) {
+					fetch("/api/contact-center/chat/" + CONV_ID + "/products/", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({}),
+					})
+						.then(function (r) {
+							return r.json();
+						})
+						.then(function (data) {
+							const history = data.history || [];
+							if (history.length) lastProduct = history[0].product;
+							if (data.current && data.current.name) {
+								renderProduct(data.current, false);
+							} else if (lastProduct) {
+								renderProduct(lastProduct, true);
+							} else {
+								renderProduct(null);
+							}
+							renderHistory(history);
+						})
+						.catch(function () {});
+				}
+
+				socket.on("cc:product", function (data) {
+					if (!data || Number(data.id_conversation) !== CONV_ID) return;
+					if (data.product && data.product.name) {
+						lastProduct = data.product;
+						renderProduct(data.product, false);
+						renderHistoryPrepend(data.product);
+					} else {
+						// Клієнт пішов з товару (або перезавантажив на не-товарі) —
+						// перезапитуємо, щоб показати останній переглянутий з історії
+						loadProducts(true);
+					}
+				});
+			})();
+		</script>
+		<% } %>
+		<script>
+			// Початковий онлайн-статус + жива поточна сторінка + інфо клієнта
+			function ccSetOnlineDot(online) {
+				const dot = document.getElementById("cc_online_dot");
+				if (!dot) return;
+				dot.classList.toggle("is-online", !!online);
+				dot.title = online ? "Онлайн" : "Офлайн";
+			}
+			fetch("/api/contact-center/chat/" + CONV_ID + "/online/", {
+				method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}),
+			}).then(function (r) { return r.json(); }).then(function (d) { ccSetOnlineDot(!!d.online); }).catch(function () {});
+
+			<% if (data.conversation.channel_type === 'webchat') { %>
+							// Парсер userAgent → людські браузер/ОС/пристрій (без залежностей)
+			function ccParseUA(ua) {
+				ua = String(ua || "");
+				let browser = "", os = "", device = "desktop", m;
+				if ((m = ua.match(/Edg(?:e|A|iOS)?\/([\d.]+)/))) browser = "Edge " + m[1];
+				else if ((m = ua.match(/OPR\/([\d.]+)/))) browser = "Opera " + m[1];
+				else if ((m = ua.match(/Firefox\/([\d.]+)/))) browser = "Firefox " + m[1];
+				else if ((m = ua.match(/Chrome\/([\d.]+)/))) browser = "Chrome " + m[1];
+				else if ((m = ua.match(/Version\/([\d.]+).*Safari/))) browser = "Safari " + m[1];
+				else if (/Safari/.test(ua)) browser = "Safari";
+				if ((m = ua.match(/Windows NT ([\d.]+)/))) { const w = {"10.0":"10/11","6.3":"8.1","6.2":"8","6.1":"7"}; os = "Windows " + (w[m[1]]||m[1]); }
+				else if ((m = ua.match(/Android ([\d.]+)/))) os = "Android " + m[1];
+				else if ((m = ua.match(/iPhone OS ([\d_]+)/))) os = "iOS " + m[1].replace(/_/g,".");
+				else if ((m = ua.match(/CPU OS ([\d_]+)/))) os = "iPadOS " + m[1].replace(/_/g,".");
+				else if ((m = ua.match(/Mac OS X ([\d_]+)/))) os = "macOS " + m[1].replace(/_/g,".");
+				else if (/Linux/.test(ua)) os = "Linux";
+				if (/iPad|Tablet/.test(ua)) device = "планшет";
+				else if (/Mobi|Android|iPhone/.test(ua)) device = "мобільний";
+				else device = "десктоп";
+				return { browser, os, device };
+			}
+
+			function ccRenderVisitorInfo(info, pageUrl) {
+				const box = document.getElementById("cc_visitor_info");
+				if (!box) return;
+				info = info || {};
+
+				const u = info.utm || {};
+				const utm = {
+					source: info.utm_source || u.source || "",
+					medium: info.utm_medium || u.medium || "",
+					campaign: info.utm_campaign || u.campaign || "",
+					term: info.utm_term || u.term || "",
+					content: info.utm_content || u.content || "",
+				};
+				const gclid = info.gclid || (u && u.gclid) || "";
+				const fbclid = info.fbclid || (u && u.fbclid) || "";
+
+				const ua = ccParseUA(info.userAgent);
+				const rows = [];
+				let pendingTitle = null;
+
+				function sec(title) { pendingTitle = title; }
+				function flush() {
+					if (pendingTitle) {
+						rows.push('<div class="fw-semibold text-uppercase text-muted mt-2 mb-1" style="font-size:10px;letter-spacing:.5px">' + pendingTitle + "</div>");
+						pendingTitle = null;
+					}
+				}
+				function row(label, val, isLink) {
+					if (!val) return;
+					flush();
+					const v = isLink
+						? '<a href="' + escapeHtml(val) + '" target="_blank" rel="noopener" class="text-truncate d-inline-block align-bottom" style="max-width:60%">' + escapeHtml(val) + "</a>"
+						: escapeHtml(val);
+					rows.push('<div class="d-flex justify-content-between gap-2"><span class="text-muted">' + label + '</span><span class="text-end">' + v + "</span></div>");
+				}
+
+				const cur = pageUrl || info.pageUrl;
+				sec("Сторінка");
+				if (cur) { flush(); rows.push('<div class="mb-1"><a href="' + escapeHtml(cur) + '" target="_blank" rel="noopener" class="text-truncate d-inline-block" style="max-width:100%">' + escapeHtml(cur) + "</a></div>"); }
+
+				sec("UTM / джерело");
+				row("Source", utm.source);
+				row("Medium", utm.medium);
+				row("Campaign", utm.campaign);
+				row("Term", utm.term);
+				row("Content", utm.content);
+				row("gclid", gclid);
+				row("fbclid", fbclid);
+
+				sec("Пристрій");
+				row("Браузер", ua.browser);
+				row("ОС", ua.os || info.platform);
+				row("Тип", (ua.device || "") + (info.touch === "yes" ? " (тач)" : ""));
+				row("Екран", info.screen);
+				row("Вікно", info.viewport);
+				row("Зʼєднання", info.connection);
+
+				sec("Локаль");
+				row("Мови", info.languages);
+				row("Часовий пояс", info.timezone);
+
+				sec("Мережа");
+				row("IP", info.ip);
+
+				box.innerHTML = rows.length ? rows.join("") : '<div class="text-muted">Немає даних</div>';
+			}
+
+			let ccVisitorInfo = null;
+			fetch("/api/contact-center/chat/" + CONV_ID + "/visitor-info/", {
+				method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}),
+			}).then(function (r) { return r.json(); }).then(function (d) { ccVisitorInfo = d.info || {}; ccRenderVisitorInfo(ccVisitorInfo); }).catch(function () {});
+
+			// Жива зміна сторінки
+			socket.on("cc:visitor_page", function (data) {
+				if (!data || Number(data.id_conversation) !== CONV_ID) return;
+				if (!ccVisitorInfo) ccVisitorInfo = {};
+				ccVisitorInfo.pageUrl = data.page_url;
+				ccRenderVisitorInfo(ccVisitorInfo);
+			});
+			<% } %>
+		</script>
+		<script>
+			// ── Редагування свого повідомлення через поле композера ──
+			(function () {
+				let editingId = null; // id повідомлення в режимі редагування
+				const ta = document.getElementById("composer_text");
+				const btnSend = document.getElementById("btn_send");
+				const sendLabelOrig = btnSend ? btnSend.textContent : "Надіслати";
+
+				// Панель-підказка над композером
+				function showEditBar(text) {
+					let bar = document.getElementById("edit_bar");
+					if (!bar) {
+						bar = document.createElement("div");
+						bar.id = "edit_bar";
+						bar.className = "alert alert-warning rounded-0 border-0 border-bottom mb-0 py-1 px-3 small d-flex justify-content-between align-items-center";
+						document.getElementById("composer").prepend(bar);
+					}
+					bar.innerHTML = '<span><i class="fa-solid fa-pen me-1"></i>Редагування повідомлення</span>' + '<button type="button" class="btn-close" id="edit_cancel" aria-label="Скасувати" style="font-size:.7rem"></button>';
+					document.getElementById("edit_cancel").addEventListener("click", exitEdit);
+				}
+				function exitEdit() {
+					editingId = null;
+					const bar = document.getElementById("edit_bar");
+					if (bar) bar.remove();
+					ta.value = "";
+					if (btnSend) btnSend.textContent = sendLabelOrig;
+				}
+				// експортуємо, щоб sendMessage міг перевірити режим
+				window.__ccEditingId = function () {
+					return editingId;
+				};
+				window.__ccExitEdit = exitEdit;
+
+				// Клік по олівцю → підставити текст у композер
+				feed.addEventListener("click", function (e) {
+					const btn = e.target.closest(".msg-edit-btn");
+					if (!btn) return;
+					const row = btn.closest("[data-msg-id]");
+					if (!row) return;
+					editingId = row.getAttribute("data-msg-id");
+					ta.value = row.getAttribute("data-text") || "";
+					ta.disabled = false;
+					ta.focus();
+					ta.setSelectionRange(ta.value.length, ta.value.length);
+					if (btnSend) btnSend.textContent = "Зберегти";
+					showEditBar();
+				});
+
+				// Збереження редагування
+				window.__ccSaveEdit = async function () {
+					const newText = ta.value.trim();
+					const msgId = editingId;
+					if (!newText) {
+						notyf.error("Порожньо");
+						return;
+					}
+					const row = document.querySelector('[data-msg-id="' + msgId + '"]');
+					const oldText = row ? row.getAttribute("data-text") || "" : "";
+					if (newText === oldText) {
+						exitEdit();
+						return;
+					}
+					try {
+						const res = await fetch("/api/contact-center/chat/" + CONV_ID + "/message/" + msgId + "/edit/", {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ text: newText }),
+						});
+						const data = await res.json();
+						if (data.status !== "success") throw new Error(data.message || "");
+						notyf.success("Змінено");
+						applyEdit(msgId, newText);
+						exitEdit();
+					} catch (err) {
+						notyf.error(err.message || T.sendError);
+					}
+				};
+			})();
+
+			// Точкове оновлення тексту повідомлення в DOM (без перезавантаження стрічки)
+			function applyEdit(msgId, newText) {
+				const row = document.querySelector('[data-msg-id="' + msgId + '"]');
+				if (!row) return;
+				row.setAttribute("data-text", newText);
+				// перший .msg-bubble > div (текст), не чіпаючи кнопку олівця/реакції
+				const bubble = row.querySelector(".msg-bubble");
+				if (!bubble) return;
+				// шукаємо текстовий div (останній div у бульбашці)
+				const divs = bubble.querySelectorAll(":scope > div");
+				const textDiv = divs.length ? divs[divs.length - 1] : null;
+				if (textDiv) textDiv.textContent = newText;
+				// мітка "(змінено)"
+				const timeEl = row.querySelector(".time");
+				if (timeEl && !timeEl.querySelector(".msg-edited-mark")) {
+					const mark = document.createElement("span");
+					mark.className = "msg-edited-mark";
+					mark.textContent = "(змінено)";
+					timeEl.appendChild(mark);
+				}
+			}
+
+			// Realtime: інший менеджер відредагував
+			socket.on("cc:message_edited", function (data) {
+				if (!data || Number(data.id_conversation) !== CONV_ID) return;
+				applyEdit(data.id_message, data.text);
+			});
+		</script>
+		<script>
+			(function () {
+				const menuForm = document.getElementById("mn_send_form");
+				if (!menuForm) return;
+				const modalEl = document.getElementById("sendFormModal");
+				const modal = new bootstrap.Modal(modalEl);
+				const body = document.getElementById("send_form_body");
+
+				const TARGET_LABELS = { quick: "Швидкі", lead: "Ліди", order: "Замовлення" };
+
+				menuForm.addEventListener("click", async function (e) {
+					e.preventDefault();
+					body.innerHTML = '<div class="text-muted">Завантаження…</div>';
+					modal.show();
+					try {
+						const res = await fetch("/api/contact-center/chat/" + CONV_ID + "/forms/", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+						const data = await res.json();
+						const forms = (data && data.forms) || [];
+						if (!forms.length) {
+							body.innerHTML = '<div class="text-muted">У цього каналу немає форм.</div>';
+							return;
+						}
+
+						// групування по target
+						const groups = { quick: [], lead: [], order: [] };
+						forms.forEach(function (f) {
+							(groups[f.target] || groups.quick).push(f);
+						});
+
+						let html = "";
+						["quick", "lead", "order"].forEach(function (t) {
+							if (!groups[t].length) return;
+							html += '<div class="fw-semibold text-uppercase text-muted small mt-2 mb-1">' + TARGET_LABELS[t] + "</div>";
+							groups[t].forEach(function (f) {
+								html += '<button type="button" class="btn btn-outline-secondary rounded-0 w-100 text-start mb-1 send-form-btn" data-form-id="' + escapeHtml(f.id) + '">' + escapeHtml(f.label) + ' <span class="text-muted small">(' + f.fieldsCount + " полів)</span></button>";
+							});
+						});
+						body.innerHTML = html;
+					} catch (err) {
+						body.innerHTML = '<div class="text-danger">Помилка завантаження форм.</div>';
+					}
+				});
+
+				body.addEventListener("click", async function (e) {
+					const btn = e.target.closest(".send-form-btn");
+					if (!btn) return;
+					const formId = btn.getAttribute("data-form-id");
+					btn.disabled = true;
+					try {
+						const res = await fetch("/api/contact-center/chat/" + CONV_ID + "/send-form/", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ formId: formId }) });
+						const data = await res.json();
+						if (data.ok) {
+							notyf.success("Форму надіслано клієнту");
+							modal.hide();
+						} else notyf.error(data.error || "Не вдалося надіслати");
+					} catch (err) {
+						notyf.error("Помилка");
+					} finally {
+						btn.disabled = false;
+					}
+				});
+			})();
+		</script>
+		<script>
+			// ── Створити лід ──
+				(function () {
+					const modalEl = document.getElementById("createLeadModal");
+					const modal = new bootstrap.Modal(modalEl);
+					document.getElementById("mn_create_lead").addEventListener("click", function (e) {
+						e.preventDefault();
+						// автозаповнення з даних діалогу
+						const cName = "<%= (data.conversation.contact_name || '').replace(/"/g,'&quot;') %>";
+						const cPhone = "<%= (data.conversation.contact_phone || '') %>";
+						const cEmail = "<%= (data.conversation.contact_email || '') %>";
+						document.getElementById("lead_name").value = cName;
+						document.getElementById("lead_phone").value = cPhone;
+						document.getElementById("lead_email").value = cEmail;
+						document.getElementById("lead_title").value = "Чат: " + (cName || cPhone || cEmail || "клієнт");
+						document.getElementById("lead_value").value = "";
+						document.getElementById("lead_note").value = "";
+						// підказка про товар, якщо є на картці
+						const prodName = document.querySelector("#cc_product_body .cc-product-name");
+						const hint = document.getElementById("lead_product_hint");
+						if (prodName) hint.textContent = "Товар «" + prodName.textContent + "» буде додано до ліда автоматично.";
+						else hint.textContent = "";
+						modal.show();
+					});
+
+					document.getElementById("lead_create_btn").addEventListener("click", async function () {
+						const btn = this;
+						btn.disabled = true;
+						try {
+							const res = await fetch("/api/contact-center/chat/" + CONV_ID + "/create-lead/", {
+								method: "POST",
+								headers: { "Content-Type": "application/json" },
+								body: JSON.stringify({
+									title: document.getElementById("lead_title").value.trim(),
+									name: document.getElementById("lead_name").value.trim(),
+									phone: document.getElementById("lead_phone").value.trim(),
+									email: document.getElementById("lead_email").value.trim(),
+									value: document.getElementById("lead_value").value.trim(),
+									note: document.getElementById("lead_note").value.trim(),
+								}),
+							});
+							const data = await res.json();
+							if (!data.ok) throw new Error(data.error || "");
+							notyf.success("Лід створено");
+							modal.hide();
+							window.open("/leads/" + data.id_lead + "/", "_blank");
+						} catch (err) {
+							notyf.error(err.message || "Не вдалося створити лід");
+						} finally {
+							btn.disabled = false;
+						}
+					});
+				})();
+
+				// ── Створити замовлення ──
+				(function () {
+					const modalEl = document.getElementById("createOrderModal");
+					const modal = new bootstrap.Modal(modalEl);
+					const itemsBox = document.getElementById("ord_items");
+
+					function itemRow(name, price, qty, sku) {
+						const div = document.createElement("div");
+						div.className = "row g-1 mb-1 ord-item align-items-center";
+						div.innerHTML =
+							'<div class="col-5"><input type="text" class="form-control form-control-sm rounded-0 it-name" placeholder="Назва" value="' + escapeHtml(name || "") + '"></div>' +
+							'<div class="col-3"><input type="text" class="form-control form-control-sm rounded-0 it-price" placeholder="Ціна" value="' + escapeHtml(price || "") + '"></div>' +
+							'<div class="col-2"><input type="number" min="1" class="form-control form-control-sm rounded-0 it-qty" value="' + (qty || 1) + '"></div>' +
+							'<div class="col-2"><button type="button" class="btn btn-sm btn-outline-danger rounded-0 w-100 it-del"><i class="fa-solid fa-xmark"></i></button></div>' +
+							'<input type="hidden" class="it-sku" value="' + escapeHtml(sku || "") + '">';
+						return div;
+					}
+
+					function recalc() {
+						let total = 0;
+						itemsBox.querySelectorAll(".ord-item").forEach(function (r) {
+							const p = parseFloat(String(r.querySelector(".it-price").value).replace(",", ".")) || 0;
+							const q = parseInt(r.querySelector(".it-qty").value, 10) || 1;
+							total += p * q;
+						});
+						document.getElementById("ord_total").textContent = total.toFixed(2);
+					}
+
+					itemsBox.addEventListener("input", recalc);
+					itemsBox.addEventListener("click", function (e) {
+						if (e.target.closest(".it-del")) { e.target.closest(".ord-item").remove(); recalc(); }
+					});
+					document.getElementById("ord_add_item").addEventListener("click", function () {
+						itemsBox.appendChild(itemRow("", "", 1, ""));
+					});
+
+					document.getElementById("mn_create_order").addEventListener("click", function (e) {
+						e.preventDefault();
+						document.getElementById("ord_firstname").value = "<%= (data.conversation.contact_name || '').replace(/"/g,'&quot;') %>";
+						document.getElementById("ord_lastname").value = "";
+						document.getElementById("ord_phone").value = "<%= (data.conversation.contact_phone || '') %>";
+						document.getElementById("ord_email").value = "<%= (data.conversation.contact_email || '') %>";
+						document.getElementById("ord_note").value = "";
+						itemsBox.innerHTML = "";
+
+						// підтягуємо товар із картки, якщо є
+						const prodName = document.querySelector("#cc_product_body .cc-product-name");
+						if (prodName) {
+							const priceEl = document.querySelector("#cc_product_body .text-success");
+							const price = priceEl ? priceEl.textContent.replace(/[^\d.,]/g, "") : "";
+							itemsBox.appendChild(itemRow(prodName.textContent, price, 1, ""));
+						} else {
+							itemsBox.appendChild(itemRow("", "", 1, ""));
+						}
+						recalc();
+						modal.show();
+					});
+
+					document.getElementById("ord_create_btn").addEventListener("click", async function () {
+						const btn = this;
+						const items = [];
+						itemsBox.querySelectorAll(".ord-item").forEach(function (r) {
+							const name = r.querySelector(".it-name").value.trim();
+							if (!name) return;
+							items.push({ name: name, price: r.querySelector(".it-price").value.trim(), quantity: r.querySelector(".it-qty").value, sku: r.querySelector(".it-sku").value });
+						});
+						if (!items.length) { notyf.error("Додайте товар"); return; }
+
+						btn.disabled = true;
+						try {
+							const res = await fetch("/api/contact-center/chat/" + CONV_ID + "/create-order/", {
+								method: "POST",
+								headers: { "Content-Type": "application/json" },
+								body: JSON.stringify({
+									firstname: document.getElementById("ord_firstname").value.trim(),
+									lastname: document.getElementById("ord_lastname").value.trim(),
+									phone: document.getElementById("ord_phone").value.trim(),
+									email: document.getElementById("ord_email").value.trim(),
+									note: document.getElementById("ord_note").value.trim(),
+									items: items,
+								}),
+							});
+							const data = await res.json();
+							if (!data.ok) throw new Error(data.error || "");
+							notyf.success("Замовлення поставлено в обробку");
+							modal.hide();
+						} catch (err) {
+							notyf.error(err.message || "Не вдалося створити замовлення");
+						} finally {
+							btn.disabled = false;
+						}
+					});
+				})();
+		</script>
+	</body>
+</html>

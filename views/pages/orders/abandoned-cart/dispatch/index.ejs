@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+  <head>
+    <title>Розсилки по кошиках</title>
+    <%- include('../../../../partials/head'); %>
+    <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+    <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+  </head>
+  <body class="d-flex flex-column h-100">
+    <%- include('../../../../partials/header'); %>
+
+    <div class="container-fluid mt-3">
+      <div class="row">
+        <div class="col-12 mb-3">
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0">Розсилки по кошиках</div>
+            <div id="dispatch-table"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модалка деталей кошика -->
+    <div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content rounded-0">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="detailTitle">Відправлення</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div id="detail-error" class="alert alert-danger rounded-0 d-none"></div>
+            <div id="detail-body"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal">Закрити</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модалка ручної відправки -->
+    <div class="modal fade" id="sendModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content rounded-0">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="sendTitle">Ручна відправка</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div id="send-error" class="alert alert-danger rounded-0 d-none"></div>
+            <div id="send-success" class="alert alert-success rounded-0 d-none"></div>
+            <div class="mb-2 small text-muted" id="send-cart-info"></div>
+            <label class="form-label">Подія (шаблон повідомлення) <span class="text-danger">*</span></label>
+            <select id="send-event" class="form-select rounded-0"></select>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal">Скасувати</button>
+            <button type="button" class="btn btn-primary rounded-0" id="btn-do-send"><i class="fa-regular fa-paper-plane me-1"></i> Відправити</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%- include('../../../../partials/footer'); %> <%- include('../../../../partials/script'); %>
+    <script src="/assets/js/tabulator/tabulator.min.js"></script>
+    <script>
+      const CH = { 1: "SMS", 2: "Email", 3: "Viber" };
+
+      const escHtml = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+      function cartStatusBadge(s) {
+        const m = { active: "text-bg-secondary", abandoned: "text-bg-warning", notified: "text-bg-info", recovered: "text-bg-success", expired: "text-bg-dark" };
+        return `<span class="badge rounded-0 ${m[s] || "text-bg-secondary"}">${s}</span>`;
+      }
+
+      function deliveryBadge(row) {
+        const s = row.delivery_status;
+        if (!s) return '<span class="text-muted">—</span>';
+        const extra = row.delivery_extra ? ` <span class="text-muted small">(${row.delivery_extra})</span>` : "";
+        const cls = s === "Delivered" ? "text-bg-success" : s === "Rejected" || s === "Undeliverable" || s === "Expired" ? "text-bg-danger" : "text-bg-secondary";
+        return `<span class="badge rounded-0 ${cls}">${s}</span>${extra}`;
+      }
+
+      const table = new Tabulator("#dispatch-table", {
+        layout: "fitColumns",
+        ajaxURL: "/api/orders/abandoned-cart/dispatch-list/",
+        ajaxConfig: "POST",
+        paginationSize: 15,
+        paginationSizeSelector: [15, 30, 50],
+        pagination: true,
+        columns: [
+          { title: "ID", field: "id", widthGrow: 0.3, headerSort: false },
+          {
+            title: "Клієнт",
+            field: "customer",
+            widthGrow: 1.5,
+            headerSort: false,
+            formatter: (cell) => {
+              const c = cell.getRow().getData().customer;
+              if (!c.email && !c.telephone) return '<span class="text-muted">Гість</span>';
+              const name = [c.firstname, c.lastname].filter(Boolean).join(" ") || "—";
+              return `<div>${escHtml(name)}</div><small class="text-muted">${escHtml(c.email || c.telephone)}</small>`;
+            },
+          },
+          { title: "Телефон", field: "customer.telephone", widthGrow: 0.9, headerSort: false, formatter: (c) => escHtml(c.getValue() || "—") },
+          { title: "Статус кошика", field: "cart_status", widthGrow: 0.7, headerSort: false, formatter: (c) => cartStatusBadge(c.getValue()) },
+          {
+            title: "Відправок",
+            field: "sent_total",
+            widthGrow: 0.6,
+            headerSort: false,
+            formatter: (c) => {
+              const r = c.getRow().getData();
+              if (!r.sent_total) return '<span class="text-muted">0</span>';
+              return `<span class="badge rounded-0 text-bg-primary">${r.ok_total}/${r.sent_total}</span>`;
+            },
+          },
+          {
+            title: "Спосіб",
+            field: "auto_total",
+            widthGrow: 0.7,
+            headerSort: false,
+            formatter: (c) => {
+              const r = c.getRow().getData();
+              const parts = [];
+              if (r.auto_total) parts.push('<span class="badge rounded-0 text-bg-info">авто ' + r.auto_total + "</span>");
+              if (r.manual_total) parts.push('<span class="badge rounded-0 text-bg-secondary">ручне ' + r.manual_total + "</span>");
+              return parts.join(" ") || '<span class="text-muted">—</span>';
+            },
+          },
+          {
+            title: "Повтор",
+            field: "repeat_total",
+            widthGrow: 0.4,
+            headerSort: false,
+            formatter: (c) => (c.getValue() ? '<span class="badge rounded-0 text-bg-warning">так</span>' : '<span class="text-muted">—</span>'),
+          },
+          { title: "Доставка", field: "delivery_status", widthGrow: 0.8, headerSort: false, formatter: (c) => deliveryBadge(c.getRow().getData()) },
+          {
+            title: "Проблема",
+            field: "fail_reason",
+            widthGrow: 1.2,
+            headerSort: false,
+            formatter: (c) => {
+              const r = c.getRow().getData();
+              if (!r.fail_reason) return '<span class="text-muted">—</span>';
+              const icon = r.fail_status === "failed" ? "text-danger" : "text-warning";
+              return `<span class="${icon}" title="${escHtml(r.fail_reason)}"><i class="fa-regular fa-triangle-exclamation me-1"></i>${escHtml(r.fail_reason)}</span>`;
+            },
+          },
+          { title: "Останнє", field: "last_sent_at", widthGrow: 1, headerSort: false, formatter: (c) => c.getValue() || '<span class="text-muted">—</span>' },
+          {
+            title: "Деталі",
+            field: "id",
+            widthGrow: 0.4,
+            headerSort: false,
+            formatter: () => '<a href="#" class="d-block text-center"><i class="fa-regular fa-eye"></i></a>',
+            cellClick: (e, cell) => openDetail(cell.getRow().getData().id),
+          },
+          {
+            title: "Відправити",
+            field: "id",
+            widthGrow: 0.5,
+            headerSort: false,
+            formatter: (cell) => {
+              const r = cell.getRow().getData();
+              // без телефону слати нема куди
+              if (!r.customer.telephone) return '<span class="text-muted text-center d-block">—</span>';
+              return '<a href="#" class="d-block text-center text-primary"><i class="fa-regular fa-paper-plane"></i></a>';
+            },
+            cellClick: (e, cell) => {
+              const r = cell.getRow().getData();
+              if (!r.customer.telephone) return;
+              openSendModal(r);
+            },
+          },
+        ],
+      });
+
+      async function openDetail(cartId) {
+        const body = document.getElementById("detail-body");
+        const errBox = document.getElementById("detail-error");
+        errBox.classList.add("d-none");
+        body.innerHTML = '<div class="text-center py-3"><span class="spinner-border spinner-border-sm me-2"></span>Завантаження...</div>';
+        document.getElementById("detailTitle").textContent = "Відправлення — кошик #" + cartId;
+        new bootstrap.Modal(document.getElementById("detailModal")).show();
+
+        try {
+          const res = await fetch("/api/orders/abandoned-cart/dispatch-detail/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ cart_id: cartId }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || "Помилка завантаження.");
+
+          if (!data.logs.length) {
+            body.innerHTML = '<div class="text-muted">По цьому кошику ще не було відправлень.</div>';
+            return;
+          }
+
+          body.innerHTML = data.logs
+            .map((l) => {
+              const badge = l.success ? '<span class="badge rounded-0 text-bg-success">OK</span>' : '<span class="badge rounded-0 text-bg-danger">Помилка</span>';
+              const src = l.source === "manual" ? '<span class="badge rounded-0 text-bg-secondary">ручне</span>' : '<span class="badge rounded-0 text-bg-info">авто</span>';
+              const att = l.attempt_no === 0 ? "" : ` <span class="badge rounded-0 text-bg-light text-dark">спроба ${l.attempt_no}</span>`;
+              return `
+                <div class="border rounded-0 mb-2 p-2">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <div>${badge} ${src}${att} <span class="badge rounded-0 text-bg-light text-dark">${CH[l.channel] || "—"}</span></div>
+                    <div class="text-muted small">${escHtml(l.sent_at || l.date_add)}</div>
+                  </div>
+                  <div class="small mb-1"><span class="text-muted">Подія:</span> ${escHtml(l.event_name)} &nbsp; <span class="text-muted">Отримувач:</span> ${escHtml(l.recipient)} &nbsp; <span class="text-muted">HTTP:</span> ${escHtml(l.http_status ?? "—")}</div>
+                  <div class="p-2 bg-light rounded-0" style="white-space:pre-wrap;font-size:13px">${escHtml(l.message || "")}</div>
+                </div>`;
+            })
+            .join("");
+        } catch (e) {
+          errBox.textContent = e.message;
+          errBox.classList.remove("d-none");
+          body.innerHTML = "";
+        }
+      }
+    </script>
+    <script>
+      // ===== Ручна відправка конкретного кошика =====
+      let sendCartId = null;
+      let eventsCache = null;
+
+      async function loadEventsOnce() {
+        if (eventsCache) return eventsCache;
+        const res = await fetch("/api/orders/abandoned-cart/events-list/", { method: "POST" });
+        eventsCache = res.ok ? await res.json() : [];
+        return eventsCache;
+      }
+
+      async function openSendModal(row) {
+        sendCartId = row.id;
+        const errBox = document.getElementById("send-error");
+        const okBox = document.getElementById("send-success");
+        const sel = document.getElementById("send-event");
+        errBox.classList.add("d-none");
+        okBox.classList.add("d-none");
+
+        const name = [row.customer.firstname, row.customer.lastname].filter(Boolean).join(" ") || "Гість";
+        document.getElementById("send-cart-info").innerHTML = `Кошик #${row.id} · ${escHtml(name)} · ${escHtml(row.customer.telephone)}`;
+
+        sel.innerHTML = "<option>Завантаження…</option>";
+        new bootstrap.Modal(document.getElementById("sendModal")).show();
+
+        try {
+          const events = await loadEventsOnce();
+          // лишаємо тільки події, релевантні цьому сайту (або глобальні)
+          const active = events.filter((e) => Number(e.active) === 1);
+          if (!active.length) {
+            sel.innerHTML = '<option value="">Немає активних подій</option>';
+            return;
+          }
+          sel.innerHTML = active.map((e) => `<option value="${e.id}">${escHtml(e.name)} (${escHtml(e.service_name || "—")})</option>`).join("");
+        } catch {
+          sel.innerHTML = '<option value="">Помилка завантаження подій</option>';
+        }
+      }
+
+      document.getElementById("btn-do-send").addEventListener("click", async function () {
+        const errBox = document.getElementById("send-error");
+        const okBox = document.getElementById("send-success");
+        const eventId = document.getElementById("send-event").value;
+        errBox.classList.add("d-none");
+        okBox.classList.add("d-none");
+
+        if (!eventId) {
+          errBox.textContent = "Оберіть подію.";
+          errBox.classList.remove("d-none");
+          return;
+        }
+
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Відправка…';
+        try {
+          const res = await fetch("/api/orders/abandoned-cart/send-viber/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ cart_id: sendCartId, event_id: parseInt(eventId) }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            errBox.textContent = data.message || "Помилка відправки.";
+            errBox.classList.remove("d-none");
+            return;
+          }
+          okBox.textContent = "Повідомлення відправлено.";
+          okBox.classList.remove("d-none");
+          table.replaceData(); // оновити агрегати
+        } catch {
+          errBox.textContent = "Помилка сервера.";
+          errBox.classList.remove("d-none");
+        } finally {
+          this.disabled = false;
+          this.innerHTML = '<i class="fa-regular fa-paper-plane me-1"></i> Відправити';
+        }
+      });
+    </script>
+  </body>
+</html>

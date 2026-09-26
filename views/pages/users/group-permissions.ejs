@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+
+<head>
+    <title>
+        <%= i18n.__('users.edit.title') %>
+    </title>
+    <%- include('../../partials/head'); %>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+</head>
+
+<body class="d-flex flex-column h-100">
+    <%- include('../../partials/header') %>
+
+<div class="container-fluid mt-4">
+
+    <div class="row mb-3">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="/users/groups">Групи</a></li>
+                    <li class="breadcrumb-item active"><%= group.name %></li>
+                </ol>
+            </nav>
+            <h4 class="mb-0">Права групи: <strong><%= group.name %></strong></h4>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <table class="table table-bordered align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Розділ</th>
+                        <th style="width:100px" class="text-center">Перегляд</th>
+                        <th style="width:100px" class="text-center">Додати</th>
+                        <th style="width:100px" class="text-center">Редагувати</th>
+                        <th style="width:100px" class="text-center">Видалити</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% tree.forEach(parent => { %>
+
+                    <tr class="table-secondary">
+                        <td colspan="5" class="fw-semibold"><%= parent.name || parent.slug %></td>
+                    </tr>
+
+                    <% parent.children.forEach(page => { %>
+                    <tr>
+                        <td class="ps-4"><%= page.name || page.slug %></td>
+                        <% ["can_view", "can_add", "can_edit", "can_delete"].forEach(action => { %>
+                        <td class="text-center">
+                            <i class="fa-solid <%= page[action] === 1 ? 'fa-check text-success' : 'fa-xmark text-danger' %> perm-toggle"
+                               style="cursor:pointer; font-size:1.1rem;"
+                               data-group="<%= group.id %>"
+                               data-page="<%= page.id %>"
+                               data-action="<%= action %>">
+                            </i>
+                        </td>
+                        <% }) %>
+                    </tr>
+                    <% }) %>
+
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+document.querySelectorAll(".perm-toggle").forEach(el => {
+    el.addEventListener("click", async function () {
+        const icon     = this;
+        const id_group = icon.dataset.group;
+        const id_page  = icon.dataset.page;
+        const action   = icon.dataset.action;
+
+        // Блокуємо повторний клік під час запиту
+        if (icon.dataset.loading === "1") return;
+        icon.dataset.loading = "1";
+        icon.style.opacity   = "0.4";
+
+        try {
+            const res = await fetch(`/api/users/groups/${id_group}/permissions/toggle`, {
+                method:  "POST",
+                headers: { "Content-Type": "application/json" },
+                body:    JSON.stringify({ id_page, action }),
+            });
+
+            const data = await res.json();
+
+            if (data.status === "success") {
+                if (data.value === 1) {
+                    icon.classList.remove("fa-xmark", "text-danger");
+                    icon.classList.add("fa-check", "text-success");
+                } else {
+                    icon.classList.remove("fa-check", "text-success");
+                    icon.classList.add("fa-xmark", "text-danger");
+                }
+            } else {
+                alert("Помилка. Спробуйте ще раз.");
+            }
+
+        } catch (e) {
+            alert("Помилка з'єднання.");
+        } finally {
+            icon.style.opacity   = "1";
+            icon.dataset.loading = "0";
+        }
+    });
+});
+</script>
+
+<%- include('../../partials/footer') %>
+            <%- include('../../partials/script'); %>
+           
+</body>
+
+</html>

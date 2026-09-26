@@ -1,0 +1,120 @@
+<div class="mb-3">
+	<label for="f_token" class="form-label"><%= i18n.__('contact_center.channels.instagram.token') %></label>
+	<textarea class="form-control rounded-0" id="f_token" name="token" rows="3" autocomplete="off" placeholder="<%= data.settings.has_token ? data.settings.token_mask : 'IGQVJ...' %>"></textarea>
+	<small class="text-muted"> <%= data.settings.has_token ? i18n.__('contact_center.channels.instagram.token_hint_change') : i18n.__('contact_center.channels.instagram.token_hint_new') %> </small>
+</div>
+
+<% if (data.settings.ig_username) { %>
+<div class="row">
+	<div class="col-12 col-md-6 mb-3">
+		<label class="form-label"><%= i18n.__('contact_center.channels.instagram.username') %></label>
+		<input type="text" class="form-control rounded-0 bg-light" value="@<%= data.settings.ig_username %>" readonly />
+	</div>
+	<div class="col-12 col-md-6 mb-3">
+		<label class="form-label"><%= i18n.__('contact_center.channels.instagram.user_id') %></label>
+		<input type="text" class="form-control rounded-0 bg-light" value="<%= data.settings.ig_user_id || '' %>" readonly />
+	</div>
+</div>
+<% } %>
+
+<% if (data.settings.date_token_expires) { %>
+<div class="alert alert-info rounded-0 d-flex align-items-center justify-content-between">
+	<span><%= i18n.__('contact_center.channels.instagram.token_expires') %>: <strong><%= data.settings.date_token_expires %></strong></span>
+</div>
+<% } %>
+
+<% if (data.settings.has_token) { %>
+<div class="mb-3">
+	<button type="button" class="btn btn-outline-secondary rounded-0" id="btn_ig_refresh"><i class="fa-solid fa-rotate me-1"></i> Оновити токен</button>
+	<small class="text-muted d-block mt-1">Продовжує термін дії токена ще на 60 днів. Оновлюється й автоматично щодня.</small>
+</div>
+<% } %>
+
+<div class="row">
+	<div class="col-12 col-md-6 mb-3">
+		<label for="f_app_id" class="form-label"><%= i18n.__('contact_center.channels.instagram.app_id') %></label>
+		<input type="text" class="form-control rounded-0" id="f_app_id" name="app_id" value="<%= data.settings.app_id || '' %>" />
+	</div>
+	<div class="col-12 col-md-6 mb-3">
+		<label class="form-label"><%= i18n.__('contact_center.channels.instagram.verify_token') %></label>
+		<div class="input-group">
+			<input type="text" class="form-control rounded-0 bg-light" id="f_verify_token" value="<%= data.settings.verify_token %>" readonly />
+			<button type="button" class="btn btn-outline-secondary rounded-0 copy-field" data-target="f_verify_token">
+				<i class="fa-regular fa-copy"></i>
+			</button>
+		</div>
+	</div>
+</div>
+
+<div class="mb-3">
+	<label for="f_app_secret" class="form-label">App Secret</label>
+	<input type="password" class="form-control rounded-0" id="f_app_secret" name="app_secret" autocomplete="off" placeholder="<%= data.settings.has_app_secret ? '••••••••••••' : '' %>" />
+	<small class="text-muted d-block"> <%= data.settings.has_app_secret ? 'Збережено. Введіть нове значення, щоб змінити.' : 'Instagram app secret (Meta → API setup with Instagram login). Потрібен для перевірки підпису вебхука.' %> </small>
+	<% if (data.settings.has_app_secret) { %>
+	<div class="form-check mt-1">
+		<input class="form-check-input" type="checkbox" id="f_app_secret_clear" name="app_secret_clear" value="1" />
+		<label class="form-check-label text-danger" for="f_app_secret_clear">Очистити App Secret (вимкнути перевірку підпису)</label>
+	</div>
+	<% } %>
+</div>
+
+<div class="mb-0">
+	<label class="form-label"><%= i18n.__('contact_center.channels.instagram.webhook_url') %></label>
+	<div class="input-group">
+		<input type="text" class="form-control rounded-0 bg-light" id="f_webhook_url" value="<%= data.appUrl %>/api/contact-center/webhook/instagram/" readonly />
+		<button type="button" class="btn btn-outline-secondary rounded-0 copy-field" data-target="f_webhook_url">
+			<i class="fa-regular fa-copy"></i>
+		</button>
+	</div>
+	<small class="text-muted"><%= i18n.__('contact_center.channels.instagram.webhook_hint') %></small>
+</div>
+
+<script>
+	window.collectChannelFields = function () {
+		var clearEl = document.getElementById("f_app_secret_clear");
+		return {
+			token: document.getElementById("f_token").value.trim(),
+			app_id: document.getElementById("f_app_id").value.trim(),
+			app_secret: document.getElementById("f_app_secret").value.trim(),
+			app_secret_clear: clearEl && clearEl.checked ? "1" : "",
+		};
+	};
+</script>
+
+<script>
+	(function () {
+		var btn = document.getElementById("btn_ig_refresh");
+		if (!btn) return;
+
+		var m = window.location.pathname.match(/channels\/(\d+)/);
+		var channelId = m ? m[1] : null;
+
+		btn.addEventListener("click", function () {
+			if (!channelId) return;
+			btn.disabled = true;
+			var original = btn.innerHTML;
+			btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Оновлення...';
+
+			fetch("/api/contact-center/channels/" + channelId + "/refresh/", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({}),
+			})
+				.then(function (r) { return r.json(); })
+				.then(function (data) {
+					if (typeof notyf !== "undefined") {
+						data.status === "success" ? notyf.success(data.message) : notyf.error(data.message);
+					} else {
+						alert(data.message);
+					}
+				})
+				.catch(function () {
+					if (typeof notyf !== "undefined") notyf.error("Помилка мережі");
+				})
+				.finally(function () {
+					btn.disabled = false;
+					btn.innerHTML = original;
+				});
+		});
+	})();
+</script>

@@ -1,0 +1,26 @@
+{
+    "register": {
+        "title":              "Complete registration",
+        "subtitle":           "Fill in your details to complete registration",
+        "email":              "Email",
+        "last_name":          "Last name",
+        "first_name":         "First name",
+        "patronymic":         "Patronymic",
+        "password":           "Password",
+        "password_confirm":   "Confirm password",
+        "password_hint":      "Minimum 8 characters",
+        "submit":             "Complete registration",
+        "success":            "Registration complete! Redirecting...",
+        "link_invalid":       "The link is invalid.",
+        "link_expired":       "The link has expired. Please contact your administrator for a new one.",
+        "already_registered": "You have already completed registration.",
+        "go_to_login":        "Sign in",
+        "error": {
+            "fill_all_fields":        "Please fill in all required fields",
+            "please_fill_field":      "Please fill out this field",
+            "min_length":             "Minimum 8 characters",
+            "passwords_do_not_match": "Passwords do not match",
+            "token_invalid":          "The link is invalid or has expired"
+        }
+    }
+}

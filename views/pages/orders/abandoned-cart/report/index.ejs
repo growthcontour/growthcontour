@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+  <head>
+    <title>Звіт — покинуті кошики</title>
+    <%- include('../../../../partials/head'); %>
+    <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+    <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+  </head>
+  <body class="d-flex flex-column h-100">
+    <%- include('../../../../partials/header'); %>
+
+    <div class="container-fluid mt-3">
+      <div class="row g-2 align-items-end mb-3">
+        <div class="col-auto">
+          <label class="form-label mb-0">З</label>
+          <input type="date" id="f-from" class="form-control rounded-0" />
+        </div>
+        <div class="col-auto">
+          <label class="form-label mb-0">По</label>
+          <input type="date" id="f-to" class="form-control rounded-0" />
+        </div>
+        <div class="col-auto">
+          <button id="btn-apply" class="btn btn-primary rounded-0">Оновити</button>
+        </div>
+      </div>
+
+      <div class="row g-3" id="kpi"></div>
+
+      <div class="row g-3 mt-1">
+        <div class="col-md-6">
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0">Стан черги</div>
+            <div class="card-body" id="queue-box"></div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0">Воронка кошиків</div>
+            <div class="card-body" id="carts-box"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-primary rounded-0 mt-3 mb-4">
+        <div class="card-header text-bg-primary rounded-0">Події (JSONL)</div>
+        <div id="events-table"></div>
+      </div>
+    </div>
+
+    <%- include('../../../../partials/footer'); %> <%- include('../../../../partials/script'); %>
+    <script src="/assets/js/tabulator/tabulator.min.js"></script>
+    <script>
+      const CH = { 1: "SMS", 2: "Email", 3: "Viber" };
+
+      function kpiCard(title, value, sub) {
+        return `<div class="col-md-3">
+          <div class="card rounded-0 border-primary h-100">
+            <div class="card-body">
+              <div class="text-muted small">${title}</div>
+              <div class="fs-3 fw-bold">${value}</div>
+              <div class="text-muted small">${sub || ""}</div>
+            </div>
+          </div>
+        </div>`;
+      }
+
+      async function loadSummary() {
+        const from = document.getElementById("f-from").value || null;
+        const to = document.getElementById("f-to").value || null;
+        const res = await fetch("/api/orders/abandoned-cart/report-summary/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ from, to }),
+        });
+        const d = await res.json();
+
+        document.getElementById("kpi").innerHTML = kpiCard("Відправлень", d.sends.total, `успішних ${d.sends.success}, помилок ${d.sends.failed}`) + kpiCard("Успішність", d.sends.success_rate + "%", "від усіх відправлень") + kpiCard("Recovery rate", d.recovery_rate + "%", "відновлені кошики") + kpiCard("У черзі", (d.queue.pending || 0) + (d.queue.processing || 0), `failed ${d.queue.failed || 0}`);
+
+        const q = d.queue || {};
+        document.getElementById("queue-box").innerHTML = ["pending", "processing", "sent", "failed", "skipped", "canceled"].map((s) => `<span class="badge rounded-0 text-bg-secondary me-2 mb-1">${s}: ${q[s] || 0}</span>`).join("");
+
+        const c = d.carts || {};
+        document.getElementById("carts-box").innerHTML = ["active", "abandoned", "notified", "recovered", "expired"].map((s) => `<span class="badge rounded-0 text-bg-info me-2 mb-1">${s}: ${c[s] || 0}</span>`).join("");
+      }
+
+      const table = new Tabulator("#events-table", {
+        layout: "fitColumns",
+        ajaxURL: "/api/orders/abandoned-cart/report-events/",
+        ajaxConfig: { method: "POST", headers: { "Content-Type": "application/json" } },
+        ajaxContentType: "json",
+        ajaxParams: {},
+        ajaxRequestFunc: async function (url, cfg, params) {
+          const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(params) });
+          const d = await res.json();
+          return d.events || [];
+        },
+        paginationSize: 20,
+        pagination: true,
+        columns: [
+          { title: "Час", field: "ts", widthGrow: 1.2, headerSort: false },
+          { title: "Тип", field: "type", widthGrow: 0.5, headerSort: false },
+          {
+            title: "Результат",
+            field: "result",
+            widthGrow: 0.6,
+            headerSort: false,
+            formatter: (c) => {
+              const v = c.getValue();
+              return v === "success" ? '<span class="badge rounded-0 text-bg-success">success</span>' : v ? `<span class="badge rounded-0 text-bg-danger">${v}</span>` : "—";
+            },
+          },
+          { title: "Канал", field: "channel", widthGrow: 0.4, headerSort: false, formatter: (c) => CH[c.getValue()] || "—" },
+          { title: "Cart", field: "cart_id", widthGrow: 0.4, headerSort: false },
+          { title: "Event", field: "event_id", widthGrow: 0.4, headerSort: false },
+          { title: "Код", field: "code", widthGrow: 0.6, headerSort: false },
+          { title: "HTTP", field: "http_status", widthGrow: 0.4, headerSort: false },
+          { title: "Отримувач", field: "recipient", widthGrow: 0.8, headerSort: false },
+          { title: "Provider IDs", field: "provider_ids", widthGrow: 0.8, headerSort: false, formatter: (c) => (Array.isArray(c.getValue()) ? c.getValue().join(", ") : "—") },
+        ],
+      });
+
+      function reloadEvents() {
+        const from = document.getElementById("f-from").value || null;
+        const to = document.getElementById("f-to").value || null;
+        table.setData("/api/orders/abandoned-cart/report-events/", { from, to, limit: 1000 });
+      }
+
+      document.getElementById("btn-apply").addEventListener("click", () => {
+        loadSummary();
+        reloadEvents();
+      });
+
+      loadSummary();
+    </script>
+  </body>
+</html>

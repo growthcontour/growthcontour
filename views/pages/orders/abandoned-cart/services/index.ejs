@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+  <head>
+    <title><%= i18n.__('orders.abandoned-cart.services.title') %></title>
+    <%- include('../../../../partials/head'); %>
+    <!-- tabulator -->
+    <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+    <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+    <!-- END tabulator -->
+    <style>
+      #services-table .tabulator-col,
+      #services-table .tabulator-cell {
+        border-right: 1px solid #dee2e6;
+        border-bottom: 1px solid #dee2e6;
+      }
+
+      #services-table .tabulator-col:last-child,
+      #services-table .tabulator-cell:last-child {
+        border-right: none;
+      }
+
+      #services-table .tabulator-row:last-child .tabulator-cell {
+        border-bottom: none;
+      }
+    </style>
+  </head>
+
+  <body class="d-flex flex-column h-100">
+    <%- include('../../../../partials/header'); %>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumbs pt-3 pb-3">
+      <div class="container-fluid">
+        <div class="row align-items-center">
+          <div class="col">
+            <span><%= i18n.__('orders.abandoned-cart.services.title') %></span>
+            <div>
+              <ul class="list-inline mb-0">
+                <li class="list-inline-item">
+                  <a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('orders.abandoned-cart.services.breadcrumb.home') %></span></a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <a href="/orders"><%= i18n.__('orders.abandoned-cart.services.breadcrumb.orders') %></a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <a href="/orders/abandoned-cart"><%= i18n.__('orders.abandoned-cart.services.breadcrumb.abandoned_cart') %></a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <%= i18n.__('orders.abandoned-cart.services.breadcrumb.current') %>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-auto">
+            <a href="/orders/abandoned-cart" class="btn btn-primary rounded-0">
+              <i class="fa-solid fa-angle-left"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- END Breadcrumb -->
+
+    <div class="container-fluid mt-3">
+      <div class="row">
+        <div class="col-12 mb-3">
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+              <span><%= i18n.__('orders.abandoned-cart.services.title') %></span>
+            </div>
+            <div id="services-table"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal підключення -->
+    <div class="modal fade" id="serviceModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content rounded-0">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="serviceModalTitle"></h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div id="modal-error" class="alert alert-danger rounded-0 d-none"></div>
+            <div id="modal-success" class="alert alert-success rounded-0 d-none"><%= i18n.__('orders.abandoned-cart.services.modal.saved') %></div>
+            <div id="modal-fields"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('orders.abandoned-cart.services.modal.close') %></button>
+            <button type="button" class="btn btn-primary rounded-0" id="btn-modal-save"><i class="fa-regular fa-floppy-disk me-1"></i> <%= i18n.__('orders.abandoned-cart.services.modal.save') %></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%- include('../../../../partials/footer'); %> <%- include('../../../../partials/script'); %>
+
+    <!-- tabulator -->
+    <script src="/assets/js/tabulator/tabulator.min.js"></script>
+    <script>
+      const channelBadge = {
+        1: "text-bg-success",
+        2: "text-bg-primary",
+        3: "text-bg-info",
+      };
+
+      let currentServiceId = null;
+      let currentService = null; // повні дані сервісу (з config_fields.groups)
+
+      // ---------- helpers ----------
+      const escAttr = (v) =>
+        String(v ?? "").replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c]
+        );
+
+      // плоский перелік усіх полів зі схеми {groups:[...]}
+      function flattenFields(cf) {
+        if (cf && Array.isArray(cf.groups)) {
+          const out = [];
+          for (const g of cf.groups) for (const f of g.fields || []) out.push(f);
+          return out;
+        }
+        if (Array.isArray(cf)) return cf;
+        return [];
+      }
+
+      function constraintAttrs(field) {
+        let out = "";
+        for (const k of ["min", "max", "step", "minlength", "maxlength", "pattern"]) {
+          if (field[k] !== undefined && field[k] !== null && field[k] !== "") out += ` ${k}="${escAttr(field[k])}"`;
+        }
+        return out;
+      }
+
+      function fieldControl(field, value, secretIsSet) {
+        const id = "field-" + field.key;
+        const helpId = field.help ? ` aria-describedby="help-${escAttr(field.key)}"` : "";
+        const req = field.required ? "required" : "";
+        const cons = constraintAttrs(field);
+        const val = escAttr(value ?? "");
+
+        switch (field.type) {
+          case "textarea":
+            return `<textarea class="form-control rounded-0" id="${id}" placeholder="${escAttr(field.placeholder || "")}" ${req}${cons}${helpId}>${val}</textarea>`;
+          case "checkbox":
+            return `<div class="form-check"><input type="checkbox" class="form-check-input" id="${id}" ${value ? "checked" : ""}${helpId}></div>`;
+          case "select":
+            return `<select class="form-select rounded-0" id="${id}" ${req}${helpId}>` + (field.options || []).map((o) => `<option value="${escAttr(o.value)}" ${String(o.value) === String(value) ? "selected" : ""}>${escAttr(o.label)}</option>`).join("") + `</select>`;
+          case "password": {
+            // секрет: значення НІКОЛИ не префілиться; стан показуємо плейсхолдером.
+            // якщо вже встановлено — DOM-required знімаємо (порожнє = «не міняти»)
+            const ph = escAttr(secretIsSet ? "●●●●●● (встановлено)" : field.placeholder || "");
+            return `<input type="password" class="form-control rounded-0" id="${id}" placeholder="${ph}" value="" ${secretIsSet ? "" : req}${cons}${helpId} autocomplete="new-password" data-secret="1" data-set="${secretIsSet ? 1 : 0}">`;
+          }
+          default: {
+            const t = ["number", "time", "date", "url", "email", "text"].includes(field.type) ? field.type : "text";
+            return `<input type="${t}" class="form-control rounded-0" id="${id}" placeholder="${escAttr(field.placeholder || "")}" value="${val}" ${req}${cons}${helpId} autocomplete="off">`;
+          }
+        }
+      }
+
+      function renderServiceForm(data, container) {
+        const cf = data.config_fields;
+        let groups;
+        if (cf && Array.isArray(cf.groups)) groups = cf.groups;
+        else if (Array.isArray(cf)) groups = [{ label: "", fields: cf }];
+        else groups = [];
+
+        const values = data.values || {};
+        const secrets = data.secrets || {};
+
+        let html = "";
+        for (const g of groups) {
+          if (!g.fields || !g.fields.length) continue;
+          if (g.label) html += `<h6 class="fw-bold mt-4 mb-1">${escAttr(g.label)}</h6>`;
+          if (g.description) html += `<p class="text-muted small mb-3">${escAttr(g.description)}</p>`;
+          html += `<div class="row">`;
+          for (const f of g.fields) {
+            const isSecret = f.type === "password";
+            const secretIsSet = isSecret && !!(secrets[f.key] && secrets[f.key].is_set);
+            const value = isSecret ? "" : (values[f.key] ?? f.default ?? "");
+            const star = f.required ? ' <span class="text-danger">*</span>' : "";
+            const help = f.help ? `<div id="help-${escAttr(f.key)}" class="form-text">${escAttr(f.help)}</div>` : "";
+            const setNote = secretIsSet ? `<div class="form-text text-success">Значення збережено — введіть нове, щоб замінити.</div>` : "";
+            const col = f.type === "textarea" ? "col-12" : "col-md-6";
+            html += `
+				<div class="${col} mb-3">
+					<label class="form-label" for="field-${escAttr(f.key)}">${escAttr(f.label)}${star}</label>
+					${fieldControl(f, value, secretIsSet)}
+					${help}${setNote}
+				</div>`;
+          }
+          html += `</div>`;
+        }
+        container.innerHTML = html || '<div class="text-muted"><%= i18n.__("orders.abandoned-cart.services.modal.no_fields") %></div>';
+      }
+
+      // ---------- таблиця ----------
+      var table = new Tabulator("#services-table", {
+        layout: "fitColumns",
+        ajaxURL: "/api/orders/abandoned-cart/services-all/",
+        ajaxConfig: "POST",
+        paginationSize: 10,
+        paginationSizeSelector: [10, 20, 30, 40],
+        pagination: true,
+        movableColumns: true,
+        columns: [
+          {
+            title: "<%= i18n.__('orders.abandoned-cart.services.columns.id') %>",
+            field: "id",
+            headerSort: false,
+            widthGrow: 0.3,
+          },
+          {
+            title: "<%= i18n.__('orders.abandoned-cart.services.columns.service') %>",
+            field: "name",
+            headerSort: false,
+            widthGrow: 2,
+            formatter: function (cell) {
+              const row = cell.getRow().getData();
+              const logo = row.logo_url ? `<img src="${row.logo_url}" style="height:18px;object-fit:contain" class="me-2">` : "";
+              return `${logo}${row.name}`;
+            },
+          },
+          {
+            title: "<%= i18n.__('orders.abandoned-cart.services.columns.channel') %>",
+            field: "channel",
+            headerSort: false,
+            widthGrow: 0.5,
+            formatter: function (cell) {
+              const v = cell.getValue();
+              const label =
+                {
+                  1: "<%= i18n.__('orders.abandoned-cart.services.channels.sms') %>",
+                  2: "<%= i18n.__('orders.abandoned-cart.services.channels.email') %>",
+                  3: "<%= i18n.__('orders.abandoned-cart.services.channels.viber') %>",
+                }[v] || "—";
+              return `<span class="badge rounded-0 ${channelBadge[v] || "text-bg-secondary"}">${label}</span>`;
+            },
+          },
+          {
+            title: "<%= i18n.__('orders.abandoned-cart.services.columns.description') %>",
+            field: "description",
+            headerSort: false,
+            widthGrow: 3,
+            formatter: function (cell) {
+              return `<span class="text-muted">${cell.getValue() || "—"}</span>`;
+            },
+          },
+          {
+            title: "<%= i18n.__('orders.abandoned-cart.services.columns.status') %>",
+            field: "is_connected",
+            headerSort: false,
+            widthGrow: 0.7,
+            formatter: function (cell) {
+              return cell.getValue() ? '<span class="badge rounded-0 text-bg-success"><i class="fa-regular fa-circle-check me-1"></i><%= i18n.__("orders.abandoned-cart.services.status.connected") %></span>' : '<span class="badge rounded-0 text-bg-secondary"><i class="fa-regular fa-circle-xmark me-1"></i><%= i18n.__("orders.abandoned-cart.services.status.not_connected") %></span>';
+            },
+          },
+          {
+            title: "<%= i18n.__('orders.abandoned-cart.services.columns.default') %>",
+            field: "is_default",
+            headerSort: false,
+            widthGrow: 0.5,
+            formatter: function (cell) {
+              return cell.getValue() ? '<span class="badge rounded-0 text-bg-primary"><%= i18n.__("orders.abandoned-cart.services.status.yes") %></span>' : '<span class="text-muted">—</span>';
+            },
+          },
+          {
+            title: "<%= i18n.__('orders.abandoned-cart.services.columns.connect') %>",
+            field: "id",
+            headerSort: false,
+            widthGrow: 0.5,
+            formatter: function (cell) {
+              const row = cell.getRow().getData();
+              return row.is_connected ? '<a href="#" class="text-center d-block text-success btn-connect" data-id="' + row.id + '"><i class="fa-regular fa-pen-to-square"></i></a>' : '<a href="#" class="text-center d-block btn-connect" data-id="' + row.id + '"><i class="fa-regular fa-plug"></i></a>';
+            },
+            cellClick: function (e, cell) {
+              openServiceModal(cell.getRow().getData().id);
+            },
+          },
+        ],
+      });
+
+      // ---------- відкрити modal ----------
+      async function openServiceModal(serviceId) {
+        const container = document.getElementById("modal-fields");
+        const errorBox = document.getElementById("modal-error");
+        const successBox = document.getElementById("modal-success");
+        try {
+          container.innerHTML = '<div class="text-center py-3"><span class="spinner-border spinner-border-sm me-2"></span><%= i18n.__("orders.abandoned-cart.services.modal.loading") %></div>';
+          document.getElementById("serviceModalTitle").textContent = "";
+          errorBox.classList.add("d-none");
+          successBox.classList.add("d-none");
+
+          new bootstrap.Modal(document.getElementById("serviceModal")).show();
+
+          const res = await fetch("/api/orders/abandoned-cart/service-get/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: serviceId }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || "<%= i18n.__('orders.abandoned-cart.services.modal.load_error') %>");
+
+          currentService = data;
+          currentServiceId = data.id;
+          document.getElementById("serviceModalTitle").textContent = data.name;
+          renderServiceForm(data, container);
+        } catch (e) {
+          errorBox.textContent = e.message;
+          errorBox.classList.remove("d-none");
+          container.innerHTML = "";
+        }
+      }
+
+      // ---------- збереження ----------
+      document.getElementById("btn-modal-save").addEventListener("click", async function () {
+        const errorBox = document.getElementById("modal-error");
+        const successBox = document.getElementById("modal-success");
+        errorBox.classList.add("d-none");
+        successBox.classList.add("d-none");
+
+        const fields = flattenFields(currentService && currentService.config_fields);
+        const values = {};
+        const missing = [];
+
+        for (const field of fields) {
+          const input = document.getElementById("field-" + field.key);
+          if (!input) continue;
+
+          const isSecret = field.type === "password";
+          let value;
+          if (field.type === "checkbox") value = input.checked;
+          else if (field.type === "number") value = input.value === "" ? null : Number(input.value);
+          else value = input.value.trim();
+
+          const isEmpty = value === "" || value === null;
+
+          if (isSecret) {
+            const alreadySet = input.dataset.set === "1";
+            if (isEmpty) {
+              if (field.required && !alreadySet) missing.push(field.label); // ще не встановлено
+              continue; // порожній секрет не надсилаємо
+            }
+            values[field.key] = value; // новий секрет
+            continue;
+          }
+
+          if (field.required && isEmpty) missing.push(field.label);
+          values[field.key] = isEmpty ? "" : value;
+        }
+
+        if (missing.length) {
+          errorBox.textContent = "<%= i18n.__('orders.abandoned-cart.services.modal.missing_fields') %>: " + missing.join(", ");
+          errorBox.classList.remove("d-none");
+          return;
+        }
+
+        try {
+          this.disabled = true;
+          this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> <%= i18n.__("orders.abandoned-cart.services.modal.saving") %>...';
+
+          const res = await fetch("/api/orders/abandoned-cart/services-connect/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              service_id: parseInt(currentServiceId),
+              values,
+            }),
+          });
+          const data = await res.json();
+
+          if (!res.ok) {
+            errorBox.textContent = data.message || "<%= i18n.__('orders.abandoned-cart.services.modal.save_error') %>";
+            errorBox.classList.remove("d-none");
+            return;
+          }
+
+          successBox.classList.remove("d-none");
+          setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById("serviceModal")).hide();
+            table.replaceData();
+          }, 1000);
+        } catch (e) {
+          errorBox.textContent = "<%= i18n.__('orders.abandoned-cart.services.modal.server_error') %>";
+          errorBox.classList.remove("d-none");
+        } finally {
+          this.disabled = false;
+          this.innerHTML = '<i class="fa-regular fa-floppy-disk me-1"></i> <%= i18n.__("orders.abandoned-cart.services.modal.save") %>';
+        }
+      });
+    </script>
+    <!-- END tabulator -->
+  </body>
+</html>

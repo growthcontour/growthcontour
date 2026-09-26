@@ -1,0 +1,13 @@
+{
+	"authorization": {
+		"sign_in": "Sign in",
+		"password": "Password",
+		"forgot_your_password": "Forgot your password?",
+		"error": {
+			"please_fill_out_this_field": "Please fill out this field",
+			"fill_in_all_required_fields": "Fill in all required fields",
+			"incorrect_email_or_password": "Incorrect email or password",
+			"authorization_blocked": "Your authorization is blocked. Wait {{minutes}} minutes and {{seconds}} seconds"
+		}
+	}
+}

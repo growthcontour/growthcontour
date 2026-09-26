@@ -1,0 +1,183 @@
+{
+  "contact_center": {
+    "channels": {
+      "title": "Канали зв'язку",
+      "pagetitle": "Канали зв'язку",
+      "breadcrumb": {
+        "home": "Головна",
+        "contact_center": "Контакт-центр",
+        "current": "Канали зв'язку"
+      },
+      "type_telegram": "Telegram",
+      "type_instagram": "Instagram",
+      "type_webchat": "Веб-чат",
+      "card_list": "Підключені канали",
+      "add": "Додати канал",
+      "empty": "Каналів ще немає",
+      "col": {
+        "id": "ID",
+        "name": "Назва",
+        "type": "Тип",
+        "identity": "Ідентифікатор",
+        "status": "Активний",
+        "connection": "Підключення",
+        "date_add": "Створено",
+        "actions": "Дії"
+      },
+      "conn": {
+        "ok": "Працює",
+        "error": "Помилка",
+        "unknown": "Не перевірено"
+      },
+      "not_configured": "Не налаштовано",
+      "not_configured_hint": "Завершіть налаштування, щоб увімкнути канал",
+      "modal": {
+        "title": "Новий канал",
+        "type": "Тип каналу",
+        "name": "Назва каналу",
+        "name_placeholder": "Основний бот підтримки",
+        "name_hint": "Внутрішня назва — її бачите тільки ви у списку",
+        "submit": "Створити та налаштувати",
+        "cancel": "Скасувати"
+      },
+      "action": {
+        "edit": "Налаштувати",
+        "delete": "Видалити"
+      },
+      "delete": {
+        "confirm_title": "Видалити канал?",
+        "confirm_text": "Канал буде вимкнено та прибрано зі списку. Історію діалогів збережено.",
+        "confirm_yes": "Видалити",
+        "confirm_no": "Скасувати"
+      },
+      "notify": {
+        "created": "Канал створено",
+        "saved": "Збережено",
+        "deleted": "Канал видалено",
+        "status_on": "Канал увімкнено",
+        "status_off": "Канал вимкнено",
+        "error": "Помилка",
+        "error_load": "Не вдалося завантажити список"
+      },
+      "edit": {
+        "title": "Налаштування каналу",
+        "save": "Зберегти",
+        "back": "До списку",
+        "copied": "Скопійовано",
+        "general": {
+          "title": "Загальне",
+          "name": "Назва каналу",
+          "name_hint": "Внутрішня назва — її бачите тільки ви",
+          "status": "Канал активний",
+          "type_locked": "Тип каналу не можна змінити після створення"
+        },
+        "notify": {
+          "title": "Сповіщення",
+          "hint": "Кому надсилати сповіщення про повідомлення з цього каналу",
+          "users": "Користувачі",
+          "users_ph": "Почніть вводити ім'я…",
+          "groups": "Групи",
+          "groups_ph": "Оберіть групу…",
+          "on_new_conversation": "Сповіщати про новий діалог",
+          "on_new_message": "Сповіщати про кожне повідомлення",
+          "on_new_message_hint": "Може створювати багато сповіщень в активних діалогах"
+        },
+        "connection": {
+          "title": "Підключення",
+          "test": "Перевірити",
+          "test_ok": "Підключення працює",
+          "checked_at": "Перевірено"
+        }
+      },
+      "telegram": {
+        "token": "Токен бота",
+        "token_hint_new": "Отримайте у @BotFather",
+        "token_hint_change": "Залиште порожнім, щоб не змінювати токен",
+        "bot_username": "Username бота",
+        "bot_id": "ID бота",
+        "webhook_url": "Webhook URL",
+        "webhook_hint": "Встановлюється автоматично після успішної перевірки"
+      },
+      "instagram": {
+        "token": "Access token",
+        "token_hint_new": "Довготривалий токен Instagram Login API",
+        "token_hint_change": "Залиште порожнім, щоб не змінювати токен",
+        "username": "Username акаунта",
+        "user_id": "Instagram User ID",
+        "token_expires": "Токен дійсний до",
+        "app_id": "App ID",
+        "verify_token": "Verify token",
+        "webhook_url": "Webhook URL",
+        "webhook_hint": "Вкажіть цей URL і verify token у налаштуваннях застосунку Meta"
+      },
+      "webchat": {
+        "widget_key": "Ключ віджета",
+        "allowed_origins": "Дозволені домени",
+        "allowed_origins_hint": "Через кому, наприклад: example.com, shop.example.com",
+        "appearance": "Вигляд",
+        "widget_title": "Заголовок",
+        "widget_subtitle": "Підзаголовок",
+        "color_primary": "Основний колір",
+        "color_accent": "Акцентний колір",
+        "position": "Положення",
+        "position_right": "Праворуч",
+        "position_left": "Ліворуч",
+        "welcome_message": "Привітання",
+        "offline_message": "Повідомлення поза робочим часом",
+        "prechat": "Форма перед чатом",
+        "require_name": "Запитувати ім'я",
+        "require_email": "Запитувати email",
+        "require_phone": "Запитувати телефон",
+        "embed_code": "Код для встановлення",
+        "embed_hint": "Вставте перед закриваючим тегом body на своєму сайті",
+        "site_id": "ID сайту",
+        "site_id_hint": "Використовується у коді вставки як data-site-id",
+        "tab_general": "Загальне",
+        "tab_hours": "Робочі години",
+        "tab_texts": "Тексти та мови",
+        "tab_forms": "Форми та тригери",
+        "brand_color": "Колір бренду",
+        "primary_locale": "Мова за замовчуванням",
+        "primary_locale_hint": "Показується, якщо мови браузера немає серед увімкнених",
+        "product_card": "Картка товару",
+        "greeting": "Привітання",
+        "greeting_enabled": "Увімкнено",
+        "greeting_delay": "Затримка автовідкриття (сек)",
+        "greeting_texts": "Тексти привітань (по мовах)",
+        "desktop": "Десктоп",
+        "mobile": "Мобільний",
+        "auto_open": "Відкривати форму",
+        "sound": "Звук сповіщення",
+        "auto_open_hint": "Якщо вимкнено — показується лише значок з лічильником",
+        "timezone": "Часовий пояс",
+        "force_mode": "Примусовий режим",
+        "force_auto": "Авто (за розкладом)",
+        "force_online": "Завжди онлайн",
+        "force_offline": "Завжди офлайн",
+        "schedule": "Розклад",
+        "schedule_hint": "Перетягніть, щоб вибрати робочі години. Поза ними чат офлайн.",
+        "holidays": "Вихідні дні (YYYY-MM-DD, по одній у рядку)",
+        "holidays_hint": "У ці дні чат вважається офлайн",
+        "locales": "Увімкнені мови",
+        "header_title": "Заголовок віджета (по мовах)",
+        "system_strings": "Системні повідомлення",
+        "ui_strings": "Тексти інтерфейсу",
+        "forms": "Форми",
+        "form": "Форма",
+        "form_add": "Додати форму",
+        "form_id": "ID форми",
+        "form_id_hint": "Латиниця, цифри, підкреслення",
+        "form_target": "Куди зберігати",
+        "form_target_lead": "Лід",
+        "form_fields": "Поля форми",
+        "field_add": "Додати поле",
+        "form_save": "Зберегти форму",
+        "require_any": "Обовʼязкове хоча б одне з полів",
+        "require_any_hint": "Напр. email і phone — клієнт заповнює хоча б одне",
+        "triggers": "Тригери форм",
+        "triggers_hint": "Коли показати форму відвідувачу",
+        "close": "Закрити"
+      }
+    }
+  }
+}

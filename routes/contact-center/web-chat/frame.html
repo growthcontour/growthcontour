@@ -1,0 +1,1696 @@
+<!doctype html>
+<html lang="uk">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Chat</title>
+		<style>
+			:root {
+				--brand: __BRAND_COLOR__;
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			html,
+			body {
+				margin: 0;
+				height: 100%;
+				background: transparent;
+				font-family: "Lato", sans-serif;
+			}
+
+			#wrap {
+				display: flex;
+				flex-direction: column;
+				height: 100%;
+				background: #fff;
+				overflow: hidden;
+			}
+
+			#head {
+				position: relative;
+				display: flex;
+				align-items: center;
+				gap: 12px;
+				padding: 16px;
+				color: #fff;
+				background: var(--brand);
+				flex: none;
+			}
+
+			#head .who {
+				flex: 1;
+				min-width: 0;
+			}
+
+			#head .who h1 {
+				margin: 0;
+				font-size: 16px;
+				line-height: 1;
+			}
+
+			#head .acts {
+				display: flex;
+				gap: 2px;
+				flex: none;
+			}
+
+			#head .acts button {
+				width: 30px;
+				height: 30px;
+				border: 0;
+				background: transparent;
+				color: #fff;
+				cursor: pointer;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+
+			#head .acts button:hover {
+				background: rgba(255, 255, 255, 0.15);
+			}
+
+			#head .acts svg {
+				width: 15px;
+				height: 15px;
+				fill: #fff;
+			}
+
+			/* popup: показуємо лише maximize. Специфічність (2,1,0) перебиває базове (1,1,1). */
+			#head .acts #btn-min,
+			#head .acts #btn-close {
+				display: none;
+			}
+
+			/* розгорнуто: ховаємо maximize, показуємо restore + close. Специфічність (2,2,0). */
+			#wrap.max .acts #btn-max {
+				display: none;
+			}
+
+			#wrap.max .acts #btn-min,
+			#wrap.max .acts #btn-close {
+				display: flex;
+			}
+
+			#msgs {
+				flex: 1;
+				overflow-y: auto;
+				padding: 14px 12px;
+				display: flex;
+				flex-direction: column;
+				gap: 8px;
+			}
+
+			.day-sep {
+				display: flex;
+				align-items: center;
+				text-align: center;
+				margin: 6px 0;
+				gap: 10px;
+			}
+			.day-sep::before,
+			.day-sep::after {
+				content: "";
+				flex: 1;
+				height: 1px;
+				background: #e6e6e6;
+			}
+			.day-sep span {
+				font-size: 11px;
+				color: #999;
+				white-space: nowrap;
+			}
+
+			.msg-time {
+				font-size: 10px;
+				opacity: 0.55;
+				margin-top: 3px;
+			}
+
+			/* Статус доставки — тільки на повідомленнях клієнта */
+			.msg-status {
+				display: inline-block;
+				margin-left: 4px;
+				font-size: 10px;
+				letter-spacing: -2px;
+			}
+
+			.msg.client.read .msg-status {
+				letter-spacing: -2px;
+				opacity: 1;
+			}
+
+			.msg.operator .msg-time {
+				text-align: left;
+			}
+
+			.msg {
+				max-width: 78%;
+				padding: 9px 13px;
+				font-size: 14px;
+				line-height: 1.45;
+				white-space: pre-wrap;
+				word-wrap: break-word;
+			}
+
+			.msg.client {
+				background: var(--brand);
+				color: #fff;
+				align-self: flex-end;
+				border-bottom-right-radius: 3px;
+			}
+
+			.msg.operator {
+				background: #f1f2f4;
+				color: #333;
+				align-self: flex-start;
+				border-bottom-left-radius: 3px;
+			}
+
+			.msg.system {
+				background: #eef7ee;
+				color: #3a6b3a;
+				font-size: 12.5px;
+				max-width: 90%;
+			}
+
+			.msg.deleted {
+				font-style: italic;
+				opacity: 0.6;
+			}
+
+			.edited-tag {
+				font-size: 11px;
+				opacity: 0.55;
+			}
+
+			.msg.client.sending {
+				opacity: 0.55;
+			}
+
+			.msg.client.failed {
+				opacity: 1;
+			}
+
+			.msg.client.failed::after {
+				content: " ⚠";
+				cursor: pointer;
+			}
+
+			#typing {
+				font-size: 12px;
+				color: #999;
+				padding: 0 14px 6px;
+				min-height: 18px;
+				flex: none;
+			}
+
+			#inbar {
+				display: flex;
+				flex-wrap: wrap;
+				align-items: center;
+				gap: 8px;
+				border-top: 1px solid #ddd;
+				padding: 12px 16px;
+				padding-left: 0;
+				flex: none;
+			}
+
+			#inp {
+				flex: 1;
+				border: none;
+				outline: none;
+				padding: 4px;
+				font-size: 15px;
+				font-family: inherit;
+				color: #555;
+				background: transparent;
+			}
+
+			#inp::placeholder {
+				color: #888;
+			}
+
+			#send {
+				width: 40px;
+				height: 40px;
+				flex: none;
+				background: var(--brand);
+				color: #fff;
+				border: none;
+				cursor: pointer;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+
+			#send:hover {
+				background: var(--brand);
+				transform: scale(1.06);
+			}
+
+			#send svg {
+				width: 18px;
+				height: 18px;
+				fill: #fff;
+			}
+
+			.msg img.att-img {
+				max-width: 100%;
+				max-height: 220px;
+				border-radius: 8px;
+				display: block;
+				cursor: pointer;
+			}
+
+			.msg .att-file {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 8px 10px;
+				background: rgba(0, 0, 0, 0.05);
+				border-radius: 8px;
+				text-decoration: none;
+				color: inherit;
+			}
+
+			.msg.client .att-file {
+				background: rgba(255, 255, 255, 0.2);
+			}
+
+			.msg .att-file svg {
+				width: 22px;
+				height: 22px;
+				flex: none;
+			}
+
+			.msg .att-name {
+				font-size: 13px;
+				word-break: break-all;
+			}
+
+			.msg .att-size {
+				font-size: 11px;
+				opacity: 0.7;
+			}
+
+			.msg .att-cap {
+				margin-top: 6px;
+			}
+
+			#attach-preview .pv {
+				position: relative;
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				padding: 6px 10px;
+				background: #f1f2f4;
+				border-radius: 8px;
+				font-size: 12px;
+				max-width: 100%;
+			}
+
+			#attach-preview .pv img {
+				width: 36px;
+				height: 36px;
+				object-fit: cover;
+				border-radius: 4px;
+			}
+
+			#attach-preview .pv .x {
+				cursor: pointer;
+				font-weight: bold;
+				opacity: 0.6;
+				padding: 0 2px;
+			}
+
+			#attach-preview .pv .x:hover {
+				opacity: 1;
+			}
+
+			#lightbox {
+				position: fixed;
+				inset: 0;
+				background: rgba(0, 0, 0, 0.85);
+				display: none;
+				align-items: center;
+				justify-content: center;
+				z-index: 100;
+				cursor: zoom-out;
+			}
+
+			#lightbox img {
+				max-width: 92%;
+				max-height: 92%;
+				border-radius: 4px;
+			}
+
+			@media (max-width: 480px) {
+				#head .acts #btn-close {
+					display: flex;
+				}
+			}
+
+			.typing-indicator {
+				display: inline-flex;
+				align-items: center;
+				padding: 10px 14px;
+				border-radius: 25px;
+			}
+
+			.typing-indicator span {
+				display: inline-block;
+				margin: 0 3px;
+				height: 8px;
+				width: 8px;
+				background-color: #b8bcc2;
+				border-radius: 50%;
+				animation: typing 1s ease-in-out infinite;
+			}
+
+			.typing-indicator span:nth-child(2) {
+				animation-delay: 0.15s;
+			}
+
+			.typing-indicator span:nth-child(3) {
+				animation-delay: 0.3s;
+			}
+
+			@keyframes typing {
+				0% {
+					opacity: 0.5;
+					transform: scale(0.9);
+				}
+
+				50% {
+					opacity: 1;
+					transform: scale(1);
+				}
+
+				100% {
+					opacity: 0.5;
+					transform: scale(0.9);
+				}
+			}
+		</style>
+	</head>
+
+	<body>
+		<div id="wrap">
+			<div id="head">
+				<div class="who">
+					<h1>Підтримка</h1>
+				</div>
+				<div class="acts">
+					<button id="btn-max" title="На весь екран" aria-label="Розгорнути">
+						<svg viewBox="0 0 24 24"><path d="M4 4h7v2H6v5H4V4Zm9 0h7v7h-2V6h-5V4ZM4 13h2v5h5v2H4v-7Zm14 0h2v7h-7v-2h5v-5Z" /></svg>
+					</button>
+					<button id="btn-min" title="Згорнути" aria-label="Згорнути">
+						<svg viewBox="0 0 24 24"><path d="M4 13h2v5h5v2H4v-7Zm16 0h-2v5h-5v2h7v-7ZM4 4h7v2H6v5H4V4Zm16 0h-7v2h5v5h2V4Z" /></svg>
+					</button>
+					<button id="btn-close" title="Закрити" aria-label="Закрити">
+						<svg viewBox="0 0 24 24"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3z" /></svg>
+					</button>
+				</div>
+			</div>
+			<div id="msgs"></div>
+			<div id="typing"></div>
+			<div id="attach-preview" style="display: none; padding: 8px 16px 0"></div>
+			<div id="inbar">
+				<input id="file-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,.xlsx,.docx" style="display: none" />
+				<button id="attach-btn" aria-label="Прикріпити файл" style="width: 36px; height: 36px; flex: none; border: 0; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center">
+					<svg viewBox="0 0 24 24" style="width: 20px; height: 20px; fill: #888"><path d="M16.5 6v11.5a4 4 0 0 1-8 0V5a2.5 2.5 0 0 1 5 0v10.5a1 1 0 0 1-2 0V6H10v9.5a2.5 2.5 0 0 0 5 0V5a4 4 0 0 0-8 0v12.5a5.5 5.5 0 0 0 11 0V6h-1.5Z" /></svg>
+				</button>
+				<input id="inp" maxlength="4000" placeholder="Введіть повідомлення..." />
+				<button id="send" aria-label="Надіслати">
+					<svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z" /></svg>
+				</button>
+				<p style="flex: 0 0 100%; margin: 0; text-align: right; font-size: 10px"><a target="_blank" rel="nofollow" style="color: #686868" href="https://growthcontour.com/">Зроблено в growthcontour.com</a></p>
+			</div>
+		</div>
+		<div id="lightbox"><img alt="" /></div>
+		<script src="/socket.io/socket.io.js"></script>
+		<script src="/socket.io/socket.io.js"></script>
+		<script>
+			(function () {
+				const HOST_ORIGIN = "__HOST_ORIGIN__";
+				const SITE_ID = __SITE_ID__;
+
+				function toHost(msg) {
+					parent.postMessage(msg, HOST_ORIGIN);
+				}
+
+				let lastProductMsg = null; // останній товар від loader (шлемо/перешлемо на сервер)
+				let uploadTicketVal = ""; // HMAC-тікет для /chat/upload, приходить у client:ready
+				let joined = false; // true після client:ready — сесію на сервері створено
+
+				window.addEventListener("message", (e) => {
+					if (e.origin !== HOST_ORIGIN) return;
+					const d = e.data || {};
+					if (d.type === "lc:open") {
+						initAudio();
+						isOpen = true;
+						unread = 0;
+						markAllRead();
+						emitRead();
+						toHost({ type: "lc:unread", count: 0 });
+						focusInput();
+						scrollDown();
+					} else if (d.type === "lc:close") {
+						isOpen = false;
+						setMax(false);
+						// памʼятаємо, у якому стані (робочий/офлайн) користувач закрив — щоб зміна стану скинула це
+						try {
+							const st = WIDGET_CFG && WIDGET_CFG.greeting && WIDGET_CFG.greeting.working ? "work" : "off";
+							localStorage.setItem("lc_closed_state", st);
+						} catch (e) {}
+					} else if (d.type === "lc:wake-audio") {
+						initAudio();
+					} else if (d.type === "lc:device") {
+						hostIsMobile = !!d.mobile;
+						deviceKnown = true;
+						if (WIDGET_CFG) showGreetingFromConfig();
+					} else if (d.type === "lc:product") {
+						lastProductMsg = { product: d.product || null };
+						if (joined && socket && socket.connected) socket.emit("client:product", lastProductMsg);
+					}
+				});
+
+				let isOpen = false,
+					unread = 0,
+					maximized = false;
+				let hostIsMobile = false;
+				let deviceKnown = false;
+
+				const UID_KEY = "lc_uid_fb";
+				const READ_KEY = "lc_lastread_" + SITE_ID;
+				let lastKnownId = 0;
+				function getLastRead() {
+					try {
+						return Number(localStorage.getItem(READ_KEY)) || 0;
+					} catch {
+						return 0;
+					}
+				}
+
+				function setLastRead(id) {
+					try {
+						if (id && id > getLastRead()) localStorage.setItem(READ_KEY, String(id));
+					} catch {}
+				}
+
+				function markAllRead() {
+					if (lastKnownId) setLastRead(lastKnownId);
+				}
+
+				// До якого ID оператор прочитав повідомлення клієнта
+				let operatorLastRead = 0;
+
+				// Перемальовує галочки на всіх своїх повідомленнях до вказаного ID
+				function applyReadReceipt(upTo) {
+					const id = Number(upTo) || 0;
+					if (id <= operatorLastRead) return;
+					operatorLastRead = id;
+
+					msgsEl.querySelectorAll(".msg.client").forEach((el) => {
+						const mid = Number(el.dataset.id) || 0;
+						if (!mid || mid > operatorLastRead) return;
+						el.classList.add("read");
+						const st = el.querySelector(".msg-status");
+						if (st) st.textContent = "✓✓";
+					});
+				}
+
+				function emitRead() {
+					if (socket && socket.connected && lastKnownId) {
+						socket.emit("client:read", { lastReadId: lastKnownId });
+					}
+				}
+
+				function getFallbackUid() {
+					try {
+						return localStorage.getItem(UID_KEY) || null;
+					} catch {
+						return null;
+					}
+				}
+				function setFallbackUid(v) {
+					try {
+						if (v) localStorage.setItem(UID_KEY, v);
+					} catch {}
+				}
+
+				const wrap = document.getElementById("wrap");
+				const msgsEl = document.getElementById("msgs");
+				const typingEl = document.getElementById("typing");
+				const inp = document.getElementById("inp");
+				const btnMax = document.getElementById("btn-max");
+				const btnMin = document.getElementById("btn-min");
+				const btnClose = document.getElementById("btn-close");
+
+				function focusInput() {
+					setTimeout(() => inp && inp.focus(), 50);
+				}
+				inp.addEventListener("focus", () => {
+					if (isOpen) emitRead();
+				});
+				function scrollDown() {
+					setTimeout(() => {
+						msgsEl.scrollTop = msgsEl.scrollHeight;
+					}, 30);
+				}
+				function setMax(on) {
+					maximized = on;
+					wrap.classList.toggle("max", on);
+				}
+
+				btnClose.onclick = () => toHost({ type: "lc:request-close" });
+				btnMax.onclick = () => {
+					setMax(true);
+					toHost({ type: "lc:request-maximize" });
+				};
+				btnMin.onclick = () => {
+					setMax(false);
+					toHost({ type: "lc:request-restore" });
+				};
+
+				function uuid() {
+					return crypto.randomUUID
+						? crypto.randomUUID()
+						: "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+								const r = (Math.random() * 16) | 0;
+								return (c === "x" ? r : (r & 3) | 8).toString(16);
+							});
+				}
+
+				let typingEl2 = null;
+				function showTyping() {
+					if (typingEl2) return; // вже показано
+					typingEl2 = document.createElement("div");
+					typingEl2.className = "msg operator typing-indicator";
+					typingEl2.innerHTML = "<span></span><span></span><span></span>";
+					msgsEl.appendChild(typingEl2);
+					msgsEl.scrollTop = 1e9;
+				}
+				function hideTyping() {
+					if (typingEl2) {
+						typingEl2.remove();
+						typingEl2 = null;
+					}
+				}
+
+				const byId = new Map(); // серверний id повідомлення → DOM-елемент
+
+				function fmtSize(n) {
+					n = Number(n) || 0;
+					if (n < 1024) return n + " Б";
+					if (n < 1024 * 1024) return (n / 1024).toFixed(0) + " КБ";
+					return (n / 1024 / 1024).toFixed(1) + " МБ";
+				}
+
+				// Домалювати вкладення в елемент повідомлення (картинка або файл-посилання)
+				function renderAttachment(el, att, text) {
+					if (!att || !att.url) return;
+					if (att.kind === "image") {
+						const img = document.createElement("img");
+						img.className = "att-img";
+						img.src = att.url;
+						img.alt = att.name || "";
+						img.onclick = () => openLightbox(att.url);
+						el.appendChild(img);
+					} else {
+						const a = document.createElement("a");
+						a.className = "att-file";
+						a.href = att.url;
+						a.setAttribute("download", att.name || "");
+						a.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm0 2 4 4h-4V4Z"/></svg>';
+						const wrap = document.createElement("span");
+						const nm = document.createElement("span");
+						nm.className = "att-name";
+						nm.textContent = att.name || "файл";
+						const sz = document.createElement("span");
+						sz.className = "att-size";
+						sz.textContent = fmtSize(att.size);
+						wrap.appendChild(nm);
+						wrap.appendChild(document.createElement("br"));
+						wrap.appendChild(sz);
+						a.appendChild(wrap);
+						el.appendChild(a);
+					}
+
+					// якщо є й текст-підпис — додаємо під вкладенням
+					if (text) {
+						const cap = document.createElement("div");
+						cap.className = "att-cap";
+						cap.textContent = text;
+						el.appendChild(cap);
+					}
+				}
+
+				function appendMsg(text, from, opts) {
+					const o = opts || {};
+					if (o.id != null && byId.has(o.id)) {
+						const ex = byId.get(o.id);
+						// оновлення наявного: якщо вкладення ще не намальоване — не чіпаємо текст наосліп
+						if (!o.attachment) ex.textContent = text;
+						return ex;
+					}
+
+					if (o.timestamp) maybeInsertDaySeparator(o.timestamp);
+					const el = document.createElement("div");
+					el.className = "msg " + (from === "operator" ? "operator" : from === "system" ? "system" : "client");
+
+					if (o.attachment) {
+						renderAttachment(el, o.attachment, text); // картинка/файл (+ підпис)
+					} else {
+						el.textContent = text;
+					}
+
+					if (o.id != null) {
+						el.dataset.id = o.id;
+						byId.set(o.id, el);
+					}
+					if (o.cmid) el.dataset.cmid = o.cmid;
+					if (o.timestamp) el.dataset.ts = o.timestamp; // для роздільників днів (№5)
+
+					// час під бульбашкою (для всіх, включно з системними)
+					if (o.timestamp) {
+						const t = document.createElement("div");
+						t.className = "msg-time";
+						t.textContent = fmtTime(o.timestamp);
+
+						// Галочка статусу — лише для своїх повідомлень.
+						// ✓ надіслано, ✓✓ прочитано оператором.
+						if (from !== "operator" && from !== "system") {
+							const st = document.createElement("span");
+							st.className = "msg-status";
+							st.textContent = "✓";
+							t.appendChild(st);
+						}
+
+						el.appendChild(t);
+					}
+
+					msgsEl.appendChild(el);
+					if (o.deletedAt) markDeleted(el);
+					else if (o.editedAt && !o.attachment) markEdited(el, text);
+					msgsEl.scrollTop = 1e9;
+					return el;
+				}
+
+				// Банер привітання/стану — локальний, з config (client:ready). Малюється при кожному
+				// відкритті історії, показує актуальний стан, у історію НЕ пишеться, звуку/сповіщень НЕ дає.
+				function renderGreetingBanner(text, offline) {
+					let el = document.getElementById("greeting-banner");
+					if (!el) {
+						el = document.createElement("div");
+						el.id = "greeting-banner";
+						el.className = "msg system";
+						msgsEl.insertBefore(el, msgsEl.firstChild);
+					} else {
+						msgsEl.insertBefore(el, msgsEl.firstChild); // тримаємо зверху
+					}
+					el.textContent = text;
+					el.classList.toggle("offline", !!offline);
+				}
+
+				// Показати банер із конфіга (без сервера, без звуку). Викликається після renderAll.
+				function showGreetingFromConfig() {
+					const g = WIDGET_CFG && WIDGET_CFG.greeting;
+					if (!g || !g.enabled || !g.text) {
+						const old = document.getElementById("greeting-banner");
+						if (old) old.remove();
+						return;
+					}
+
+					renderGreetingBanner(g.text, !g.working);
+
+					// банер показуємо завжди, але авто-відкриття/звук — лише коли відомий тип пристрою,
+					// інакше на мобільному могла б спрацювати desktop-гілка (device ще не прийшов)
+					if (!deviceKnown) return;
+
+					// Пристрій: mobile за шириною (збігається з CSS-брейкпоінтом віджета).
+					const isMobile = hostIsMobile;
+					const dev = isMobile ? g.mobile || {} : g.desktop || {};
+					const wantOpen = !!dev.autoOpen;
+					const wantSound = !!dev.sound;
+
+					// Автовідкриття/звук — при кожній ЗМІНІ стану (working↔offline).
+					// Той самий стан + оновлення/перехід — банер є, без відкриття/звуку.
+					// Ручне закриття діє в межах того ж стану; зміна стану його скидає.
+					const stateKey = g.working ? "work" : "off";
+
+					let lastGreetState = null;
+					try {
+						lastGreetState = sessionStorage.getItem("lc_greet_state");
+					} catch (e) {}
+
+					if (lastGreetState !== stateKey) {
+						try {
+							localStorage.removeItem("lc_closed_state");
+						} catch (e) {}
+					}
+
+					let closedState = null;
+					try {
+						closedState = localStorage.getItem("lc_closed_state");
+					} catch (e) {}
+					const closedInThisState = closedState === stateKey;
+
+					if (lastGreetState !== stateKey) {
+						try {
+							sessionStorage.setItem("lc_greet_state", stateKey);
+						} catch (e) {}
+						if (!closedInThisState) {
+							const delayMs = Math.max(0, Number(g.autoOpenDelaySec) || 0) * 1000;
+							setTimeout(function () {
+								if (wantOpen) {
+									toHost({ type: "lc:request-open" });
+								} else if (!isOpen) {
+									// форму не відкриваємо — показуємо значок сповіщення (є привітання)
+									toHost({ type: "lc:unread", count: Math.max(1, unread) });
+								}
+								if (wantSound) playSound();
+							}, delayMs);
+						}
+					}
+				}
+
+				// Підпис дня для роздільника: Сьогодні / Вчора / 30 липня / 30 липня 2025
+				function fmtDayLabel(ts) {
+					const d = new Date(ts);
+					if (isNaN(d)) return "";
+					const now = new Date();
+					const startOf = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+					const dayMs = 86400000;
+					const diff = Math.round((startOf(now) - startOf(d)) / dayMs);
+					if (diff === 0) return "Сьогодні";
+					if (diff === 1) return "Вчора";
+					const months = ["січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"];
+					const base = d.getDate() + " " + months[d.getMonth()];
+					return d.getFullYear() === now.getFullYear() ? base : base + " " + d.getFullYear();
+				}
+
+				function dayKey(ts) {
+					const d = new Date(ts);
+					if (isNaN(d)) return "";
+					return d.getFullYear() + "-" + d.getMonth() + "-" + d.getDate();
+				}
+
+				// Вставити роздільник дня перед новим повідомленням, якщо день змінився.
+				// Спираємось на data-ts останнього повідомлення у стрічці.
+				function maybeInsertDaySeparator(ts) {
+					if (!ts) return;
+					const key = dayKey(ts);
+					if (!key) return;
+					// останній роздільник у стрічці
+					const seps = msgsEl.querySelectorAll(".day-sep");
+					const lastSep = seps.length ? seps[seps.length - 1] : null;
+					if (lastSep && lastSep.dataset.day === key) return; // цей день уже позначений останнім
+					const sep = document.createElement("div");
+					sep.className = "day-sep";
+					sep.dataset.day = key;
+					sep.innerHTML = "<span>" + fmtDayLabel(ts) + "</span>";
+					msgsEl.appendChild(sep);
+				}
+
+				// час у форматі ГГ:ХХ
+				function fmtTime(ts) {
+					try {
+						return new Date(ts).toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" });
+					} catch {
+						return "";
+					}
+				}
+
+				// Позначити елемент як видалений (плейсхолдер замість тексту). Ідемпотентно.
+				function markDeleted(el) {
+					if (!el || el.dataset.deleted === "1") return false;
+					el.dataset.deleted = "1";
+					el.classList.add("deleted");
+					el.textContent = "Повідомлення видалено";
+					return true; // true = справді щойно змінили (не повтор)
+				}
+
+				function openLightbox(url) {
+					// URL з історії/повідомлення відносний (/chat/file/...). Хост-сторінка на іншому домені,
+					// тож робимо абсолютний URL нашого домену, інакше відносний шлях веде на сайт клієнта.
+					const abs = new URL(url, location.origin).href;
+					toHost({ type: "lc:lightbox", url: abs });
+				}
+
+				// Оновити текст повідомлення + мітка «змінено». Видалене не чіпаємо.
+				function markEdited(el, text) {
+					if (!el || el.dataset.deleted === "1") return;
+					el.textContent = text;
+					el.dataset.edited = "1";
+					const tag = document.createElement("span");
+					tag.className = "edited-tag";
+					tag.textContent = " (змінено)";
+					el.appendChild(tag);
+					// повертаємо час (textContent його стер)
+					if (el.dataset.ts) {
+						const t = document.createElement("div");
+						t.className = "msg-time";
+						t.textContent = fmtTime(el.dataset.ts);
+						el.appendChild(t);
+					}
+				}
+
+				function renderAll(list) {
+					msgsEl.innerHTML = "";
+					byId.clear(); // innerHTML='' відірвав усі елементи — мапа id→el теж недійсна
+
+					// cmid-и, які сервер уже прийняв (є в історії)
+					const known = new Set();
+					list.forEach((m) => {
+						if (m.clientMsgId) known.add(m.clientMsgId);
+					});
+
+					const SYSTEM_TYPES = ["lead_confirm", "op_joined", "chat_closed", "offline_notice"];
+					list.forEach((m) => {
+						if (m.type === "csat_result") return; // результат оцінки клієнту не показуємо
+						if (m.type === "csat_prompt") {
+							renderCsatCard({ id: m.id, text: m.text });
+							return;
+						}
+						if (m.type === "lead_prompt") {
+							// Ручну форму (менеджер надіслав) показуємо завжди.
+							// Автоматичну — лише якщо контакт ще не залишено.
+							if (m.trigger === "manual" || !leadDoneFlag) renderLeadCard({ id: m.id, text: m.text, trigger: m.trigger, formId: m.formId });
+							return;
+						}
+						const isSystem = SYSTEM_TYPES.includes(m.type);
+						appendMsg(m.text, isSystem ? "system" : m.from, { id: m.id, cmid: m.clientMsgId, deletedAt: m.deletedAt, editedAt: m.editedAt, attachment: m.attachment, timestamp: m.timestamp });
+					});
+
+					// innerHTML='' щойно відірвав від DOM усі «летючі» елементи.
+					// ті, що вже є в історії — завершуємо як доставлені (сервер їх має);
+					// ті, яких в історії нема — повертаємо у стрічку, щоб не зникли після реконекту.
+					pending.forEach((p, cmid) => {
+						if (known.has(cmid)) {
+							clearTimeout(p.timer);
+							pending.delete(cmid);
+						} else if (p.el) {
+							msgsEl.appendChild(p.el);
+						}
+					});
+
+					msgsEl.scrollTop = 1e9;
+				}
+
+				function notice(text) {
+					typingEl.textContent = text;
+					setTimeout(() => {
+						if (typingEl.textContent === text) typingEl.textContent = "";
+					}, 4000);
+				}
+
+				// ─── ЛІД-ФОРМА (inline-картка в стрічці) ───
+				// «лишив контакт» — джерело істини сервер (є лід у БД для цього чату).
+				// «відклав (Пізніше)» — лише в памʼяті вкладки, щоб форма могла зʼявитись знову.
+				let leadDoneFlag = false; // лишив контакт (з БД або щойно надіслав)
+				let csatRated = false;
+				let leadDismissed = false; // натиснув «Пізніше» в цьому перебуванні
+				function leadDone() {
+					return leadDoneFlag || leadDismissed;
+				}
+				function setLeadDone() {
+					leadDoneFlag = true;
+				}
+
+				function validEmailC(s) {
+					return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((s || "").trim());
+				}
+				function validPhoneC(s) {
+					return /^[+\d][\d\s()\-]{6,19}$/.test((s || "").trim());
+				}
+
+				let activeLeadCard = null; // картка, що зараз чекає відповіді сервера
+
+				function collapseLeadCard(card, label) {
+					card.innerHTML = "";
+					const t = document.createElement("div");
+					t.style.cssText = "font-size:12px;opacity:.7";
+					t.textContent = label;
+					card.appendChild(t);
+				}
+
+				function renderLeadCard(o) {
+					const o2 = o || {};
+					if (o2.id != null && byId.has(o2.id)) return byId.get(o2.id);
+
+					const formId = o2.formId || "contact";
+					const def = (WIDGET_CFG && WIDGET_CFG.forms && WIDGET_CFG.forms[formId]) || null;
+
+					const card = document.createElement("div");
+					card.className = "msg system lead-card";
+					if (o2.id != null) {
+						card.dataset.id = o2.id;
+						byId.set(o2.id, card);
+					}
+					card.dataset.trigger = o2.trigger || "timeout";
+					card.dataset.formId = formId;
+
+					// заголовок (message тригера) + intro форми, якщо є
+					const title = document.createElement("div");
+					title.style.cssText = "font-size:13px;margin-bottom:8px;line-height:1.4";
+					title.textContent = o2.text || (def && def.intro) || "";
+					card.appendChild(title);
+
+					// Ручну форму (менеджер надіслав) не згортаємо — вона активна навіть після минулого ліда.
+					const isManual = o2.trigger === "manual" || card.dataset.trigger === "manual";
+					if (leadDoneFlag && !isManual) {
+						const d = document.createElement("div");
+						d.style.cssText = "font-size:12px;opacity:.7";
+						d.textContent = U("leadDone", "✓ Контакт залишено");
+						card.appendChild(d);
+						msgsEl.appendChild(card);
+						msgsEl.scrollTop = 1e9;
+						return card;
+					}
+
+					if (leadDismissed) {
+						collapseLeadCard(card, U("leadDismissed", "Форму згорнуто"));
+						msgsEl.appendChild(card);
+						msgsEl.scrollTop = 1e9;
+						return card;
+					}
+
+					// якщо конфіг форми ще не приїхав — безпечний фолбек: email+phone
+					const fields =
+						def && Array.isArray(def.fields) && def.fields.length
+							? def.fields
+							: [
+									{ name: "email", type: "email", label: "Email" },
+									{ name: "phone", type: "tel", label: "Телефон" },
+								];
+					const requireAnyOf = def && Array.isArray(def.requireAnyOf) ? def.requireAnyOf : ["email", "phone"];
+
+					const inpStyle = "width:100%;box-sizing:border-box;margin-bottom:6px;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:14px;font-family:inherit";
+					const controls = {}; // name → елемент (input/select/textarea)
+
+					fields.forEach((fld) => {
+						const label = fld.label || fld.name;
+						if (fld.type === "select" || fld.type === "choice") {
+							const sel = document.createElement("select");
+							sel.style.cssText = inpStyle;
+							const ph = document.createElement("option");
+							ph.value = "";
+							ph.textContent = label;
+							sel.appendChild(ph);
+							(fld.options || []).forEach((op) => {
+								const o = document.createElement("option");
+								o.value = op.value;
+								o.textContent = op.label || op.value;
+								sel.appendChild(o);
+							});
+							controls[fld.name] = sel;
+							card.appendChild(sel);
+						} else if (fld.type === "textarea") {
+							const ta = document.createElement("textarea");
+							ta.placeholder = label;
+							ta.rows = 3;
+							ta.style.cssText = inpStyle + "resize:vertical";
+							controls[fld.name] = ta;
+							card.appendChild(ta);
+						} else if (fld.type === "checkbox") {
+							const wrap = document.createElement("label");
+							wrap.style.cssText = "display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:13px;cursor:pointer";
+							const cb = document.createElement("input");
+							cb.type = "checkbox";
+							const span = document.createElement("span");
+							span.textContent = label;
+							wrap.appendChild(cb);
+							wrap.appendChild(span);
+							controls[fld.name] = cb;
+							card.appendChild(wrap);
+						} else if (fld.type === "hidden") {
+							// приховане поле: значення береться, але не малюється
+							const hid = document.createElement("input");
+							hid.type = "hidden";
+							hid.value = fld.value || "";
+							controls[fld.name] = hid;
+							card.appendChild(hid);
+						} else {
+							const inp2 = document.createElement("input");
+							inp2.type = fld.type === "email" || fld.type === "tel" ? fld.type : "text";
+							inp2.placeholder = label;
+							inp2.style.cssText = inpStyle;
+							controls[fld.name] = inp2;
+							card.appendChild(inp2);
+						}
+					});
+
+					const err = document.createElement("div");
+					err.style.cssText = "display:none;color:#e5342b;font-size:12px;margin-bottom:8px";
+					const row = document.createElement("div");
+					row.style.cssText = "display:flex;gap:8px";
+					const send = document.createElement("button");
+					send.textContent = (def && def.submitLabel) || "Надіслати";
+					send.style.cssText = "flex:1;padding:9px;border:0;border-radius:6px;background:#007fff;color:#fff;cursor:pointer;font-size:14px";
+					row.appendChild(send);
+					// «Пізніше» лише якщо форма його дозволяє (dismissLabel не порожній)
+					const dismissText = def ? def.dismissLabel : "Пізніше";
+					let skip = null;
+					if (dismissText) {
+						skip = document.createElement("button");
+						skip.textContent = dismissText;
+						skip.style.cssText = "padding:9px 12px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:14px";
+						row.appendChild(skip);
+					}
+					card.appendChild(err);
+					card.appendChild(row);
+					card._err = err;
+					card._send = send;
+
+					function readValues() {
+						const out = {};
+						Object.entries(controls).forEach(([name, el]) => {
+							if (el.type === "checkbox") out[name] = el.checked ? "true" : "";
+							else out[name] = (el.value || "").trim();
+						});
+						return out;
+					}
+					function validEmailC(s) {
+						return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((s || "").trim());
+					}
+					function validPhoneC(s) {
+						return /^[+\d][\d\s()\-]{6,19}$/.test((s || "").trim());
+					}
+
+					send.onclick = () => {
+						const values = readValues();
+						// клієнтська перевірка (сервер валідує повторно)
+						for (const fld of fields) {
+							const v = values[fld.name] || "";
+							if (fld.required && !v) {
+								err.textContent = (fld.label || fld.name) + " — обовʼязкове поле.";
+								err.style.display = "block";
+								return;
+							}
+							if (fld.type === "email" && v && !validEmailC(v)) {
+								err.textContent = "Невірний email.";
+								err.style.display = "block";
+								return;
+							}
+							if (fld.type === "tel" && v && !validPhoneC(v)) {
+								err.textContent = "Невірний телефон.";
+								err.style.display = "block";
+								return;
+							}
+						}
+						if (requireAnyOf.length && !requireAnyOf.some((n) => values[n])) {
+							err.textContent = S("leadNeedContact", "Вкажіть email або телефон для звʼязку.");
+							err.style.display = "block";
+							return;
+						}
+						err.style.display = "none";
+						send.disabled = true;
+						activeLeadCard = card;
+						if (socket) socket.emit("client:lead", { formId, values, trigger: card.dataset.trigger });
+					};
+					if (skip)
+						skip.onclick = () => {
+							leadDismissed = true;
+							collapseLeadCard(card, U("leadDismissed", "Форму згорнуто"));
+						};
+
+					msgsEl.appendChild(card);
+					msgsEl.scrollTop = 1e9;
+					return card;
+				}
+
+				// сигнал тайм-ауту від сервера
+				function bindLeadSocket() {
+					socket.on("client:lead_result", ({ ok, code }) => {
+						const card = activeLeadCard;
+						if (ok) {
+							setLeadDone();
+							if (card) collapseLeadCard(card, U("leadDone", "✓ Контакт залишено"));
+							activeLeadCard = null;
+							// текст-підтвердження прийде окремим системним повідомленням lead_confirm
+						} else {
+							if (card && card._send) card._send.disabled = false;
+							if (card && card._err) {
+								card._err.style.display = "block";
+								card._err.textContent = code === "need_contact" ? S("leadNeedContact", "Вкажіть email або телефон.") : code === "too_many" ? "Забагато спроб. Спробуйте пізніше." : S("sendFailed", "Не вдалося надіслати. Спробуйте ще раз.");
+							}
+						}
+					});
+				}
+
+				let audioCtx = null;
+				function initAudio() {
+					try {
+						if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+						if (audioCtx.state === "suspended") audioCtx.resume();
+					} catch (e) {}
+				}
+				function playSound() {
+					try {
+						if (!audioCtx) return; // ще не було взаємодії — не граємо
+						if (audioCtx.state === "suspended") audioCtx.resume();
+						const ctx = audioCtx;
+						const o1 = ctx.createOscillator(),
+							g1 = ctx.createGain();
+						o1.connect(g1);
+						g1.connect(ctx.destination);
+						o1.frequency.value = 880;
+						o1.type = "sine";
+						g1.gain.setValueAtTime(0.3, ctx.currentTime);
+						g1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+						o1.start(ctx.currentTime);
+						o1.stop(ctx.currentTime + 0.2);
+						const o2 = ctx.createOscillator(),
+							g2 = ctx.createGain();
+						o2.connect(g2);
+						g2.connect(ctx.destination);
+						o2.frequency.value = 1100;
+						o2.type = "sine";
+						g2.gain.setValueAtTime(0.2, ctx.currentTime + 0.15);
+						g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+						o2.start(ctx.currentTime + 0.15);
+						o2.stop(ctx.currentTime + 0.4);
+					} catch (e) {}
+				}
+
+				const pending = new Map();
+				function markFailed(cmid) {
+					const p = pending.get(cmid);
+					if (!p) return;
+					p.el.classList.remove("sending");
+					p.el.classList.add("failed");
+					p.el.onclick = () => {
+						p.el.onclick = null;
+						doSend(cmid, p.text, p.el);
+					};
+				}
+
+				function doSend(cmid, text, el) {
+					if (!socket) {
+						markFailed(cmid);
+						return;
+					}
+					el.classList.remove("failed");
+					el.classList.add("sending");
+					const prev = pending.get(cmid);
+					if (prev) clearTimeout(prev.timer);
+					const att = prev && prev.att ? prev.att : null; // зберігаємо вкладення при retry
+					const timer = setTimeout(() => markFailed(cmid), 8000);
+					pending.set(cmid, { el, text, timer, att });
+					socket.emit("client:message", { text, timestamp: Date.now(), clientMsgId: cmid, attachment: att });
+				}
+
+				let socket;
+				(function initSocket() {
+					if (typeof io === "undefined") {
+						setTimeout(initSocket, 50);
+						return;
+					}
+					socket = io("/webchat", { transports: ["websocket", "polling"] });
+					bindSocket();
+				})();
+
+				let WIDGET_CFG = null; // проєкція конфіга сайту (з client:ready)
+
+				function applyConfig(cfg) {
+					WIDGET_CFG = cfg || null;
+					if (!WIDGET_CFG) return;
+
+					// тексти шапки
+					// тексти шапки
+					try {
+						const h1 = document.querySelector("#head .who h1");
+						if (h1 && cfg.header && cfg.header.title) h1.textContent = cfg.header.title;
+					} catch {}
+					// плейсхолдер поля вводу
+					try {
+						if (inp && cfg.ui && cfg.ui.inputPlaceholder) inp.placeholder = cfg.ui.inputPlaceholder;
+					} catch {}
+				}
+
+				// Локалізований службовий рядок із конфіга; поки конфіг не прийшов — фолбек.
+				function S(key, fallback) {
+					const v = WIDGET_CFG && WIDGET_CFG.strings && WIDGET_CFG.strings[key];
+					return typeof v === "string" && v ? v : fallback;
+				}
+
+				function U(key, fallback) {
+					const v = WIDGET_CFG && WIDGET_CFG.ui && WIDGET_CFG.ui[key];
+					return typeof v === "string" && v ? v : fallback;
+				}
+
+				function bindSocket() {
+					socket.on("connect", () => {
+						socket.emit("client:join", {
+							siteId: SITE_ID,
+							fallbackUid: getFallbackUid(),
+							lang: navigator.language || "",
+							meta: collectMeta(),
+						});
+						pending.forEach((p, cmid) => doSend(cmid, p.text, p.el));
+						// товар шлемо не тут, а після client:ready — інакше він обганяє client:join
+					});
+
+					socket.on("client:ready", ({ issuedUid, leadAlready, rated, uploadTicket, config }) => {
+						joined = true;
+						if (issuedUid) setFallbackUid(issuedUid);
+						if (uploadTicket) uploadTicketVal = uploadTicket;
+						if (leadAlready) leadDoneFlag = true;
+						if (rated) csatRated = true;
+						if (config) applyConfig(config);
+						showGreetingFromConfig(); // config готовий — банер можна показати
+						if (arguments[0] && arguments[0].operatorLastReadId) operatorLastRead = Number(arguments[0].operatorLastReadId) || 0;
+						if (lastProductMsg) socket.emit("client:product", lastProductMsg);
+					});
+
+					socket.on("client:history", (history) => {
+						const list = history || [];
+						renderAll(list);
+						showGreetingFromConfig(); // банер стану — локально, одразу, без сервера
+
+						// Галочки на вже прочитаних оператором повідомленнях
+						if (operatorLastRead) {
+							const saved = operatorLastRead;
+							operatorLastRead = 0;
+							applyReadReceipt(saved);
+						}
+						if (list.length) lastKnownId = Math.max(lastKnownId, list[list.length - 1].id || 0);
+						if (isOpen) {
+							markAllRead();
+							unread = 0;
+							toHost({ type: "lc:unread", count: 0 });
+						} else {
+							const lastRead = getLastRead();
+							unread = list.filter((m) => m.from === "operator" && m.id > lastRead).length;
+							toHost({ type: "lc:unread", count: unread });
+						}
+					});
+
+					socket.on("client:ack", ({ clientMsgId, id }) => {
+						const p = pending.get(clientMsgId);
+						if (!p) return;
+						clearTimeout(p.timer);
+						p.el.classList.remove("sending", "failed");
+						p.el.onclick = null;
+						if (id != null && p.el) {
+							p.el.dataset.id = id;
+							byId.set(id, p.el);
+						} // тепер повідомлення клієнта теж адресоване
+						pending.delete(clientMsgId);
+					});
+
+					socket.on("client:message", ({ id, text, greeting, offline, system, attachment, leadPrompt, trigger, formId, csat, timestamp }) => {
+						hideTyping();
+						typingEl.textContent = "";
+
+						if (csat) {
+							// запит оцінки як повідомлення
+							renderCsatCard({ id, text });
+							if (id && id > lastKnownId) lastKnownId = id;
+							toHost({ type: "lc:request-open" });
+							return;
+						}
+
+						if (leadPrompt) {
+							// форма-лід як повідомлення
+							renderLeadCard({ id, text, trigger, formId });
+							if (id && id > lastKnownId) lastKnownId = id;
+							toHost({ type: "lc:request-open" }); // відкриваємо віджет, щоб клієнт побачив форму
+							if (isOpen) {
+								setLastRead(id);
+								emitRead();
+							} else {
+								unread++;
+								toHost({ type: "lc:unread", count: unread });
+							}
+							return;
+						}
+
+						appendMsg(text, system ? "system" : "operator", { id, attachment, timestamp });
+						if (id && id > lastKnownId) lastKnownId = id;
+						if (!system) playSound();
+						if (isOpen) {
+							setLastRead(id);
+							emitRead();
+						} else {
+							unread++;
+							toHost({ type: "lc:unread", count: unread });
+						}
+					});
+
+					socket.on("client:message_deleted", ({ id }) => {
+						const el = byId.get(id);
+						if (!el) return; // не намальоване — нічого не робимо
+						const changed = markDeleted(el); // ідемпотентно: повтор не спрацює двічі
+						if (!changed) return; // дедуп: уже було видалене — unread не чіпаємо
+						// якщо видалили операторське повідомлення, яке ще не прочитане — коригуємо лічильник
+						if (!isOpen && el.classList.contains("operator")) {
+							const mid = Number(el.dataset.id) || 0;
+							if (mid > getLastRead() && unread > 0) {
+								unread--;
+								toHost({ type: "lc:unread", count: unread });
+							}
+						}
+					});
+
+					// Оператор відкрив діалог — позначаємо свої повідомлення прочитаними
+					socket.on("client:read_receipt", ({ lastReadId }) => {
+						applyReadReceipt(lastReadId);
+					});
+
+					socket.on("client:message_edited", ({ id, text }) => {
+						const el = byId.get(id);
+						if (!el) return;
+						markEdited(el, text);
+					});
+
+					socket.on("client:error", ({ code, clientMsgId }) => {
+						if (clientMsgId && pending.has(clientMsgId)) markFailed(clientMsgId);
+						notice(code === "rate_limited" ? S("rateLimited", "Забагато повідомлень, зачекайте хвилину.") : S("sendFailed", "Не вдалося надіслати."));
+					});
+
+					let typingTimer;
+					socket.on("typing", () => {
+						showTyping();
+						clearTimeout(typingTimer);
+						typingTimer = setTimeout(hideTyping, 2000); // зникає через 2с без активності
+					});
+
+					bindLeadSocket();
+				}
+
+				// ── Вкладення: вибір, аплоуд, прев'ю ──
+				const SERVER_ORIGIN = location.origin; // frame віддається з нашого домену — аплоуд туди ж
+				let pendingAttach = null; // { path, name, size, mime, kind } — завантажене, чекає відправки
+				let uploading = false;
+
+				const fileInput = document.getElementById("file-input");
+				const attachBtn = document.getElementById("attach-btn");
+				const attachPreview = document.getElementById("attach-preview");
+
+				const ALLOWED_CLIENT = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+				const MAX_BYTES = 8 * 1024 * 1024;
+
+				attachBtn.onclick = () => fileInput.click();
+				fileInput.onchange = () => {
+					if (fileInput.files[0]) uploadFile(fileInput.files[0]);
+					fileInput.value = "";
+				};
+
+				async function uploadFile(file) {
+					if (uploading) return;
+					if (!ALLOWED_CLIENT.includes(file.type)) {
+						notice("Тип файлу не підтримується.");
+						return;
+					}
+					if (file.size > MAX_BYTES) {
+						notice("Файл завеликий (макс. 8 МБ).");
+						return;
+					}
+					uploading = true;
+					const isImg = file.type.startsWith("image/");
+					const blobUrl = isImg ? URL.createObjectURL(file) : ""; // локальне прев'ю — з файлу, не з сервера
+					showAttachPreview({ name: file.name, size: file.size, kind: isImg ? "image" : "file", loading: true, localUrl: blobUrl });
+					try {
+						const fd = new FormData();
+						fd.append("file", file);
+
+						const res = await fetch(SERVER_ORIGIN + "/chat/upload?siteId=" + encodeURIComponent(String(SITE_ID)), {
+							method: "POST",
+							body: fd,
+							credentials: "include",
+							headers: uploadTicketVal ? { "X-Upload-Ticket": uploadTicketVal } : {},
+						});
+
+						const data = await res.json();
+						if (!data.ok) {
+							notice(uploadErrText(data.error));
+							clearAttach();
+							return;
+						}
+						pendingAttach = { path: data.path, name: data.name, size: data.size, mime: data.mime, kind: data.kind, previewUrl: blobUrl };
+						showAttachPreview({ name: data.name, size: data.size, kind: data.kind, loading: false, localUrl: blobUrl });
+					} catch (e) {
+						notice("Не вдалося завантажити файл.");
+						clearAttach();
+					} finally {
+						uploading = false;
+					}
+				}
+
+				function uploadErrText(code) {
+					if (code === "file_too_large") return "Файл завеликий (макс. 8 МБ).";
+					if (code === "type_not_allowed" || code === "content_mismatch") return "Тип файлу не підтримується.";
+					if (code === "rate_limited") return "Забагато завантажень, зачекайте.";
+					return "Не вдалося завантажити файл.";
+				}
+
+				function showAttachPreview({ name, size, kind, loading, localUrl }) {
+					attachPreview.style.display = "block";
+					attachPreview.innerHTML = '<div class="pv">' + (kind === "image" && localUrl ? '<img src="' + localUrl + '" alt="">' : "📎") + "<span>" + (name || "файл") + (loading ? " — завантаження…" : " · " + fmtSize(size)) + "</span>" + (loading ? "" : '<span class="x" title="Прибрати">✕</span>') + "</div>";
+					const x = attachPreview.querySelector(".x");
+					if (x) x.onclick = clearAttach;
+				}
+
+				function clearAttach() {
+					pendingAttach = null;
+					attachPreview.style.display = "none";
+					attachPreview.innerHTML = "";
+				}
+
+				function sendMessage() {
+					const text = inp.value.trim();
+					if (!text && !pendingAttach) return; // порожньо й без файлу
+					if (uploading) {
+						notice("Зачекайте, файл ще завантажується.");
+						return;
+					}
+
+					const cmid = uuid();
+					const att = pendingAttach;
+					// локальний рендер: для картинки показуємо підписаний URL одразу (він у прев'ю вже є),
+					// але надійніше — намалювати після ack з історією. Тут малюємо оптимістично без URL-підпису:
+					const localAtt = att ? { url: att.kind === "image" ? att.previewUrl || "" : "", name: att.name, size: att.size, mime: att.mime, kind: att.kind } : null;
+					const el = appendMsg(text, "client", { cmid, attachment: localAtt, timestamp: new Date().toISOString() });
+					doSendWithAttach(cmid, text, el, att);
+
+					inp.value = "";
+					clearAttach();
+					if (socket) socket.emit("client:preview", { text: "" });
+				}
+
+				// як doSend, але з вкладенням у payload
+				function doSendWithAttach(cmid, text, el, att) {
+					if (!socket) {
+						markFailed(cmid);
+						return;
+					}
+					el.classList.remove("failed");
+					el.classList.add("sending");
+					const prev = pending.get(cmid);
+					if (prev) clearTimeout(prev.timer);
+					const timer = setTimeout(() => markFailed(cmid), 8000);
+					pending.set(cmid, { el, text, timer, att });
+					socket.emit("client:message", { text, timestamp: Date.now(), clientMsgId: cmid, attachment: att || null });
+				}
+
+				function collectMeta() {
+					try {
+						const params = new URLSearchParams(location.search);
+						const page = params.get("page") || document.referrer || "";
+						// UTM парсимо з URL сторінки-господаря (передається loader'ом у ?page=)
+						let host = {};
+						try {
+							host = Object.fromEntries(new URL(page).searchParams.entries());
+						} catch (e) {}
+						const nav = navigator;
+						const conn = nav.connection || nav.mozConnection || nav.webkitConnection || {};
+						return {
+							pageUrl: page,
+							referrer: document.referrer || "",
+							// UTM
+							utm_source: host.utm_source || "",
+							utm_medium: host.utm_medium || "",
+							utm_campaign: host.utm_campaign || "",
+							utm_term: host.utm_term || "",
+							utm_content: host.utm_content || "",
+							gclid: host.gclid || "",
+							fbclid: host.fbclid || "",
+							// пристрій
+							languages: (nav.languages || []).join(",").slice(0, 200),
+							timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+							screen: screen.width + "x" + screen.height,
+							viewport: window.innerWidth + "x" + window.innerHeight,
+							pixelRatio: String(window.devicePixelRatio || 1),
+							platform: nav.platform || "",
+							cores: String(nav.hardwareConcurrency || ""),
+							memory: String(nav.deviceMemory || ""),
+							touch: "ontouchstart" in window || nav.maxTouchPoints > 0 ? "yes" : "no",
+							connection: conn.effectiveType || "",
+						};
+					} catch (e) {
+						return {};
+					}
+				}
+
+				let lastPreview = 0,
+					previewTimer = null;
+
+				function sendPreview() {
+					if (!socket) return;
+					socket.emit("client:preview", { text: inp.value.slice(0, 500) });
+				}
+
+				document.getElementById("send").onclick = sendMessage;
+				inp.addEventListener("keydown", (e) => {
+					if (e.key === "Enter") {
+						sendMessage();
+						return;
+					}
+				});
+
+				inp.addEventListener("input", () => {
+					if (isOpen) emitRead(); // друкує — отже прочитав
+					const now = Date.now();
+					// троттлимо: не частіше разу на 400мс, але останній стан завжди дошлемо
+					if (now - lastPreview > 400) {
+						lastPreview = now;
+						sendPreview();
+					} else {
+						clearTimeout(previewTimer);
+						previewTimer = setTimeout(() => {
+							lastPreview = Date.now();
+							sendPreview();
+						}, 400);
+					}
+				});
+
+				["click", "keydown", "touchstart"].forEach((ev) => window.addEventListener(ev, initAudio, { once: false }));
+
+				// Клієнт повернувся на вкладку/у вікно, а чат відкритий — він бачить повідомлення, отже прочитав.
+				document.addEventListener("visibilitychange", () => {
+					if (!document.hidden && isOpen) {
+						markAllRead();
+						emitRead();
+					}
+				});
+				window.addEventListener("focus", () => {
+					if (isOpen) {
+						markAllRead();
+						emitRead();
+					}
+				});
+
+				// Ctrl+V: якщо в буфері є зображення (скрін), вантажимо його
+				document.addEventListener("paste", (e) => {
+					const items = (e.clipboardData && e.clipboardData.files) || [];
+					if (items.length && items[0].type.startsWith("image/")) {
+						e.preventDefault();
+						uploadFile(items[0]);
+					}
+				});
+
+				// Drag-and-drop у вікно чату
+				["dragover", "drop"].forEach((ev) => {
+					document.addEventListener(ev, (e) => {
+						e.preventDefault();
+					});
+				});
+				document.addEventListener("drop", (e) => {
+					const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+					if (f) uploadFile(f);
+				});
+
+				// ===== Оцінка якості — як повідомлення в стрічці (переживає F5) =====
+				function renderCsatCard(o) {
+					const o2 = o || {};
+					if (o2.id != null && byId.has(o2.id)) return byId.get(o2.id);
+
+					const box = document.createElement("div");
+					box.className = "msg system";
+					box.id = "csat-box";
+					box.style.maxWidth = "90%";
+					if (o2.id != null) {
+						box.dataset.id = o2.id;
+						byId.set(o2.id, box);
+					}
+
+					if (csatRated) {
+						// уже оцінено — показуємо подяку, без кнопок
+						box.textContent = "Дякуємо за оцінку!";
+						msgsEl.appendChild(box);
+						msgsEl.scrollTop = 1e9;
+						return box;
+					}
+
+					const title = document.createElement("div");
+					title.style.cssText = "font-weight:600;margin-bottom:8px";
+					title.textContent = o2.text || "Оцініть, будь ласка, розмову";
+
+					const btns = document.createElement("div");
+					btns.style.cssText = "display:flex;gap:8px;margin-bottom:8px";
+					let chosen = null;
+					const mkBtn = (v, label) => {
+						const b = document.createElement("button");
+						b.textContent = label;
+						b.style.cssText = "flex:1;padding:8px;border:1px solid #cdd6cd;border-radius:8px;background:#fff;cursor:pointer;font-size:20px";
+						b.onclick = () => {
+							chosen = v;
+							[up, down].forEach((x) => (x.style.outline = ""));
+							b.style.outline = "2px solid var(--brand)";
+							cmt.style.display = "block";
+							send.style.display = "block";
+							msgsEl.scrollTop = 1e9;
+						};
+						return b;
+					};
+					const up = mkBtn(1, "👍");
+					const down = mkBtn(0, "👎");
+					btns.appendChild(up);
+					btns.appendChild(down);
+
+					const cmt = document.createElement("textarea");
+					cmt.rows = 2;
+					cmt.placeholder = "Коментар (необовʼязково)";
+					cmt.style.cssText = "display:none;width:100%;box-sizing:border-box;border:1px solid #cdd6cd;border-radius:8px;padding:8px;font:14px inherit;resize:none;margin-bottom:8px";
+
+					const send = document.createElement("button");
+					send.textContent = "Надіслати";
+					send.style.cssText = "display:none;width:100%;padding:9px;border:0;border-radius:8px;background:var(--brand);color:#fff;cursor:pointer";
+					send.onclick = () => {
+						if (chosen == null) return;
+						send.disabled = true;
+						socket.emit("client:rate", { score: chosen, comment: cmt.value || "" });
+					};
+
+					box.appendChild(title);
+					box.appendChild(btns);
+					box.appendChild(cmt);
+					box.appendChild(send);
+					msgsEl.appendChild(box);
+					msgsEl.scrollTop = 1e9;
+					return box;
+				}
+
+				// сервер підтвердив оцінку → замінюємо картку на подяку
+				socket.on("client:csat_done", () => {
+					csatRated = true;
+					const box = document.getElementById("csat-box");
+					if (box) box.textContent = "Дякуємо за оцінку!";
+				});
+
+				socket.on("client:rate_result", (r) => {
+					const box = document.getElementById("csat-box");
+					if (r && !r.ok && box) box.textContent = "Оцінку вже збережено. Дякуємо!";
+				});
+
+				toHost({ type: "lc:ready" });
+			})();
+		</script>
+	</body>
+</html>

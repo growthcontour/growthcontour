@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+<head>
+    <%- include('../../partials/head'); %>
+	<style>
+.profile-pic {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border: 2px solid #dee2e6;
+    transition: opacity 0.3s ease;
+}
+
+#upload-avatar-btn {
+    transition: transform 0.2s ease;
+}
+
+#upload-avatar-btn:hover {
+    transform: scale(1.1);
+}
+
+.position-relative {
+    display: inline-block;
+}
+
+#avatar-spinner {
+    z-index: 10;
+}
+</style>
+</head>
+<body class="d-flex flex-column h-100">
+<%- include('../../partials/header'); %>
+
+<%
+const _id       = customer.id;
+const _fullName = [customer.last_name, customer.first_name, customer.middle_name].filter(Boolean).join(' ');
+const _initials = ((customer.first_name || '')[0] || '') + ((customer.last_name || '')[0] || '');
+const _base     = '/customers/' + _id;
+function fmtDate(v) {
+    if (!v) return '—';
+    return new Date(v).toLocaleDateString('uk-UA');
+}
+function fmtMoney(v) {
+    if (v == null) return '—';
+    return parseFloat(v).toLocaleString('uk-UA', { minimumFractionDigits: 2 }) + ' ₴';
+}
+%>
+
+<!-- Breadcrumb -->
+<div class="breadcrumbs pt-3 pb-3">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col">
+                <span><%= _fullName || customer.uid %></span>
+                <div>
+                    <ul class="list-inline mb-0">
+                        <li class="list-inline-item">
+                            <a href="/"><i class="fas fa-home"></i> <span>Головна</span></a>
+                        </li>
+                        <li class="list-inline-item">
+                            <a href="/customers/"><i class="fas fa-chevron-right"></i> <span>Покупці</span></a>
+                        </li>
+                        <li class="list-inline-item">
+                            <i class="fas fa-chevron-right"></i> <%= _fullName || customer.uid %>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-auto">
+                <a href="/customers/" class="btn btn-primary rounded-0">
+                    <i class="fa-solid fa-angle-left"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- END Breadcrumb -->
+
+<div class="container-fluid mt-3">
+    <div class="row">
+
+        <!-- ── SIDEBAR ──────────────────────────────────────────── -->
+        <div class="col-12 col-lg-3 col-xl-2">
+
+            <div class="card border-primary rounded-0 mb-3">
+                <div class="card-header text-bg-primary rounded-0">Користувач</div>
+                <div class="card-header text-center bg-white pt-4 pb-2">
+					<div class="position-relative d-inline-block">
+						<div class="spinner-border text-primary position-absolute top-50 start-50 translate-middle" 
+							id="avatar-spinner" 
+							role="status" 
+							style="display: none; width: 40px; height: 40px;">
+							<span class="visually-hidden">Loading...</span>
+						</div>
+						<img src="/assets/images/customers/avatars/no-avatar.jpg" 
+							class="rounded-circle profile-pic" 
+							alt="Profile Picture"
+							id="customer-avatar"
+							style="width: 80px; height: 80px; object-fit: cover; border: 2px solid #ddd;">
+						<button class="btn btn-primary btn-sm position-absolute bottom-0 end-0 rounded-circle" 
+								id="upload-avatar-btn"
+								style="width: 28px; height: 28px; padding: 0; font-size: 12px;">
+							<i class="fas fa-camera"></i>
+						</button>
+						<input type="file" id="avatar-file-input" accept="image/jpeg,image/png" style="display: none;">
+					</div>
+                </div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item text-center">
+                        <div class="fw-bold"><%= _fullName || '—' %></div>
+                        <div class="text-muted small"><%= customer.uid %></div>
+                    </li>
+                    <% if (customer.blacklisted || customer.is_new) { %>
+                    <li class="list-group-item text-center">
+                        <% if (customer.blacklisted) { %><span class="badge bg-danger me-1">Blocked</span><% } %>
+                        <% if (customer.is_new) { %><span class="badge bg-success">New</span><% } %>
+                    </li>
+                    <% } %>
+                    <% if (groups && groups.length) { %>
+                    <li class="list-group-item text-center">
+                        <div class="d-flex flex-wrap justify-content-center gap-1">
+                            <% groups.forEach(function(g) { %>
+                            <span class="badge" style="color:<%= g.color_text %>;background:<%= g.color_background %>">
+                                <%= g.text %>
+                            </span>
+                            <% }); %>
+                        </div>
+                    </li>
+                    <% } %>
+                    <% if (loyalty) { %>
+                    <li class="list-group-item text-center">
+                        <span class="badge px-2 py-1 me-1"
+                              style="background:<%= loyalty.level_color || '#ccc' %>;color:#fff">
+                            <%= loyalty.level_name || '—' %>
+                        </span>
+                        <span class="small fw-semibold text-warning">
+                            <%= loyalty.points_balance || 0 %> pts
+                        </span>
+                    </li>
+                    <% } %>
+                </ul>
+            </div>
+
+            <div class="card border-primary rounded-0 mb-3">
+                <div class="card-header text-bg-primary rounded-0">Навігація</div>
+                <div class="list-group list-group-flush">
+                    <%
+                    const _nav = [
+                        { path: '',           icon: 'fa-user',              label: 'General'   },
+                        { path: '/contacts',  icon: 'fa-address-book',      label: 'Contacts'  },
+                        { path: '/addresses', icon: 'fa-location-dot',      label: 'Addresses' },
+                        { path: '/groups',    icon: 'fa-users',             label: 'Groups'    },
+                        { path: '/loyalty',   icon: 'fa-star',              label: 'Loyalty'   },
+                        { path: '/analytics', icon: 'fa-chart-simple',      label: 'Analytics' },
+                        { path: '/notes',     icon: 'fa-note-sticky',       label: 'Notes'     },
+                        { path: '/history',   icon: 'fa-clock-rotate-left', label: 'History'   },
+                    ];
+                    _nav.forEach(function(n) {
+                        const href    = _base + n.path;
+                        const current = (n.path === '' && locals.active === undefined)
+                                     || locals.active === n.path.replace('/', '');
+                    %>
+                    <a href="<%= href %>"
+                       class="list-group-item list-group-item-action rounded-0 py-2 <%= current ? 'active' : '' %>">
+                        <i class="fa-solid <%= n.icon %> fa-fw me-2"></i><%= n.label %>
+                    </a>
+                    <% }); %>
+                </div>
+            </div>
+
+        </div>
+        <!-- END SIDEBAR -->
+
+        <!-- ── MAIN CONTENT ─────────────────────────────────────── -->
+        <div class="col-12 col-lg-9 col-xl-10">
+            <div class="row g-3">
+
+                <!-- General info — inline edit -->
+                <div class="col-12 col-xl-8">
+                    <div class="card border-primary rounded-0 h-100">
+    <div class="card-header text-bg-primary rounded-0">
+        <i class="fa-solid fa-user me-2"></i>General Information
+        <small class="ms-2 opacity-75" style="font-size:.7rem">
+            <i class="fa-solid fa-pen-to-square me-1"></i>Click a field to edit
+        </small>
+    </div>
+    <div class="card-body">
+        <!-- Функція для безпечного виведення з дефолтним значенням -->
+        <% function displayValue(value) { 
+            if (value && value !== '') { 
+                return value; 
+            } else { 
+                return '<span class="text-muted">—</span>'; 
+            } 
+        } %>
+        
+        <!-- ID - readonly, not editable -->
+        <div class="row mb-4 pb-1 border-bottom">
+            <div class="col-12">
+                <div class="d-flex align-items-center justify-content-between bg-light p-2 rounded-0">
+                    <div>
+                        <span class="text-muted small me-2">Customer ID:</span>
+                        <span class="fw-bold text-primary"><%= customer.id %></span>
+                        <span class="text-muted mx-2">|</span>
+                        <span class="text-muted small me-2">UID:</span>
+                        <span class="fw-mono"><code><%= customer.uid %></code></span>
+                    </div>
+                    <div>
+                        <span class="badge bg-secondary rounded-0">System ID</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 1: Name fields (3 columns) -->
+        <div class="row g-3 mb-3">
+            <div class="col-md-4">
+                <div class="text-muted small mb-1">Last name</div>
+                <div class="ie-field fw-semibold p-2 bg-light rounded-1"
+                     data-field="last_name"
+                     data-value="<%= customer.last_name || '' %>">
+                    <%- customer.last_name ? customer.last_name : '<span class="text-muted fw-normal">—</span>' %>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-muted small mb-1">First name</div>
+                <div class="ie-field fw-semibold p-2 bg-light rounded-1"
+                     data-field="first_name"
+                     data-value="<%= customer.first_name || '' %>">
+                    <%- customer.first_name ? customer.first_name : '<span class="text-muted fw-normal">—</span>' %>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-muted small mb-1">Middle name</div>
+                <div class="ie-field p-2 bg-light rounded-1"
+                     data-field="middle_name"
+                     data-value="<%= customer.middle_name || '' %>">
+                    <%- customer.middle_name ? customer.middle_name : '<span class="text-muted">—</span>' %>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 2: Personal info (4 columns) -->
+        <div class="row g-3 mb-3">
+            <div class="col-sm-6 col-md-3">
+                <div class="text-muted small mb-1">Gender</div>
+                <div class="ie-field ie-select p-2 bg-light rounded-1"
+                     data-field="gender"
+                     data-value="<%= customer.gender || '' %>"
+                     data-options='[{"value":"male","label":"Male"},{"value":"female","label":"Female"},{"value":"other","label":"Other"}]'>
+                    <% if (customer.gender === 'male') { %>
+                        <i class="fa-solid fa-mars text-primary me-1"></i>Male
+                    <% } else if (customer.gender === 'female') { %>
+                        <i class="fa-solid fa-venus text-danger me-1"></i>Female
+                    <% } else { %>
+                        <span class="text-muted">—</span>
+                    <% } %>
+                </div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <div class="text-muted small mb-1">Birthday</div>
+                <div class="ie-field ie-date p-2 bg-light rounded-1"
+                     data-field="birthday"
+                     data-value="<%= customer.birthday ? customer.birthday.toString().slice(0,10) : '' %>">
+                    <%- fmtDate(customer.birthday) %>
+                </div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <div class="text-muted small mb-1">Age</div>
+                <div class="p-2 bg-light rounded-1">
+                    <%- customer.age ? customer.age + ' years' : '<span class="text-muted">—</span>' %>
+                </div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <div class="text-muted small mb-1">Type</div>
+                <div class="ie-field ie-select p-2 bg-light rounded-1"
+                     data-field="type"
+                     data-value="<%= customer.type || '' %>"
+                     data-options='[{"value":"individual","label":"Individual"},{"value":"company","label":"Company"}]'>
+                    <% if (customer.type === 'individual') { %>
+                        <i class="fa-solid fa-user me-1"></i>Individual
+                    <% } else if (customer.type === 'company') { %>
+                        <i class="fa-solid fa-building me-1"></i>Company
+                    <% } else { %>
+                        <span class="text-muted">—</span>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 3: System settings (4 columns) -->
+        <div class="row g-3 mb-3">
+            <div class="col-sm-6 col-md-3">
+                <div class="text-muted small mb-1">Language</div>
+                <div class="ie-field ie-select p-2 bg-light rounded-1"
+                     data-field="language"
+                     data-value="<%= customer.language || '' %>"
+                     data-options='[{"value":"uk","label":"Ukrainian"},{"value":"en","label":"English"}]'>
+                    <% if (customer.language === 'uk') { %>
+                        <i class="fa-solid fa-flag me-1"></i>UA
+                    <% } else if (customer.language === 'en') { %>
+                        <i class="fa-solid fa-flag me-1"></i>EN
+                    <% } else { %>
+                        <span class="text-muted">—</span>
+                    <% } %>
+                </div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <div class="text-muted small mb-1">Timezone</div>
+                <div class="ie-field p-2 bg-light rounded-1"
+                     data-field="timezone"
+                     data-value="<%= customer.timezone || '' %>">
+                    <i class="fa-regular fa-clock me-1"></i>
+                    <%- customer.timezone ? customer.timezone : '<span class="text-muted">—</span>' %>
+                </div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <div class="text-muted small mb-1">Currency</div>
+                <div class="ie-field p-2 bg-light rounded-1"
+                     data-field="currency"
+                     data-value="<%= customer.currency || '' %>">
+                    <i class="fa-solid fa-coins me-1"></i>
+                    <%- customer.currency ? customer.currency : '<span class="text-muted">—</span>' %>
+                </div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <div class="text-muted small mb-1">Source</div>
+                <div class="ie-field p-2 bg-light rounded-1"
+                     data-field="source"
+                     data-value="<%= customer.source || '' %>">
+                    <i class="fa-solid fa-globe me-1"></i>
+                    <%- customer.source ? customer.source : '<span class="text-muted">—</span>' %>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 4: External references (4 columns) -->
+        <div class="row g-3 mb-3">
+            <div class="col-sm-6 col-md-3">
+                <div class="text-muted small mb-1">External ID</div>
+                <div class="ie-field p-2 bg-light rounded-1"
+                     data-field="external_id"
+                     data-value="<%= customer.external_id || '' %>">
+                    <i class="fa-solid fa-link me-1"></i>
+                    <%- customer.external_id ? customer.external_id : '<span class="text-muted">—</span>' %>
+                </div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <div class="text-muted small mb-1">External Source</div>
+                <div class="p-2 bg-light rounded-1">
+                    <%- customer.external_source ? customer.external_source : '<span class="text-muted">—</span>' %>
+                </div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <div class="text-muted small mb-1">Referral Code</div>
+                <div class="ie-field p-2 bg-light rounded-1"
+                     data-field="referral_code"
+                     data-value="<%= customer.referral_code || '' %>">
+                    <i class="fa-solid fa-gift me-1"></i>
+                    <%- customer.referral_code ? customer.referral_code : '<span class="text-muted">—</span>' %>
+                </div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <div class="text-muted small mb-1">Referred By</div>
+                <div class="p-2 bg-light rounded-1">
+                    <%- customer.referred_by_id ? 'ID: ' + customer.referred_by_id : '<span class="text-muted">—</span>' %>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 5: CRM / Pipeline references (3 columns) -->
+        <div class="row g-3 mb-3">
+            <div class="col-md-4">
+                <div class="text-muted small mb-1">Lead ID</div>
+                <div class="ie-field p-2 bg-light rounded-1"
+                     data-field="lead_id"
+                     data-value="<%= customer.lead_id || '' %>">
+                    <i class="fa-solid fa-chart-line me-1"></i>
+                    <%- customer.lead_id ? customer.lead_id : '<span class="text-muted">—</span>' %>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-muted small mb-1">Deal ID</div>
+                <div class="ie-field p-2 bg-light rounded-1"
+                     data-field="deal_id"
+                     data-value="<%= customer.deal_id || '' %>">
+                    <i class="fa-solid fa-handshake me-1"></i>
+                    <%- customer.deal_id ? customer.deal_id : '<span class="text-muted">—</span>' %>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-muted small mb-1">Quote ID</div>
+                <div class="ie-field p-2 bg-light rounded-1"
+                     data-field="quote_id"
+                     data-value="<%= customer.quote_id || '' %>">
+                    <i class="fa-solid fa-file-invoice me-1"></i>
+                    <%- customer.quote_id ? customer.quote_id : '<span class="text-muted">—</span>' %>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 6: Notes (full width) -->
+        <div class="row g-3 mb-3">
+            <div class="col-12">
+                <div class="text-muted small mb-1">
+                    <i class="fa-solid fa-pen me-1"></i>Notes
+                </div>
+                <div class="ie-field ie-textarea p-2 bg-light rounded-1"
+                     data-field="notes"
+                     data-value="<%= customer.notes || '' %>">
+                    <% if (customer.notes) { %>
+                        <div class="border-start border-2 border-warning ps-2 py-1 small">
+                            <%- customer.notes.replace(/\n/g, '<br>') %>
+                        </div>
+                    <% } else { %>
+                        <span class="text-muted">—</span>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 7: Tags (full width) -->
+        <div class="row g-3">
+            <div class="col-12">
+                <div class="text-muted small mb-1">
+                    <i class="fa-solid fa-tags me-1"></i>Tags
+                </div>
+                <div class="ie-field ie-textarea p-2 bg-light rounded-1"
+                     data-field="tags"
+                     data-value="<%= customer.tags ? JSON.stringify(customer.tags) : '' %>">
+                    <% if (customer.tags && Array.isArray(customer.tags) && customer.tags.length) { %>
+                        <% customer.tags.forEach(function(tag) { %>
+                            <span class="badge bg-info text-dark rounded-0 me-1 mb-1 px-2 py-1">
+                                <i class="fa-solid fa-hashtag me-1 fa-xs"></i><%= tag %>
+                            </span>
+                        <% }); %>
+                    <% } else { %>
+                        <span class="text-muted">—</span>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+                </div>
+
+                <!-- CRM статус — inline edit + modal -->
+                <div class="col-12 col-xl-4">
+                    <div class="card border-primary rounded-0 h-100">
+                        <div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+                            <span><i class="fa-solid fa-sliders me-2"></i>CRM Status</span>
+                            <button class="btn btn-sm btn-light rounded-0"
+                                    data-bs-toggle="modal" data-bs-target="#modalComm"
+                                    title="Communication settings">
+                                <i class="fa-solid fa-tower-broadcast"></i>
+                            </button>
+                        </div>
+                        <div class="card-body">
+
+                            <div class="mb-3">
+                                <div class="text-muted small">Segment</div>
+                                <div class="ie-field ie-select"
+                                     data-field="segment"
+                                     data-value="<%= customer.segment || '' %>"
+                                     data-options='[{"value":"vip","label":"VIP"},{"value":"retail","label":"Retail"},{"value":"bulk_buyer","label":"Bulk Buyer"},{"value":"at_risk","label":"At Risk"}]'>
+                                    <% if (customer.segment) { %>
+                                        <span class="badge bg-secondary rounded-0"><%= customer.segment %></span>
+                                    <% } else { %>
+                                        <span class="text-muted">—</span>
+                                    <% } %>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="text-muted small">Payment discipline</div>
+                                <%
+                                const _disc      = customer.payment_discipline;
+                                const _discColor = _disc === 'good' ? 'success' : _disc === 'average' ? 'warning' : 'danger';
+                                %>
+                                <div class="ie-field ie-select"
+                                     data-field="payment_discipline"
+                                     data-value="<%= _disc || '' %>"
+                                     data-options='[{"value":"good","label":"Good"},{"value":"average","label":"Average"},{"value":"bad","label":"Bad"}]'>
+                                    <span class="badge bg-<%= _discColor %> rounded-0"><%= _disc || '—' %></span>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="text-muted small">Credit limit</div>
+                                <div class="ie-field ie-number"
+                                     data-field="credit_limit"
+                                     data-value="<%= customer.credit_limit || 0 %>">
+                                    <span class="fw-semibold"><%= fmtMoney(customer.credit_limit) %></span>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="text-muted small">Assigned to</div>
+                                <div class="ie-field"
+                                     data-field="assigned_to"
+                                     data-value="<%= customer.assigned_to || '' %>">
+                                    <%= customer.assigned_to || '—' %>
+                                </div>
+                            </div>
+
+                            <hr>
+
+                            <!-- Канали зв'язку — тільки перегляд, редагується через modal -->
+                            <div class="d-flex flex-wrap gap-1">
+                                <% if (customer.do_not_call) { %>
+                                <span class="badge bg-danger rounded-0">
+                                    <i class="fa-solid fa-phone-slash me-1"></i>No call
+                                </span>
+                                <% } %>
+                                <% if (customer.do_not_email) { %>
+                                <span class="badge bg-danger rounded-0">
+                                    <i class="fa-solid fa-envelope-slash me-1"></i>No email
+                                </span>
+                                <% } %>
+                                <% if (customer.do_not_sms) { %>
+                                <span class="badge bg-danger rounded-0">
+                                    <i class="fa-solid fa-comment-slash me-1"></i>No SMS
+                                </span>
+                                <% } %>
+                                <% if (!customer.do_not_call && !customer.do_not_email && !customer.do_not_sms) { %>
+                                <span class="text-muted small">All channels active</span>
+                                <% } %>
+                            </div>
+
+                            <!-- Blacklisted info -->
+                            <% if (customer.blacklisted && customer.blacklisted_at) { %>
+                            <hr>
+                            <div class="mt-2">
+                                <div class="text-muted small">Blacklisted at</div>
+                                <div><%= fmtDate(customer.blacklisted_at) %></div>
+                                <% if (customer.blacklist_reason) { %>
+                                <div class="text-muted small mt-1">Reason</div>
+                                <div class="text-danger"><%= customer.blacklist_reason %></div>
+                                <% } %>
+                            </div>
+                            <% } %>
+
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Контакти (phones + emails) — тільки modal -->
+                <div class="col-12 col-md-6 col-xl-4">
+                    <div class="card border-primary rounded-0 h-100">
+                        <div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+                            <span><i class="fa-solid fa-address-book me-2"></i>Contacts</span>
+                            <button class="btn btn-sm btn-light rounded-0"
+                                    data-bs-toggle="modal" data-bs-target="#modalContacts">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                        </div>
+                        <div class="card-body py-2 px-3" id="contacts-preview">
+                            <p class="text-muted small mb-0">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Соціальні мережі — inline edit -->
+                <div class="col-12 col-md-6 col-xl-4">
+                    <div class="card border-primary rounded-0 h-100">
+                        <div class="card-header text-bg-primary rounded-0">
+                            <i class="fa-solid fa-share-nodes me-2"></i>Social
+                            <small class="ms-2 opacity-75" style="font-size:.7rem">
+                                <i class="fa-solid fa-pen-to-square me-1"></i>Click to edit
+                            </small>
+                        </div>
+                        <div class="card-body">
+                            <%
+                            const _socials = [
+                                { field: 'social_telegram',  icon: 'fa-brands fa-telegram',  val: customer.social_telegram,  prefix: 'https://t.me/'          },
+                                { field: 'social_instagram', icon: 'fa-brands fa-instagram', val: customer.social_instagram, prefix: 'https://instagram.com/'  },
+                                { field: 'social_viber',     icon: 'fa-brands fa-viber',     val: customer.social_viber,     prefix: 'viber://chat?number='    },
+                                { field: 'social_whatsapp',  icon: 'fa-brands fa-whatsapp',  val: customer.social_whatsapp,  prefix: 'https://wa.me/'          },
+                                { field: 'social_facebook',  icon: 'fa-brands fa-facebook',  val: customer.social_facebook,  prefix: 'https://facebook.com/'   },
+                                { field: 'social_tiktok',    icon: 'fa-brands fa-tiktok',    val: customer.social_tiktok,    prefix: 'https://tiktok.com/@'    },
+                            ];
+                            %>
+                            <% _socials.forEach(function(s) { %>
+                            <div class="d-flex align-items-center mb-2 small">
+                                <i class="<%= s.icon %> fa-fw text-muted me-2"></i>
+                                <div class="ie-field flex-grow-1"
+                                     data-field="<%= s.field %>"
+                                     data-value="<%= s.val || '' %>">
+                                    <% if (s.val) { %>
+                                        <a href="<%= s.prefix + s.val %>" target="_blank" class="text-decoration-none">
+                                            <%= s.val %>
+                                        </a>
+                                    <% } else { %>
+                                        <span class="text-muted">—</span>
+                                    <% } %>
+                                </div>
+                            </div>
+                            <% }); %>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delivery Preferences -->
+                <div class="col-12 col-md-6 col-xl-4">
+                    <div class="card border-primary rounded-0 h-100">
+                        <div class="card-header text-bg-primary rounded-0">
+                            <i class="fa-solid fa-truck me-2"></i>Delivery Preferences
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-2">
+                                <div class="text-muted small">Delivery method</div>
+                                <div class="ie-field ie-select"
+                                     data-field="pref_delivery_method"
+                                     data-value="<%= customer.pref_delivery_method || '' %>"
+                                     data-options='[{"value":"nova_poshta","label":"Nova Poshta"},{"value":"ukrposhta","label":"Ukrposhta"},{"value":"meest","label":"Meest"}]'>
+                                    <%= (customer.pref_delivery_method || '—').replace('_', ' ') %>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <div class="text-muted small">Delivery city</div>
+                                <div class="ie-field"
+                                     data-field="pref_delivery_city"
+                                     data-value="<%= customer.pref_delivery_city || '' %>">
+                                    <%= customer.pref_delivery_city || '—' %>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <div class="text-muted small">Delivery warehouse</div>
+                                <div class="ie-field"
+                                     data-field="pref_delivery_warehouse"
+                                     data-value="<%= customer.pref_delivery_warehouse || '' %>">
+                                    <%= customer.pref_delivery_warehouse || '—' %>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics -->
+                <div class="col-12 col-xl-4">
+                    <div class="card border-primary rounded-0 h-100">
+                        <div class="card-header text-bg-primary rounded-0">
+                            <i class="fa-solid fa-chart-simple me-2"></i>Analytics
+                        </div>
+                        <% if (analytics) {
+                            const _churnColor = analytics.churn_risk_level === 'high'   ? 'danger'
+                                              : analytics.churn_risk_level === 'medium' ? 'warning' : 'success';
+                        %>
+                        <table class="table table-sm mb-0">
+                            <tbody>
+                                <tr>
+                                    <td class="text-muted ps-3">Total orders</td>
+                                    <td class="text-end pe-3 fw-semibold"><%= analytics.total_orders || 0 %></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted ps-3">Total spent</td>
+                                    <td class="text-end pe-3 fw-semibold"><%= fmtMoney(analytics.total_spent) %></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted ps-3">Last order</td>
+                                    <td class="text-end pe-3"><%= fmtDate(analytics.last_order_at) %></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted ps-3">Churn risk</td>
+                                    <td class="text-end pe-3">
+                                        <span class="badge bg-<%= _churnColor %> rounded-0">
+                                            <%= analytics.churn_risk_level || '—' %>
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <% } else { %>
+                        <div class="card-body">
+                            <span class="text-muted small">No analytics data</span>
+                        </div>
+                        <% } %>
+                        <div class="card-footer bg-white border-top-0 p-2">
+                            <a href="<%= _base %>/analytics" class="btn btn-sm btn-outline-primary rounded-0 w-100">
+                                Full analytics <i class="fa-solid fa-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Meta -->
+                <div class="col-12 col-xl-4">
+                    <div class="card border-primary rounded-0 h-100">
+                        <div class="card-header text-bg-primary rounded-0">
+                            <i class="fa-solid fa-circle-info me-2"></i>Meta
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-2">
+                                <div class="text-muted small">Preferred contact</div>
+                                <div class="ie-field ie-select"
+                                     data-field="preferred_contact"
+                                     data-value="<%= customer.preferred_contact || '' %>"
+                                     data-options='[{"value":"phone","label":"Phone"},{"value":"email","label":"Email"},{"value":"telegram","label":"Telegram"},{"value":"viber","label":"Viber"},{"value":"whatsapp","label":"WhatsApp"}]'>
+                                    <%= customer.preferred_contact || '—' %>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <div class="text-muted small">Preferred time</div>
+                                <div class="ie-field ie-select"
+                                     data-field="preferred_contact_time"
+                                     data-value="<%= customer.preferred_contact_time || '' %>"
+                                     data-options='[{"value":"morning","label":"Morning"},{"value":"afternoon","label":"Afternoon"},{"value":"evening","label":"Evening"}]'>
+                                    <%= customer.preferred_contact_time || '—' %>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <div class="text-muted small">Source</div>
+                                <div class="ie-field"
+                                     data-field="source"
+                                     data-value="<%= customer.source || '' %>">
+                                    <%= customer.source || '—' %>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="small text-muted mb-1">
+                                Created: <span class="text-dark"><%= fmtDate(customer.created_at) %></span>
+                            </div>
+                            <div class="small text-muted">
+                                Updated: <span class="text-dark"><%= fmtDate(customer.updated_at) %></span>
+                            </div>
+                            <div class="small text-muted mt-1">
+                                ID: <span class="text-dark"><%= customer.id %></span>
+                            </div>
+                            <div class="small text-muted">
+                                UID: <span class="text-dark"><%= customer.uid %></span>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-white border-top-0 p-2">
+                            <a href="<%= _base %>/history" class="btn btn-sm btn-outline-primary rounded-0 w-100">
+                                Change history <i class="fa-solid fa-clock-rotate-left ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        <!-- END MAIN CONTENT -->
+
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     MODAL — Contacts (phones + emails)
+════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalContacts" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content rounded-0">
+            <div class="modal-header text-bg-primary rounded-0">
+                <h6 class="modal-title mb-0">
+                    <i class="fa-solid fa-address-book me-2"></i>Contacts
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <table class="table table-sm align-middle mb-0" id="contacts-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3" style="width:90px">Type</th>
+                            <th>Value</th>
+                            <th style="width:120px">Label</th>
+                            <th style="width:70px" class="text-center">Primary</th>
+                            <th style="width:40px"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="contacts-tbody">
+                        <tr><td colspan="5" class="text-center text-muted py-3">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer bg-light justify-content-start">
+                <!-- Форма додавання нового контакту -->
+                <div class="d-flex gap-2 flex-wrap w-100">
+                    <select class="form-select form-select-sm rounded-0" id="new-contact-type" style="width:100px">
+                        <option value="phone">Phone</option>
+                        <option value="email">Email</option>
+                    </select>
+                    <input type="text" class="form-control form-control-sm rounded-0 flex-grow-1"
+                           id="new-contact-value" placeholder="+380... або email@...">
+                    <select class="form-select form-select-sm rounded-0" id="new-contact-label" style="width:130px">
+                        <option value="">— label —</option>
+                        <option value="1">Робочий</option>
+                        <option value="2">Домашній</option>
+                        <option value="3">Особистий</option>
+                        <option value="4">Дружина</option>
+                        <option value="5">Бухгалтер</option>
+                    </select>
+                    <button class="btn btn-primary btn-sm rounded-0" id="btn-add-contact">
+                        <i class="fa-solid fa-plus"></i> Add
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     MODAL — Communication settings
+════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalComm" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content rounded-0">
+            <div class="modal-header text-bg-primary rounded-0">
+                <h6 class="modal-title mb-0">
+                    <i class="fa-solid fa-tower-broadcast me-2"></i>Communication Settings
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="sw-do-not-call"
+                           <%= customer.do_not_call ? 'checked' : '' %>>
+                    <label class="form-check-label" for="sw-do-not-call">
+                        <i class="fa-solid fa-phone-slash text-danger me-1"></i>Do not call
+                    </label>
+                </div>
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="sw-do-not-email"
+                           <%= customer.do_not_email ? 'checked' : '' %>>
+                    <label class="form-check-label" for="sw-do-not-email">
+                        <i class="fa-solid fa-envelope-slash text-danger me-1"></i>Do not email
+                    </label>
+                </div>
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="sw-do-not-sms"
+                           <%= customer.do_not_sms ? 'checked' : '' %>>
+                    <label class="form-check-label" for="sw-do-not-sms">
+                        <i class="fa-solid fa-comment-slash text-danger me-1"></i>Do not SMS
+                    </label>
+                </div>
+                <hr>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="sw-blacklisted"
+                           <%= customer.blacklisted ? 'checked' : '' %>>
+                    <label class="form-check-label text-danger fw-semibold" for="sw-blacklisted">
+                        <i class="fa-solid fa-ban me-1"></i>Blacklisted
+                    </label>
+                </div>
+                <div class="mt-2" id="blacklist-reason-wrap"
+                     style="<%= customer.blacklisted ? '' : 'display:none' %>">
+                    <input type="text" class="form-control form-control-sm rounded-0"
+                           id="blacklist-reason"
+                           placeholder="Reason..."
+                           value="<%= customer.blacklist_reason || '' %>">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm rounded-0" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm rounded-0" id="btn-save-comm">
+                    <i class="fa-solid fa-floppy-disk me-1"></i>Save
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<%- include('../../partials/footer'); %>
+<%- include('../../partials/script'); %>
+
+<script>
+const CUSTOMER_ID = '<%= _id %>';
+const API         = '/api/customers/' + CUSTOMER_ID;
+
+// ══════════════════════════════════════════════
+//  INLINE EDIT
+// ══════════════════════════════════════════════
+document.querySelectorAll('.ie-field').forEach(function(el) {
+    el.style.cursor = 'pointer';
+    el.title = 'Click to edit';
+
+    el.addEventListener('click', function() {
+        if (el.querySelector('input, select, textarea')) return; // вже редагується
+
+        const field   = el.dataset.field;
+        const val     = el.dataset.value || '';
+        const origHtml = el.innerHTML;
+        const isSelect   = el.classList.contains('ie-select');
+        const isDate     = el.classList.contains('ie-date');
+        const isTextarea = el.classList.contains('ie-textarea');
+        const isNumber   = el.classList.contains('ie-number');
+
+        let input;
+
+        if (isSelect) {
+            const opts = JSON.parse(el.dataset.options || '[]');
+            input = document.createElement('select');
+            input.className = 'form-select form-select-sm rounded-0';
+            opts.forEach(function(o) {
+                const opt = document.createElement('option');
+                opt.value = o.value;
+                opt.textContent = o.label;
+                if (o.value === val) opt.selected = true;
+                input.appendChild(opt);
+            });
+        } else if (isDate) {
+            input = document.createElement('input');
+            input.type = 'date';
+            input.className = 'form-control form-control-sm rounded-0';
+            input.value = val;
+        } else if (isTextarea) {
+            input = document.createElement('textarea');
+            input.className = 'form-control form-control-sm rounded-0';
+            input.rows = 3;
+            input.value = val;
+        } else if (isNumber) {
+            input = document.createElement('input');
+            input.type = 'number';
+            input.className = 'form-control form-control-sm rounded-0';
+            input.value = val;
+        } else {
+            input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'form-control form-control-sm rounded-0';
+            input.value = val;
+        }
+
+        el.innerHTML = '';
+        el.appendChild(input);
+        input.focus();
+
+        function save() {
+            const newVal = input.value.trim();
+            if (newVal === val) { el.innerHTML = origHtml; return; } // не змінилось
+
+            fetch(API + '/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ [field]: newVal })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.success) {
+                    el.dataset.value = newVal;
+                    // Оновлюємо відображення
+                    if (newVal) {
+                        if (field === 'tags') {
+                            try {
+                                const tags = JSON.parse(newVal);
+                                if (Array.isArray(tags)) {
+                                    el.innerHTML = tags.map(function(t) {
+                                        return '<span class="badge bg-info rounded-0 me-1">' + t + '</span>';
+                                    }).join('');
+                                } else {
+                                    el.innerHTML = newVal;
+                                }
+                            } catch(e) {
+                                el.innerHTML = newVal;
+                            }
+                        } else {
+                            el.innerHTML = newVal;
+                        }
+                    } else {
+                        el.innerHTML = '<span class="text-muted">—</span>';
+                    }
+                } else {
+                    el.innerHTML = origHtml;
+                    alert(d.error || 'Save error');
+                }
+            })
+            .catch(function() {
+                el.innerHTML = origHtml;
+            });
+        }
+
+        input.addEventListener('blur', save);
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !isTextarea) save();
+            if (e.key === 'Escape') el.innerHTML = origHtml;
+        });
+    });
+});
+
+
+// ══════════════════════════════════════════════
+//  CONTACTS MODAL
+// ══════════════════════════════════════════════
+function loadContacts() {
+    fetch(API + '/contacts', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(rows) {
+        renderContacts(rows);
+        // Також оновлюємо preview в картці
+        var preview = document.getElementById('contacts-preview');
+        if (!rows.length) {
+            preview.innerHTML = '<span class="text-muted small">No contacts</span>';
+            return;
+        }
+        preview.innerHTML = rows.slice(0, 4).map(function(c) {
+            var icon = c.type === 'phone' ? 'fa-phone' : 'fa-envelope';
+            var star = c.is_primary ? ' <i class="fa-solid fa-star text-warning fa-xs"></i>' : '';
+            return '<div class="small mb-1"><i class="fa-solid ' + icon + ' fa-xs text-muted me-2"></i>'
+                 + c.value + star + '</div>';
+        }).join('');
+    });
+}
+
+function renderContacts(rows) {
+    var tb = document.getElementById('contacts-tbody');
+    if (!rows.length) {
+        tb.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No contacts</td></tr>';
+        return;
+    }
+    tb.innerHTML = rows.map(function(c) {
+        var typeBadge = '<span class="badge bg-secondary rounded-0">' + c.type + '</span>';
+        var star      = c.is_primary
+            ? '<i class="fa-solid fa-star text-warning"></i>'
+            : '<i class="fa-regular fa-star text-muted" style="cursor:pointer" onclick="setPrimary(' + c.id + ',\'' + c.type + '\')"></i>';
+        return '<tr>'
+            + '<td class="ps-3">' + typeBadge + '</td>'
+            + '<td class="fw-semibold">' + c.value + '</td>'
+            + '<td class="text-muted small">' + (c.label_name || '—') + '</td>'
+            + '<td class="text-center">' + star + '</td>'
+            + '<td><a href="#" class="text-danger" onclick="deleteContact(' + c.id + ');return false">'
+            + '<i class="fa-solid fa-xmark"></i></a></td>'
+            + '</tr>';
+    }).join('');
+}
+
+document.getElementById('modalContacts').addEventListener('show.bs.modal', loadContacts);
+
+document.getElementById('btn-add-contact').addEventListener('click', function() {
+    var type  = document.getElementById('new-contact-type').value;
+    var value = document.getElementById('new-contact-value').value.trim();
+    var label = document.getElementById('new-contact-label').value;
+    if (!value) return;
+
+    fetch(API + '/contacts/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: type, value: value, id_label: label || null })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d.success) {
+            document.getElementById('new-contact-value').value = '';
+            loadContacts();
+        } else {
+            alert(d.error || 'Error');
+        }
+    });
+});
+
+function deleteContact(id) {
+    if (!confirm('Delete this contact?')) return;
+    fetch(API + '/contacts/' + id + '/delete', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { if (d.success) loadContacts(); });
+}
+
+function setPrimary(id, type) {
+    fetch(API + '/contacts/' + id + '/set-primary', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { if (d.success) loadContacts(); });
+}
+
+
+// ══════════════════════════════════════════════
+//  COMMUNICATION MODAL
+// ══════════════════════════════════════════════
+document.getElementById('sw-blacklisted').addEventListener('change', function() {
+    document.getElementById('blacklist-reason-wrap').style.display = this.checked ? '' : 'none';
+});
+
+document.getElementById('btn-save-comm').addEventListener('click', function() {
+    var payload = {
+        do_not_call:      document.getElementById('sw-do-not-call').checked  ? 1 : 0,
+        do_not_email:     document.getElementById('sw-do-not-email').checked ? 1 : 0,
+        do_not_sms:       document.getElementById('sw-do-not-sms').checked   ? 1 : 0,
+        blacklisted:      document.getElementById('sw-blacklisted').checked  ? 1 : 0,
+        blacklist_reason: document.getElementById('blacklist-reason').value.trim() || null,
+    };
+
+    fetch(API + '/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d.success) {
+            bootstrap.Modal.getInstance(document.getElementById('modalComm')).hide();
+            location.reload();
+        } else {
+            alert(d.error || 'Save error');
+        }
+    });
+});
+
+
+// ══════════════════════════════════════════════
+//  Init
+// ══════════════════════════════════════════════
+loadContacts();
+</script>
+<script>
+$(document).ready(function() {
+    const CUSTOMER_ID = '<%= _id %>';
+    const $avatar = $('#customer-avatar');
+    const $spinner = $('#avatar-spinner');
+    
+    // Функція завантаження аватара через POST
+    function loadAvatar() {
+        $spinner.show();
+        $avatar.css('opacity', '0.3');
+        
+        $.ajax({
+            url: `/api/customers/${CUSTOMER_ID}/avatar`,
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({}),
+            success: function(response) {
+                if (response.exists) {
+                    $avatar.attr('src', `/assets/images/customers/avatars/${CUSTOMER_ID}.jpg`);
+                } else {
+                    $avatar.attr('src', '/assets/images/customers/avatars/no-avatar.jpg');
+                }
+            },
+            error: function() {
+                $avatar.attr('src', '/assets/images/customers/avatars/no-avatar.jpg');
+            },
+            complete: function() {
+                $spinner.hide();
+                $avatar.css('opacity', '1');
+            }
+        });
+    }
+    
+    // Завантажуємо аватар при завантаженні сторінки
+    loadAvatar();
+    
+    // Обробка кліку на кнопку камери
+    $('#upload-avatar-btn').on('click', function() {
+        $('#avatar-file-input').click();
+    });
+    
+    // Обробка вибору файлу
+    $('#avatar-file-input').on('change', function(e) {
+        const file = e.target.files[0];
+        
+        if (!file) return;
+        
+        // Перевірка типу через JavaScript
+        if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
+            alert('❌ Тільки JPG та PNG файли дозволені');
+            $('#avatar-file-input').val('');
+            return;
+        }
+        
+        // Перевірка розміру (2MB)
+        if (file.size > 2 * 1024 * 1024) {
+            alert('❌ Файл занадто великий. Максимум 2MB');
+            $('#avatar-file-input').val('');
+            return;
+        }
+        
+        // Показуємо спінер
+        $spinner.show();
+        $avatar.css('opacity', '0.3');
+        
+        // Відправка файлу
+        const formData = new FormData();
+        formData.append('avatar', file);
+        
+        $.ajax({
+            url: `/api/customers/${CUSTOMER_ID}/upload-avatar`,
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    // Оновлюємо аватар з кеш-бастером
+                    $avatar.attr('src', `/assets/images/customers/avatars/${CUSTOMER_ID}.jpg?t=${Date.now()}`);
+                    alert('✅ Аватар успішно оновлено');
+                } else {
+                    alert('❌ ' + (response.error || 'Помилка завантаження'));
+                    // Повертаємо поточний аватар
+                    loadAvatar();
+                }
+            },
+            error: function(xhr) {
+                let errorMsg = 'Помилка завантаження';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
+                }
+                alert('❌ ' + errorMsg);
+                // Повертаємо поточний аватар
+                loadAvatar();
+            },
+            complete: function() {
+                $spinner.hide();
+                $avatar.css('opacity', '1');
+            }
+        });
+        
+        // Очищаємо input
+        $('#avatar-file-input').val('');
+    });
+});
+</script>
+</body>
+</html>
