@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span>Імпорт клієнтів</span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/clients/"><%= i18n.__('header.nav.clients') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> Імпорт</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto"><a href="/clients/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a></div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3">
+			<!-- Крок 1 -->
+			<div class="card border-primary rounded-0 mb-3" id="step-upload">
+				<div class="card-header text-bg-primary rounded-0">1. Файл</div>
+				<div class="card-body">
+					<p class="small text-muted mb-2">CSV (роздільник визначається сам) або Excel .xlsx, до 20 МБ і 50 000 рядків. Перший рядок — заголовки колонок. Дублі не створюються: клієнт шукається за телефоном, email, реквізитом або зовнішнім ID, і дані дописуються до наявної картки.</p>
+					<div class="d-flex gap-2">
+						<input type="file" class="form-control rounded-0" id="im-file" accept=".csv,.txt,.xlsx" />
+						<button type="button" class="btn btn-primary rounded-0 text-nowrap" id="im-upload"><i class="fa-solid fa-upload me-1"></i>Завантажити</button>
+					</div>
+				</div>
+			</div>
+
+			<!-- Крок 2 -->
+			<div class="card border-primary rounded-0 mb-3 d-none" id="step-map">
+				<div class="card-header text-bg-primary rounded-0">2. Зіставлення колонок <span class="badge text-bg-light rounded-0 ms-1" id="im-total"></span></div>
+				<div class="card-body">
+					<div class="table-responsive mb-3">
+						<table class="table table-sm align-middle mb-0">
+							<thead><tr><th style="width: 220px">Колонка у файлі</th><th style="width: 260px">Поле</th><th>Приклади значень</th></tr></thead>
+							<tbody id="im-map"></tbody>
+						</table>
+					</div>
+					<div class="row g-2">
+						<div class="col-6 col-md-2">
+							<label class="form-label small">Країна за замовчуванням</label>
+							<input type="text" class="form-control form-control-sm rounded-0" id="im-country" maxlength="2" placeholder="UA" />
+						</div>
+						<div class="col-6 col-md-2">
+							<label class="form-label small">Тип реквізиту</label>
+							<select class="form-select form-select-sm rounded-0" id="im-idtype">
+								<% identifierTypes.forEach(function (t) { %><option value="<%= t.code %>"><%= t.name %></option><% }) %>
+							</select>
+						</div>
+						<div class="col-6 col-md-2">
+							<label class="form-label small">Менеджер новим</label>
+							<select class="form-select form-select-sm rounded-0" id="im-manager">
+								<option value="">—</option>
+								<% managers.forEach(function (m) { %><option value="<%= m.id %>"><%= m.name || ('#' + m.id) %></option><% }) %>
+							</select>
+						</div>
+						<div class="col-6 col-md-2">
+							<label class="form-label small">Додати тег</label>
+							<select class="form-select form-select-sm rounded-0" id="im-tag">
+								<option value="">—</option>
+								<% tags.forEach(function (t) { %><option value="<%= t.id %>"><%= t.name %></option><% }) %>
+							</select>
+						</div>
+						<div class="col-6 col-md-2">
+							<label class="form-label small">Стадія</label>
+							<select class="form-select form-select-sm rounded-0" id="im-lifecycle">
+								<option value="">—</option>
+								<% lifecycle.forEach(function (s) { %><option value="<%= s.code %>"><%= s.name %></option><% }) %>
+							</select>
+						</div>
+						<div class="col-6 col-md-2 d-flex align-items-end">
+							<div class="form-check">
+								<input class="form-check-input" type="checkbox" id="im-create" checked />
+								<label class="form-check-label small" for="im-create">Створювати нових</label>
+							</div>
+						</div>
+					</div>
+					<div class="small text-muted mt-2">Менеджер і стадія не перезаписують наявні значення: менеджер ставиться лише тим, у кого його немає, стадія — лише вгору.</div>
+					<div class="d-flex justify-content-end gap-2 mt-3">
+						<button type="button" class="btn btn-secondary rounded-0" id="im-back">Інший файл</button>
+						<button type="button" class="btn btn-primary rounded-0" id="im-start"><i class="fa-solid fa-play me-1"></i>Почати імпорт</button>
+					</div>
+				</div>
+			</div>
+
+			<!-- Крок 3 -->
+			<div class="card border-primary rounded-0 mb-3 d-none" id="step-run">
+				<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+					<span>3. Виконання <span class="badge text-bg-light rounded-0 ms-1" id="im-status"></span></span>
+					<button type="button" class="btn btn-sm btn-light rounded-0" id="im-cancel">Зупинити</button>
+				</div>
+				<div class="card-body">
+					<div class="progress rounded-0 mb-3" style="height: 22px"><div class="progress-bar" id="im-bar" style="width: 0%">0%</div></div>
+					<div class="row text-center g-2 mb-3">
+						<div class="col"><div class="small text-muted">Оброблено</div><div class="fs-5" id="im-processed">0</div></div>
+						<div class="col"><div class="small text-muted">Нових</div><div class="fs-5 text-success" id="im-created">0</div></div>
+						<div class="col"><div class="small text-muted">Оновлено</div><div class="fs-5 text-primary" id="im-matched">0</div></div>
+						<div class="col"><div class="small text-muted">Пропущено</div><div class="fs-5 text-danger" id="im-skipped">0</div></div>
+					</div>
+					<div id="im-errors"></div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 5000, types: [{ type: "error", background: "indianred", icon: false }] });
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const STATUS = { uploaded: "очікує", running: "виконується", done: "готово", failed: "помилка", canceled: "зупинено" };
+				let JOB = null;
+				let timer = null;
+
+				async function post(url, data) {
+					const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data || {}) });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok || j.ok === false) throw new Error(j.error || "Помилка сервера");
+					return j;
+				}
+				const show = (step) => ["step-upload", "step-map", "step-run"].forEach((id) => $(id).classList.toggle("d-none", id !== step));
+
+				$("im-upload").addEventListener("click", async function () {
+					const f = $("im-file").files[0];
+					if (!f) return notyf.error("Оберіть файл.");
+					const fd = new FormData();
+					fd.append("file", f);
+					this.disabled = true;
+					try {
+						const r = await fetch("/api/clients/import/upload/", { method: "POST", body: fd });
+						const d = await r.json().catch(() => ({}));
+						if (!r.ok || d.ok === false) throw new Error(d.error || "Помилка завантаження");
+						JOB = d;
+						const opts = '<option value="">— не імпортувати —</option>' + d.targets.map((t) => '<option value="' + t.key + '">' + esc(t.label) + "</option>").join("");
+						$("im-map").innerHTML = d.headers
+							.map((h, i) => {
+								const ex = d.sample.map((r) => r[i]).filter((v) => v !== undefined && v !== "").slice(0, 3);
+								return "<tr><td class='fw-semibold'>" + esc(h) + '</td><td><select class="form-select form-select-sm rounded-0" data-col="' + i + '">' + opts + '</select></td><td class="small text-muted text-truncate" style="max-width:420px">' + ex.map(esc).join(" · ") + "</td></tr>";
+							})
+							.join("");
+						d.mapping.forEach((k, i) => (document.querySelector('[data-col="' + i + '"]').value = k));
+						$("im-total").textContent = d.total + " рядків";
+						show("step-map");
+					} catch (e) {
+						notyf.error(e.message);
+					} finally {
+						this.disabled = false;
+					}
+				});
+
+				$("im-back").addEventListener("click", () => {
+					$("im-file").value = "";
+					show("step-upload");
+				});
+
+				$("im-start").addEventListener("click", async function () {
+					const mapping = [...document.querySelectorAll("[data-col]")].sort((a, b) => a.dataset.col - b.dataset.col).map((s) => s.value);
+					const dup = mapping.filter((k, i) => k && mapping.indexOf(k) !== i);
+					if (dup.length) return notyf.error("Поле зіставлено двічі: " + dup[0]);
+					this.disabled = true;
+					try {
+						await post("/api/clients/import/" + JOB.id + "/start/", {
+							mapping,
+							options: {
+								country: $("im-country").value.trim(),
+								identifier_type: $("im-idtype").value,
+								id_manager: $("im-manager").value,
+								id_tag: $("im-tag").value,
+								lifecycle: $("im-lifecycle").value,
+								create_new: $("im-create").checked ? 1 : 0,
+							},
+						});
+						show("step-run");
+						poll();
+					} catch (e) {
+						notyf.error(e.message);
+					} finally {
+						this.disabled = false;
+					}
+				});
+
+				async function poll() {
+					clearTimeout(timer);
+					try {
+						const s = await post("/api/clients/import/" + JOB.id + "/status/");
+						const pct = s.total ? Math.round((s.processed / s.total) * 100) : 0;
+						$("im-bar").style.width = pct + "%";
+						$("im-bar").textContent = pct + "%";
+						$("im-status").textContent = STATUS[s.status] || s.status;
+						["processed", "created", "matched", "skipped"].forEach((k) => ($("im-" + k).textContent = s[k] || 0));
+						$("im-errors").innerHTML =
+							(s.error ? '<div class="alert alert-danger rounded-0">' + esc(s.error) + "</div>" : "") +
+							(s.errors.length ? '<div class="small fw-semibold mb-1">Пропущені рядки</div><ul class="small mb-0">' + s.errors.map((e) => "<li>Рядок " + e.row + ": " + esc(e.error) + "</li>").join("") + "</ul>" : "");
+						const running = s.status === "running";
+						$("im-cancel").classList.toggle("d-none", !running);
+						$("im-bar").classList.toggle("progress-bar-animated", running);
+						$("im-bar").classList.toggle("progress-bar-striped", running);
+						if (running) timer = setTimeout(poll, 1500);
+						else if (s.status === "done") $("im-bar").classList.add("bg-success");
+					} catch (e) {
+						timer = setTimeout(poll, 5000);
+					}
+				}
+
+				$("im-cancel").addEventListener("click", async () => {
+					if (!confirm("Зупинити імпорт? Уже оброблені рядки залишаться.")) return;
+					try {
+						await post("/api/clients/import/" + JOB.id + "/cancel/");
+						poll();
+					} catch (e) {
+						notyf.error(e.message);
+					}
+				});
+			})();
+		</script>
+	</body>
+</html>

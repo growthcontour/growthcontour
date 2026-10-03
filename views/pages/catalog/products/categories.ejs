@@ -1,0 +1,583 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.categories.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			<% languages.filter((l) => l.direction === 'rtl').forEach((l) => { %>[data-lang="<%= l.id %>"], [data-name="<%= l.id %>"] { direction: rtl; text-align: right; unicode-bidi: plaintext; }
+			<% }) %>
+		</style>
+		<style>
+			.cat-tree, .cat-tree ul { list-style: none; padding-left: 0; margin: 0; }
+			.cat-tree ul { padding-left: 1.25rem; min-height: 6px; }
+			.cat-node > .cat-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.5rem; border: 1px solid transparent; cursor: pointer; }
+			.cat-node > .cat-row:hover { background: var(--bs-tertiary-bg); }
+			.cat-node.selected > .cat-row { border-color: var(--bs-primary); background: var(--bs-primary-bg-subtle); }
+			.cat-node.inactive > .cat-row .cat-name { text-decoration: line-through; opacity: 0.6; }
+			.cat-handle { cursor: grab; color: var(--bs-secondary-color); }
+			.cat-toggle { width: 1rem; text-align: center; color: var(--bs-secondary-color); }
+			.cat-node.collapsed > ul { display: none; }
+			.cat-thumb { width: 24px; height: 24px; object-fit: contain; }
+			.sortable-ghost > .cat-row { background: var(--bs-warning-bg-subtle); }
+			.img-slot img { max-height: 80px; max-width: 160px; object-fit: contain; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><%= i18n.__('catalog.menu.catalog') %></li>
+					<li class="breadcrumb-item active"><%= i18n.__('catalog.categories.title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<div class="row g-4">
+					<div class="col-lg-4">
+						<div class="card rounded-0">
+							<div class="card-header d-flex gap-2 align-items-center">
+								<strong class="me-auto"><%= i18n.__('catalog.categories.title') %></strong>
+								<button class="btn btn-sm btn-outline-secondary rounded-0" id="btn-expand" title="<%= i18n.__('catalog.categories.expand_all') %>"><i class="fa-solid fa-angles-down"></i></button>
+								<button class="btn btn-sm btn-outline-secondary rounded-0" id="btn-collapse" title="<%= i18n.__('catalog.categories.collapse_all') %>"><i class="fa-solid fa-angles-up"></i></button>
+								<% if (perms.add) { %>
+								<button class="btn btn-sm btn-primary rounded-0" id="btn-add"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.categories.add') %></button>
+								<% } %>
+							</div>
+							<div class="card-body">
+								<input type="search" class="form-control form-control-sm rounded-0 mb-2" id="tree-search" placeholder="<%= i18n.__('catalog.common.search') %>" />
+								<% if (perms.edit) { %>
+								<div class="form-text mb-2"><%= i18n.__('catalog.categories.dnd_hint') %></div>
+								<% } %>
+								<ul class="cat-tree" id="tree" data-parent=""></ul>
+							</div>
+						</div>
+					</div>
+
+					<div class="col-lg-8">
+						<form class="card rounded-0" id="cat-form" novalidate style="display: none">
+							<div class="card-header d-flex align-items-center">
+								<strong class="me-auto" id="form-title"></strong>
+								<% if (perms.add) { %>
+								<button type="button" class="btn btn-sm btn-outline-secondary rounded-0 me-2" id="btn-add-child"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.categories.add_child') %></button>
+								<% } %>
+								<% if (perms.delete) { %>
+								<button type="button" class="btn btn-sm btn-outline-danger rounded-0" id="btn-delete"><i class="fa-solid fa-trash"></i> <%= i18n.__('catalog.common.delete') %></button>
+								<% } %>
+							</div>
+							<div class="card-body">
+								<input type="hidden" name="id" />
+
+								<div class="row g-3 mb-3">
+									<div class="col-md-6" data-field="id_parent">
+										<label class="form-label"><%= i18n.__('catalog.categories.f.parent') %></label>
+										<select class="form-select rounded-0" name="id_parent" data-type="intnull">
+											<option value=""><%= i18n.__('catalog.categories.root') %></option>
+										</select>
+										<div class="invalid-feedback"></div>
+									</div>
+									<div class="col-md-3" data-field="sort_order">
+										<label class="form-label"><%= i18n.__('catalog.categories.f.sort_order') %></label>
+										<input class="form-control rounded-0" type="number" name="sort_order" data-type="int" value="0" />
+										<div class="invalid-feedback"></div>
+									</div>
+									<div class="col-md-3" data-field="menu_columns">
+										<label class="form-label"><%= i18n.__('catalog.categories.f.menu_columns') %></label>
+										<input class="form-control rounded-0" type="number" min="1" max="6" name="menu_columns" data-type="int" value="1" />
+										<div class="invalid-feedback"></div>
+									</div>
+									<div class="col-md-6" data-field="default_sort">
+										<label class="form-label"><%= i18n.__('catalog.categories.f.default_sort') %></label>
+										<select class="form-select rounded-0" name="default_sort" data-type="textnull">
+											<option value=""><%= i18n.__('catalog.categories.sort.inherit') %></option>
+											<option value="sort_order"><%= i18n.__('catalog.categories.sort.sort_order') %></option>
+											<option value="name"><%= i18n.__('catalog.categories.sort.name') %></option>
+											<option value="price_asc"><%= i18n.__('catalog.categories.sort.price_asc') %></option>
+											<option value="price_desc"><%= i18n.__('catalog.categories.sort.price_desc') %></option>
+											<option value="newest"><%= i18n.__('catalog.categories.sort.newest') %></option>
+											<option value="popular"><%= i18n.__('catalog.categories.sort.popular') %></option>
+											<option value="rating"><%= i18n.__('catalog.categories.sort.rating') %></option>
+										</select>
+										<div class="invalid-feedback"></div>
+									</div>
+									<div class="col-md-6" data-field="layout_template">
+										<label class="form-label"><%= i18n.__('catalog.categories.f.layout_template') %></label>
+										<input class="form-control rounded-0" name="layout_template" data-type="textnull" maxlength="64" />
+										<div class="invalid-feedback"></div>
+									</div>
+									<div class="col-12 d-flex flex-wrap gap-4">
+										<div class="form-check form-switch" data-field="status">
+											<input class="form-check-input" type="checkbox" name="status" data-type="bool" id="cf-status" checked />
+											<label class="form-check-label" for="cf-status"><%= i18n.__('catalog.categories.f.status') %></label>
+										</div>
+										<div class="form-check form-switch">
+											<input class="form-check-input" type="checkbox" name="show_in_menu" data-type="bool" id="cf-menu" checked />
+											<label class="form-check-label" for="cf-menu"><%= i18n.__('catalog.categories.f.show_in_menu') %></label>
+										</div>
+										<div class="form-check form-switch">
+											<input class="form-check-input" type="checkbox" name="is_filterable" data-type="bool" id="cf-filter" checked />
+											<label class="form-check-label" for="cf-filter"><%= i18n.__('catalog.categories.f.is_filterable') %></label>
+										</div>
+									</div>
+								</div>
+
+								<div class="row g-3 mb-4">
+									<div class="col-md-4 img-slot" data-field="image" data-slot="image">
+										<label class="form-label d-block"><%= i18n.__('catalog.categories.f.image') %></label>
+										<input type="hidden" name="image" data-type="textnull" />
+										<div class="mb-2"><img alt="" style="display: none" /></div>
+										<% if (perms.add || perms.edit) { %>
+										<div class="d-flex gap-2">
+											<input type="file" class="form-control form-control-sm rounded-0" accept="image/*" />
+											<button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-img-clear" title="<%= i18n.__('catalog.common.remove') %>"><i class="fa-solid fa-xmark"></i></button>
+										</div>
+										<% } %>
+										<div class="invalid-feedback"></div>
+									</div>
+									<div class="col-md-4 img-slot" data-field="icon" data-slot="icon">
+										<label class="form-label d-block"><%= i18n.__('catalog.categories.f.icon') %></label>
+										<input type="hidden" name="icon" data-type="textnull" />
+										<div class="mb-2"><img alt="" style="display: none" /></div>
+										<% if (perms.add || perms.edit) { %>
+										<div class="d-flex gap-2">
+											<input type="file" class="form-control form-control-sm rounded-0" accept="image/*" />
+											<button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-img-clear" title="<%= i18n.__('catalog.common.remove') %>"><i class="fa-solid fa-xmark"></i></button>
+										</div>
+										<% } %>
+										<div class="invalid-feedback"></div>
+									</div>
+									<div class="col-md-4 img-slot" data-field="banner" data-slot="banner">
+										<label class="form-label d-block"><%= i18n.__('catalog.categories.f.banner') %></label>
+										<input type="hidden" name="banner" data-type="textnull" />
+										<div class="mb-2"><img alt="" style="display: none" /></div>
+										<% if (perms.add || perms.edit) { %>
+										<div class="d-flex gap-2">
+											<input type="file" class="form-control form-control-sm rounded-0" accept="image/*" />
+											<button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-img-clear" title="<%= i18n.__('catalog.common.remove') %>"><i class="fa-solid fa-xmark"></i></button>
+										</div>
+										<% } %>
+										<div class="invalid-feedback"></div>
+									</div>
+								</div>
+
+								<div class="form-check form-switch mb-3">
+									<input class="form-check-input" type="checkbox" name="slug_shared" data-type="bool" id="cat-slug-shared" />
+									<label class="form-check-label" for="cat-slug-shared"><%= i18n.__('catalog.languages.slug_shared') %></label>
+									<div class="form-text"><%= i18n.__('catalog.languages.slug_shared_hint') %></div>
+								</div>
+								<ul class="nav nav-tabs mb-3" role="tablist">
+									<% languages.forEach((l, i) => { %>
+									<li class="nav-item" role="presentation">
+										<button class="nav-link rounded-0<%= i === 0 ? ' active' : '' %>" type="button" data-bs-toggle="tab" data-bs-target="#cat-lang-<%= l.id %>" role="tab"><%= l.native_name %> <small class="opacity-75">(<%= l.iso %>)</small><% if (i === 0) { %> *<% } %></button>
+									</li>
+									<% }) %>
+								</ul>
+								<div class="tab-content">
+									<% languages.forEach((l, i) => { %>
+									<div class="tab-pane fade<%= i === 0 ? ' show active' : '' %>" id="cat-lang-<%= l.id %>" role="tabpanel">
+										<div class="mb-3" data-field="descriptions.<%= l.id %>.name">
+											<label class="form-label"><%= i18n.__('catalog.categories.f.name') %><% if (i === 0) { %> *<% } %></label>
+											<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="name" maxlength="255" />
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="mb-3" data-field="descriptions.<%= l.id %>.h1">
+											<label class="form-label"><%= i18n.__('catalog.categories.f.h1') %></label>
+											<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="h1" maxlength="255" />
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="mb-3" data-field="descriptions.<%= l.id %>.description">
+											<label class="form-label"><%= i18n.__('catalog.categories.f.description') %></label>
+											<textarea class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="description" rows="6"></textarea>
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="mb-3" data-field="descriptions.<%= l.id %>.description_bottom">
+											<label class="form-label"><%= i18n.__('catalog.categories.f.description_bottom') %></label>
+											<textarea class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="description_bottom" rows="4"></textarea>
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="mb-3" data-field="descriptions.<%= l.id %>.meta_title">
+											<label class="form-label"><%= i18n.__('catalog.categories.f.meta_title') %></label>
+											<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="meta_title" maxlength="255" />
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="mb-3" data-field="descriptions.<%= l.id %>.meta_description">
+											<label class="form-label"><%= i18n.__('catalog.categories.f.meta_description') %></label>
+											<textarea class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="meta_description" rows="2" maxlength="512"></textarea>
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="mb-3" data-field="descriptions.<%= l.id %>.meta_keywords">
+											<label class="form-label"><%= i18n.__('catalog.categories.f.meta_keywords') %></label>
+											<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="meta_keywords" maxlength="512" />
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="mb-3" data-field="descriptions.<%= l.id %>.slug">
+											<label class="form-label"><%= i18n.__('catalog.categories.f.slug') %></label>
+											<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="slug" maxlength="191" />
+											<div class="form-text"><%= i18n.__('catalog.categories.hints.slug') %></div>
+											<div class="invalid-feedback"></div>
+										</div>
+									</div>
+									<% }) %>
+								</div>
+							</div>
+							<% if (perms.add || perms.edit) { %>
+							<div class="card-footer text-end">
+								<button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('catalog.common.save') %></button>
+							</div>
+							<% } %>
+						</form>
+						<div class="text-muted p-4 text-center" id="form-empty"><%= i18n.__('catalog.categories.select_hint') %></div>
+					</div>
+				</div>
+			</div>
+		</main>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const PERMS = { add: <%= perms.add %>, edit: <%= perms.edit %>, delete: <%= perms.delete %> };
+				const PRIMARY_LANG = <%= languages.length ? Number(languages[0].id) : 0 %>;
+
+				const notyf = new Notyf({ duration: 3000, position: { x: "right", y: "top" } });
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+				async function uploadFile(file) {
+					const fd = new FormData();
+					fd.append("file", file);
+					const res = await fetch("/api/catalog/products/images/categories/upload/", { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: fd });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+
+				const treeEl = document.getElementById("tree");
+				const form = document.getElementById("cat-form");
+				let rows = [];
+				let selectedId = null;
+				const collapsed = new Set();
+
+				// ── Дерево ─────────────────────────────────────────
+				function childrenOf(parentId) {
+					return rows.filter((r) => (r.id_parent || null) === parentId);
+				}
+				function renderNode(r) {
+					const kids = childrenOf(r.id);
+					const li = document.createElement("li");
+					li.className = "cat-node" + (r.status ? "" : " inactive") + (r.id === selectedId ? " selected" : "") + (collapsed.has(r.id) ? " collapsed" : "");
+					li.dataset.id = r.id;
+					li.innerHTML =
+						`<div class="cat-row">` +
+						(PERMS.edit ? `<i class="fa-solid fa-grip-vertical cat-handle"></i>` : "") +
+						`<span class="cat-toggle">${kids.length ? `<i class="fa-solid fa-caret-${collapsed.has(r.id) ? "right" : "down"}"></i>` : ""}</span>` +
+						(r.image_url ? `<img class="cat-thumb" src="${esc(r.image_url)}" alt="">` : "") +
+						`<span class="cat-name flex-grow-1">${esc(r.name)}</span>` +
+						`<span class="badge text-bg-light">${Number(r.products)}</span></div>`;
+					const ul = document.createElement("ul");
+					ul.dataset.parent = r.id;
+					kids.forEach((k) => ul.appendChild(renderNode(k)));
+					li.appendChild(ul);
+					return li;
+				}
+				function renderTree() {
+					treeEl.innerHTML = "";
+					childrenOf(null).forEach((r) => treeEl.appendChild(renderNode(r)));
+					if (PERMS.edit) initSortable();
+					applySearch();
+				}
+				async function loadTree() {
+					rows = (await api("/api/catalog/products/categories/tree/")).rows;
+					renderTree();
+					fillParentSelect(selectedId);
+				}
+
+				function initSortable() {
+					[treeEl, ...treeEl.querySelectorAll("ul")].forEach((ul) =>
+						Sortable.create(ul, {
+							group: "categories",
+							handle: ".cat-handle",
+							animation: 150,
+							fallbackOnBody: true,
+							swapThreshold: 0.65,
+							onEnd: async (evt) => {
+								const id = parseInt(evt.item.dataset.id, 10);
+								const parent = evt.to.dataset.parent ? parseInt(evt.to.dataset.parent, 10) : null;
+								const order = Array.from(evt.to.children).map((li) => parseInt(li.dataset.id, 10));
+								try {
+									await api(`/api/catalog/products/categories/${id}/move/`, { id_parent: parent, order });
+									notyf.success("<%= i18n.__('catalog.common.saved') %>");
+								} catch (err) {
+									notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>");
+								}
+								// Завжди синхронізуємось із сервером (при помилці — це і є відкат)
+								await loadTree();
+								if (selectedId === id) form.querySelector('[name="id_parent"]').value = parent || "";
+							},
+						})
+					);
+				}
+
+				treeEl.addEventListener("click", (e) => {
+					const li = e.target.closest(".cat-node");
+					if (!li) return;
+					const id = parseInt(li.dataset.id, 10);
+					if (e.target.closest(".cat-toggle")) {
+						collapsed.has(id) ? collapsed.delete(id) : collapsed.add(id);
+						return renderTree();
+					}
+					if (e.target.closest(".cat-handle")) return;
+					openCategory(id);
+				});
+				document.getElementById("btn-expand").addEventListener("click", () => {
+					collapsed.clear();
+					renderTree();
+				});
+				document.getElementById("btn-collapse").addEventListener("click", () => {
+					rows.forEach((r) => childrenOf(r.id).length && collapsed.add(r.id));
+					renderTree();
+				});
+
+				function applySearch() {
+					const q = document.getElementById("tree-search").value.trim().toLowerCase();
+					treeEl.querySelectorAll(".cat-node").forEach((li) => (li.style.display = ""));
+					if (!q) return;
+					const match = new Set(rows.filter((r) => String(r.name).toLowerCase().includes(q)).map((r) => r.id));
+					treeEl.querySelectorAll(".cat-node").forEach((li) => {
+						const hit = match.has(parseInt(li.dataset.id, 10)) || Array.from(li.querySelectorAll(".cat-node")).some((x) => match.has(parseInt(x.dataset.id, 10)));
+						li.style.display = hit ? "" : "none";
+						if (hit) li.classList.remove("collapsed");
+					});
+				}
+				document.getElementById("tree-search").addEventListener("input", applySearch);
+
+				// ── Select батька: з відступами, власне піддерево заблоковане ──
+				function descendantsOf(id) {
+					const out = new Set([id]);
+					let changed = true;
+					while (changed) {
+						changed = false;
+						rows.forEach((r) => {
+							if (r.id_parent && out.has(r.id_parent) && !out.has(r.id)) {
+								out.add(r.id);
+								changed = true;
+							}
+						});
+					}
+					return out;
+				}
+				function fillParentSelect(currentId) {
+					const sel = form.querySelector('[name="id_parent"]');
+					const value = sel.value;
+					const blocked = currentId ? descendantsOf(currentId) : new Set();
+					sel.querySelectorAll("option:not(:first-child)").forEach((o) => o.remove());
+					const walk = (parent, depth) =>
+						childrenOf(parent).forEach((r) => {
+							const o = new Option("\u00a0\u00a0".repeat(depth) + r.name, r.id);
+							o.disabled = blocked.has(r.id);
+							sel.add(o);
+							walk(r.id, depth + 1);
+						});
+					walk(null, 0);
+					sel.value = value;
+				}
+
+				// ── Форма ──────────────────────────────────────────
+				function clearErrors() {
+					form.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+					form.querySelectorAll(".invalid-feedback").forEach((el) => {
+						el.textContent = "";
+						el.style.display = "";
+					});
+				}
+				function showErrors(errors) {
+					let tabShown = false;
+					(errors || []).forEach((e) => {
+						const box = form.querySelector(`[data-field="${CSS.escape(e.field || "")}"]`);
+						if (!box) return;
+						box.querySelectorAll("input:not([type=hidden]),select,textarea").forEach((el) => el.classList.add("is-invalid"));
+						const fb = box.querySelector(".invalid-feedback");
+						if (fb) {
+							fb.textContent = e.message;
+							fb.style.display = "block";
+						}
+						const pane = box.closest(".tab-pane");
+						if (pane && !tabShown) {
+							bootstrap.Tab.getOrCreateInstance(form.querySelector(`[data-bs-target="#${pane.id}"]`)).show();
+							tabShown = true;
+						}
+					});
+				}
+				function setImage(slot, file, url) {
+					const box = form.querySelector(`[data-slot="${slot}"]`);
+					box.querySelector(`[name="${slot}"]`).value = file || "";
+					const img = box.querySelector("img");
+					img.src = url || "";
+					img.style.display = url ? "" : "none";
+				}
+
+				function fill(row) {
+					form.reset();
+					clearErrors();
+					form.querySelectorAll("[name][data-type]").forEach((el) => {
+						const v = row[el.name];
+						if (el.dataset.type === "bool") el.checked = v === undefined ? el.defaultChecked : !!Number(v);
+						else el.value = v == null ? "" : v;
+					});
+					["image", "icon", "banner"].forEach((s) => setImage(s, row[s], row[s + "_url"]));
+					form.querySelectorAll("[data-desc]").forEach((el) => {
+						const d = (row.descriptions || {})[el.dataset.lang] || {};
+						el.value = d[el.dataset.desc] || "";
+					});
+					applySlugShared();
+					form.querySelectorAll("input,select,textarea").forEach((el) => (el.disabled = row.id ? !PERMS.edit : !PERMS.add));
+					const first = form.querySelector('[data-bs-toggle="tab"]');
+					if (first) bootstrap.Tab.getOrCreateInstance(first).show();
+					form.style.display = "";
+					document.getElementById("form-empty").style.display = "none";
+					const del = document.getElementById("btn-delete");
+					if (del) del.style.display = row.id ? "" : "none";
+					const addChild = document.getElementById("btn-add-child");
+					if (addChild) addChild.style.display = row.id ? "" : "none";
+				}
+
+				// Один URL для всіх мов: поле slug лишається тільки в основній мові
+				function applySlugShared() {
+					const on = form.querySelector('[name="slug_shared"]').checked;
+					form.querySelectorAll('[data-field$=".slug"]').forEach((el) => {
+						const lang = Number(el.dataset.field.split(".")[1]);
+						el.classList.toggle("d-none", on && lang !== PRIMARY_LANG);
+					});
+				}
+				form.querySelector('[name="slug_shared"]').addEventListener("change", applySlugShared);
+
+				function readForm() {
+					const data = {};
+					form.querySelectorAll("[name][data-type]").forEach((el) => {
+						const t = el.dataset.type;
+						if (t === "bool") data[el.name] = el.checked;
+						else if (t === "int") data[el.name] = el.value === "" ? 0 : parseInt(el.value, 10);
+						else if (t === "intnull") data[el.name] = el.value === "" ? null : parseInt(el.value, 10);
+						else data[el.name] = el.value.trim() === "" ? null : el.value.trim();
+					});
+					const descriptions = {};
+					form.querySelectorAll("[data-desc]").forEach((el) => {
+						(descriptions[el.dataset.lang] = descriptions[el.dataset.lang] || {})[el.dataset.desc] = el.value;
+					});
+					return { data, descriptions };
+				}
+
+				async function openCategory(id) {
+					try {
+						const row = (await api(`/api/catalog/products/categories/${id}/get/`)).row;
+						selectedId = id;
+						renderTree();
+						fillParentSelect(id);
+						fill(row);
+						form.querySelector('[name="id"]').value = id;
+						document.getElementById("form-title").textContent = "<%= i18n.__('catalog.categories.edit') %>: " + (((row.descriptions || {})[PRIMARY_LANG] || {}).name || "#" + id);
+					} catch (err) {
+						notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>");
+					}
+				}
+				function newCategory(parentId) {
+					selectedId = null;
+					renderTree();
+					fillParentSelect(null);
+					fill({ id_parent: parentId || null });
+					form.querySelector('[name="id"]').value = "";
+					form.querySelector('[name="id_parent"]').value = parentId || "";
+					document.getElementById("form-title").textContent = "<%= i18n.__('catalog.categories.add') %>";
+					const firstName = form.querySelector('[data-desc="name"]');
+					if (firstName) firstName.focus();
+				}
+
+				const addBtn = document.getElementById("btn-add");
+				if (addBtn) addBtn.addEventListener("click", () => newCategory(null));
+				const addChildBtn = document.getElementById("btn-add-child");
+				if (addChildBtn) addChildBtn.addEventListener("click", () => newCategory(selectedId));
+
+				form.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					clearErrors();
+					const btn = form.querySelector('[type="submit"]');
+					btn.disabled = true;
+					try {
+						const id = form.querySelector('[name="id"]').value;
+						const r = await api("/api/catalog/products/categories/save/", { id: id ? parseInt(id, 10) : null, ...readForm() });
+						notyf.success("<%= i18n.__('catalog.common.saved') %>");
+						selectedId = r.id;
+						await loadTree();
+						await openCategory(r.id);
+					} catch (err) {
+						showErrors(err.errors);
+						notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>");
+					} finally {
+						btn.disabled = false;
+					}
+				});
+
+				const delBtn = document.getElementById("btn-delete");
+				if (delBtn)
+					delBtn.addEventListener("click", async () => {
+						const r = rows.find((x) => x.id === selectedId);
+						if (!r) return;
+						const msg =
+							Number(r.products) > 0
+								? "<%= i18n.__('catalog.categories.confirm_delete_products') %>".replace("%s", r.name).replace("%d", r.products)
+								: "<%= i18n.__('catalog.categories.confirm_delete') %>".replace("%s", r.name);
+						if (!confirm(msg)) return;
+						try {
+							await api(`/api/catalog/products/categories/${r.id}/delete/`);
+							notyf.success("<%= i18n.__('catalog.common.deleted') %>");
+							selectedId = null;
+							form.style.display = "none";
+							document.getElementById("form-empty").style.display = "";
+							await loadTree();
+						} catch (err) {
+							notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>");
+						}
+					});
+
+				// ── Зображення ─────────────────────────────────────
+				form.querySelectorAll(".img-slot").forEach((box) => {
+					const slot = box.dataset.slot;
+					const input = box.querySelector('input[type="file"]');
+					if (input)
+						input.addEventListener("change", async () => {
+							if (!input.files[0]) return;
+							input.disabled = true;
+							try {
+								const r = await uploadFile(input.files[0]);
+								setImage(slot, r.file, r.url);
+								notyf.success("<%= i18n.__('catalog.common.uploaded') %>");
+							} catch (err) {
+								notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>");
+							} finally {
+								input.disabled = false;
+								input.value = "";
+							}
+						});
+					const clear = box.querySelector(".js-img-clear");
+					if (clear) clear.addEventListener("click", () => setImage(slot, null, null));
+				});
+
+				loadTree().catch((err) => notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>"));
+			})();
+		</script>
+	</body>
+</html>

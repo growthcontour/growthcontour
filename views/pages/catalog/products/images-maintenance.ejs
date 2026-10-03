@@ -1,0 +1,260 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.images_maint.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><%= i18n.__('catalog.menu.catalog') %></li>
+					<li class="breadcrumb-item"><a href="/catalog/products/settings/"><%= i18n.__('catalog.menu.settings') %></a></li>
+					<li class="breadcrumb-item active"><%= i18n.__('catalog.images_maint.title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<h1 class="h4 mb-3"><%= i18n.__('catalog.images_maint.title') %></h1>
+
+				<div class="row g-3">
+					<div class="col-lg-6">
+						<div class="card rounded-0 h-100">
+							<div class="card-header fw-semibold"><i class="fa-solid fa-broom me-1"></i><%= i18n.__('catalog.images_maint.cleanup_title') %></div>
+							<div class="card-body">
+								<p class="small text-muted"><%= i18n.__('catalog.images_maint.cleanup_help') %></p>
+								<div class="mb-2">
+									<label class="form-label small fw-semibold"><%= i18n.__('catalog.images_maint.kinds') %></label>
+									<div class="d-flex gap-3 flex-wrap">
+										<% kinds.forEach(function (k) { %>
+										<div class="form-check">
+											<input class="form-check-input js-cleanup-kind" type="checkbox" value="<%= k %>" id="ck-<%= k %>" checked />
+											<label class="form-check-label" for="ck-<%= k %>"><%= i18n.__('catalog.images_maint.kind_' + k) %></label>
+										</div>
+										<% }); %>
+									</div>
+								</div>
+								<div class="mb-3" style="max-width: 260px">
+									<label class="form-label small fw-semibold" for="min-age"><%= i18n.__('catalog.images_maint.min_age') %></label>
+									<input type="number" class="form-control form-control-sm rounded-0" id="min-age" min="1" max="720" value="24" />
+									<div class="form-text"><%= i18n.__('catalog.images_maint.min_age_hint') %></div>
+								</div>
+								<% if (perms.edit) { %>
+								<div class="d-flex gap-2">
+									<button type="button" class="btn btn-outline-primary rounded-0 js-run" data-type="cleanup" data-dry="1"><%= i18n.__('catalog.images_maint.dry_run') %></button>
+									<button type="button" class="btn btn-danger rounded-0 js-run" data-type="cleanup" data-dry="0"><%= i18n.__('catalog.images_maint.run_cleanup') %></button>
+								</div>
+								<% } %>
+							</div>
+						</div>
+					</div>
+
+					<div class="col-lg-6">
+						<div class="card rounded-0 h-100">
+							<div class="card-header fw-semibold"><i class="fa-solid fa-images me-1"></i><%= i18n.__('catalog.images_maint.regen_title') %></div>
+							<div class="card-body">
+								<p class="small text-muted"><%= i18n.__('catalog.images_maint.regen_help') %></p>
+								<div class="mb-2">
+									<label class="form-label small fw-semibold"><%= i18n.__('catalog.images_maint.kinds') %></label>
+									<div class="d-flex gap-3 flex-wrap">
+										<% kinds.forEach(function (k) { %>
+										<div class="form-check">
+											<input class="form-check-input js-regen-kind" type="checkbox" value="<%= k %>" id="rk-<%= k %>" checked />
+											<label class="form-check-label" for="rk-<%= k %>"><%= i18n.__('catalog.images_maint.kind_' + k) %></label>
+										</div>
+										<% }); %>
+									</div>
+								</div>
+								<div class="mb-3">
+									<label class="form-label small fw-semibold"><%= i18n.__('catalog.images_maint.sizes') %></label>
+									<div class="d-flex gap-3 flex-wrap">
+										<% thumbnails.forEach(function (t) { %>
+										<div class="form-check">
+											<input class="form-check-input js-regen-code" type="checkbox" value="<%= t.code %>" id="rc-<%= t.code %>" checked />
+											<label class="form-check-label" for="rc-<%= t.code %>"><%= t.code %> · <%= t.width %>×<%= t.height %> · <%= t.fit %></label>
+										</div>
+										<% }); %>
+									</div>
+								</div>
+								<% if (perms.edit) { %>
+								<button type="button" class="btn btn-primary rounded-0 js-run" data-type="regenerate" data-dry="0"><%= i18n.__('catalog.images_maint.run_regen') %></button>
+								<% } %>
+							</div>
+						</div>
+					</div>
+
+					<div class="col-12">
+						<div class="card rounded-0">
+							<div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+								<span><%= i18n.__('catalog.images_maint.status_title') %></span>
+								<span class="badge text-bg-secondary" id="st-badge"><%= i18n.__('catalog.images_maint.idle') %></span>
+							</div>
+							<div class="card-body">
+								<div class="progress rounded-0 mb-3" style="height: 20px">
+									<div class="progress-bar" id="st-bar" style="width: 0%"></div>
+								</div>
+								<div class="row g-2 small" id="st-stats">
+									<div class="col-6 col-md-2"><div class="text-muted"><%= i18n.__('catalog.images_maint.st_type') %></div><div class="fw-semibold" id="st-type">—</div></div>
+									<div class="col-6 col-md-2"><div class="text-muted"><%= i18n.__('catalog.images_maint.st_processed') %></div><div class="fw-semibold" id="st-processed">0</div></div>
+									<div class="col-6 col-md-2"><div class="text-muted"><%= i18n.__('catalog.images_maint.st_deleted') %></div><div class="fw-semibold" id="st-deleted">0</div></div>
+									<div class="col-6 col-md-2"><div class="text-muted"><%= i18n.__('catalog.images_maint.st_freed') %></div><div class="fw-semibold" id="st-freed">0</div></div>
+									<div class="col-6 col-md-2"><div class="text-muted"><%= i18n.__('catalog.images_maint.st_regenerated') %></div><div class="fw-semibold" id="st-regenerated">0</div></div>
+									<div class="col-6 col-md-2"><div class="text-muted"><%= i18n.__('catalog.images_maint.st_errors') %></div><div class="fw-semibold" id="st-errors">0</div></div>
+								</div>
+								<div class="alert alert-warning small rounded-0 mt-3 d-none" id="st-error"></div>
+								<div class="mt-3 d-none" id="st-samples-wrap">
+									<div class="fw-semibold small mb-1" id="st-samples-title"></div>
+									<div class="table-responsive" style="max-height: 300px">
+										<table class="table table-sm small mb-0">
+											<thead><tr><th><%= i18n.__('catalog.images_maint.col_kind') %></th><th><%= i18n.__('catalog.images_maint.col_reason') %></th><th><%= i18n.__('catalog.images_maint.col_file') %></th><th class="text-end"><%= i18n.__('catalog.images_maint.col_size') %></th></tr></thead>
+											<tbody id="st-samples"></tbody>
+										</table>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</main>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const notyf = new Notyf({ duration: 4000, position: { x: "right", y: "top" } });
+				const TYPE_LABEL = {
+					cleanup: "<%= i18n.__('catalog.images_maint.type_cleanup') %>",
+					regenerate: "<%= i18n.__('catalog.images_maint.type_regenerate') %>",
+				};
+				const REASON_LABEL = {
+					orphan: "<%= i18n.__('catalog.images_maint.reason_orphan') %>",
+					thumb: "<%= i18n.__('catalog.images_maint.reason_thumb') %>",
+					stale_size: "<%= i18n.__('catalog.images_maint.reason_stale_size') %>",
+					tmp: "<%= i18n.__('catalog.images_maint.reason_tmp') %>",
+				};
+				const KIND_LABEL = {
+					products: "<%= i18n.__('catalog.images_maint.kind_products') %>",
+					categories: "<%= i18n.__('catalog.images_maint.kind_categories') %>",
+					brands: "<%= i18n.__('catalog.images_maint.kind_brands') %>",
+				};
+				let timer = null;
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+
+				function bytes(n) {
+					n = Number(n) || 0;
+					if (n < 1024) return n + " B";
+					if (n < 1048576) return (n / 1024).toFixed(1) + " KB";
+					if (n < 1073741824) return (n / 1048576).toFixed(1) + " MB";
+					return (n / 1073741824).toFixed(2) + " GB";
+				}
+
+				function render(job) {
+					const badge = document.getElementById("st-badge");
+					if (job.running) {
+						badge.className = "badge text-bg-primary";
+						badge.textContent = "<%= i18n.__('catalog.images_maint.running') %>";
+					} else if (job.finished_at) {
+						badge.className = "badge " + (job.errors ? "text-bg-warning" : "text-bg-success");
+						badge.textContent = (job.dry_run ? "<%= i18n.__('catalog.images_maint.finished_dry') %>" : "<%= i18n.__('catalog.images_maint.finished') %>") + " · " + new Date(job.finished_at).toLocaleString();
+					} else {
+						badge.className = "badge text-bg-secondary";
+						badge.textContent = "<%= i18n.__('catalog.images_maint.idle') %>";
+					}
+
+					const pct = job.total ? Math.min(100, Math.round((job.processed / job.total) * 100)) : job.finished_at ? 100 : 0;
+					const bar = document.getElementById("st-bar");
+					bar.style.width = pct + "%";
+					bar.textContent = job.total ? job.processed + " / " + job.total : "";
+					bar.classList.toggle("progress-bar-striped", !!job.running);
+					bar.classList.toggle("progress-bar-animated", !!job.running);
+
+					document.getElementById("st-type").textContent = job.type ? TYPE_LABEL[job.type] + (job.dry_run ? " (<%= i18n.__('catalog.images_maint.dry_short') %>)" : "") : "—";
+					document.getElementById("st-processed").textContent = job.processed;
+					document.getElementById("st-deleted").textContent = job.deleted;
+					document.getElementById("st-freed").textContent = bytes(job.freed_bytes);
+					document.getElementById("st-regenerated").textContent = job.regenerated;
+					document.getElementById("st-errors").textContent = job.errors;
+
+					const err = document.getElementById("st-error");
+					err.classList.toggle("d-none", !job.last_error);
+					err.textContent = job.last_error || "";
+
+					const wrap = document.getElementById("st-samples-wrap");
+					const tbody = document.getElementById("st-samples");
+					wrap.classList.toggle("d-none", !job.samples.length);
+					document.getElementById("st-samples-title").textContent = job.dry_run ? "<%= i18n.__('catalog.images_maint.samples_dry') %>" : "<%= i18n.__('catalog.images_maint.samples') %>";
+					tbody.replaceChildren(
+						...job.samples.map((s) => {
+							const tr = document.createElement("tr");
+							[KIND_LABEL[s.kind] || s.kind, REASON_LABEL[s.what] || s.what, s.file, bytes(s.bytes)].forEach((t, i) => {
+								const td = document.createElement("td");
+								td.textContent = t;
+								if (i === 3) td.className = "text-end";
+								tr.appendChild(td);
+							});
+							return tr;
+						})
+					);
+
+					document.querySelectorAll(".js-run").forEach((b) => (b.disabled = !!job.running));
+				}
+
+				async function poll() {
+					clearTimeout(timer);
+					try {
+						const r = await api("/api/catalog/products/images/status/");
+						render(r.job);
+						if (r.job.running) timer = setTimeout(poll, 1500);
+					} catch (err) {
+						notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>");
+					}
+				}
+
+				const checked = (selector) => Array.from(document.querySelectorAll(selector + ":checked")).map((el) => el.value);
+
+				document.querySelectorAll(".js-run").forEach((btn) =>
+					btn.addEventListener("click", async () => {
+						const type = btn.dataset.type;
+						const dry = btn.dataset.dry === "1";
+						const body = { type, dry_run: dry };
+						if (type === "cleanup") {
+							body.kinds = checked(".js-cleanup-kind");
+							body.min_age_hours = Number(document.getElementById("min-age").value) || 24;
+						} else {
+							body.kinds = checked(".js-regen-kind");
+							body.codes = checked(".js-regen-code");
+							if (!body.codes.length) return notyf.error("<%= i18n.__('catalog.images_maint.need_sizes') %>");
+						}
+						if (!body.kinds.length) return notyf.error("<%= i18n.__('catalog.images_maint.need_kinds') %>");
+						if (!dry && !confirm(type === "cleanup" ? "<%= i18n.__('catalog.images_maint.confirm_cleanup') %>" : "<%= i18n.__('catalog.images_maint.confirm_regen') %>")) return;
+						try {
+							const r = await api("/api/catalog/products/images/run/", body);
+							render(r.job);
+							timer = setTimeout(poll, 800);
+						} catch (err) {
+							notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>");
+						}
+					})
+				);
+
+				poll();
+			})();
+		</script>
+	</body>
+</html>

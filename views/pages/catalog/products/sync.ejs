@@ -1,0 +1,324 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.sync.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="/assets/css/tabulator/tabulator_bootstrap5.min.css" />
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><%= i18n.__('catalog.menu.catalog') %></li>
+					<li class="breadcrumb-item active"><%= i18n.__('catalog.sync.title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<div class="d-flex justify-content-between align-items-center mb-3">
+					<h1 class="h4 mb-0"><%= i18n.__('catalog.sync.title') %></h1>
+					<a class="btn btn-outline-secondary rounded-0" href="/orders/integrations/"><i class="fa-solid fa-plug"></i> <%= i18n.__('catalog.sync.manage_integrations') %></a>
+				</div>
+
+				<% if (!integrations.length) { %>
+				<div class="alert alert-info rounded-0"><%= i18n.__('catalog.sync.no_integrations') %></div>
+				<% } else { %>
+				<div class="row g-3">
+					<div class="col-lg-3">
+						<div class="list-group rounded-0" id="integration-list">
+							<% integrations.forEach(function (it, i) { %>
+							<button type="button" class="list-group-item list-group-item-action rounded-0 js-integration<%= i === 0 ? ' active' : '' %>" data-id="<%= it.id %>">
+								<div class="d-flex justify-content-between align-items-center">
+									<span class="fw-semibold"><%= it.name %></span>
+									<% if (Number(it.sync_enabled)) { %>
+									<span class="badge text-bg-success"><%= i18n.__('catalog.sync.on') %></span>
+									<% } else { %>
+									<span class="badge text-bg-secondary"><%= i18n.__('catalog.sync.off') %></span>
+									<% } %>
+								</div>
+								<div class="small opacity-75"><%= it.platform %> · <%= i18n.__('catalog.sync.links_count') %>: <%= it.links %><% if (Number(it.link_errors)) { %> · <span class="text-danger"><%= i18n.__('catalog.sync.errors_count') %>: <%= it.link_errors %></span><% } %></div>
+								<% if (!it.base_url || !Number(it.has_token)) { %>
+								<div class="small text-warning"><i class="fa-solid fa-triangle-exclamation"></i> <%= i18n.__('catalog.sync.not_configured') %></div>
+								<% } %>
+							</button>
+							<% }); %>
+						</div>
+					</div>
+
+					<div class="col-lg-9">
+						<div class="card rounded-0 mb-3">
+							<div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+								<span><%= i18n.__('catalog.sync.settings_title') %></span>
+								<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="btn-ping"><i class="fa-solid fa-satellite-dish"></i> <%= i18n.__('catalog.sync.ping') %></button>
+							</div>
+							<div class="card-body">
+								<div class="row g-3">
+									<div class="col-md-4">
+										<div class="form-check form-switch">
+											<input class="form-check-input" type="checkbox" id="s-enabled" />
+											<label class="form-check-label fw-semibold" for="s-enabled"><%= i18n.__('catalog.sync.enabled') %></label>
+										</div>
+										<div class="form-text"><%= i18n.__('catalog.sync.enabled_hint') %></div>
+									</div>
+									<div class="col-md-4">
+										<div class="form-check"><input class="form-check-input" type="checkbox" id="s-price" /><label class="form-check-label" for="s-price"><%= i18n.__('catalog.sync.push_price') %></label></div>
+										<div class="form-check"><input class="form-check-input" type="checkbox" id="s-stock" /><label class="form-check-label" for="s-stock"><%= i18n.__('catalog.sync.push_stock') %></label></div>
+										<div class="form-check"><input class="form-check-input" type="checkbox" id="s-status" /><label class="form-check-label" for="s-status"><%= i18n.__('catalog.sync.push_status') %></label></div>
+									</div>
+									<div class="col-md-4">
+										<label class="form-label small fw-semibold" for="s-warehouses"><%= i18n.__('catalog.sync.warehouses') %></label>
+										<select class="form-select form-select-sm rounded-0" id="s-warehouses" multiple size="4">
+											<% warehouses.forEach(function (w) { %>
+											<option value="<%= w.id %>"><%= w.name %></option>
+											<% }); %>
+										</select>
+										<div class="form-text"><%= i18n.__('catalog.sync.warehouses_hint') %></div>
+									</div>
+								</div>
+								<% if (perms.edit) { %>
+								<div class="d-flex flex-wrap gap-2 mt-3">
+									<button type="button" class="btn btn-primary rounded-0" id="btn-save"><%= i18n.__('catalog.sync.save') %></button>
+									<span class="vr"></span>
+									<button type="button" class="btn btn-outline-primary rounded-0 js-match" data-apply="0"><%= i18n.__('catalog.sync.match_dry') %></button>
+									<button type="button" class="btn btn-outline-success rounded-0 js-match" data-apply="1"><%= i18n.__('catalog.sync.match_apply') %></button>
+									<span class="vr"></span>
+									<button type="button" class="btn btn-success rounded-0 js-push" data-force="0"><i class="fa-solid fa-arrows-rotate"></i> <%= i18n.__('catalog.sync.push_now') %></button>
+									<button type="button" class="btn btn-outline-warning rounded-0 js-push" data-force="1"><%= i18n.__('catalog.sync.push_force') %></button>
+								</div>
+								<% } %>
+								<div class="alert rounded-0 small mt-3 d-none" id="result"></div>
+							</div>
+						</div>
+
+						<div class="card rounded-0 mb-3">
+							<div class="card-header fw-semibold"><%= i18n.__('catalog.sync.links_title') %></div>
+							<div class="card-body">
+								<div class="row g-2 mb-2 align-items-center">
+									<div class="col-md-5"><input type="search" class="form-control form-control-sm rounded-0" id="f-search" placeholder="<%= i18n.__('catalog.sync.links_search') %>" /></div>
+									<div class="col-md-3">
+										<div class="form-check"><input class="form-check-input" type="checkbox" id="f-errors" /><label class="form-check-label small" for="f-errors"><%= i18n.__('catalog.sync.only_errors') %></label></div>
+									</div>
+								</div>
+								<% if (perms.edit) { %>
+								<form class="row g-2 mb-3" id="link-form">
+									<div class="col-md-3"><input class="form-control form-control-sm rounded-0" name="sku" placeholder="<%= i18n.__('catalog.sync.crm_sku') %>" required /></div>
+									<div class="col-md-3"><input class="form-control form-control-sm rounded-0" name="external_id" placeholder="<%= i18n.__('catalog.sync.external_id') %>" required /></div>
+									<div class="col-md-3"><input class="form-control form-control-sm rounded-0" name="external_variant_id" placeholder="<%= i18n.__('catalog.sync.external_variant_id') %>" /></div>
+									<div class="col-md-3"><button type="submit" class="btn btn-sm btn-outline-primary rounded-0 w-100"><i class="fa-solid fa-link"></i> <%= i18n.__('catalog.sync.link_add') %></button></div>
+								</form>
+								<% } %>
+								<div id="links-grid"></div>
+							</div>
+						</div>
+
+						<div class="card rounded-0">
+							<div class="card-header fw-semibold"><%= i18n.__('catalog.sync.log_title') %></div>
+							<div class="card-body"><div id="log-grid"></div></div>
+						</div>
+					</div>
+				</div>
+				<% } %>
+			</div>
+		</main>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const first = document.querySelector(".js-integration");
+				if (!first) return;
+
+				const CAN_EDIT = <%= perms.edit ? 'true' : 'false' %>;
+				const notyf = new Notyf({ duration: 4000, position: { x: "right", y: "top" } });
+				let current = Number(first.dataset.id);
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+				const base = () => "/api/catalog/products/sync/" + current;
+				const dateFmt = (v) => (v ? new Date(String(v).replace(" ", "T")).toLocaleString() : "—");
+
+				function showResult(kind, lines) {
+					const el = document.getElementById("result");
+					el.className = "alert rounded-0 small mt-3 alert-" + kind;
+					el.replaceChildren(...lines.map((l) => { const d = document.createElement("div"); d.textContent = l; return d; }));
+				}
+
+				async function loadSettings() {
+					const r = await api(base() + "/settings/");
+					const s = r.settings;
+					document.getElementById("s-enabled").checked = !!s.enabled;
+					document.getElementById("s-price").checked = !!s.push_price;
+					document.getElementById("s-stock").checked = !!s.push_stock;
+					document.getElementById("s-status").checked = !!s.push_status;
+					Array.from(document.getElementById("s-warehouses").options).forEach((o) => (o.selected = s.warehouses.includes(Number(o.value))));
+				}
+
+				const linksGrid = new Tabulator("#links-grid", {
+					layout: "fitColumns",
+					placeholder: "<%= i18n.__('catalog.sync.no_links') %>",
+					pagination: true,
+					paginationMode: "remote",
+					paginationSize: 50,
+					ajaxURL: base() + "/links/",
+					ajaxConfig: { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" } },
+					ajaxContentType: "json",
+					ajaxParams: () => ({ search: document.getElementById("f-search").value.trim(), errors: document.getElementById("f-errors").checked ? 1 : 0 }),
+					columns: [
+						{
+							title: "<%= i18n.__('catalog.sync.col_product') %>", field: "name", minWidth: 220, headerSort: false,
+							formatter: (c) => {
+								const d = c.getRow().getData();
+								const a = document.createElement("a");
+								a.href = "/catalog/products/" + d.id_product + "/";
+								a.textContent = d.name;
+								const wrap = document.createElement("div");
+								wrap.appendChild(a);
+								const meta = document.createElement("div");
+								meta.className = "small text-muted";
+								meta.textContent = (d.sku || "") + (d.deleted_at ? " · <%= i18n.__('catalog.sync.deleted') %>" : d.status !== "active" ? " · " + d.status : "");
+								wrap.appendChild(meta);
+								return wrap;
+							},
+						},
+						{ title: "<%= i18n.__('catalog.sync.col_external') %>", field: "external_id", width: 170, headerSort: false, formatter: (c) => { const d = c.getRow().getData(); return d.external_id + (d.external_variant_id ? " / " + d.external_variant_id : ""); } },
+						{ title: "<%= i18n.__('catalog.sync.col_last_sync') %>", field: "last_sync_at", width: 160, headerSort: false, formatter: (c) => dateFmt(c.getValue()) },
+						{
+							title: "<%= i18n.__('catalog.sync.col_error') %>", field: "last_error", minWidth: 200, headerSort: false,
+							formatter: (c) => { const s = document.createElement("span"); s.className = "text-danger small"; s.textContent = c.getValue() || ""; return s; },
+						},
+						...(CAN_EDIT
+							? [{
+								title: "", field: "_a", width: 60, hozAlign: "center", headerSort: false,
+								formatter: () => '<button class="btn btn-sm btn-outline-danger rounded-0" title="<%= i18n.__('catalog.sync.unlink') %>"><i class="fa-solid fa-link-slash"></i></button>',
+								cellClick: async (e, cell) => {
+									if (!e.target.closest("button")) return;
+									if (!confirm("<%= i18n.__('catalog.sync.confirm_unlink') %>")) return;
+									try {
+										await api(base() + "/links/" + cell.getRow().getData().id + "/delete/");
+										linksGrid.setData(base() + "/links/");
+									} catch (err) { notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>"); }
+								},
+							}]
+							: []),
+					],
+				});
+
+				const LOG_ACTION = { push: "<%= i18n.__('catalog.sync.log_push') %>", match: "<%= i18n.__('catalog.sync.log_match') %>" };
+				const logGrid = new Tabulator("#log-grid", {
+					layout: "fitColumns",
+					placeholder: "<%= i18n.__('catalog.sync.no_log') %>",
+					height: 300,
+					columns: [
+						{ title: "<%= i18n.__('catalog.sync.col_date') %>", field: "date_add", width: 160, formatter: (c) => dateFmt(c.getValue()) },
+						{ title: "<%= i18n.__('catalog.sync.col_action') %>", field: "action", width: 140, formatter: (c) => (LOG_ACTION[c.getValue()] || c.getValue()) + " · " + c.getRow().getData().trigger },
+						{ title: "<%= i18n.__('catalog.sync.col_counts') %>", field: "total", width: 200, formatter: (c) => { const d = c.getRow().getData(); return d.total + " / " + d.sent + " / " + d.ok + " / " + '<span class="' + (d.errors ? "text-danger" : "") + '">' + d.errors + "</span>"; } },
+						{ title: "<%= i18n.__('catalog.sync.col_duration') %>", field: "duration_ms", width: 100, hozAlign: "right", formatter: (c) => (Number(c.getValue()) / 1000).toFixed(1) + " s" },
+						{ title: "<%= i18n.__('catalog.sync.col_message') %>", field: "message", formatter: "plaintext" },
+						{ title: "<%= i18n.__('catalog.sync.col_user') %>", field: "user_name", width: 150, formatter: (c) => c.getValue() || "—" },
+					],
+				});
+
+				async function loadLog() {
+					try { logGrid.setData((await api(base() + "/log/")).rows); } catch (err) { notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>"); }
+				}
+
+				function select(id) {
+					current = id;
+					document.querySelectorAll(".js-integration").forEach((b) => b.classList.toggle("active", Number(b.dataset.id) === id));
+					document.getElementById("result").classList.add("d-none");
+					loadSettings().catch((err) => notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>"));
+					linksGrid.setData(base() + "/links/");
+					loadLog();
+				}
+
+				document.querySelectorAll(".js-integration").forEach((b) => b.addEventListener("click", () => select(Number(b.dataset.id))));
+				let t;
+				document.getElementById("f-search").addEventListener("input", () => { clearTimeout(t); t = setTimeout(() => linksGrid.setData(base() + "/links/"), 300); });
+				document.getElementById("f-errors").addEventListener("change", () => linksGrid.setData(base() + "/links/"));
+
+				document.getElementById("btn-ping").addEventListener("click", async () => {
+					try {
+						const r = await api(base() + "/ping/");
+						showResult("success", ["<%= i18n.__('catalog.sync.ping_ok') %>", [r.shop, r.platform, r.version].filter(Boolean).join(" · ")]);
+					} catch (err) { showResult("danger", [err.error || "<%= i18n.__('catalog.common.error') %>"]); }
+				});
+
+				async function busy(btn, fn) {
+					const buttons = document.querySelectorAll(".js-match, .js-push, #btn-save");
+					buttons.forEach((b) => (b.disabled = true));
+					const old = btn.innerHTML;
+					btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> ' + old;
+					try { await fn(); } catch (err) { showResult("danger", [err.error || "<%= i18n.__('catalog.common.error') %>"]); }
+					finally { btn.innerHTML = old; buttons.forEach((b) => (b.disabled = false)); loadLog(); }
+				}
+
+				const saveBtn = document.getElementById("btn-save");
+				if (saveBtn) saveBtn.addEventListener("click", () => busy(saveBtn, async () => {
+					await api(base() + "/settings/save/", {
+						enabled: document.getElementById("s-enabled").checked,
+						push_price: document.getElementById("s-price").checked,
+						push_stock: document.getElementById("s-stock").checked,
+						push_status: document.getElementById("s-status").checked,
+						warehouses: Array.from(document.getElementById("s-warehouses").selectedOptions).map((o) => Number(o.value)),
+					});
+					notyf.success("<%= i18n.__('catalog.sync.saved') %>");
+				}));
+
+				document.querySelectorAll(".js-match").forEach((btn) => btn.addEventListener("click", () => busy(btn, async () => {
+					const apply = btn.dataset.apply === "1";
+					if (apply && !confirm("<%= i18n.__('catalog.sync.confirm_match') %>")) return;
+					const r = await api(base() + "/match/", { apply: apply ? 1 : 0 });
+					const s = r.stats;
+					const lines = [
+						"<%= i18n.__('catalog.sync.m_total') %>: " + s.total,
+						"<%= i18n.__('catalog.sync.m_matched') %>: " + s.matched + (apply ? " (<%= i18n.__('catalog.sync.m_created') %>: " + s.created + ")" : ""),
+						"<%= i18n.__('catalog.sync.m_already') %>: " + s.already,
+						"<%= i18n.__('catalog.sync.m_not_found') %>: " + s.not_found + ", <%= i18n.__('catalog.sync.m_no_sku') %>: " + s.no_sku,
+						"<%= i18n.__('catalog.sync.m_conflicts') %>: " + s.conflicts,
+					];
+					if (r.unmatched.length) lines.push("<%= i18n.__('catalog.sync.m_unmatched_sample') %>: " + r.unmatched.slice(0, 20).map((u) => (u.sku || "∅") + " [" + u.external_id + (u.external_variant_id ? "/" + u.external_variant_id : "") + "]").join(", "));
+					showResult(s.conflicts || s.not_found ? "warning" : "success", lines);
+					if (apply) linksGrid.setData(base() + "/links/");
+				})));
+
+				document.querySelectorAll(".js-push").forEach((btn) => btn.addEventListener("click", () => busy(btn, async () => {
+					const force = btn.dataset.force === "1";
+					if (force && !confirm("<%= i18n.__('catalog.sync.confirm_force') %>")) return;
+					const r = await api(base() + "/push/", { force: force ? 1 : 0 });
+					const s = r.stats;
+					showResult(s.errors ? "warning" : "success", [
+						"<%= i18n.__('catalog.sync.p_total') %>: " + s.total + ", <%= i18n.__('catalog.sync.p_sent') %>: " + s.sent + ", <%= i18n.__('catalog.sync.p_ok') %>: " + s.ok + ", <%= i18n.__('catalog.sync.p_errors') %>: " + s.errors,
+						...(s.message ? [s.message] : []),
+					]);
+					linksGrid.setData(base() + "/links/");
+				})));
+
+				const form = document.getElementById("link-form");
+				if (form) form.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					try {
+						await api(base() + "/links/add/", Object.fromEntries(new FormData(form)));
+						form.reset();
+						notyf.success("<%= i18n.__('catalog.sync.linked') %>");
+						linksGrid.setData(base() + "/links/");
+					} catch (err) { notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>"); }
+				});
+
+				select(current);
+			})();
+		</script>
+	</body>
+</html>

@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.st-handle {
+				cursor: grab;
+				color: #adb5bd;
+			}
+			.st-ghost {
+				opacity: 0.4;
+				background: #e9f2ff;
+			}
+			.st-off td {
+				opacity: 0.5;
+			}
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span>Довідники клієнтів</span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/"><i class="fas fa-home"></i></a>
+								</li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/clients/"><%= i18n.__('header.nav.clients') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> Довідники</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/clients/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3">
+			<div class="card border-primary rounded-0 mb-3">
+				<div class="card-header text-bg-primary rounded-0 p-0">
+					<ul class="nav nav-tabs card-header-tabs m-0" id="st-tabs">
+						<% dicts.forEach(function (d, i) { %>
+						<li class="nav-item"><button class="nav-link rounded-0<%= i === 0 ? ' active' : '' %>" data-key="<%= d.key %>"><%= d.title %></button></li>
+						<% }) %>
+					</ul>
+				</div>
+				<div class="card-body">
+					<div class="d-flex justify-content-between align-items-center mb-2">
+						<span class="text-muted small"><i class="fa-solid fa-grip-vertical me-1"></i>Порядок змінюється перетягуванням. Системні записи можна перейменувати й вимкнути, але не видалити.</span>
+						<button type="button" class="btn btn-primary btn-sm rounded-0" id="st-add"><i class="fa-solid fa-plus me-1"></i>Додати</button>
+					</div>
+					<div class="table-responsive">
+						<table class="table table-sm align-middle mb-0">
+							<thead>
+								<tr>
+									<th style="width: 30px"></th>
+									<th>Назва</th>
+									<th>Код</th>
+									<th class="text-center">Використань</th>
+									<th class="text-center">Активний</th>
+									<th style="width: 90px"></th>
+								</tr>
+							</thead>
+							<tbody id="st-body">
+								<tr>
+									<td colspan="6" class="text-center text-muted py-3"><span class="spinner-border spinner-border-sm"></span></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="modal fade" id="st-modal" tabindex="-1">
+			<div class="modal-dialog modal-lg">
+				<div class="modal-content rounded-0">
+					<div class="modal-header text-bg-primary rounded-0">
+						<h5 class="modal-title" id="st-modal-title">Запис</h5>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body" id="st-form"></div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal">Скасувати</button>
+						<button type="button" class="btn btn-primary rounded-0" id="st-save">Зберегти</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+		<script>
+			(function () {
+				const DICTS = <%- JSON.stringify(dicts).replace(/</g, '\\u003c') %>;
+				const LANGS = <%- JSON.stringify(langs).replace(/</g, '\\u003c') %>;
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000, types: [{ type: "error", background: "indianred", icon: false }] });
+				const body = document.getElementById("st-body");
+				const form = document.getElementById("st-form");
+				const modal = new bootstrap.Modal(document.getElementById("st-modal"));
+				let KEY = DICTS.length ? DICTS[0].key : null;
+				let ROWS = [];
+				let EDIT = null;
+
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const cfg = () => DICTS.find((d) => d.key === KEY);
+				const nameOf = (r) => {
+					for (const l of LANGS) if (r.i18n[l.id] && r.i18n[l.id].name) return r.i18n[l.id].name;
+					return r.code;
+				};
+
+				async function post(url, data) {
+					const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data || {}) });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok || j.ok === false) throw new Error(j.error || "Помилка сервера");
+					return j;
+				}
+
+				function badge(r) {
+					const c = cfg();
+					const icon = c.hasIcon && r.icon ? '<i class="' + esc(r.icon) + ' me-1"></i>' : "";
+					if (!c.hasColors) return icon + esc(nameOf(r));
+					return '<span class="badge rounded-0" style="color:' + esc(r.color_text || "#fff") + ";background:" + esc(r.color_background || "#6c757d") + '">' + icon + esc(nameOf(r)) + "</span>";
+				}
+
+				function render() {
+					if (!ROWS.length) {
+						body.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Записів немає</td></tr>';
+						return;
+					}
+					body.innerHTML = ROWS.map(
+						(r) =>
+							'<tr data-id="' + r.id + '" class="' + (Number(r.active) === 0 ? "st-off" : "") + '">' +
+							'<td><i class="fa-solid fa-grip-vertical st-handle"></i></td>' +
+							"<td>" + badge(r) + (Number(r.is_system) === 1 ? ' <span class="badge text-bg-light border rounded-0">системний</span>' : "") + "</td>" +
+							'<td><code class="small">' + esc(r.code) + "</code></td>" +
+							'<td class="text-center">' + (r.used || 0) + "</td>" +
+							'<td class="text-center">' + (Number(r.active) === 0 ? '<i class="fa-solid fa-xmark text-muted"></i>' : '<i class="fa-solid fa-check text-success"></i>') + "</td>" +
+							'<td class="text-end"><div class="btn-group btn-group-sm">' +
+							'<button class="btn btn-outline-primary rounded-0" data-edit="' + r.id + '" title="Редагувати"><i class="fa-solid fa-pen"></i></button>' +
+							(Number(r.is_system) === 1 || r.used ? "" : '<button class="btn btn-outline-danger rounded-0" data-del="' + r.id + '" title="Видалити"><i class="fa-solid fa-trash"></i></button>') +
+							"</div></td></tr>"
+					).join("");
+				}
+
+				async function load() {
+					body.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3"><span class="spinner-border spinner-border-sm"></span></td></tr>';
+					try {
+						ROWS = (await post("/api/clients/settings/" + KEY + "/list/")).rows || [];
+						render();
+					} catch (e) {
+						body.innerHTML = '<tr><td colspan="6" class="text-danger">' + esc(e.message) + "</td></tr>";
+					}
+				}
+
+				function field(f, val, disabled) {
+					const id = "st-f-" + f.name;
+					const dis = disabled ? " disabled" : "";
+					if (f.type === "bool") {
+						return '<div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" id="' + id + '"' + (Number(val) === 1 ? " checked" : "") + dis + ' /><label class="form-check-label" for="' + id + '">' + esc(f.label) + "</label></div></div>";
+					}
+					if (f.type === "select") {
+						return '<div class="col-md-6"><label class="form-label">' + esc(f.label) + '</label><select class="form-select rounded-0" id="' + id + '"' + dis + ">" + f.options.map((o) => '<option value="' + esc(o[0]) + '"' + (o[0] === val ? " selected" : "") + ">" + esc(o[1]) + "</option>").join("") + "</select></div>";
+					}
+					return '<div class="col-md-6"><label class="form-label">' + esc(f.label) + '</label><input type="text" class="form-control rounded-0" id="' + id + '" value="' + esc(val) + '"' + dis + " /></div>";
+				}
+
+				function open(row) {
+					const c = cfg();
+					EDIT = row;
+					const r = row || { code: "", active: 1, i18n: {}, color_text: "#ffffff", color_background: "#6c757d", icon: "" };
+					const sys = Number(r.is_system) === 1;
+					$("st-modal-title").textContent = (row ? "Редагувати" : "Додати") + " · " + c.title;
+
+					let html = '<div class="row g-2 mb-3">';
+					html += '<div class="col-md-6"><label class="form-label">Код <span class="text-muted small">(латиниця; порожньо — згенерується)</span></label><input type="text" class="form-control rounded-0" id="st-code" value="' + esc(r.code) + '"' + (sys ? " disabled" : "") + " /></div>";
+					html += '<div class="col-md-6 d-flex align-items-end"><div class="form-check"><input class="form-check-input" type="checkbox" id="st-active"' + (Number(r.active) === 0 ? "" : " checked") + ' /><label class="form-check-label" for="st-active">Активний</label></div></div>';
+					if (c.hasColors) {
+						html += '<div class="col-4 col-md-2"><label class="form-label">Текст</label><input type="color" class="form-control form-control-color rounded-0 w-100" id="st-ct" value="' + esc(r.color_text || "#ffffff") + '" /></div>';
+						html += '<div class="col-4 col-md-2"><label class="form-label">Фон</label><input type="color" class="form-control form-control-color rounded-0 w-100" id="st-cb" value="' + esc(r.color_background || "#6c757d") + '" /></div>';
+					}
+					if (c.hasIcon) {
+						html += '<div class="col-md-5"><label class="form-label">Іконка <span class="text-muted small">(Font Awesome, напр. fa-solid fa-star)</span></label><input type="text" class="form-control rounded-0" id="st-icon" value="' + esc(r.icon) + '" /></div>';
+						html += '<div class="col-md-3 d-flex align-items-end"><div id="st-preview"></div></div>';
+					}
+					c.fields.forEach((f) => (html += field(f, r[f.name] ?? (f.type === "select" ? f.options[0][0] : ""), sys && f.system)));
+					html += "</div>";
+
+					html += '<div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th style="width:120px">Мова</th>' + c.lang.map((f) => "<th>" + esc(f.label) + (f.required ? " *" : "") + "</th>").join("") + "</tr></thead><tbody>";
+					LANGS.forEach((l, i) => {
+						const tr = r.i18n[l.id] || {};
+						html += "<tr><td>" + esc(l.name) + (i === 0 ? ' <span class="text-muted small">(основна)</span>' : "") + "</td>" + c.lang.map((f) => '<td><input type="text" class="form-control form-control-sm rounded-0" data-lang="' + l.id + '" data-lf="' + f.name + '" maxlength="255" value="' + esc(tr[f.name] || "") + '" /></td>').join("") + "</tr>";
+					});
+										html += "</tbody></table></div>";
+
+					// Варіанти для полів-списків: рядок = варіант, однаковий номер рядка в усіх мовах
+					if (c.hasOptions) {
+						html += '<div id="st-options" class="mt-3"><label class="form-label fw-semibold">Варіанти списку <span class="text-muted small fw-normal">(кожен з нового рядка; рядок N — той самий варіант у всіх мовах; прибраний використаний варіант вимикається)</span></label><div class="row g-2">';
+						LANGS.forEach((l) => {
+							const lines = (r.options || []).filter((o) => Number(o.active) === 1).map((o) => o.i18n[l.id] || "").join("\n");
+							html += '<div class="col-md-' + Math.max(4, Math.floor(12 / LANGS.length)) + '"><div class="small text-muted mb-1">' + esc(l.name) + '</div><textarea class="form-control form-control-sm rounded-0" rows="6" data-opt-lang="' + l.id + '">' + esc(lines) + "</textarea></div>";
+						});
+						html += "</div></div>";
+					}
+
+					form.innerHTML = html;
+					const ft = $("st-f-field_type");
+					const toggleOpts = () => {
+						const box = $("st-options");
+						if (box && ft) box.classList.toggle("d-none", !["select", "multiselect"].includes(ft.value));
+					};
+					if (ft) ft.addEventListener("change", toggleOpts);
+					toggleOpts();
+					preview();
+					modal.show();
+				}
+
+				function preview() {
+					const p = $("st-preview");
+					if (!p) return;
+					const name = (form.querySelector('[data-lf="name"]') || {}).value || "Приклад";
+					const icon = ($("st-icon") || {}).value || "";
+					const ct = ($("st-ct") || {}).value || "#ffffff";
+					const cb = ($("st-cb") || {}).value || "#6c757d";
+					p.innerHTML = '<span class="badge rounded-0 fs-6" style="color:' + esc(ct) + ";background:" + esc(cb) + '">' + (icon ? '<i class="' + esc(icon) + ' me-1"></i>' : "") + esc(name) + "</span>";
+				}
+				form.addEventListener("input", preview);
+
+				$("st-save").addEventListener("click", async function () {
+					const c = cfg();
+					const btn = this;
+					const data = { id: EDIT ? EDIT.id : null, code: $("st-code").value, active: $("st-active").checked ? 1 : 0, i18n: {} };
+					if (c.hasColors) {
+						data.color_text = $("st-ct").value;
+						data.color_background = $("st-cb").value;
+					}
+					if (c.hasIcon) data.icon = $("st-icon").value;
+					c.fields.forEach((f) => {
+						const el = $("st-f-" + f.name);
+						data[f.name] = f.type === "bool" ? (el.checked ? 1 : 0) : el.value;
+					});
+										form.querySelectorAll("[data-lang]").forEach((el) => {
+						const l = el.dataset.lang;
+						(data.i18n[l] = data.i18n[l] || {})[el.dataset.lf] = el.value;
+					});
+					if (c.hasOptions && data.field_type && ["select", "multiselect"].includes(data.field_type)) {
+						data.options = {};
+						form.querySelectorAll("[data-opt-lang]").forEach((el) => (data.options[el.dataset.optLang] = el.value.split("\n")));
+					}
+					btn.disabled = true;
+					try {
+						await post("/api/clients/settings/" + KEY + "/save/", data);
+						modal.hide();
+						load();
+					} catch (e) {
+						notyf.error(e.message);
+					} finally {
+						btn.disabled = false;
+					}
+				});
+
+				body.addEventListener("click", async (ev) => {
+					const ed = ev.target.closest("[data-edit]");
+					if (ed) return open(ROWS.find((r) => r.id === Number(ed.dataset.edit)));
+					const del = ev.target.closest("[data-del]");
+					if (!del) return;
+					if (!confirm("Видалити запис?")) return;
+					try {
+						await post("/api/clients/settings/" + KEY + "/delete/", { id: Number(del.dataset.del) });
+						load();
+					} catch (e) {
+						notyf.error(e.message);
+					}
+				});
+
+				$("st-add").addEventListener("click", () => open(null));
+
+				document.querySelectorAll("#st-tabs [data-key]").forEach((b) =>
+					b.addEventListener("click", () => {
+						document.querySelectorAll("#st-tabs .nav-link").forEach((x) => x.classList.remove("active"));
+						b.classList.add("active");
+						KEY = b.dataset.key;
+						load();
+					})
+				);
+
+				Sortable.create(body, {
+					handle: ".st-handle",
+					ghostClass: "st-ghost",
+					animation: 150,
+					onEnd: async () => {
+						const ids = [...body.querySelectorAll("tr[data-id]")].map((tr) => Number(tr.dataset.id));
+						try {
+							await post("/api/clients/settings/" + KEY + "/sort/", { ids });
+						} catch (e) {
+							notyf.error(e.message);
+							load();
+						}
+					},
+				});
+
+				if (KEY) load();
+			})();
+		</script>
+	</body>
+</html>

@@ -1,0 +1,11 @@
+{
+    "name": "exampleModule",
+    "version": "1.0.0",
+    "description": "Приклад модуля для демонстрації системи модулів",
+    "author": "Your Name",
+    "hasConfig": true,
+    "config": {
+        "setting1": "value1",
+        "setting2": "value2"
+    }
+}

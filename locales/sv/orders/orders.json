@@ -1,0 +1,17 @@
+{
+    "orders": {
+        "title": "Beställningar",
+        "columns": {
+            "id": "ID",
+            "source": "Källa",
+            "reference": "Referens",
+            "delivery": "Leverans",
+            "total": "Totalt",
+            "payment": "Betalning",
+            "status": "Status",
+            "date_add": "Tillagt datum",
+            "date_edit": "Redigerat datum",
+            "edit": "Redigera"
+        }
+    }
+}

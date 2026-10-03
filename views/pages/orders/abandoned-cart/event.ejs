@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+  <head>
+    <%- include('../../../partials/head'); %>
+    <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+    <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+  </head>
+
+  <body class="d-flex flex-column h-100">
+    <%- include('../../../partials/header'); %>
+    <!-- Breadcrumb -->
+    <div class="breadcrumbs pt-3 pb-3">
+      <div class="container-fluid">
+        <div class="row align-items-center">
+          <div class="col">
+            <span> <% if (i18n.__('lang_iso')==='en' ) { %>Newsletter events<% } else { %>Події розсилок<% } %> </span>
+            <div>
+              <ul class="list-inline mb-0">
+                <li class="list-inline-item">
+                  <a href="/"><i class="fas fa-home"></i> <span>Головна</span></a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <% if (i18n.__('lang_iso')==='en' ) { %>Newsletter events<% } else { %>Події розсилок<% } %>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- END Breadcrumb -->
+    <div class="container-fluid mt-3">
+      <div class="row">
+        <div class="col-12 mb-3">
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+              <span>Події розсилок</span>
+              <a href="/orders/abandoned-cart/event/create/" class="btn btn-sm btn-light rounded-0"> <i class="fa-regular fa-plus"></i> Додати подію </a>
+            </div>
+            <div id="events-table"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%- include('../../../partials/footer'); %> <%- include('../../../partials/script'); %>
+    <script src="/assets/js/tabulator/tabulator.min.js"></script>
+
+    <script>
+      var table = new Tabulator("#events-table", {
+        layout: "fitColumns",
+        ajaxURL: "/api/orders/abandoned-cart/events-list/",
+        ajaxConfig: "POST",
+        paginationSize: 10,
+        paginationSizeSelector: [10, 20, 30, 40],
+        pagination: true,
+        movableColumns: true,
+        columns: [
+          {
+            title: "ID",
+            field: "id",
+            headerSort: false,
+            widthGrow: 0.3,
+          },
+          {
+            title: "Назва події",
+            field: "name",
+            headerSort: false,
+            widthGrow: 2,
+          },
+          {
+            title: "Сервіс",
+            field: "service_name",
+            headerSort: false,
+            widthGrow: 1,
+            formatter: function (cell) {
+              const row = cell.getRow().getData();
+              const logo = row.service_logo ? `<img src="${row.service_logo}" style="height:18px;object-fit:contain" class="me-1">` : "";
+              return `${logo}${row.service_name || "—"}`;
+            },
+          },
+          {
+            title: "Канал",
+            field: "service_channel",
+            headerSort: false,
+            widthGrow: 0.5,
+            formatter: function (cell) {
+              const map = { 1: "SMS", 2: "Email", 3: "Viber" };
+              const colors = { 1: "text-bg-success", 2: "text-bg-primary", 3: "text-bg-info" };
+              const v = cell.getValue();
+              return `<span class="badge rounded-0 ${colors[v] || "text-bg-secondary"}">${map[v] || "—"}</span>`;
+            },
+          },
+          {
+            title: "Затримка",
+            field: "delay_hours",
+            headerSort: false,
+            widthGrow: 0.5,
+            formatter: function (cell) {
+              return `${cell.getValue()} год`;
+            },
+          },
+          {
+            title: "Статус",
+            field: "active",
+            headerSort: false,
+            widthGrow: 0.5,
+            formatter: function (cell) {
+              return cell.getValue() ? '<span class="badge rounded-0 text-bg-success">Активна</span>' : '<span class="badge rounded-0 text-bg-secondary">Вимкнена</span>';
+            },
+          },
+          {
+            title: "Date add",
+            field: "date_add",
+            headerSort: false,
+            widthGrow: 1,
+          },
+          {
+            title: "Редагувати",
+            field: "id",
+            headerSort: false,
+            widthGrow: 0.3,
+            formatter: function (cell) {
+              return `<a href="/orders/abandoned-cart/event/${cell.getValue()}/" class="text-center d-block">
+                            <i class="fa-regular fa-pen-to-square"></i>
+                        </a>`;
+            },
+          },
+        ],
+      });
+    </script>
+  </body>
+</html>

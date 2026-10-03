@@ -1,0 +1,557 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.products.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="/assets/css/tabulator/tabulator_bootstrap5.min.css" />
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.pl-thumb { width: 40px; height: 40px; object-fit: contain; background: var(--bs-tertiary-bg); }
+			#bulk-bar { position: sticky; top: 0; z-index: 5; }
+			#bulk-cats { min-height: 160px; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><%= i18n.__('catalog.menu.catalog') %></li>
+					<li class="breadcrumb-item active"><%= i18n.__('catalog.products.title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<div class="d-flex justify-content-between align-items-center mb-3">
+					<h1 class="h4 mb-0"><%= i18n.__('catalog.products.title') %></h1>
+					<div class="d-flex gap-2">
+						<% if (perms.import) { %>
+						<a class="btn btn-outline-secondary rounded-0" href="/catalog/products/import/"><i class="fa-solid fa-file-import"></i> <%= i18n.__('catalog.menu.import') %></a>
+						<% } %>
+						<% if (perms.add) { %>
+						<a class="btn btn-primary rounded-0" href="/catalog/products/new/"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.products.add') %></a>
+						<% } %>
+					</div>
+				</div>
+
+				<div class="card rounded-0 mb-3">
+					<div class="card-body">
+						<div class="row g-2">
+							<div class="col-md-3"><input type="search" class="form-control rounded-0" id="f-search" placeholder="<%= i18n.__('catalog.products.filters.search') %>" /></div>
+							<div class="col-md-2">
+								<select class="form-select rounded-0" id="f-category"><option value=""><%= i18n.__('catalog.products.filters.all_categories') %></option></select>
+							</div>
+							<div class="col-md-2">
+								<select class="form-select rounded-0" id="f-brand"><option value=""><%= i18n.__('catalog.products.filters.all_brands') %></option></select>
+							</div>
+							<div class="col-md-1">
+								<select class="form-select rounded-0" id="f-status">
+									<option value=""><%= i18n.__('catalog.products.filters.all_statuses') %></option>
+									<option value="active"><%= i18n.__('catalog.products.status.active') %></option>
+									<option value="draft"><%= i18n.__('catalog.products.status.draft') %></option>
+									<option value="archived"><%= i18n.__('catalog.products.status.archived') %></option>
+								</select>
+							</div>
+							<div class="col-md-1">
+								<select class="form-select rounded-0" id="f-type">
+									<option value=""><%= i18n.__('catalog.products.filters.all_types') %></option>
+									<option value="simple"><%= i18n.__('catalog.products.types.simple') %></option>
+									<option value="variable"><%= i18n.__('catalog.products.types.variable') %></option>
+									<option value="bundle"><%= i18n.__('catalog.products.types.bundle') %></option>
+									<option value="digital"><%= i18n.__('catalog.products.types.digital') %></option>
+									<option value="service"><%= i18n.__('catalog.products.types.service') %></option>
+									<option value="gift_card"><%= i18n.__('catalog.products.types.gift_card') %></option>
+								</select>
+							</div>
+							<div class="col-md-1">
+								<select class="form-select rounded-0" id="f-stock">
+									<option value=""><%= i18n.__('catalog.products.filters.any_stock') %></option>
+									<option value="in"><%= i18n.__('catalog.products.filters.in_stock') %></option>
+									<option value="out"><%= i18n.__('catalog.products.filters.out_of_stock') %></option>
+									<option value="low"><%= i18n.__('catalog.products.filters.low_stock') %></option>
+								</select>
+							</div>
+							<div class="col-md-1"><input type="number" min="0" step="0.01" class="form-control rounded-0" id="f-price-from" placeholder="<%= i18n.__('catalog.products.filters.price_from') %>" /></div>
+							<div class="col-md-1"><input type="number" min="0" step="0.01" class="form-control rounded-0" id="f-price-to" placeholder="<%= i18n.__('catalog.products.filters.price_to') %>" /></div>
+						</div>
+					</div>
+				</div>
+
+				<% if (perms.edit || perms.delete) { %>
+				<div class="card rounded-0 mb-2 d-none" id="bulk-bar">
+					<div class="card-body py-2 d-flex flex-wrap align-items-center gap-2">
+						<span class="fw-semibold"><%= i18n.__('catalog.bulk.selected') %>: <span id="bulk-count">0</span></span>
+						<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="bulk-clear"><%= i18n.__('catalog.bulk.clear') %></button>
+						<select class="form-select form-select-sm rounded-0 w-auto" id="bulk-action">
+							<option value=""><%= i18n.__('catalog.bulk.choose_action') %></option>
+							<% if (perms.edit) { %>
+							<option value="status"><%= i18n.__('catalog.bulk.a_status') %></option>
+							<option value="visibility"><%= i18n.__('catalog.bulk.a_visibility') %></option>
+							<option value="featured"><%= i18n.__('catalog.bulk.a_featured') %></option>
+							<option value="brand"><%= i18n.__('catalog.bulk.a_brand') %></option>
+							<option value="categories"><%= i18n.__('catalog.bulk.a_categories') %></option>
+							<option value="price"><%= i18n.__('catalog.bulk.a_price') %></option>
+							<option value="compare_from_price"><%= i18n.__('catalog.bulk.a_compare_from_price') %></option>
+							<% } %>
+							<% if (perms.delete) { %>
+							<option value="delete"><%= i18n.__('catalog.bulk.a_delete') %></option>
+							<% } %>
+						</select>
+					</div>
+				</div>
+				<% } %>
+
+				<div id="grid"></div>
+			</div>
+		</main>
+
+		<% if (perms.edit || perms.delete) { %>
+		<div class="modal fade" id="bulk-modal" tabindex="-1">
+			<div class="modal-dialog modal-dialog-scrollable">
+				<form class="modal-content rounded-0" id="bulk-form">
+					<div class="modal-header">
+						<h5 class="modal-title" id="bulk-title"></h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<div class="bulk-pane d-none" data-pane="status">
+							<select class="form-select rounded-0" id="bp-status">
+								<option value="active"><%= i18n.__('catalog.products.status.active') %></option>
+								<option value="draft"><%= i18n.__('catalog.products.status.draft') %></option>
+								<option value="archived"><%= i18n.__('catalog.products.status.archived') %></option>
+							</select>
+						</div>
+
+						<div class="bulk-pane d-none" data-pane="visibility">
+							<select class="form-select rounded-0" id="bp-visibility">
+								<option value="all"><%= i18n.__('catalog.bulk.visibility_all') %></option>
+								<option value="catalog"><%= i18n.__('catalog.bulk.visibility_catalog') %></option>
+								<option value="search"><%= i18n.__('catalog.bulk.visibility_search') %></option>
+								<option value="none"><%= i18n.__('catalog.bulk.visibility_none') %></option>
+							</select>
+						</div>
+
+						<div class="bulk-pane d-none" data-pane="featured">
+							<select class="form-select rounded-0" id="bp-featured">
+								<option value="1"><%= i18n.__('catalog.bulk.featured_yes') %></option>
+								<option value="0"><%= i18n.__('catalog.bulk.featured_no') %></option>
+							</select>
+						</div>
+
+						<div class="bulk-pane d-none" data-pane="brand">
+							<select class="form-select rounded-0" id="bp-brand">
+								<option value=""><%= i18n.__('catalog.bulk.brand_none') %></option>
+							</select>
+						</div>
+
+						<div class="bulk-pane d-none" data-pane="categories">
+							<label class="form-label"><%= i18n.__('catalog.bulk.cat_op') %></label>
+							<select class="form-select rounded-0 mb-2" id="bp-cat-op">
+								<option value="add"><%= i18n.__('catalog.bulk.cat_add') %></option>
+								<option value="remove"><%= i18n.__('catalog.bulk.cat_remove') %></option>
+								<option value="replace"><%= i18n.__('catalog.bulk.cat_replace') %></option>
+							</select>
+							<label class="form-label"><%= i18n.__('catalog.bulk.cat_list') %></label>
+							<select class="form-select rounded-0" id="bulk-cats" multiple></select>
+							<div class="form-check mt-2">
+								<input class="form-check-input" type="checkbox" id="bp-cat-main" />
+								<label class="form-check-label" for="bp-cat-main"><%= i18n.__('catalog.bulk.cat_set_main') %></label>
+							</div>
+						</div>
+
+						<div class="bulk-pane d-none" data-pane="price">
+							<div class="row g-2">
+								<div class="col-6">
+									<label class="form-label"><%= i18n.__('catalog.bulk.price_field') %></label>
+									<select class="form-select rounded-0" id="bp-price-field">
+										<option value="price"><%= i18n.__('catalog.bulk.field_price') %></option>
+										<option value="compare_at_price"><%= i18n.__('catalog.bulk.field_compare_at_price') %></option>
+										<% if (perms.costEdit) { %>
+										<option value="cost_price"><%= i18n.__('catalog.bulk.field_cost_price') %></option>
+										<option value="wholesale_price"><%= i18n.__('catalog.bulk.field_wholesale_price') %></option>
+										<% } %>
+									</select>
+								</div>
+								<div class="col-6">
+									<label class="form-label"><%= i18n.__('catalog.bulk.price_op') %></label>
+									<select class="form-select rounded-0" id="bp-price-op">
+										<option value="percent"><%= i18n.__('catalog.bulk.op_percent') %></option>
+										<option value="amount"><%= i18n.__('catalog.bulk.op_amount') %></option>
+										<option value="set"><%= i18n.__('catalog.bulk.op_set') %></option>
+									</select>
+								</div>
+								<div class="col-6">
+									<label class="form-label"><%= i18n.__('catalog.bulk.price_value') %></label>
+									<input type="number" step="0.0001" class="form-control rounded-0" id="bp-price-value" />
+									<div class="form-text"><%= i18n.__('catalog.bulk.price_value_hint') %></div>
+								</div>
+								<div class="col-6">
+									<label class="form-label"><%= i18n.__('catalog.bulk.round') %></label>
+									<select class="form-select rounded-0" id="bp-price-round">
+										<option value="none"><%= i18n.__('catalog.bulk.round_none') %></option>
+										<option value="0"><%= i18n.__('catalog.bulk.round_0') %></option>
+										<option value="1"><%= i18n.__('catalog.bulk.round_1') %></option>
+										<option value="2"><%= i18n.__('catalog.bulk.round_2') %></option>
+										<option value="99"><%= i18n.__('catalog.bulk.round_99') %></option>
+										<option value="9"><%= i18n.__('catalog.bulk.round_9') %></option>
+									</select>
+								</div>
+							</div>
+						</div>
+
+						<div class="bulk-pane d-none" data-pane="variants">
+							<div class="form-check mt-3">
+								<input class="form-check-input" type="checkbox" id="bp-variants" checked />
+								<label class="form-check-label" for="bp-variants"><%= i18n.__('catalog.bulk.apply_variants') %></label>
+							</div>
+							<div class="form-text"><%= i18n.__('catalog.bulk.variants_hint') %></div>
+						</div>
+
+						<div class="d-none mt-3" id="bulk-report">
+							<div class="fw-semibold mb-1"><%= i18n.__('catalog.bulk.report_title') %></div>
+							<div class="table-responsive" style="max-height: 240px">
+								<table class="table table-sm mb-0">
+									<thead><tr><th><%= i18n.__('catalog.bulk.col_product') %></th><th><%= i18n.__('catalog.bulk.col_status') %></th><th><%= i18n.__('catalog.bulk.col_message') %></th></tr></thead>
+									<tbody id="bulk-report-body"></tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('catalog.common.cancel') %></button>
+						<button type="submit" class="btn btn-primary rounded-0" id="bulk-submit">
+							<span class="spinner-border spinner-border-sm d-none me-1" id="bulk-spinner"></span>
+							<%= i18n.__('catalog.bulk.apply') %>
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+		<% } %>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const PERMS = { add: <%= perms.add %>, edit: <%= perms.edit %>, delete: <%= perms.delete %>, cost: <%= perms.cost %> };
+				const BULK = PERMS.edit || PERMS.delete;
+				const CURRENCY = "<%= currency %>";
+				const STATUS = {
+					active: '<span class="badge text-bg-success"><%= i18n.__('catalog.products.status.active') %></span>',
+					draft: '<span class="badge text-bg-secondary"><%= i18n.__('catalog.products.status.draft') %></span>',
+					archived: '<span class="badge text-bg-dark"><%= i18n.__('catalog.products.status.archived') %></span>',
+				};
+
+				const notyf = new Notyf({ duration: 3000, position: { x: "right", y: "top" } });
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+				const money = (v) => (v == null ? "" : Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " " + CURRENCY);
+				const errMsg = (err) => err.error || "<%= i18n.__('catalog.common.error') %>";
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+
+				// ── Довідники: категорії та бренди (фільтри + масові дії) ──
+				const bulkCats = document.getElementById("bulk-cats");
+				const bulkBrand = document.getElementById("bp-brand");
+
+				api("/api/catalog/products/categories/tree/")
+					.then((r) => {
+						const sel = document.getElementById("f-category");
+						const walk = (parent, depth) =>
+							r.rows.filter((c) => (c.id_parent || null) === parent).forEach((c) => {
+								const label = "\u00a0\u00a0".repeat(depth) + c.name;
+								sel.add(new Option(label, c.id));
+								if (bulkCats) bulkCats.add(new Option(label, c.id));
+								walk(c.id, depth + 1);
+							});
+						walk(null, 0);
+					})
+					.catch(() => {});
+				api("/api/catalog/products/brands/options/", { search: "" })
+					.then((r) => {
+						const sel = document.getElementById("f-brand");
+						r.rows.forEach((b) => {
+							sel.add(new Option(b.name, b.id));
+							if (bulkBrand) bulkBrand.add(new Option(b.name, b.id));
+						});
+					})
+					.catch(() => {});
+
+				const filters = () => ({
+					search: document.getElementById("f-search").value.trim(),
+					id_category: document.getElementById("f-category").value,
+					id_brand: document.getElementById("f-brand").value,
+					status: document.getElementById("f-status").value,
+					type: document.getElementById("f-type").value,
+					stock: document.getElementById("f-stock").value,
+					price_from: document.getElementById("f-price-from").value,
+					price_to: document.getElementById("f-price-to").value,
+				});
+
+				const columns = [];
+				if (BULK) {
+					columns.push({ formatter: "rowSelection", titleFormatter: "rowSelection", titleFormatterParams: { rowRange: "active" }, hozAlign: "center", headerHozAlign: "center", headerSort: false, width: 44, cellClick: (e, cell) => cell.getRow().toggleSelect() });
+				}
+				columns.push(
+					{ title: "", field: "image_url", width: 60, headerSort: false, formatter: (c) => (c.getValue() ? `<img class="pl-thumb" src="${esc(c.getValue())}" alt="">` : `<div class="pl-thumb"></div>`) },
+					{
+						title: "<%= i18n.__('catalog.products.f.name') %>",
+						field: "name",
+						minWidth: 240,
+						formatter: (c) => {
+							const r = c.getRow().getData();
+							const lock = r.locked_by ? ` <i class="fa-solid fa-lock text-warning" title="<%= i18n.__('catalog.products.lock.editing') %> ${esc(r.locked_by)}"></i>` : "";
+							return `<a href="/catalog/products/${r.id}/">${esc(r.name)}</a>${lock}`;
+						},
+					},
+					{ title: "<%= i18n.__('catalog.products.f.sku') %>", field: "sku", width: 140, formatter: (c) => esc(c.getValue()) },
+					{ title: "<%= i18n.__('catalog.products.f.category') %>", field: "category", width: 170, headerSort: false, formatter: (c) => esc(c.getValue()) },
+					{ title: "<%= i18n.__('catalog.products.f.brand') %>", field: "brand", width: 140, headerSort: false, formatter: (c) => esc(c.getValue()) },
+					{ title: "<%= i18n.__('catalog.products.f.price') %>", field: "price", width: 130, hozAlign: "right", formatter: (c) => money(c.getValue()) }
+				);
+				if (PERMS.cost) columns.push({ title: "<%= i18n.__('catalog.products.f.cost_price') %>", field: "cost_price", width: 130, hozAlign: "right", headerSort: false, formatter: (c) => money(c.getValue()) });
+				columns.push(
+					{
+						title: "<%= i18n.__('catalog.products.f.qty') %>",
+						field: "qty",
+						width: 100,
+						hozAlign: "right",
+						formatter: (c) => {
+							const r = c.getRow().getData();
+							if (!Number(r.track_inventory)) return '<span class="text-muted">∞</span>';
+							const q = Number(c.getValue());
+							return `<span class="${q > 0 ? "" : "text-danger"}">${q.toLocaleString()}</span>`;
+						},
+					},
+					{ title: "<%= i18n.__('catalog.products.f.status') %>", field: "status", width: 110, formatter: (c) => STATUS[c.getValue()] || esc(c.getValue()) },
+					{ title: "<%= i18n.__('catalog.products.f.date_edit') %>", field: "date_edit", width: 150, formatter: (c) => esc(c.getValue()) },
+					{
+						title: "",
+						field: "_a",
+						width: 130,
+						hozAlign: "right",
+						headerSort: false,
+						formatter: () =>
+							`<a class="btn btn-sm btn-outline-${PERMS.edit ? "primary" : "secondary"} rounded-0 me-1" data-act="open"><i class="fa-solid fa-${PERMS.edit ? "pen" : "eye"}"></i></a>` +
+							(PERMS.add ? `<button class="btn btn-sm btn-outline-secondary rounded-0 me-1" data-act="copy" title="<%= i18n.__('catalog.products.copy') %>"><i class="fa-regular fa-copy"></i></button>` : "") +
+							(PERMS.delete ? `<button class="btn btn-sm btn-outline-danger rounded-0" data-act="delete"><i class="fa-solid fa-trash"></i></button>` : ""),
+						cellClick: (e, cell) => onAction(e, cell.getRow().getData()),
+					}
+				);
+
+				const grid = new Tabulator("#grid", {
+					layout: "fitColumns",
+					placeholder: "<%= i18n.__('catalog.products.empty') %>",
+					pagination: true,
+					paginationMode: "remote",
+					paginationSize: <%= Number(perPage) || 50 %>,
+					paginationSizeSelector: [25, 50, 100, 200, 500],
+					sortMode: "remote",
+					initialSort: [{ column: "date_edit", dir: "desc" }],
+					ajaxURL: "/api/catalog/products/list/",
+					ajaxConfig: { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" } },
+					ajaxContentType: "json",
+					ajaxParams: filters,
+					selectableRows: BULK ? true : false,
+					selectableRowsPersistence: false,
+					columns,
+				});
+
+				let timer;
+				const reload = () => {
+					clearTimeout(timer);
+					timer = setTimeout(() => grid.setData(), 300);
+				};
+				["f-search", "f-price-from", "f-price-to"].forEach((id) => document.getElementById(id).addEventListener("input", reload));
+				["f-category", "f-brand", "f-status", "f-type", "f-stock"].forEach((id) => document.getElementById(id).addEventListener("change", () => grid.setData()));
+
+				async function onAction(e, row) {
+					const btn = e.target.closest("[data-act]");
+					if (!btn) return;
+					e.stopPropagation();
+					try {
+						if (btn.dataset.act === "open") return (window.location.href = `/catalog/products/${row.id}/`);
+						if (btn.dataset.act === "copy") {
+							if (!confirm("<%= i18n.__('catalog.products.confirm_copy') %>".replace("%s", row.name))) return;
+							const r = await api(`/api/catalog/products/${row.id}/copy/`);
+							notyf.success("<%= i18n.__('catalog.products.copied') %>");
+							window.location.href = `/catalog/products/${r.id}/`;
+						}
+						if (btn.dataset.act === "delete") {
+							if (!confirm("<%= i18n.__('catalog.products.confirm_delete') %>".replace("%s", row.name))) return;
+							await api(`/api/catalog/products/${row.id}/delete/`);
+							notyf.success("<%= i18n.__('catalog.common.deleted') %>");
+							grid.setData();
+						}
+					} catch (err) {
+						notyf.error(errMsg(err));
+					}
+				}
+
+				// ══ Масові дії ══════════════════════════════════════
+				if (!BULK) return;
+
+				const bar = document.getElementById("bulk-bar");
+				const countEl = document.getElementById("bulk-count");
+				const actionSel = document.getElementById("bulk-action");
+				const modalEl = document.getElementById("bulk-modal");
+				const modal = new bootstrap.Modal(modalEl);
+				const form = document.getElementById("bulk-form");
+				const report = document.getElementById("bulk-report");
+				const reportBody = document.getElementById("bulk-report-body");
+				const submitBtn = document.getElementById("bulk-submit");
+				const spinner = document.getElementById("bulk-spinner");
+				const MAX = 1000;
+
+				const selectedIds = () => grid.getSelectedData().map((r) => r.id);
+				const rowLabel = (id) => {
+					const r = grid.getSelectedData().find((x) => x.id === id);
+					return r ? (r.sku ? r.sku + " — " : "") + r.name : "#" + id;
+				};
+
+				grid.on("rowSelectionChanged", (data) => {
+					countEl.textContent = data.length;
+					bar.classList.toggle("d-none", data.length === 0);
+				});
+				// Після перезавантаження сторінки даних вибір зникає — бар теж
+				grid.on("dataProcessed", () => {
+					countEl.textContent = grid.getSelectedData().length;
+					bar.classList.toggle("d-none", grid.getSelectedData().length === 0);
+				});
+				document.getElementById("bulk-clear").addEventListener("click", () => grid.deselectRow());
+
+				const PANES = {
+					status: ["status"],
+					visibility: ["visibility"],
+					featured: ["featured"],
+					brand: ["brand"],
+					categories: ["categories"],
+					price: ["price", "variants"],
+					compare_from_price: ["variants"],
+					delete: [],
+				};
+
+				actionSel.addEventListener("change", () => {
+					const action = actionSel.value;
+					if (!action) return;
+					actionSel.value = "";
+					if (!selectedIds().length) return notyf.error("<%= i18n.__('catalog.bulk.need_selection') %>");
+					if (selectedIds().length > MAX) return notyf.error("max " + MAX);
+
+					if (action === "delete") {
+						if (!confirm("<%= i18n.__('catalog.bulk.confirm_delete') %>".replace("%n", selectedIds().length))) return;
+						return run("delete", {}, null);
+					}
+
+					form.dataset.action = action;
+					document.getElementById("bulk-title").textContent = actionSel.querySelector(`option[value="${action}"]`).textContent + " (" + selectedIds().length + ")";
+					modalEl.querySelectorAll(".bulk-pane").forEach((p) => p.classList.toggle("d-none", !PANES[action].includes(p.dataset.pane)));
+					report.classList.add("d-none");
+					reportBody.replaceChildren();
+					modal.show();
+				});
+
+				function collect(action) {
+					switch (action) {
+						case "status":
+							return { status: document.getElementById("bp-status").value };
+						case "visibility":
+							return { visibility: document.getElementById("bp-visibility").value };
+						case "featured":
+							return { value: Number(document.getElementById("bp-featured").value) };
+						case "brand": {
+							const v = bulkBrand.value;
+							return { id_brand: v ? Number(v) : null };
+						}
+						case "categories": {
+							const ids = Array.from(bulkCats.selectedOptions).map((o) => Number(o.value));
+							if (!ids.length) throw { error: "<%= i18n.__('catalog.bulk.need_categories') %>" };
+							return { op: document.getElementById("bp-cat-op").value, ids, set_main: document.getElementById("bp-cat-main").checked };
+						}
+						case "price": {
+							const raw = document.getElementById("bp-price-value").value;
+							if (raw === "" || !Number.isFinite(Number(raw))) throw { error: "<%= i18n.__('catalog.bulk.need_value') %>" };
+							return {
+								field: document.getElementById("bp-price-field").value,
+								op: document.getElementById("bp-price-op").value,
+								value: Number(raw),
+								round: document.getElementById("bp-price-round").value,
+								variants: document.getElementById("bp-variants").checked,
+							};
+						}
+						case "compare_from_price":
+							return { variants: document.getElementById("bp-variants").checked };
+					}
+					return {};
+				}
+
+				form.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					const action = form.dataset.action;
+					let params;
+					try {
+						params = collect(action);
+					} catch (err) {
+						return notyf.error(errMsg(err));
+					}
+					const title = document.getElementById("bulk-title").textContent;
+					if (!confirm("<%= i18n.__('catalog.bulk.confirm') %>".replace("%a", title).replace("%n", selectedIds().length))) return;
+					await run(action, params, title);
+				});
+
+				async function run(action, params, title) {
+					const ids = selectedIds();
+					submitBtn.disabled = true;
+					spinner.classList.remove("d-none");
+					try {
+						const r = await api("/api/catalog/products/bulk/", { ids, action, params });
+						const s = r.summary;
+						const msg = "<%= i18n.__('catalog.bulk.result') %>".replace("%c", s.changed).replace("%u", s.unchanged).replace("%s", s.skipped).replace("%e", s.error);
+						(s.error || s.skipped ? notyf.error : notyf.success).call(notyf, msg);
+
+						if (r.report.length) {
+							reportBody.replaceChildren(
+								...r.report.map((x) => {
+									const tr = document.createElement("tr");
+									const reason = x.message === "locked" ? "<%= i18n.__('catalog.bulk.skipped_locked') %>" + (x.user_name ? ": " + x.user_name : "") : x.message;
+									[rowLabel(x.id), x.status === "skipped" ? "<%= i18n.__('catalog.bulk.st_skipped') %>" : "<%= i18n.__('catalog.bulk.st_error') %>", reason].forEach((t) => {
+										const td = document.createElement("td");
+										td.textContent = t;
+										tr.appendChild(td);
+									});
+									return tr;
+								})
+							);
+							report.classList.remove("d-none");
+							if (!title) {
+								// видалення — модалка не відкривалась; покажемо звіт у ній
+								document.getElementById("bulk-title").textContent = "<%= i18n.__('catalog.bulk.a_delete') %>";
+								modalEl.querySelectorAll(".bulk-pane").forEach((p) => p.classList.add("d-none"));
+								modal.show();
+							}
+						} else if (title) modal.hide();
+
+						grid.setData();
+					} catch (err) {
+						notyf.error(errMsg(err));
+					} finally {
+						submitBtn.disabled = false;
+						spinner.classList.add("d-none");
+					}
+				}
+			})();
+		</script>
+	</body>
+</html>

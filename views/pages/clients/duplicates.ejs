@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.dup-row { border-bottom: 1px solid #e9ecef; padding: 12px 0; }
+			.dup-row:last-child { border-bottom: none; }
+			.dup-side { border: 1px solid #e9ecef; padding: 8px 10px; height: 100%; }
+			.dup-sub { font-size: 12px; color: #6c757d; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span>Можливі дублі</span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/clients/"><%= i18n.__('header.nav.clients') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> Можливі дублі</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto"><a href="/clients/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a></div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3">
+			<div class="card border-primary rounded-0 mb-3">
+				<div class="card-header text-bg-primary rounded-0">Пари на перевірку <span class="badge text-bg-light rounded-0" id="dup-total">0</span></div>
+				<div class="card-body" id="dup-body">
+					<div class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm me-2"></span>Завантаження…</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000, types: [{ type: "error", background: "indianred", icon: false }] });
+				const body = document.getElementById("dup-body");
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const KIND_ICON = { person: "fa-solid fa-user", organization: "fa-solid fa-building", group: "fa-solid fa-users" };
+				const REASON = {
+					same_phone: "той самий телефон", same_email: "той самий email", same_telegram: "той самий Telegram", same_instagram: "той самий Instagram",
+					same_edrpou: "той самий ЄДРПОУ", same_ipn: "той самий ІПН", same_tax_id: "той самий податковий номер", same_vat_ua: "той самий ПДВ-номер",
+					same_eu_vat: "той самий VAT", same_external_site: "той самий ID на сайті", reverted_merge: "скасоване злиття",
+				};
+
+				function side(c) {
+					if (!c) return '<div class="dup-side text-muted">—</div>';
+					return (
+						'<div class="dup-side"><i class="' + (KIND_ICON[c.kind] || KIND_ICON.person) + ' text-muted me-1"></i>' +
+						'<a href="/clients/' + c.id + '/" class="fw-semibold" target="_blank">' + esc(c.display_name || "#" + c.id) + "</a> <span class=\"dup-sub\">#" + c.id + "</span>" +
+						'<div class="dup-sub">' + esc([c.phone, c.email].filter(Boolean).join(" · ") || "без контактів") + "</div>" +
+						'<div class="dup-sub">Замовлень: ' + (c.orders_valid_count || 0) + " · Виручка: " + Number(c.total_spent || 0).toFixed(2) + " " + esc(c.balance_currency || "") + "</div></div>"
+					);
+				}
+
+				function render(rows) {
+					document.getElementById("dup-total").textContent = rows.length;
+					if (!rows.length) {
+						body.innerHTML = '<div class="text-center text-muted py-4"><i class="fa-solid fa-circle-check text-success me-1"></i>Дублів не знайдено</div>';
+						return;
+					}
+					body.innerHTML = rows
+						.map((r) => {
+							const color = r.score >= 90 ? "danger" : r.score >= 70 ? "warning" : "secondary";
+							const reasons = (r.reasons || []).map((x) => '<span class="badge text-bg-light border rounded-0 me-1">' + esc(REASON[x] || x) + "</span>").join("");
+							return (
+								'<div class="dup-row" data-dup="' + r.id + '">' +
+								'<div class="d-flex justify-content-between align-items-center mb-2"><div><span class="badge text-bg-' + color + ' rounded-0 me-1">' + r.score + "%</span>" + reasons + "</div>" +
+								'<div class="d-flex gap-2"><a class="btn btn-sm btn-primary rounded-0" href="/clients/merge/?a=' + r.a.id + "&b=" + r.b.id + '"><i class="fa-solid fa-code-compare me-1"></i>Порівняти</a>' +
+								'<button class="btn btn-sm btn-outline-secondary rounded-0" data-dismiss-dup="' + r.id + '"><i class="fa-solid fa-xmark me-1"></i>Не дубль</button></div></div>' +
+								'<div class="row g-2"><div class="col-md-6">' + side(r.a) + '</div><div class="col-md-6">' + side(r.b) + "</div></div></div>"
+							);
+						})
+						.join("");
+				}
+
+				function load() {
+					fetch("/api/clients/duplicates/list/", { method: "POST" })
+						.then((r) => r.json())
+						.then((rows) => render(Array.isArray(rows) ? rows.filter((x) => x.a && x.b) : []))
+						.catch(() => (body.innerHTML = '<div class="text-danger py-3">Не вдалося завантажити.</div>'));
+				}
+
+				body.addEventListener("click", async function (e) {
+					const b = e.target.closest("[data-dismiss-dup]");
+					if (!b) return;
+					b.disabled = true;
+					try {
+						const r = await fetch("/api/clients/duplicates/" + b.dataset.dismissDup + "/dismiss/", { method: "POST" });
+						const j = await r.json();
+						if (!r.ok || j.ok === false) throw new Error(j.error || "Помилка");
+						b.closest("[data-dup]").remove();
+						const left = document.querySelectorAll("[data-dup]").length;
+						document.getElementById("dup-total").textContent = left;
+						if (!left) render([]);
+					} catch (err) {
+						notyf.error(err.message);
+						b.disabled = false;
+					}
+				});
+
+				load();
+			})();
+		</script>
+	</body>
+</html>

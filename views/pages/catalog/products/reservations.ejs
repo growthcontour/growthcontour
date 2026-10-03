@@ -1,0 +1,234 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.reservations.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="/assets/css/tabulator/tabulator_bootstrap5.min.css" />
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><%= i18n.__('catalog.menu.catalog') %></li>
+					<li class="breadcrumb-item active"><%= i18n.__('catalog.reservations.title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<div class="d-flex justify-content-between align-items-center mb-3">
+					<h1 class="h4 mb-0"><%= i18n.__('catalog.reservations.title') %></h1>
+					<a class="btn btn-outline-secondary rounded-0" href="/catalog/products/stock/movements/"><i class="fa-solid fa-clock-rotate-left"></i> <%= i18n.__('catalog.menu.stock_movements') %></a>
+				</div>
+
+				<div class="card rounded-0 mb-3">
+					<div class="card-body">
+						<div class="row g-2 align-items-center">
+							<div class="col-md-4">
+								<input type="search" class="form-control rounded-0" id="f-search" placeholder="<%= i18n.__('catalog.reservations.search') %>" />
+							</div>
+							<div class="col-md-3">
+								<select class="form-select rounded-0" id="f-warehouse">
+									<option value=""><%= i18n.__('catalog.reservations.all_warehouses') %></option>
+									<% warehouses.forEach(function (w) { %>
+									<option value="<%= w.id %>"><%= w.name %></option>
+									<% }); %>
+								</select>
+							</div>
+							<div class="col-md-2">
+								<select class="form-select rounded-0" id="f-ref-type">
+									<option value=""><%= i18n.__('catalog.reservations.all_sources') %></option>
+									<% refTypes.forEach(function (t) { %>
+									<option value="<%= t %>"><%= i18n.__('catalog.reservations.ref.' + t) %></option>
+									<% }); %>
+								</select>
+							</div>
+							<div class="col-md-2">
+								<div class="form-check">
+									<input class="form-check-input" type="checkbox" id="f-expired" />
+									<label class="form-check-label" for="f-expired"><%= i18n.__('catalog.reservations.only_expired') %></label>
+								</div>
+							</div>
+							<div class="col-md-1 text-end">
+								<% if (productId) { %>
+								<a href="/catalog/products/stock/reservations/" class="btn btn-sm btn-outline-secondary rounded-0" title="<%= i18n.__('catalog.reservations.reset_product') %>">#<%= productId %> <i class="fa-solid fa-xmark"></i></a>
+								<% } %>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div id="grid"></div>
+			</div>
+		</main>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const CAN_EDIT = <%= perms.edit ? 'true' : 'false' %>;
+				const PRODUCT_ID = <%= productId ? productId : 'null' %>;
+				const REF_LABEL = {
+					deal: "<%= i18n.__('catalog.reservations.ref.deal') %>",
+					order: "<%= i18n.__('catalog.reservations.ref.order') %>",
+					document: "<%= i18n.__('catalog.reservations.ref.document') %>",
+				};
+				const notyf = new Notyf({ duration: 3500, position: { x: "right", y: "top" } });
+				const qtyFmt = (v) => Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 3 });
+				const dateFmt = (v) => (v ? new Date(String(v).replace(" ", "T")).toLocaleString() : "");
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+
+				const filters = () => ({
+					search: document.getElementById("f-search").value.trim(),
+					id_warehouse: document.getElementById("f-warehouse").value,
+					ref_type: document.getElementById("f-ref-type").value,
+					expired: document.getElementById("f-expired").checked ? 1 : 0,
+					id_product: PRODUCT_ID || "",
+				});
+
+				function el(tag, cls, text) {
+					const n = document.createElement(tag);
+					if (cls) n.className = cls;
+					if (text !== undefined) n.textContent = text;
+					return n;
+				}
+
+				function refLink(d) {
+					const label = (REF_LABEL[d.ref_type] || d.ref_type) + " #" + d.ref_id;
+					if (d.ref_type === "deal") {
+						const a = el("a", "", label);
+						a.href = "/deals/" + d.ref_id;
+						a.target = "_blank";
+						return a;
+					}
+					if (d.ref_type === "document") {
+						const a = el("a", "", label);
+						a.href = "/catalog/products/stock/documents/" + d.ref_id + "/";
+						return a;
+					}
+					return el("span", "", label);
+				}
+
+				const columns = [
+					{
+						title: "<%= i18n.__('catalog.reservations.col_product') %>",
+						field: "name",
+						minWidth: 260,
+						formatter: (c) => {
+							const d = c.getRow().getData();
+							const wrap = el("div");
+							const a = el("a", "", d.name);
+							a.href = "/catalog/products/" + d.id_product + "/";
+							wrap.appendChild(a);
+							const meta = [d.variant_label, d.sku].filter(Boolean).join(" · ");
+							if (meta) wrap.appendChild(el("div", "small text-muted", meta));
+							return wrap;
+						},
+					},
+					{ title: "<%= i18n.__('catalog.reservations.col_warehouse') %>", field: "warehouse", width: 170, formatter: "plaintext" },
+					{ title: "<%= i18n.__('catalog.reservations.col_qty') %>", field: "qty", width: 110, hozAlign: "right", formatter: (c) => qtyFmt(c.getValue()) },
+					{
+						title: "<%= i18n.__('catalog.reservations.col_stock') %>",
+						field: "available",
+						width: 160,
+						hozAlign: "right",
+						headerSort: false,
+						formatter: (c) => {
+							const d = c.getRow().getData();
+							const s = el("span", Number(d.available) < 0 ? "text-danger" : "", qtyFmt(d.available) + " / " + qtyFmt(d.on_hand));
+							s.title = "<%= i18n.__('catalog.reservations.stock_hint') %>";
+							return s;
+						},
+					},
+					{ title: "<%= i18n.__('catalog.reservations.col_source') %>", field: "ref_type", width: 170, headerSort: false, formatter: (c) => refLink(c.getRow().getData()) },
+					{ title: "<%= i18n.__('catalog.reservations.col_created') %>", field: "date_add", width: 160, formatter: (c) => dateFmt(c.getValue()) },
+					{
+						title: "<%= i18n.__('catalog.reservations.col_expires') %>",
+						field: "expires_at",
+						width: 170,
+						formatter: (c) => {
+							const d = c.getRow().getData();
+							if (!d.expires_at) return el("span", "text-muted", "<%= i18n.__('catalog.reservations.no_expiry') %>");
+							return el("span", Number(d.is_expired) ? "text-danger fw-semibold" : "", dateFmt(d.expires_at));
+						},
+					},
+				];
+
+				if (CAN_EDIT) {
+					columns.push({
+						title: "",
+						field: "_a",
+						width: 120,
+						hozAlign: "right",
+						headerSort: false,
+						formatter: () =>
+							'<button class="btn btn-sm btn-outline-danger rounded-0 me-1" data-act="release" title="<%= i18n.__('catalog.reservations.release') %>"><i class="fa-solid fa-lock-open"></i></button>' +
+							'<button class="btn btn-sm btn-outline-secondary rounded-0" data-act="release-ref" title="<%= i18n.__('catalog.reservations.release_ref') %>"><i class="fa-solid fa-layer-group"></i></button>',
+						cellClick: (e, cell) => onAction(e, cell.getRow().getData()),
+					});
+				}
+
+				const grid = new Tabulator("#grid", {
+					layout: "fitColumns",
+					placeholder: "<%= i18n.__('catalog.reservations.empty') %>",
+					pagination: true,
+					paginationMode: "remote",
+					paginationSize: 50,
+					paginationSizeSelector: [25, 50, 100, 200, 500],
+					sortMode: "remote",
+					initialSort: [{ column: "date_add", dir: "desc" }],
+					ajaxURL: "/api/catalog/products/reservations/list/",
+					ajaxConfig: { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" } },
+					ajaxContentType: "json",
+					ajaxParams: filters,
+					columns,
+				});
+
+				let timer;
+				document.getElementById("f-search").addEventListener("input", () => {
+					clearTimeout(timer);
+					timer = setTimeout(() => grid.setData(), 300);
+				});
+				["f-warehouse", "f-ref-type", "f-expired"].forEach((id) => document.getElementById(id).addEventListener("change", () => grid.setData()));
+
+				async function onAction(e, d) {
+					const btn = e.target.closest("[data-act]");
+					if (!btn) return;
+					const source = (REF_LABEL[d.ref_type] || d.ref_type) + " #" + d.ref_id;
+					const dealNote = d.ref_type === "deal" ? "\n\n<%= i18n.__('catalog.reservations.deal_warning') %>" : "";
+					try {
+						if (btn.dataset.act === "release") {
+							const msg = "<%= i18n.__('catalog.reservations.confirm_release') %>".replace("%q", qtyFmt(d.qty)).replace("%p", d.name).replace("%s", source);
+							const comment = prompt(msg + dealNote + "\n\n<%= i18n.__('catalog.reservations.comment_prompt') %>", "");
+							if (comment === null) return;
+							await api("/api/catalog/products/reservations/" + d.id + "/release/", { comment });
+							notyf.success("<%= i18n.__('catalog.reservations.released') %>");
+						} else {
+							if (!confirm("<%= i18n.__('catalog.reservations.confirm_release_ref') %>".replace("%s", source) + dealNote)) return;
+							const r = await api("/api/catalog/products/reservations/release-ref/", { ref_type: d.ref_type, ref_id: d.ref_id });
+							notyf.success("<%= i18n.__('catalog.reservations.released_n') %>".replace("%n", r.released));
+						}
+						grid.setData();
+					} catch (err) {
+						notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>");
+					}
+				}
+			})();
+		</script>
+	</body>
+</html>

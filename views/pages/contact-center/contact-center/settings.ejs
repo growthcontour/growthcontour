@@ -1,0 +1,442 @@
+--- views/pages/contact-center/contact-center/settings.ejs (原始)
+
+
++++ views/pages/contact-center/contact-center/settings.ejs (修改后)
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+  <head>
+    <title><%= i18n.__('contact_center.settings.title') %></title>
+    <%- include('../../../partials/head'); %>
+    <style>
+      .channel-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 1px solid #e0e0e0;
+        border-radius: 0;
+        overflow: hidden;
+      }
+
+      .channel-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+      }
+
+      .channel-card .card-header {
+        font-weight: 600;
+        font-size: 1.1rem;
+        padding: 1rem 1.25rem;
+      }
+
+      .channel-card .channel-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+      }
+
+      .channel-card .status-badge {
+        font-size: 0.875rem;
+        padding: 0.5em 1em;
+      }
+
+      .channel-card .stats-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f0f0f0;
+      }
+
+      .channel-card .stats-row:last-child {
+        border-bottom: none;
+      }
+
+      .channel-card .btn-action {
+        min-width: 100px;
+      }
+
+      .telegram-header {
+        background-color: #24a1de !important;
+        color: white;
+      }
+
+      .instagram-header {
+        background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888) !important;
+        color: white;
+      }
+
+      .webchat-header {
+        background-color: #16a34a !important;
+        color: white;
+      }
+
+      .facebook-header {
+        background-color: #1877f2 !important;
+        color: white;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #6c757d;
+      }
+
+      .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.3;
+      }
+
+      .quick-actions {
+        background-color: #f8f9fa;
+        border-radius: 0;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+      }
+
+      .quick-actions h5 {
+        margin-bottom: 1rem;
+        font-weight: 600;
+      }
+
+      .info-box {
+        background-color: #e7f3ff;
+        border-left: 4px solid #24a1de;
+        padding: 1rem;
+        margin-top: 1rem;
+        border-radius: 0;
+      }
+
+      .info-box p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #0c5460;
+      }
+    </style>
+  </head>
+
+  <body class="d-flex flex-column h-100">
+    <%- include('../../../partials/header'); %>
+
+    <!-- ─── ХЛІБНІ КРИХТИ ─────────────────────────────────────────── -->
+    <div class="breadcrumbs pt-3 pb-3">
+      <div class="container-fluid">
+        <div class="row align-items-center">
+          <div class="col">
+            <span><%= i18n.__('contact_center.settings.title') %></span>
+            <div>
+              <ul class="list-inline mb-0">
+                <li class="list-inline-item">
+                  <a href="/">
+                    <i class="fas fa-home"></i>
+                    <span><%= i18n.__('contact_center.settings.breadcrumb.home') %></span>
+                  </a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <a href="/contact-center"><%= i18n.__('contact_center.settings.breadcrumb.contact_center') %></a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <%= i18n.__('contact_center.settings.breadcrumb.current') %>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-auto">
+            <a href="/contact-center" class="btn btn-primary rounded-0">
+              <i class="fa-solid fa-angle-left"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container-fluid mt-3">
+      <!-- Quick Actions -->
+      <div class="quick-actions">
+        <h5><i class="fa-solid fa-bolt me-2"></i><%= i18n.__('contact_center.settings.quick_actions.title') %></h5>
+        <div class="row g-3">
+          <div class="col-md-3">
+            <a href="/contact-center/settings/telegram/" class="btn btn-outline-primary rounded-0 w-100">
+              <i class="fa-brands fa-telegram me-2"></i><%= i18n.__('contact_center.settings.quick_actions.add_telegram') %>
+            </a>
+          </div>
+          <div class="col-md-3">
+            <a href="/contact-center/settings/instagram/" class="btn btn-outline-danger rounded-0 w-100">
+              <i class="fa-brands fa-instagram me-2"></i><%= i18n.__('contact_center.settings.quick_actions.add_instagram') %>
+            </a>
+          </div>
+          <div class="col-md-3">
+            <a href="/contact-center/settings/webchat/" class="btn btn-outline-success rounded-0 w-100">
+              <i class="fa-solid fa-globe me-2"></i><%= i18n.__('contact_center.settings.quick_actions.add_webchat') %>
+            </a>
+          </div>
+          <div class="col-md-3">
+            <a href="/contact-center/settings/facebook/" class="btn btn-outline-primary rounded-0 w-100" disabled>
+              <i class="fa-brands fa-facebook me-2"></i><%= i18n.__('contact_center.settings.quick_actions.add_facebook') %>
+              <span class="badge bg-secondary ms-2">Soon</span>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Info Box -->
+      <div class="info-box">
+        <p><i class="fa-solid fa-circle-info me-2"></i><strong><%= i18n.__('contact_center.settings.info.title') %></strong> <%= i18n.__('contact_center.settings.info.description') %></p>
+      </div>
+
+      <!-- Channel Cards -->
+      <div class="row g-4 mt-3">
+        <!-- Telegram Card -->
+        <div class="col-12 col-lg-6 col-xl-4">
+          <div class="card channel-card h-100">
+            <div class="card-header telegram-header">
+              <i class="fa-brands fa-telegram me-2"></i>Telegram
+            </div>
+            <div class="card-body">
+              <div class="text-center mb-3">
+                <i class="fa-brands fa-telegram channel-icon" style="color: #24a1de;"></i>
+                <h5 class="mb-2"><%= i18n.__('contact_center.settings.channels.telegram.title') %></h5>
+                <p class="text-muted small"><%= i18n.__('contact_center.settings.channels.telegram.description') %></p>
+              </div>
+
+              <div class="stats-row">
+                <span class="text-muted"><%= i18n.__('contact_center.settings.channels.telegram.active_bots') %>:</span>
+                <span class="fw-bold" id="telegram-active-count">-</span>
+              </div>
+              <div class="stats-row">
+                <span class="text-muted"><%= i18n.__('contact_center.settings.channels.telegram.total_tokens') %>:</span>
+                <span class="fw-bold" id="telegram-total-count">-</span>
+              </div>
+              <div class="stats-row">
+                <span class="text-muted"><%= i18n.__('contact_center.settings.channels.telegram.status') %>:</span>
+                <span id="telegram-status">
+                  <span class="badge bg-secondary status-badge"><%= i18n.__('contact_center.settings.status.loading') %></span>
+                </span>
+              </div>
+
+              <div class="d-grid gap-2 mt-3">
+                <a href="/contact-center/settings/telegram/" class="btn btn-primary rounded-0 btn-action">
+                  <i class="fa-solid fa-gear me-2"></i><%= i18n.__('contact_center.settings.channels.manage') %>
+                </a>
+                <a href="/contact-center/settings/telegram/new/" class="btn btn-outline-primary rounded-0">
+                  <i class="fa-solid fa-plus me-2"></i><%= i18n.__('contact_center.settings.channels.add_new') %>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Instagram Card -->
+        <div class="col-12 col-lg-6 col-xl-4">
+          <div class="card channel-card h-100">
+            <div class="card-header instagram-header">
+              <i class="fa-brands fa-instagram me-2"></i>Instagram
+            </div>
+            <div class="card-body">
+              <div class="text-center mb-3">
+                <i class="fa-brands fa-instagram channel-icon" style="color: #e1306c;"></i>
+                <h5 class="mb-2"><%= i18n.__('contact_center.settings.channels.instagram.title') %></h5>
+                <p class="text-muted small"><%= i18n.__('contact_center.settings.channels.instagram.description') %></p>
+              </div>
+
+              <div class="stats-row">
+                <span class="text-muted"><%= i18n.__('contact_center.settings.channels.instagram.connected_accounts') %>:</span>
+                <span class="fw-bold" id="instagram-active-count">-</span>
+              </div>
+              <div class="stats-row">
+                <span class="text-muted"><%= i18n.__('contact_center.settings.channels.instagram.total_accounts') %>:</span>
+                <span class="fw-bold" id="instagram-total-count">-</span>
+              </div>
+              <div class="stats-row">
+                <span class="text-muted"><%= i18n.__('contact_center.settings.channels.instagram.status') %>:</span>
+                <span id="instagram-status">
+                  <span class="badge bg-secondary status-badge"><%= i18n.__('contact_center.settings.status.loading') %></span>
+                </span>
+              </div>
+
+              <div class="d-grid gap-2 mt-3">
+                <a href="/contact-center/settings/instagram/" class="btn btn-danger rounded-0 btn-action">
+                  <i class="fa-solid fa-gear me-2"></i><%= i18n.__('contact_center.settings.channels.manage') %>
+                </a>
+                <a href="/contact-center/settings/instagram/new/" class="btn btn-outline-danger rounded-0">
+                  <i class="fa-solid fa-plus me-2"></i><%= i18n.__('contact_center.settings.channels.add_new') %>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- WebChat Card -->
+        <div class="col-12 col-lg-6 col-xl-4">
+          <div class="card channel-card h-100">
+            <div class="card-header webchat-header">
+              <i class="fa-solid fa-globe me-2"></i>WebChat
+            </div>
+            <div class="card-body">
+              <div class="text-center mb-3">
+                <i class="fa-solid fa-globe channel-icon" style="color: #16a34a;"></i>
+                <h5 class="mb-2"><%= i18n.__('contact_center.settings.channels.webchat.title') %></h5>
+                <p class="text-muted small"><%= i18n.__('contact_center.settings.channels.webchat.description') %></p>
+              </div>
+
+              <div class="stats-row">
+                <span class="text-muted"><%= i18n.__('contact_center.settings.channels.webchat.active_sites') %>:</span>
+                <span class="fw-bold" id="webchat-active-count">-</span>
+              </div>
+              <div class="stats-row">
+                <span class="text-muted"><%= i18n.__('contact_center.settings.channels.webchat.total_sites') %>:</span>
+                <span class="fw-bold" id="webchat-total-count">-</span>
+              </div>
+              <div class="stats-row">
+                <span class="text-muted"><%= i18n.__('contact_center.settings.channels.webchat.status') %>:</span>
+                <span id="webchat-status">
+                  <span class="badge bg-secondary status-badge"><%= i18n.__('contact_center.settings.status.loading') %></span>
+                </span>
+              </div>
+
+              <div class="d-grid gap-2 mt-3">
+                <a href="/contact-center/settings/webchat/" class="btn btn-success rounded-0 btn-action">
+                  <i class="fa-solid fa-gear me-2"></i><%= i18n.__('contact_center.settings.channels.manage') %>
+                </a>
+                <a href="/contact-center/settings/webchat/new/" class="btn btn-outline-success rounded-0">
+                  <i class="fa-solid fa-plus me-2"></i><%= i18n.__('contact_center.settings.channels.add_new') %>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Facebook Card (Coming Soon) -->
+        <div class="col-12 col-lg-6 col-xl-4">
+          <div class="card channel-card h-100" style="opacity: 0.7;">
+            <div class="card-header facebook-header">
+              <i class="fa-brands fa-facebook me-2"></i>Facebook
+              <span class="badge bg-warning text-dark ms-2">Soon</span>
+            </div>
+            <div class="card-body">
+              <div class="text-center mb-3">
+                <i class="fa-brands fa-facebook channel-icon" style="color: #1877f2;"></i>
+                <h5 class="mb-2"><%= i18n.__('contact_center.settings.channels.facebook.title') %></h5>
+                <p class="text-muted small"><%= i18n.__('contact_center.settings.channels.facebook.description') %></p>
+              </div>
+
+              <div class="stats-row">
+                <span class="text-muted"><%= i18n.__('contact_center.settings.channels.facebook.connected_pages') %>:</span>
+                <span class="fw-bold">-</span>
+              </div>
+              <div class="stats-row">
+                <span class="text-muted"><%= i18n.__('contact_center.settings.channels.facebook.total_pages') %>:</span>
+                <span class="fw-bold">-</span>
+              </div>
+              <div class="stats-row">
+                <span class="text-muted"><%= i18n.__('contact_center.settings.channels.facebook.status') %>:</span>
+                <span class="badge bg-secondary status-badge"><%= i18n.__('contact_center.settings.status.coming_soon') %></span>
+              </div>
+
+              <div class="d-grid gap-2 mt-3">
+                <button class="btn btn-secondary rounded-0 btn-action" disabled>
+                  <i class="fa-solid fa-lock me-2"></i><%= i18n.__('contact_center.settings.channels.not_available') %>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%- include('../../../partials/footer'); %>
+    <%- include('../../../partials/script'); %>
+
+    <script>
+      // Завантаження статистики для кожного каналу
+      document.addEventListener('DOMContentLoaded', function() {
+        loadTelegramStats();
+        loadInstagramStats();
+        loadWebchatStats();
+      });
+
+      // Telegram статистика
+      async function loadTelegramStats() {
+        try {
+          const response = await fetch('/api/contact-center/telegram/token-list/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+
+          if (!response.ok) throw new Error('Failed to load Telegram stats');
+
+          const data = await response.json();
+          const activeCount = data.filter(t => t.active === 1).length;
+          const totalCount = data.length;
+
+          document.getElementById('telegram-active-count').textContent = activeCount;
+          document.getElementById('telegram-total-count').textContent = totalCount;
+
+          const statusEl = document.getElementById('telegram-status');
+          if (totalCount === 0) {
+            statusEl.innerHTML = '<span class="badge bg-warning status-badge">' + '<%= i18n.__("contact_center.settings.status.no_tokens") %>' + '</span>';
+          } else if (activeCount === 0) {
+            statusEl.innerHTML = '<span class="badge bg-danger status-badge">' + '<%= i18n.__("contact_center.settings.status.all_inactive") %>' + '</span>';
+          } else {
+            statusEl.innerHTML = '<span class="badge bg-success status-badge">' + '<%= i18n.__("contact_center.settings.status.active") %>' + '</span>';
+          }
+        } catch (error) {
+          console.error('Error loading Telegram stats:', error);
+          document.getElementById('telegram-status').innerHTML = '<span class="badge bg-danger status-badge">Error</span>';
+        }
+      }
+
+      // Instagram статистика
+      async function loadInstagramStats() {
+        try {
+          // TODO: Реалізувати API для Instagram
+          // const response = await fetch('/api/contact-center/instagram/token-list/', {...});
+
+          // Демо дані для прикладу
+          const data = [];
+          const activeCount = 0;
+          const totalCount = 0;
+
+          document.getElementById('instagram-active-count').textContent = activeCount;
+          document.getElementById('instagram-total-count').textContent = totalCount;
+
+          const statusEl = document.getElementById('instagram-status');
+          statusEl.innerHTML = '<span class="badge bg-warning status-badge">' + '<%= i18n.__("contact_center.settings.status.no_tokens") %>' + '</span>';
+        } catch (error) {
+          console.error('Error loading Instagram stats:', error);
+          document.getElementById('instagram-status').innerHTML = '<span class="badge bg-danger status-badge">Error</span>';
+        }
+      }
+
+      // WebChat статистика
+      async function loadWebchatStats() {
+        try {
+          const response = await fetch('/api/contact-center/webchat/settings/list/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+
+          if (!response.ok) throw new Error('Failed to load WebChat stats');
+
+          const data = await response.json();
+          const activeCount = data.filter(s => s.active === 1).length;
+          const totalCount = data.length;
+
+          document.getElementById('webchat-active-count').textContent = activeCount;
+          document.getElementById('webchat-total-count').textContent = totalCount;
+
+          const statusEl = document.getElementById('webchat-status');
+          if (totalCount === 0) {
+            statusEl.innerHTML = '<span class="badge bg-warning status-badge">' + '<%= i18n.__("contact_center.settings.status.no_sites") %>' + '</span>';
+          } else if (activeCount === 0) {
+            statusEl.innerHTML = '<span class="badge bg-danger status-badge">' + '<%= i18n.__("contact_center.settings.status.all_inactive") %>' + '</span>';
+          } else {
+            statusEl.innerHTML = '<span class="badge bg-success status-badge">' + '<%= i18n.__("contact_center.settings.status.active") %>' + '</span>';
+          }
+        } catch (error) {
+          console.error('Error loading WebChat stats:', error);
+          document.getElementById('webchat-status').innerHTML = '<span class="badge bg-danger status-badge">Error</span>';
+        }
+      }
+    </script>
+  </body>
+</html>
