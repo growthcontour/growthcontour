@@ -1,0 +1,431 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.brands.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="/assets/css/tabulator/tabulator_bootstrap5.min.css" />
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			<% languages.filter((l) => l.direction === 'rtl').forEach((l) => { %>[data-lang="<%= l.id %>"], [data-name="<%= l.id %>"] { direction: rtl; text-align: right; unicode-bidi: plaintext; }
+			<% }) %>
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><%= i18n.__('catalog.menu.catalog') %></li>
+					<li class="breadcrumb-item active"><%= i18n.__('catalog.brands.title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+					<h1 class="h4 mb-0"><%= i18n.__('catalog.brands.title') %></h1>
+					<div class="d-flex gap-2">
+						<input type="search" class="form-control rounded-0" id="search" placeholder="<%= i18n.__('catalog.common.search') %>" style="width: 260px" />
+						<select class="form-select rounded-0" id="filter-status" style="width: 160px">
+							<option value=""><%= i18n.__('catalog.common.all') %></option>
+							<option value="1"><%= i18n.__('catalog.common.active') %></option>
+							<option value="0"><%= i18n.__('catalog.common.inactive') %></option>
+						</select>
+						<% if (perms.add) { %>
+						<button class="btn btn-primary rounded-0 text-nowrap" id="btn-add"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.brands.add') %></button>
+						<% } %>
+					</div>
+				</div>
+				<div id="grid"></div>
+			</div>
+		</main>
+
+		<div class="modal fade" id="brand-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-xl modal-dialog-scrollable">
+				<form class="modal-content rounded-0" id="brand-form" novalidate>
+					<div class="modal-header">
+						<h5 class="modal-title" id="brand-title"></h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= i18n.__('catalog.common.close') %>"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" name="id" />
+						<div class="row g-3 mb-4">
+							<div class="col-md-3 img-slot" data-field="logo">
+								<label class="form-label d-block"><%= i18n.__('catalog.brands.f.logo') %></label>
+								<input type="hidden" name="logo" data-type="textnull" />
+								<div class="mb-2"><img alt="" style="display: none; max-height: 80px; max-width: 160px; object-fit: contain" /></div>
+								<% if (perms.add || perms.edit) { %>
+								<div class="d-flex gap-2">
+									<input type="file" class="form-control form-control-sm rounded-0" accept="image/*" />
+									<button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-img-clear" title="<%= i18n.__('catalog.common.remove') %>"><i class="fa-solid fa-xmark"></i></button>
+								</div>
+								<% } %>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-9">
+								<div class="row g-3">
+									<div class="col-md-4" data-field="code">
+										<label class="form-label"><%= i18n.__('catalog.brands.f.code') %></label>
+										<input class="form-control rounded-0 text-uppercase" name="code" data-type="textnull" maxlength="64" />
+										<div class="invalid-feedback"></div>
+									</div>
+									<div class="col-md-5" data-field="website">
+										<label class="form-label"><%= i18n.__('catalog.brands.f.website') %></label>
+										<input class="form-control rounded-0" type="url" name="website" data-type="textnull" maxlength="255" placeholder="https://" />
+										<div class="invalid-feedback"></div>
+									</div>
+									<div class="col-md-3" data-field="country">
+										<label class="form-label"><%= i18n.__('catalog.brands.f.country') %></label>
+										<input class="form-control rounded-0 text-uppercase" name="country" data-type="textnull" maxlength="2" />
+										<div class="invalid-feedback"></div>
+									</div>
+									<div class="col-md-4" data-field="sort_order">
+										<label class="form-label"><%= i18n.__('catalog.brands.f.sort_order') %></label>
+										<input class="form-control rounded-0" type="number" name="sort_order" data-type="int" value="0" />
+										<div class="invalid-feedback"></div>
+									</div>
+									<div class="col-md-4 pt-md-4">
+										<div class="form-check form-switch">
+											<input class="form-check-input" type="checkbox" name="status" data-type="bool" id="bf-status" checked />
+											<label class="form-check-label" for="bf-status"><%= i18n.__('catalog.brands.f.status') %></label>
+										</div>
+									</div>
+									<div class="col-md-4 pt-md-4">
+										<div class="form-check form-switch">
+											<input class="form-check-input" type="checkbox" name="robots_index" data-type="bool" id="bf-robots-index" checked />
+											<label class="form-check-label" for="bf-robots-index"><%= i18n.__('catalog.seo.f.robots_index') %></label>
+										</div>
+										<div class="form-check form-switch">
+											<input class="form-check-input" type="checkbox" name="robots_follow" data-type="bool" id="bf-robots-follow" checked />
+											<label class="form-check-label" for="bf-robots-follow"><%= i18n.__('catalog.seo.f.robots_follow') %></label>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div class="form-check form-switch mb-3">
+							<input class="form-check-input" type="checkbox" name="slug_shared" data-type="bool" id="brand-slug-shared" />
+							<label class="form-check-label" for="brand-slug-shared"><%= i18n.__('catalog.languages.slug_shared') %></label>
+							<div class="form-text"><%= i18n.__('catalog.languages.slug_shared_hint') %></div>
+						</div>
+						<ul class="nav nav-tabs mb-3" role="tablist">
+							<% languages.forEach((l, i) => { %>
+							<li class="nav-item" role="presentation">
+								<button class="nav-link rounded-0<%= i === 0 ? ' active' : '' %>" type="button" data-bs-toggle="tab" data-bs-target="#brand-lang-<%= l.id %>" role="tab"><%= l.native_name %> <small class="opacity-75">(<%= l.iso %>)</small><% if (i === 0) { %> *<% } %></button>
+							</li>
+							<% }) %>
+						</ul>
+						<div class="tab-content">
+							<% languages.forEach((l, i) => { %>
+							<div class="tab-pane fade<%= i === 0 ? ' show active' : '' %>" id="brand-lang-<%= l.id %>" role="tabpanel">
+								<div class="mb-3" data-field="descriptions.<%= l.id %>.name">
+									<label class="form-label"><%= i18n.__('catalog.brands.f.name') %><% if (i === 0) { %> *<% } %></label>
+									<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="name" maxlength="255" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="mb-3" data-field="descriptions.<%= l.id %>.description">
+									<label class="form-label"><%= i18n.__('catalog.brands.f.description') %></label>
+									<textarea class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="description" data-html data-dir="<%= l.direction %>" rows="8"></textarea>
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="mb-3" data-field="descriptions.<%= l.id %>.meta_title">
+									<label class="form-label"><%= i18n.__('catalog.brands.f.meta_title') %></label>
+									<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="meta_title" maxlength="255" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="mb-3" data-field="descriptions.<%= l.id %>.meta_description">
+									<label class="form-label"><%= i18n.__('catalog.brands.f.meta_description') %></label>
+									<textarea class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="meta_description" rows="2" maxlength="512"></textarea>
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="mb-3" data-field="descriptions.<%= l.id %>.og_title">
+									<label class="form-label"><%= i18n.__('catalog.seo.f.og_title') %></label>
+									<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="og_title" maxlength="255" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="mb-3" data-field="descriptions.<%= l.id %>.og_description">
+									<label class="form-label"><%= i18n.__('catalog.seo.f.og_description') %></label>
+									<textarea class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="og_description" rows="2" maxlength="512"></textarea>
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="mb-3" data-field="descriptions.<%= l.id %>.canonical_url">
+									<label class="form-label"><%= i18n.__('catalog.seo.f.canonical_url') %></label>
+									<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="canonical_url" maxlength="512" placeholder="https://… / /path" dir="ltr" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="mb-3" data-field="descriptions.<%= l.id %>.slug">
+									<label class="form-label"><%= i18n.__('catalog.brands.f.slug') %></label>
+									<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="slug" maxlength="191" />
+									<div class="form-text"><%= i18n.__('catalog.brands.hints.slug') %></div>
+									<div class="invalid-feedback"></div>
+								</div>
+							</div>
+							<% }) %>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('catalog.common.cancel') %></button>
+						<% if (perms.add || perms.edit) { %>
+						<button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('catalog.common.save') %></button>
+						<% } %>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const PERMS = { add: <%= perms.add %>, edit: <%= perms.edit %>, delete: <%= perms.delete %> };
+				const PRIMARY_LANG = <%= languages.length ? Number(languages[0].id) : 0 %>;
+
+				const notyf = new Notyf({ duration: 3000, position: { x: "right", y: "top" } });
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+
+				const yesNo = (cell) => (Number(cell.getValue()) ? `<i class="fa-solid fa-check text-success"></i>` : `<i class="fa-solid fa-xmark text-muted"></i>`);
+				const filters = () => ({ search: document.getElementById("search").value.trim(), status: document.getElementById("filter-status").value });
+
+				const grid = new Tabulator("#grid", {
+					layout: "fitColumns",
+					placeholder: "—",
+					pagination: true,
+					paginationMode: "remote",
+					paginationSize: 50,
+					paginationSizeSelector: [25, 50, 100, 200],
+					sortMode: "remote",
+					ajaxURL: "/api/catalog/products/brands/list/",
+					ajaxConfig: { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" } },
+					ajaxContentType: "json",
+					ajaxParams: filters,
+					columns: [
+						{ title: "<%= i18n.__('catalog.brands.f.logo') %>", field: "logo_url", width: 80, headerSort: false, formatter: (c) => (c.getValue() ? `<img src="${esc(c.getValue())}" alt="" style="max-height:32px;max-width:60px;object-fit:contain">` : "") },
+						{ title: "<%= i18n.__('catalog.brands.f.name') %>", field: "name", formatter: (c) => esc(c.getValue()) },
+						{ title: "<%= i18n.__('catalog.brands.f.code') %>", field: "code", width: 140, formatter: (c) => esc(c.getValue()) },
+						{ title: "<%= i18n.__('catalog.brands.f.country') %>", field: "country", width: 90 },
+						{ title: "<%= i18n.__('catalog.brands.products_count') %>", field: "products", width: 100, hozAlign: "right" },
+						{ title: "<%= i18n.__('catalog.brands.f.sort_order') %>", field: "sort_order", width: 110, hozAlign: "right" },
+						{ title: "<%= i18n.__('catalog.brands.f.status') %>", field: "status", width: 90, hozAlign: "center", formatter: yesNo },
+						{
+							title: "",
+							field: "_a",
+							width: 100,
+							hozAlign: "right",
+							headerSort: false,
+							formatter: () =>
+								`<button class="btn btn-sm btn-outline-${PERMS.edit ? "primary" : "secondary"} rounded-0 me-1" data-act="edit"><i class="fa-solid fa-${PERMS.edit ? "pen" : "eye"}"></i></button>` +
+								(PERMS.delete ? `<button class="btn btn-sm btn-outline-danger rounded-0" data-act="delete"><i class="fa-solid fa-trash"></i></button>` : ""),
+							cellClick: (e, cell) => onAction(e, cell.getRow().getData()),
+						},
+					],
+				});
+
+				let searchTimer;
+				document.getElementById("search").addEventListener("input", () => {
+					clearTimeout(searchTimer);
+					searchTimer = setTimeout(() => grid.setData(), 300);
+				});
+				document.getElementById("filter-status").addEventListener("change", () => grid.setData());
+
+				// ── Модалка ────────────────────────────────────────
+				const modal = new bootstrap.Modal("#brand-modal");
+				const form = document.getElementById("brand-form");
+
+				function clearErrors() {
+					form.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+					form.querySelectorAll(".invalid-feedback").forEach((el) => {
+						el.textContent = "";
+						el.style.display = "";
+					});
+				}
+				function showErrors(errors) {
+					let tabShown = false;
+					(errors || []).forEach((e) => {
+						const box = form.querySelector(`[data-field="${CSS.escape(e.field || "")}"]`);
+						if (!box) return;
+						box.querySelectorAll("input:not([type=hidden]),select,textarea").forEach((el) => el.classList.add("is-invalid"));
+						const fb = box.querySelector(".invalid-feedback");
+						if (fb) {
+							fb.textContent = e.message;
+							fb.style.display = "block";
+						}
+						const pane = box.closest(".tab-pane");
+						if (pane && !tabShown) {
+							bootstrap.Tab.getOrCreateInstance(form.querySelector(`[data-bs-target="#${pane.id}"]`)).show();
+							tabShown = true;
+						}
+					});
+				}
+				function setLogo(file, url) {
+					form.querySelector('[name="logo"]').value = file || "";
+					const img = form.querySelector(".img-slot img");
+					img.src = url || "";
+					img.style.display = url ? "" : "none";
+				}
+
+				// Один URL для всіх мов: поле slug лишається тільки в основній мові
+				function applySlugShared() {
+					const on = form.querySelector('[name="slug_shared"]').checked;
+					form.querySelectorAll('[data-field$=".slug"]').forEach((el) => {
+						const lang = Number(el.dataset.field.split(".")[1]);
+						el.classList.toggle("d-none", on && lang !== PRIMARY_LANG);
+					});
+				}
+				form.querySelector('[name="slug_shared"]').addEventListener("change", applySlugShared);
+
+				async function open(id) {
+					clearErrors();
+					form.reset();
+					let row = { descriptions: {}, slug_shared: 0 };
+					if (id) row = (await api(`/api/catalog/products/brands/${id}/get/`)).row;
+					form.querySelectorAll("[name][data-type]").forEach((el) => {
+						const v = row[el.name];
+						if (el.dataset.type === "bool") el.checked = v === undefined ? true : !!Number(v);
+						else el.value = v == null ? "" : v;
+					});
+					setLogo(row.logo, row.logo_url);
+					form.querySelectorAll("[data-desc]").forEach((el) => (el.value = ((row.descriptions || {})[el.dataset.lang] || {})[el.dataset.desc] || ""));
+					applySlugShared();
+					form.querySelectorAll("input,select,textarea").forEach((el) => (el.disabled = id ? !PERMS.edit : !PERMS.add));
+					form.querySelector('[name="id"]').value = id || "";
+					const first = form.querySelector('[data-bs-toggle="tab"]');
+					if (first) bootstrap.Tab.getOrCreateInstance(first).show();
+					document.getElementById("brand-title").textContent = id ? "<%= i18n.__('catalog.brands.edit') %>: " + (((row.descriptions || {})[PRIMARY_LANG] || {}).name || "#" + id) : "<%= i18n.__('catalog.brands.add') %>";
+					modal.show();
+				}
+
+				form.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					clearErrors();
+					const btn = form.querySelector('[type="submit"]');
+					btn.disabled = true;
+					try {
+						const data = {};
+						form.querySelectorAll("[name][data-type]").forEach((el) => {
+							const t = el.dataset.type;
+							if (t === "bool") data[el.name] = el.checked;
+							else if (t === "int") data[el.name] = el.value === "" ? 0 : parseInt(el.value, 10);
+							else data[el.name] = el.value.trim() === "" ? null : el.value.trim();
+						});
+						const descriptions = {};
+						form.querySelectorAll("[data-desc]").forEach((el) => ((descriptions[el.dataset.lang] = descriptions[el.dataset.lang] || {})[el.dataset.desc] = el.value));
+						const id = form.querySelector('[name="id"]').value;
+						await api("/api/catalog/products/brands/save/", { id: id ? parseInt(id, 10) : null, data, descriptions });
+						modal.hide();
+						notyf.success("<%= i18n.__('catalog.common.saved') %>");
+						grid.setData();
+					} catch (err) {
+						showErrors(err.errors);
+						notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>");
+					} finally {
+						btn.disabled = false;
+					}
+				});
+
+				const fileInput = form.querySelector('.img-slot input[type="file"]');
+				if (fileInput)
+					fileInput.addEventListener("change", async () => {
+						if (!fileInput.files[0]) return;
+						fileInput.disabled = true;
+						try {
+							const fd = new FormData();
+							fd.append("file", fileInput.files[0]);
+							const res = await fetch("/api/catalog/products/images/brands/upload/", { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: fd });
+							const json = await res.json().catch(() => ({}));
+							if (!res.ok || json.ok === false) throw json;
+							setLogo(json.file, json.url);
+							notyf.success("<%= i18n.__('catalog.common.uploaded') %>");
+						} catch (err) {
+							notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>");
+						} finally {
+							fileInput.disabled = false;
+							fileInput.value = "";
+						}
+					});
+				const clearBtn = form.querySelector(".js-img-clear");
+				if (clearBtn) clearBtn.addEventListener("click", () => setLogo(null, null));
+
+				const addBtn = document.getElementById("btn-add");
+				if (addBtn) addBtn.addEventListener("click", () => open(null).catch((err) => notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>")));
+
+				// ── SEO: підказки згенерованих значень і лічильники ──
+				(function () {
+					const FIELDS = ["meta_title", "meta_description", "og_title", "og_description"];
+					const WATCH = new Set(["name", "description", ...FIELDS]);
+					let limits = { title_max: 60, description_max: 160 };
+					let timer = null;
+					let seq = 0;
+					const maxFor = (f) => (f.endsWith("title") ? limits.title_max : limits.description_max);
+					function counter(input) {
+						let c = input.parentElement.querySelector(".seo-counter");
+						if (!c) {
+							c = document.createElement("div");
+							input.insertAdjacentElement("afterend", c);
+						}
+						const own = input.value.trim().length;
+						const len = own || (input.placeholder || "").length;
+						const max = maxFor(input.dataset.desc);
+						c.className = "seo-counter small text-end " + (len > max ? "text-danger" : len < max * 0.5 ? "text-warning" : "text-success");
+						c.textContent = (own ? "" : "<%= i18n.__('catalog.seo.auto') %> · ") + len + " / " + max;
+					}
+					async function refresh() {
+						const my = ++seq;
+						const draft = {};
+						form.querySelectorAll("[data-desc]").forEach((el) => ((draft[el.dataset.lang] = draft[el.dataset.lang] || {})[el.dataset.desc] = el.value));
+						try {
+							const r = await api("/api/catalog/products/seo/preview/", { entity: "brands", id: form.querySelector('[name="id"]').value || null, descriptions: draft });
+							if (my !== seq) return;
+							limits = r.limits;
+							r.langs.forEach((l) =>
+								FIELDS.forEach((f) => {
+									const input = form.querySelector(`[data-lang="${l.id}"][data-desc="${f}"]`);
+									if (input) input.placeholder = l.values[f] || "";
+								})
+							);
+						} catch {}
+						form.querySelectorAll(FIELDS.map((f) => `[data-desc="${f}"]`).join(",")).forEach(counter);
+					}
+					form.addEventListener("input", (e) => {
+						const f = e.target.dataset && e.target.dataset.desc;
+						if (!f || !WATCH.has(f)) return;
+						if (FIELDS.includes(f)) counter(e.target);
+						clearTimeout(timer);
+						timer = setTimeout(refresh, 600);
+					});
+					document.getElementById("brand-modal").addEventListener("shown.bs.modal", refresh);
+				})();
+
+				async function onAction(e, row) {
+					const btn = e.target.closest("[data-act]");
+					if (!btn) return;
+					try {
+						if (btn.dataset.act === "edit") return await open(row.id);
+						if (btn.dataset.act === "delete") {
+							if (!confirm("<%= i18n.__('catalog.brands.confirm_delete') %>".replace("%s", row.name))) return;
+							await api(`/api/catalog/products/brands/${row.id}/delete/`);
+							notyf.success("<%= i18n.__('catalog.common.deleted') %>");
+							grid.setData();
+						}
+					} catch (err) {
+						notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>");
+					}
+				}
+			})();
+		</script>
+	</body>
+</html>

@@ -1,0 +1,17 @@
+{
+    "orders": {
+        "title": "Tilaukset",
+        "columns": {
+            "id": "ID",
+            "source": "Lähde",
+            "reference": "Viite",
+            "delivery": "Toimitus",
+            "total": "Yhteensä",
+            "payment": "Maksu",
+            "status": "Tila",
+            "date_add": "Lisätty",
+            "date_edit": "Muokattu",
+            "edit": "Muokkaa"
+        }
+    }
+}

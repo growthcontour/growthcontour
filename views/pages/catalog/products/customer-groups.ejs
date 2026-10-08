@@ -1,0 +1,264 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.groups.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="/assets/css/tabulator/tabulator_bootstrap5.min.css" />
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><%= i18n.__('catalog.menu.catalog') %></li>
+					<li class="breadcrumb-item active"><%= i18n.__('catalog.groups.title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<div class="d-flex justify-content-between align-items-center mb-3">
+					<h1 class="h4 mb-0"><%= i18n.__('catalog.groups.title') %></h1>
+					<% if (perms.edit) { %>
+					<button class="btn btn-primary rounded-0" id="btn-add"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.groups.add') %></button>
+					<% } %>
+				</div>
+				<div class="form-text mb-3"><%= i18n.__('catalog.groups.help') %></div>
+				<div id="grid"></div>
+			</div>
+		</main>
+
+		<div class="modal fade" id="g-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-lg modal-dialog-scrollable">
+				<form class="modal-content rounded-0" id="g-form" novalidate>
+					<div class="modal-header">
+						<h5 class="modal-title" id="g-title"></h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= i18n.__('catalog.common.close') %>"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" name="id" />
+						<div class="row g-3">
+							<div class="col-md-4" data-field="code">
+								<label class="form-label"><%= i18n.__('catalog.groups.f.code') %> *</label>
+								<input class="form-control rounded-0" name="code" maxlength="32" required />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-8" data-field="name">
+								<label class="form-label"><%= i18n.__('catalog.groups.f.name') %> *</label>
+								<input class="form-control rounded-0" name="name" maxlength="128" required />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="discount_percent">
+								<label class="form-label"><%= i18n.__('catalog.groups.f.discount_percent') %>, %</label>
+								<input class="form-control rounded-0" type="number" min="0" max="100" step="0.01" name="discount_percent" data-type="number0" value="0" />
+								<div class="form-text"><%= i18n.__('catalog.groups.hints.discount_percent') %></div>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="price_display">
+								<label class="form-label"><%= i18n.__('catalog.groups.f.price_display') %></label>
+								<select class="form-select rounded-0" name="price_display">
+									<option value="tax_incl"><%= i18n.__('catalog.groups.price_display.tax_incl') %></option>
+									<option value="tax_excl"><%= i18n.__('catalog.groups.price_display.tax_excl') %></option>
+								</select>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="min_order_amount">
+								<label class="form-label"><%= i18n.__('catalog.groups.f.min_order_amount') %></label>
+								<input class="form-control rounded-0" type="number" min="0" step="0.01" name="min_order_amount" data-type="number" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="sort_order">
+								<label class="form-label"><%= i18n.__('catalog.groups.f.sort_order') %></label>
+								<input class="form-control rounded-0" type="number" name="sort_order" data-type="int" value="0" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-8 d-flex align-items-end gap-4 flex-wrap">
+								<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="requires_approval" data-type="bool" id="g-approval" /><label class="form-check-label" for="g-approval"><%= i18n.__('catalog.groups.f.requires_approval') %></label></div>
+								<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="status" data-type="bool" id="g-status" checked /><label class="form-check-label" for="g-status"><%= i18n.__('catalog.groups.f.status') %></label></div>
+							</div>
+						</div>
+
+						<h6 class="mt-4 mb-2"><%= i18n.__('catalog.groups.storefront') %></h6>
+						<div class="form-text mb-2"><%= i18n.__('catalog.groups.hints.storefront') %></div>
+						<% languages.forEach((l) => { %>
+						<div class="row g-2 mb-2" dir="<%= l.direction %>">
+							<div class="col-md-2 pt-2"><span class="badge text-bg-light border"><%= l.code %></span> <small><%= l.native_name || l.name %></small></div>
+							<div class="col-md-4" data-field="descriptions.<%= l.id %>.name">
+								<input class="form-control rounded-0" data-lang="<%= l.id %>" data-gd="name" maxlength="128" placeholder="<%= i18n.__('catalog.groups.f.name') %>" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-6" data-field="descriptions.<%= l.id %>.description">
+								<input class="form-control rounded-0" data-lang="<%= l.id %>" data-gd="description" maxlength="1000" placeholder="<%= i18n.__('catalog.groups.f.description') %>" />
+								<div class="invalid-feedback"></div>
+							</div>
+						</div>
+						<% }) %>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('catalog.common.cancel') %></button>
+						<% if (perms.edit) { %><button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('catalog.common.save') %></button><% } %>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const PERMS = { edit: <%= perms.edit %> };
+				const notyf = new Notyf({ duration: 3000, position: { x: "right", y: "top" } });
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+
+				const form = document.getElementById("g-form");
+				const modal = new bootstrap.Modal("#g-modal");
+
+				function readForm() {
+					const out = { descriptions: {} };
+					form.querySelectorAll("[name]").forEach((el) => {
+						if (el.name === "id") return;
+						const t = el.dataset.type;
+						if (t === "bool") out[el.name] = el.checked;
+						else if (t === "int") out[el.name] = el.value === "" ? 0 : parseInt(el.value, 10);
+						else if (t === "number0") out[el.name] = el.value === "" ? 0 : parseFloat(el.value);
+						else if (t === "number") out[el.name] = el.value === "" ? null : parseFloat(el.value);
+						else out[el.name] = el.value.trim();
+					});
+					form.querySelectorAll("[data-gd]").forEach((el) => ((out.descriptions[el.dataset.lang] = out.descriptions[el.dataset.lang] || {})[el.dataset.gd] = el.value.trim()));
+					return out;
+				}
+				function fillForm(row) {
+					form.reset();
+					form.querySelectorAll("[name]").forEach((el) => {
+						const v = row[el.name];
+						if (el.dataset.type === "bool") el.checked = v === undefined ? el.defaultChecked : !!Number(v);
+						else el.value = v == null ? (el.defaultValue || "") : v;
+					});
+					form.querySelectorAll("[data-gd]").forEach((el) => (el.value = ((row.descriptions || {})[el.dataset.lang] || {})[el.dataset.gd] || ""));
+					form.querySelectorAll("input,select").forEach((el) => (el.disabled = !PERMS.edit));
+				}
+				function clearErrors() {
+					form.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+					form.querySelectorAll(".invalid-feedback").forEach((el) => {
+						el.textContent = "";
+						el.style.display = "";
+					});
+				}
+				function showErrors(errors) {
+					(errors || []).forEach((e) => {
+						const box = form.querySelector(`[data-field="${CSS.escape(e.field || "")}"]`);
+						if (!box) return;
+						box.querySelectorAll("input,select").forEach((el) => el.classList.add("is-invalid"));
+						const fb = box.querySelector(".invalid-feedback");
+						if (fb) {
+							fb.textContent = e.message;
+							fb.style.display = "block";
+						}
+					});
+				}
+
+				const yesNo = (c) => (Number(c.getValue()) ? `<i class="fa-solid fa-check text-success"></i>` : `<i class="fa-solid fa-xmark text-muted"></i>`);
+				const grid = new Tabulator("#grid", {
+					layout: "fitColumns",
+					placeholder: "—",
+					columns: [
+						{ title: "ID", field: "id", width: 70, hozAlign: "right" },
+						{ title: "<%= i18n.__('catalog.groups.f.code') %>", field: "code", width: 150, formatter: (c) => esc(c.getValue()) + (c.getRow().getData().is_default ? ` <span class="badge text-bg-success"><%= i18n.__('catalog.groups.default') %></span>` : "") },
+						{ title: "<%= i18n.__('catalog.groups.f.name') %>", field: "name", formatter: (c) => esc(c.getValue()) },
+						{ title: "<%= i18n.__('catalog.groups.f.discount_percent') %>", field: "discount_percent", width: 120, hozAlign: "right", formatter: (c) => (c.getValue() ? c.getValue() + "%" : "—") },
+						{ title: "<%= i18n.__('catalog.groups.products') %>", field: "products", width: 110, hozAlign: "right" },
+						{ title: "<%= i18n.__('catalog.groups.f.requires_approval') %>", field: "requires_approval", width: 130, hozAlign: "center", formatter: yesNo },
+						{ title: "<%= i18n.__('catalog.groups.f.status') %>", field: "status", width: 90, hozAlign: "center", formatter: yesNo },
+						{
+							title: "",
+							field: "_a",
+							width: 150,
+							hozAlign: "right",
+							headerSort: false,
+							formatter: (c) => {
+								const r = c.getRow().getData();
+								let h = `<button class="btn btn-sm btn-outline-primary rounded-0 me-1" data-act="edit"><i class="fa-solid fa-${PERMS.edit ? "pen" : "eye"}"></i></button>`;
+								if (PERMS.edit && !r.is_default && r.status) h += `<button class="btn btn-sm btn-outline-success rounded-0 me-1" data-act="default" title="<%= i18n.__('catalog.groups.make_default') %>"><i class="fa-solid fa-star"></i></button>`;
+								if (PERMS.edit && !r.is_default) h += `<button class="btn btn-sm btn-outline-danger rounded-0" data-act="delete"><i class="fa-solid fa-trash"></i></button>`;
+								return h;
+							},
+							cellClick: (e, c) => onAction(e, c.getRow().getData()),
+						},
+					],
+				});
+				const reload = () =>
+					api("/api/catalog/products/customer-groups/list/")
+						.then((r) => grid.replaceData(r.rows))
+						.catch((e) => notyf.error(e.error || "<%= i18n.__('catalog.common.error') %>"));
+				grid.on("tableBuilt", reload);
+
+				async function open(id) {
+					clearErrors();
+					const row = id ? (await api(`/api/catalog/products/customer-groups/${id}/get/`)).row : {};
+					fillForm(row);
+					form.querySelector('[name="id"]').value = id || "";
+					document.getElementById("g-title").textContent = id ? row.name : "<%= i18n.__('catalog.groups.add') %>";
+					modal.show();
+				}
+
+				async function onAction(e, row) {
+					const btn = e.target.closest("[data-act]");
+					if (!btn) return;
+					try {
+						if (btn.dataset.act === "edit") return await open(row.id);
+						if (btn.dataset.act === "default") {
+							await api(`/api/catalog/products/customer-groups/${row.id}/default/`);
+							notyf.success("<%= i18n.__('catalog.common.saved') %>");
+							return reload();
+						}
+						if (btn.dataset.act === "delete") {
+							if (!confirm("<%= i18n.__('catalog.groups.confirm_delete') %>".replace("%s", row.name))) return;
+							await api(`/api/catalog/products/customer-groups/${row.id}/delete/`);
+							notyf.success("<%= i18n.__('catalog.common.deleted') %>");
+							return reload();
+						}
+					} catch (err) {
+						notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>");
+					}
+				}
+
+				form.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					clearErrors();
+					const btn = form.querySelector('[type="submit"]');
+					btn.disabled = true;
+					try {
+						const id = form.querySelector('[name="id"]').value;
+						await api("/api/catalog/products/customer-groups/save/", { id: id ? parseInt(id, 10) : null, data: readForm() });
+						modal.hide();
+						notyf.success("<%= i18n.__('catalog.common.saved') %>");
+						reload();
+					} catch (err) {
+						showErrors(err.errors);
+						notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>");
+					} finally {
+						btn.disabled = false;
+					}
+				});
+
+				const add = document.getElementById("btn-add");
+				if (add) add.addEventListener("click", () => open(null).catch((e) => notyf.error(e.error || "<%= i18n.__('catalog.common.error') %>")));
+			})();
+		</script>
+	</body>
+</html>

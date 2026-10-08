@@ -1,0 +1,17 @@
+{
+    "orders": {
+        "title": "Tellimused",
+        "columns": {
+            "id": "ID",
+            "source": "Allikas",
+            "reference": "Viide",
+            "delivery": "Tarne",
+            "total": "Kokku",
+            "payment": "Makse",
+            "status": "Olek",
+            "date_add": "Lisamise kuupäev",
+            "date_edit": "Muutmise kuupäev",
+            "edit": "Muuda"
+        }
+    }
+}

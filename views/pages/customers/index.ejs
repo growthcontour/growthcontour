@@ -1,0 +1,195 @@
+<!-- ============================================================
+     customers/index.ejs
+     ============================================================ -->
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+    <head>
+        <%- include('../../partials/head'); %>
+        <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+        <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+    </head>
+    <body class="d-flex flex-column h-100">
+        <%- include('../../partials/header'); %>
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12 mb-3">
+                    <div class="card border-primary rounded-0">
+                        <div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+                            <span>Customers (<span id="customers-count">0</span>)</span>
+                            <a href="/customers/add" class="btn btn-sm btn-light rounded-0">
+                                <i class="fa-solid fa-plus"></i> Add
+                            </a>
+                        </div>
+                        <div id="customers-table"></div>
+                        <div class="card-footer text-bg-primary rounded-0"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer'); %>
+        <%- include('../../partials/script'); %>
+        <script src="/assets/js/tabulator/tabulator.min.js"></script>
+        <script>
+            var table = new Tabulator("#customers-table", {
+                layout:                "fitColumns",
+                ajaxURL:               "/api/customers/customers-list/",
+                ajaxConfig:            "POST",
+                pagination:            true,
+                paginationMode:        "local",
+                paginationSize:        20,
+                paginationSizeSelector:[10, 20, 50, 100],
+                movableColumns:        true,
+
+                // Після завантаження даних оновлюємо лічильник
+                dataLoaded: function(data) {
+                    document.getElementById("customers-count").textContent = data.length;
+                },
+
+                columns: [
+                    {
+                        title: "ID",
+                        field: "id",
+                        headerSort: true,
+                        width: 70,
+                        hozAlign: "center",
+                    },
+                    {
+                        title: "Name",
+                        field: "last_name",
+                        headerSort: true,
+                        widthGrow: 2,
+                        formatter: function(cell) {
+                            var d = cell.getRow().getData();
+                            var parts = [d.last_name, d.first_name, d.middle_name].filter(Boolean);
+                            return parts.join(' ') || '—';
+                        },
+                    },
+                    {
+                        title: "Gender",
+                        field: "gender",
+                        headerSort: false,
+                        width: 80,
+                        hozAlign: "center",
+                        formatter: function(cell) {
+                            var g = cell.getValue();
+                            if (g == 1) return '<span class="text-primary"><i class="fa-solid fa-mars"></i> Mr.</span>';
+                            if (g == 2) return '<span class="text-danger"><i class="fa-solid fa-venus"></i> Mrs.</span>';
+                            return '<span class="text-muted">—</span>';
+                        },
+                    },
+                    {
+                        title: "Contacts",
+                        field: "email",
+                        headerSort: false,
+                        widthGrow: 2,
+                        formatter: function(cell) {
+                            var d = cell.getRow().getData();
+                            var out = '';
+                            if (d.phone) out += '<div><i class="fa-solid fa-phone fa-xs text-muted me-1"></i>' + d.phone + '</div>';
+                            if (d.email) out += '<div><i class="fa-solid fa-envelope fa-xs text-muted me-1"></i>' + d.email + '</div>';
+                            return out || '<span class="text-muted">—</span>';
+                        },
+                    },
+                    {
+                        title: "Groups",
+                        field: "groups_name",
+                        headerSort: false,
+                        widthGrow: 2,
+                        formatter: function(cell) {
+                            var d    = cell.getRow().getData();
+                            var names  = d.groups_name   ? d.groups_name.split(',')   : [];
+                            var colors = d.groups_color_text ? d.groups_color_text.split(',') : [];
+                            var bgs    = d.groups_color_background ? d.groups_color_background.split(',') : [];
+                            var icons  = d.groups_icon   ? d.groups_icon.split(',')   : [];
+
+                            if (!names.length || !names[0]) return '<span class="text-muted">—</span>';
+
+                            return names.map(function(name, i) {
+                                var color = colors[i] || '#fff';
+                                var bg    = bgs[i]    || '#999';
+                                var icon  = icons[i]  ? icons[i] + ' ' : '';
+                                return '<span class="badge rounded-0 me-1" style="color:' + color + ';background:' + bg + '">'
+                                     + icon + name.trim()
+                                     + '</span>';
+                            }).join('');
+                        },
+                    },
+                    {
+                        title: "Segment",
+                        field: "segment",
+                        headerSort: true,
+                        width: 110,
+                        hozAlign: "center",
+                        formatter: function(cell) {
+                            var v = cell.getValue();
+                            if (!v) return '<span class="text-muted">—</span>';
+                            return '<span class="badge bg-secondary rounded-0">' + v + '</span>';
+                        },
+                    },
+                    {
+                        title: "Loyalty",
+                        field: "points_balance",
+                        headerSort: true,
+                        width: 110,
+                        hozAlign: "center",
+                        formatter: function(cell) {
+                            var d = cell.getRow().getData();
+                            var pts   = d.points_balance  != null ? d.points_balance  : '—';
+                            var level = d.loyalty_level_name || '';
+                            var color = d.loyalty_level_color || '#ccc';
+                            var badge = level
+                                ? '<span class="badge rounded-0 ms-1" style="background:' + color + ';color:#fff">' + level + '</span>'
+                                : '';
+                            return pts + badge;
+                        },
+                    },
+                    {
+                        title: "Orders",
+                        field: "total_orders",
+                        headerSort: true,
+                        width: 80,
+                        hozAlign: "center",
+                        formatter: function(cell) {
+                            return cell.getValue() != null ? cell.getValue() : '—';
+                        },
+                    },
+                    {
+                        title: "Spent",
+                        field: "total_spent",
+                        headerSort: true,
+                        width: 110,
+                        hozAlign: "right",
+                        formatter: function(cell) {
+                            var v = cell.getValue();
+                            if (v == null) return '—';
+                            return parseFloat(v).toLocaleString('uk-UA', {minimumFractionDigits: 2}) + ' ₴';
+                        },
+                    },
+                    {
+                        title: "Registered",
+                        field: "created_at",
+                        headerSort: true,
+                        width: 130,
+                        hozAlign: "center",
+                        formatter: function(cell) {
+                            var v = cell.getValue();
+                            if (!v) return '—';
+                            return new Date(v).toLocaleDateString('uk-UA');
+                        },
+                    },
+                    {
+                        title: "",
+                        field: "id",
+                        headerSort: false,
+                        width: 60,
+                        hozAlign: "center",
+                        formatter: function(cell) {
+                            return '<a href="/customers/' + cell.getValue() + '" class="text-primary">'
+                                 + '<i class="fa-regular fa-pen-to-square"></i></a>';
+                        },
+                    },
+                ],
+            });
+        </script>
+    </body>
+</html>

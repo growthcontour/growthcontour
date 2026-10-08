@@ -1,0 +1,17 @@
+{
+    "orders": {
+        "title": "Тапсырыстар",
+        "columns": {
+            "id": "ID",
+            "source": "Дереккөз",
+            "reference": "Анықтама",
+            "delivery": "Жеткізу",
+            "total": "Жалпы",
+            "payment": "Төлем",
+            "status": "Мәртебе",
+            "date_add": "Қосылған күні",
+            "date_edit": "Өңделген күні",
+            "edit": "Өңдеу"
+        }
+    }
+}

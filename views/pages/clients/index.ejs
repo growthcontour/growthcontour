@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<style>
+			#clients-table .tabulator-col,
+			#clients-table .tabulator-cell {
+				border-right: 1px solid #dee2e6;
+				border-bottom: 1px solid #dee2e6;
+			}
+			#clients-table .tabulator-col:last-child,
+			#clients-table .tabulator-cell:last-child {
+				border-right: none;
+			}
+			#clients-table .tabulator-row:last-child .tabulator-cell {
+				border-bottom: none;
+			}
+			#clients-table .tabulator-cell {
+				white-space: normal;
+			}
+			.section-title {
+				font-size: 11px;
+				font-weight: 700;
+				text-transform: uppercase;
+				color: #6c757d;
+				letter-spacing: 0.5px;
+				margin-bottom: 4px;
+			}
+			.cl-name {
+				font-weight: 600;
+				text-decoration: none;
+			}
+			.cl-sub {
+				font-size: 12px;
+				color: #6c757d;
+			}
+		</style>
+	</head>
+
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('header.nav.clients') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('orders.breadcrumb.home') %></span></a>
+								</li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= i18n.__('header.nav.clients') %></li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3">
+			<div class="row">
+				<div class="col-12 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+							<span><%= i18n.__('header.nav.clients') %> <span class="badge text-bg-light rounded-0 ms-1" id="cl-total">0</span></span>
+							<div class="d-flex gap-2">
+								<button class="btn btn-sm btn-light rounded-0<%= can('clients.list', 'add') ? '' : ' d-none' %>" type="button" id="btn-new-client"><i class="fa-solid fa-user-plus me-1"></i> Новий клієнт</button>
+								<a class="btn btn-sm btn-light rounded-0<%= can('clients.merge') ? '' : ' d-none' %>" href="/clients/duplicates/"><i class="fa-solid fa-code-compare me-1"></i> Дублі <span class="badge text-bg-warning rounded-0" id="dup-count">0</span></a>
+								<button class="btn btn-sm btn-light rounded-0" type="button" data-bs-toggle="collapse" data-bs-target="#clients-filters"><i class="fa-solid fa-filter me-1"></i> Фільтри</button>
+							</div>
+						</div>
+
+						<div class="collapse show" id="clients-filters">
+							<div class="card-body border-bottom bg-light">
+								<div class="row g-2">
+									<div class="col-12 col-md-4">
+										<label class="section-title d-block">Пошук</label>
+										<input type="text" id="f-search" class="form-control form-control-sm rounded-0" placeholder="Ім'я, телефон, email, ЄДРПОУ, ID" />
+									</div>
+									<div class="col-6 col-md-2">
+										<label class="section-title d-block">Тип</label>
+										<select id="f-kind" class="form-select form-select-sm rounded-0">
+											<option value="">Усі</option>
+											<option value="person">Людина</option>
+											<option value="organization">Організація</option>
+											<option value="group">Група</option>
+										</select>
+									</div>
+									<div class="col-6 col-md-2">
+										<label class="section-title d-block">Стадія</label>
+										<select id="f-lifecycle" class="form-select form-select-sm rounded-0">
+											<option value="">Усі</option>
+										</select>
+									</div>
+									<div class="col-6 col-md-2">
+										<label class="section-title d-block">Правова форма</label>
+										<select id="f-legal" class="form-select form-select-sm rounded-0">
+											<option value="">Усі</option>
+										</select>
+									</div>
+									<div class="col-6 col-md-2">
+										<label class="section-title d-block">Тег</label>
+										<select id="f-tag" class="form-select form-select-sm rounded-0">
+											<option value="">Усі</option>
+										</select>
+									</div>
+									<div class="col-6 col-md-2">
+										<label class="section-title d-block">Менеджер</label>
+										<select id="f-manager" class="form-select form-select-sm rounded-0">
+											<option value="">Усі</option>
+											<option value="none">Без менеджера</option>
+										</select>
+									</div>
+									<div class="col-6 col-md-2">
+										<label class="section-title d-block">Країна</label>
+										<select id="f-country" class="form-select form-select-sm rounded-0">
+											<option value="">Усі</option>
+										</select>
+									</div>
+									<div class="col-6 col-md-2">
+										<label class="section-title d-block">Покупки</label>
+										<select id="f-has-orders" class="form-select form-select-sm rounded-0">
+											<option value="">Усі</option>
+											<option value="1">Купував</option>
+											<option value="0">Ще не купував</option>
+										</select>
+									</div>
+									<div class="col-6 col-md-2">
+										<label class="section-title d-block">Наступна дія</label>
+										<select id="f-next-event" class="form-select form-select-sm rounded-0">
+											<option value="">Усі</option>
+											<option value="planned">Заплановано</option>
+											<option value="overdue">Прострочено</option>
+											<option value="none">Нічого не заплановано</option>
+										</select>
+									</div>
+									<div class="col-6 col-md-2">
+										<label class="section-title d-block">Сегмент RFM</label>
+										<select id="f-rfm" class="form-select form-select-sm rounded-0">
+											<option value="">Усі</option>
+											<% (typeof segments !== 'undefined' ? segments : []).forEach(function (s) { %>
+											<option value="<%= s.code %>"><%= s.name %></option>
+											<% }) %>
+										</select>
+									</div>
+									<div class="col-12 col-md-6 d-flex align-items-end gap-2">
+										<button type="button" class="btn btn-primary btn-sm rounded-0" id="btn-apply"><i class="fa-solid fa-check me-1"></i>Застосувати</button>
+										<button type="button" class="btn btn-outline-secondary btn-sm rounded-0" id="btn-reset"><i class="fa-solid fa-xmark me-1"></i>Скинути</button>
+										<div class="dropdown">
+											<button type="button" class="btn btn-outline-primary btn-sm rounded-0 dropdown-toggle" data-bs-toggle="dropdown" id="sf-toggle"><i class="fa-solid fa-bookmark me-1"></i>Збережені</button>
+											<ul class="dropdown-menu rounded-0 shadow-sm" id="sf-menu" style="min-width: 280px; max-height: 360px; overflow-y: auto"></ul>
+										</div>
+										<button type="button" class="btn btn-outline-primary btn-sm rounded-0" id="sf-save" title="Зберегти поточні умови"><i class="fa-solid fa-floppy-disk"></i></button>
+										<span class="small text-muted align-self-center d-none" id="sf-current"></span>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- Масові дії: зʼявляється, коли щось виділено -->
+						<div class="d-none align-items-center flex-wrap gap-2 px-3 py-2 border-bottom bg-primary-subtle" id="bulk-bar">
+							<span class="small">Виділено: <b id="bulk-count">0</b></span>
+							<a href="#" class="small" id="bulk-all">Вибрати всіх за фільтром (<span id="bulk-total">0</span>)</a>
+							<span class="small fw-semibold d-none" id="bulk-all-on">Вибрано всіх за фільтром: <span id="bulk-total2">0</span></span>
+							<div class="vr"></div>
+							<% const _bulkEdit = can('clients.list', 'edit') ? '' : ' d-none'; %>
+							<button type="button" class="btn btn-sm btn-outline-primary rounded-0<%= _bulkEdit %>" data-bulk="set_manager"><i class="fa-solid fa-user-tie me-1"></i>Менеджер</button>
+							<button type="button" class="btn btn-sm btn-outline-primary rounded-0<%= _bulkEdit %>" data-bulk="set_lifecycle"><i class="fa-solid fa-stairs me-1"></i>Стадія</button>
+							<button type="button" class="btn btn-sm btn-outline-primary rounded-0<%= _bulkEdit %>" data-bulk="add_tag"><i class="fa-solid fa-tag me-1"></i>Додати тег</button>
+							<button type="button" class="btn btn-sm btn-outline-primary rounded-0<%= _bulkEdit %>" data-bulk="remove_tag"><i class="fa-solid fa-tags me-1"></i>Прибрати тег</button>
+							<button type="button" class="btn btn-sm btn-outline-success rounded-0<%= can('clients.export') ? '' : ' d-none' %>" id="bulk-export"><i class="fa-solid fa-file-csv me-1"></i>Експорт CSV</button>
+							<button type="button" class="btn btn-sm btn-link text-secondary ms-auto" id="bulk-clear">Зняти виділення</button>
+						</div>
+
+						<div id="clients-table"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Модалка: новий клієнт -->
+		<div class="modal fade" id="modal-new-client" tabindex="-1">
+			<div class="modal-dialog">
+				<div class="modal-content rounded-0">
+					<div class="modal-header text-bg-primary rounded-0">
+						<h5 class="modal-title">Новий клієнт</h5>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<label class="section-title d-block">Тип</label>
+						<select class="form-select form-select-sm rounded-0 mb-2" id="nc-kind">
+							<option value="person">Людина</option>
+							<option value="organization">Організація</option>
+							<option value="group">Група (родина, спільнота)</option>
+						</select>
+						<div id="nc-person">
+							<div class="row g-2 mb-2">
+								<div class="col-6"><label class="section-title d-block">Імʼя</label><input class="form-control form-control-sm rounded-0" id="nc-first_name" /></div>
+								<div class="col-6"><label class="section-title d-block">Прізвище</label><input class="form-control form-control-sm rounded-0" id="nc-last_name" /></div>
+							</div>
+						</div>
+						<div id="nc-org" style="display: none">
+							<label class="section-title d-block">Назва</label>
+							<input class="form-control form-control-sm rounded-0 mb-2" id="nc-name" />
+						</div>
+						<label class="section-title d-block">Правова форма</label>
+						<select class="form-select form-select-sm rounded-0 mb-2" id="nc-legal">
+							<option value="">—</option>
+						</select>
+						<div class="row g-2 mb-2">
+							<div class="col-6"><label class="section-title d-block">Телефон</label><input class="form-control form-control-sm rounded-0" id="nc-phone" placeholder="+1 555 123 4567" /></div>
+							<div class="col-6"><label class="section-title d-block">Email</label><input class="form-control form-control-sm rounded-0" id="nc-email" /></div>
+						</div>
+						<label class="section-title d-block">Країна</label>
+						<input class="form-control form-control-sm rounded-0 text-uppercase" id="nc-country" maxlength="2" placeholder="US" />
+						<div id="nc-exists" class="mt-3" style="display: none"></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal">Скасувати</button>
+						<button type="button" class="btn btn-outline-danger rounded-0" id="nc-force" style="display: none">Все одно створити</button>
+						<button type="button" class="btn btn-primary rounded-0" id="nc-save">Створити</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Модалка: зберегти фільтр -->
+		<div class="modal fade" id="sf-modal" tabindex="-1">
+			<div class="modal-dialog">
+				<div class="modal-content rounded-0">
+					<div class="modal-header text-bg-primary rounded-0">
+						<h5 class="modal-title"><i class="fa-solid fa-bookmark me-2"></i>Зберегти фільтр</h5>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<label class="form-label">Назва</label>
+						<input type="text" class="form-control rounded-0 mb-2" id="sf-name" maxlength="100" placeholder="Напр.: Під загрозою без менеджера" />
+						<div class="form-check">
+							<input class="form-check-input" type="checkbox" id="sf-shared" />
+							<label class="form-check-label" for="sf-shared">Спільний — бачать усі колеги</label>
+						</div>
+						<div class="form-check d-none" id="sf-overwrite-box">
+							<input class="form-check-input" type="checkbox" id="sf-overwrite" checked />
+							<label class="form-check-label" for="sf-overwrite">Оновити «<span id="sf-overwrite-name"></span>»</label>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal">Скасувати</button>
+						<button type="button" class="btn btn-primary rounded-0" id="sf-do-save">Зберегти</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+				<!-- Модалка: масова дія -->
+		<div class="modal fade" id="bulk-modal" tabindex="-1">
+			<div class="modal-dialog">
+				<div class="modal-content rounded-0">
+					<div class="modal-header text-bg-primary rounded-0">
+						<h5 class="modal-title" id="bulk-title">Масова дія</h5>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<select class="form-select rounded-0" id="bulk-value"></select>
+						<div class="small text-muted mt-2">Буде змінено клієнтів: <b id="bulk-n">0</b>. Кожна зміна потрапить в історію картки.</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal">Скасувати</button>
+						<button type="button" class="btn btn-primary rounded-0" id="bulk-do">Застосувати</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			const notyf = new Notyf({
+				position: { x: "right", y: "top" },
+				duration: 4000,
+				types: [
+					{ type: "success", dismissible: true, icon: false },
+					{ type: "error", background: "indianred", dismissible: true, icon: false },
+				],
+			});
+
+			let BASE_CURRENCY = "USD";
+			const KIND_ICON = { person: "fa-solid fa-user", organization: "fa-solid fa-building", group: "fa-solid fa-users" };
+
+			function esc(s) {
+				return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+			}
+			function colorBadge(text, colorText, colorBg, icon) {
+				const ct = colorText ? (colorText[0] === "#" ? colorText : "#" + colorText) : "#fff";
+				const cb = colorBg ? (colorBg[0] === "#" ? colorBg : "#" + colorBg) : "#6c757d";
+				return '<span class="badge rounded-0 me-1" style="color:' + ct + ";background:" + cb + '">' + (icon ? '<i class="' + esc(icon) + ' me-1"></i>' : "") + esc(text || "—") + "</span>";
+			}
+
+			function currentFilters() {
+				return {
+					search: document.getElementById("f-search").value.trim(),
+					kind: document.getElementById("f-kind").value,
+					id_lifecycle: document.getElementById("f-lifecycle").value,
+					id_legal_type: document.getElementById("f-legal").value,
+					id_tag: document.getElementById("f-tag").value,
+					id_manager: document.getElementById("f-manager").value,
+					country: document.getElementById("f-country").value,
+					has_orders: document.getElementById("f-has-orders").value,
+					next_event: document.getElementById("f-next-event").value,
+					rfm_segment: document.getElementById("f-rfm").value,
+				};
+			}
+
+			const table = new Tabulator("#clients-table", {
+				layout: "fitColumns",
+				ajaxURL: "/api/clients/list/",
+				ajaxConfig: "POST",
+				ajaxContentType: "json",
+				ajaxParams: {},
+				pagination: true,
+				paginationMode: "remote",
+				paginationSize: 20,
+				paginationSizeSelector: [20, 50, 100],
+				sortMode: "remote",
+				initialSort: [{ column: "date_last_activity", dir: "desc" }],
+								movableColumns: true,
+				selectable: true,
+				placeholder: "Клієнтів не знайдено",
+				ajaxResponse: function (url, params, response) {
+					document.getElementById("cl-total").textContent = response.last_row || 0;
+					return response;
+				},
+				columns: [
+					{ formatter: "rowSelection", titleFormatter: "rowSelection", hozAlign: "center", headerHozAlign: "center", headerSort: false, width: 40, frozen: true },
+					{ title: "ID", field: "id", width: 70 },
+					{
+						title: "Клієнт",
+						field: "display_name",
+						minWidth: 220,
+						formatter: function (cell) {
+							const d = cell.getRow().getData();
+							const icon = '<i class="' + (KIND_ICON[d.kind] || KIND_ICON.person) + ' text-muted me-1"></i>';
+							const legal = d.legal_type && d.legal_type.code !== "individual" ? colorBadge(d.legal_type.short_name || d.legal_type.name, d.legal_type.color_text, d.legal_type.color_background) : "";
+							const sub = [d.country, d.manager_name ? "👤 " + d.manager_name : null].filter(Boolean).join(" · ");
+							return icon + '<a class="cl-name" href="/clients/' + d.id + '/">' + esc(d.display_name || "Без імені") + "</a> " + legal + (sub ? '<div class="cl-sub">' + esc(sub) + "</div>" : "");
+						},
+					},
+					{
+						title: "Контакти",
+						field: "phone",
+						headerSort: false,
+						minWidth: 180,
+						formatter: function (cell) {
+							const d = cell.getRow().getData();
+							const out = [];
+							if (d.phone) out.push('<div><i class="fa-solid fa-phone text-muted me-1"></i><a href="tel:' + esc(d.phone) + '">' + esc(d.phone) + "</a></div>");
+							if (d.email) out.push('<div class="cl-sub"><i class="fa-solid fa-envelope me-1"></i><a href="mailto:' + esc(d.email) + '">' + esc(d.email) + "</a></div>");
+							return out.join("") || '<span class="text-muted">—</span>';
+						},
+					},
+					{
+						title: "Стадія",
+						field: "lifecycle",
+						headerSort: false,
+						formatter: function (cell) {
+							const l = cell.getValue();
+							return l ? colorBadge(l.name, l.color_text, l.color_background, l.icon) : '<span class="text-muted">—</span>';
+						},
+					},
+					{
+						title: "Теги",
+						field: "tags",
+						headerSort: false,
+						formatter: function (cell) {
+							const t = cell.getValue() || [];
+							return t.map((x) => colorBadge(x.name, x.color_text, x.color_background, x.icon)).join("") || '<span class="text-muted">—</span>';
+						},
+					},
+					{
+						title: "Замовлень",
+						field: "orders_valid_count",
+						hozAlign: "center",
+						width: 110,
+						formatter: function (cell) {
+							const d = cell.getRow().getData();
+							const lead = d.leads_count ? '<div class="cl-sub">лідів: ' + d.leads_count + "</div>" : "";
+							return "<strong>" + d.orders_valid_count + "</strong>" + (d.orders_count !== d.orders_valid_count ? '<span class="text-muted"> / ' + d.orders_count + "</span>" : "") + lead;
+						},
+					},
+					{
+						title: "Виручка",
+						field: "revenue_base",
+						hozAlign: "right",
+						width: 130,
+						formatter: function (cell) {
+							const v = Number(cell.getValue()) || 0;
+							return v ? '<span class="badge text-bg-primary rounded-0">' + v.toFixed(2) + " " + esc(BASE_CURRENCY) + "</span>" : '<span class="text-muted">—</span>';
+						},
+					},
+					{
+						title: "Сегмент",
+						field: "rfm",
+						width: 170,
+						headerSort: false,
+						formatter: (cell) => {
+							const s = cell.getValue();
+							if (!s) return '<span class="text-muted">—</span>';
+							const score = cell.getRow().getData().rfm_score;
+							return '<span class="badge rounded-0" style="background:' + esc(s.color) + '" title="R-F-M: ' + esc(score || "") + '"><i class="' + esc(s.icon) + ' me-1"></i>' + esc(s.name) + "</span>";
+						},
+					},
+					{
+						title: "Останнє замовлення",
+						field: "last_order_at",
+						width: 150,
+						formatter: (cell) => esc(cell.getValue() || "—"),
+					},
+					{
+						title: "Наступна дія",
+						field: "next_event_at",
+						width: 150,
+						formatter: (cell) => {
+							const v = cell.getValue();
+							if (!v) return '<span class="text-muted">—</span>';
+							return cell.getRow().getData().next_event_overdue ? '<span class="text-danger fw-semibold"><i class="fa-solid fa-triangle-exclamation me-1"></i>' + esc(v) + "</span>" : esc(v);
+						},
+					},
+					{
+						title: "Активність",
+						field: "date_last_activity",
+						width: 150,
+						formatter: (cell) => esc(cell.getValue() || "—"),
+					},
+					{
+						title: "",
+						field: "actions",
+						width: 60,
+						headerSort: false,
+						hozAlign: "center",
+						formatter: function (cell) {
+							return '<a href="/clients/' + cell.getRow().getData().id + '/" class="text-primary"><i class="fa-regular fa-eye"></i></a>';
+						},
+					},
+				],
+			});
+
+			function applyFilters() {
+				table.setData("/api/clients/list/", currentFilters(), "POST");
+			}
+			function resetFilters() {
+				["f-search", "f-kind", "f-lifecycle", "f-legal", "f-tag", "f-manager", "f-country", "f-has-orders", "f-next-event"].forEach((id) => (document.getElementById(id).value = ""));
+				table.setData("/api/clients/list/", {}, "POST");
+			}
+
+			document.getElementById("btn-apply").addEventListener("click", applyFilters);
+			document.getElementById("btn-reset").addEventListener("click", resetFilters);
+
+			// Автопошук при наборі (з затримкою)
+			let searchTimer = null;
+			document.getElementById("f-search").addEventListener("input", function () {
+				clearTimeout(searchTimer);
+				searchTimer = setTimeout(applyFilters, 400);
+			});
+			document.getElementById("f-search").addEventListener("keydown", (e) => {
+				if (e.key === "Enter") {
+					clearTimeout(searchTimer);
+					applyFilters();
+				}
+			});
+			["f-kind", "f-lifecycle", "f-legal", "f-tag", "f-manager", "f-country", "f-has-orders", "f-next-event"].forEach((id) => document.getElementById(id).addEventListener("change", applyFilters));
+
+			// Довідники фільтрів
+			fetch("/api/clients/list-filters/", { method: "POST" })
+				.then((r) => r.json())
+				.then(function (d) {
+					BASE_CURRENCY = d.base_currency || BASE_CURRENCY;
+					window.CL_LEGAL = d.legal_types || [];
+					document.getElementById("dup-count").textContent = d.duplicates || 0;
+					if (!d.duplicates) document.getElementById("dup-count").classList.replace("text-bg-warning", "text-bg-light");
+					const add = (id, value, text) => document.getElementById(id).insertAdjacentHTML("beforeend", '<option value="' + esc(value) + '">' + esc(text) + "</option>");
+					(d.lifecycle || []).forEach((x) => add("f-lifecycle", x.id, x.name));
+					(d.legal_types || []).forEach((x) => add("f-legal", x.id, x.short_name ? x.short_name + " — " + x.name : x.name));
+					(d.tags || []).forEach((x) => add("f-tag", x.id, x.name));
+					(d.managers || []).forEach((x) => add("f-manager", x.id, x.name || "#" + x.id));
+					(d.countries || []).forEach((c) => add("f-country", c, c));
+					table.redraw(true);
+				});
+		</script>
+				<script>
+			// ─── Масові дії та експорт ───────────────────────
+			(function () {
+				const bar = document.getElementById("bulk-bar");
+				let ALL = false; // «усі за фільтром» замість виділених рядків
+				let ACTION = null;
+
+				const selectedIds = () => table.getSelectedData().map((r) => r.id);
+				const total = () => Number(document.getElementById("cl-total").textContent) || 0;
+				const count = () => (ALL ? total() : selectedIds().length);
+				const target = () => (ALL ? { all: true, filters: currentFilters() } : { ids: selectedIds() });
+
+				function refresh() {
+					const n = selectedIds().length;
+					bar.classList.toggle("d-none", !n && !ALL);
+					bar.classList.toggle("d-flex", !!(n || ALL));
+					document.getElementById("bulk-count").textContent = ALL ? total() : n;
+					document.getElementById("bulk-total").textContent = total();
+					document.getElementById("bulk-total2").textContent = total();
+					document.getElementById("bulk-all").classList.toggle("d-none", ALL || n >= total());
+					document.getElementById("bulk-all-on").classList.toggle("d-none", !ALL);
+				}
+				function clear() {
+					ALL = false;
+					table.deselectRow();
+					refresh();
+				}
+
+				table.on("rowSelectionChanged", () => {
+					if (ALL && selectedIds().length < table.getDataCount("active")) ALL = false;
+					refresh();
+				});
+				table.on("dataLoaded", () => {
+					ALL = false;
+					refresh();
+				});
+
+				document.getElementById("bulk-all").addEventListener("click", (e) => {
+					e.preventDefault();
+					ALL = true;
+					table.selectRow();
+					refresh();
+				});
+				document.getElementById("bulk-clear").addEventListener("click", clear);
+
+				// Варіанти беремо з уже завантажених фільтрів сторінки
+				const SRC = { set_manager: "f-manager", set_lifecycle: "f-lifecycle", add_tag: "f-tag", remove_tag: "f-tag" };
+				const TITLE = { set_manager: "Призначити менеджера", set_lifecycle: "Змінити стадію", add_tag: "Додати тег", remove_tag: "Прибрати тег" };
+				const modal = () => bootstrap.Modal.getOrCreateInstance(document.getElementById("bulk-modal"));
+
+				bar.addEventListener("click", (e) => {
+					const b = e.target.closest("[data-bulk]");
+					if (!b) return;
+					ACTION = b.dataset.bulk;
+					const sel = document.getElementById("bulk-value");
+					const opts = [...document.getElementById(SRC[ACTION]).options].filter((o) => o.value && o.value !== "none");
+					sel.innerHTML = (ACTION === "set_manager" ? '<option value="none">— Без менеджера —</option>' : "") + opts.map((o) => '<option value="' + esc(o.value) + '">' + esc(o.text) + "</option>").join("");
+					document.getElementById("bulk-title").textContent = TITLE[ACTION];
+					document.getElementById("bulk-n").textContent = count();
+					modal().show();
+				});
+
+				document.getElementById("bulk-do").addEventListener("click", async function () {
+					this.disabled = true;
+					try {
+						const r = await fetch("/api/clients/bulk/", {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ ...target(), action: ACTION, value: document.getElementById("bulk-value").value }),
+						});
+						const j = await r.json().catch(() => ({}));
+						if (!r.ok || j.ok === false) throw new Error(j.error || "Помилка сервера");
+						modal().hide();
+						notyf.success("Змінено: " + (j.changed || 0));
+						clear();
+						table.setData("/api/clients/list/", currentFilters(), "POST");
+					} catch (err) {
+						notyf.error(err.message);
+					} finally {
+						this.disabled = false;
+					}
+				});
+
+				document.getElementById("bulk-export").addEventListener("click", async function () {
+					this.disabled = true;
+					try {
+						const r = await fetch("/api/clients/export/", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(target()) });
+						if (!r.ok) {
+							const j = await r.json().catch(() => ({}));
+							throw new Error(j.error || "Помилка експорту");
+						}
+						const blob = await r.blob();
+						const a = document.createElement("a");
+						a.href = URL.createObjectURL(blob);
+						a.download = "clients-" + new Date().toISOString().slice(0, 10) + ".csv";
+						document.body.appendChild(a);
+						a.click();
+						setTimeout(() => {
+							URL.revokeObjectURL(a.href);
+							a.remove();
+						}, 1000);
+					} catch (err) {
+						notyf.error(err.message);
+					} finally {
+						this.disabled = false;
+					}
+				});
+			})();
+		</script>
+		<script>
+			// ─── Збережені фільтри ───────────────────────────
+			(function () {
+				const PAGE = "clients";
+				const API = "/api/saved-filters/" + PAGE + "/";
+				const menu = document.getElementById("sf-menu");
+				const current = document.getElementById("sf-current");
+				let LIST = [];
+				let ACTIVE = null;
+
+				const fields = () => [...document.querySelectorAll('#clients-filters [id^="f-"]')].filter((el) => el.matches("input, select"));
+				const snapshot = () =>
+					Object.fromEntries(
+						fields()
+							.map((el) => [el.id, el.value])
+							.filter(([, v]) => v !== "")
+					);
+
+				async function post(url, data) {
+					const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data || {}) });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok || j.ok === false) throw new Error(j.error || "Помилка сервера");
+					return j;
+				}
+
+				function render() {
+					const mine = LIST.filter((f) => f.is_mine);
+					const shared = LIST.filter((f) => !f.is_mine);
+					const row = (f) => '<li class="d-flex align-items-center"><a class="dropdown-item flex-grow-1' + (ACTIVE === f.id ? " active" : "") + '" href="#" data-sf-apply="' + f.id + '">' + (f.is_shared ? '<i class="fa-solid fa-users me-2 text-muted"></i>' : '<i class="fa-solid fa-user me-2 text-muted"></i>') + esc(f.name) + (!f.is_mine && f.author ? ' <span class="small text-muted">· ' + esc(f.author) + "</span>" : "") + "</a>" + (f.is_mine ? '<button class="btn btn-link btn-sm text-danger px-2" data-sf-del="' + f.id + '" title="Видалити"><i class="fa-solid fa-xmark"></i></button>' : "") + "</li>";
+					let html = "";
+					if (mine.length) html += '<li><h6 class="dropdown-header">Мої</h6></li>' + mine.map(row).join("");
+					if (shared.length) html += '<li><h6 class="dropdown-header">Спільні</h6></li>' + shared.map(row).join("");
+					menu.innerHTML = html || '<li><span class="dropdown-item-text small text-muted">Збережених фільтрів ще немає</span></li>';
+				}
+
+				async function load() {
+					try {
+						LIST = (await post(API)).rows || [];
+						render();
+					} catch (e) {
+						menu.innerHTML = '<li><span class="dropdown-item-text small text-danger">' + esc(e.message) + "</span></li>";
+					}
+				}
+
+				function setActive(f) {
+					ACTIVE = f ? f.id : null;
+					current.textContent = f ? "Фільтр: " + f.name : "";
+					current.classList.toggle("d-none", !f);
+					render();
+				}
+
+				menu.addEventListener("click", async (ev) => {
+					const del = ev.target.closest("[data-sf-del]");
+					if (del) {
+						ev.preventDefault();
+						ev.stopPropagation();
+						if (!confirm("Видалити збережений фільтр?")) return;
+						try {
+							await post(API + "delete/", { id: Number(del.dataset.sfDel) });
+							if (ACTIVE === Number(del.dataset.sfDel)) setActive(null);
+							load();
+						} catch (e) {
+							notyf.error(e.message);
+						}
+						return;
+					}
+					const a = ev.target.closest("[data-sf-apply]");
+					if (!a) return;
+					ev.preventDefault();
+					const f = LIST.find((x) => x.id === Number(a.dataset.sfApply));
+					if (!f) return;
+					fields().forEach((el) => (el.value = f.filters[el.id] ?? ""));
+					setActive(f);
+					applyFilters();
+				});
+
+				// Ручна зміна умов — це вже не збережений фільтр
+				fields().forEach((el) => el.addEventListener("change", () => ACTIVE && setActive(null)));
+				document.getElementById("btn-reset").addEventListener("click", () => setActive(null));
+
+				const modal = () => bootstrap.Modal.getOrCreateInstance(document.getElementById("sf-modal"));
+				document.getElementById("sf-save").addEventListener("click", () => {
+					if (!Object.keys(snapshot()).length) return notyf.error("Задайте хоча б одну умову фільтра.");
+					const act = LIST.find((x) => x.id === ACTIVE && x.is_mine);
+					document.getElementById("sf-name").value = act ? act.name : "";
+					document.getElementById("sf-shared").checked = act ? act.is_shared : false;
+					document.getElementById("sf-overwrite-box").classList.toggle("d-none", !act);
+					document.getElementById("sf-overwrite-name").textContent = act ? act.name : "";
+					modal().show();
+					setTimeout(() => document.getElementById("sf-name").focus(), 300);
+				});
+
+				document.getElementById("sf-do-save").addEventListener("click", async function () {
+					const act = LIST.find((x) => x.id === ACTIVE && x.is_mine);
+					const overwrite = act && document.getElementById("sf-overwrite").checked;
+					this.disabled = true;
+					try {
+						const r = await post(API + "save/", {
+							id: overwrite ? act.id : null,
+							name: document.getElementById("sf-name").value,
+							is_shared: document.getElementById("sf-shared").checked,
+							filters: snapshot(),
+						});
+						modal().hide();
+						await load();
+						setActive(LIST.find((x) => x.id === r.id) || null);
+						notyf.success("Фільтр збережено");
+					} catch (e) {
+						notyf.error(e.message);
+					} finally {
+						this.disabled = false;
+					}
+				});
+
+				load();
+			})();
+		</script>
+		<script>
+			(function () {
+				const $ = (id) => document.getElementById(id);
+				const modal = new bootstrap.Modal($("modal-new-client"));
+
+				function fillLegal() {
+					const kind = $("nc-kind").value;
+					const list = (window.CL_LEGAL || []).filter((x) => x.kind === kind);
+					$("nc-legal").innerHTML = '<option value="">—</option>' + list.map((x) => '<option value="' + x.id + '">' + esc(x.short_name ? x.short_name + " — " + x.name : x.name) + "</option>").join("");
+					$("nc-person").style.display = kind === "person" ? "" : "none";
+					$("nc-org").style.display = kind === "person" ? "none" : "";
+				}
+				$("nc-kind").addEventListener("change", fillLegal);
+
+				$("btn-new-client").addEventListener("click", function () {
+					["nc-first_name", "nc-last_name", "nc-name", "nc-phone", "nc-email", "nc-country"].forEach((id) => ($(id).value = ""));
+					$("nc-kind").value = "person";
+					fillLegal();
+					$("nc-exists").style.display = "none";
+					$("nc-force").style.display = "none";
+					modal.show();
+				});
+
+				async function create(force) {
+					const body = {
+						kind: $("nc-kind").value,
+						first_name: $("nc-first_name").value.trim(),
+						last_name: $("nc-last_name").value.trim(),
+						name: $("nc-name").value.trim(),
+						id_legal_type: $("nc-legal").value,
+						phone: $("nc-phone").value.trim(),
+						email: $("nc-email").value.trim(),
+						country: $("nc-country").value.trim().toUpperCase(),
+						force: force ? 1 : 0,
+					};
+					$("nc-save").disabled = $("nc-force").disabled = true;
+					try {
+						const r = await fetch("/api/clients/create/", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+						const j = await r.json();
+						if (r.status === 409 && j.exists) {
+							$("nc-exists").innerHTML = '<div class="alert alert-warning rounded-0 small mb-2">' + esc(j.error) + " Відкрийте наявну картку або створіть нового клієнта свідомо.</div>" + j.exists.map((c) => '<div class="d-flex justify-content-between border-bottom py-1 small"><span>' + esc(c.display_name || "#" + c.id) + ' <span class="text-muted">' + esc([c.phone, c.email].filter(Boolean).join(" · ")) + '</span></span><a href="/clients/' + c.id + '/">Відкрити</a></div>').join("");
+							$("nc-exists").style.display = "";
+							$("nc-force").style.display = "";
+							return;
+						}
+						if (!r.ok || j.ok === false) throw new Error(j.error || "Помилка");
+						location.href = "/clients/" + j.id_client + "/";
+					} catch (e) {
+						notyf.error(e.message);
+					} finally {
+						$("nc-save").disabled = $("nc-force").disabled = false;
+					}
+				}
+				$("nc-save").addEventListener("click", () => create(false));
+				$("nc-force").addEventListener("click", () => create(true));
+			})();
+		</script>
+	</body>
+</html>

@@ -1,0 +1,11 @@
+{
+	"name": "feeds",
+	"version": "1.0.0",
+	"description": "Товарні фіди для маркетплейсів і рекламних систем: Google Merchant Center, Prom.ua (YML)",
+	"author": "Growth Contour",
+	"hasConfig": false,
+	"config": {
+		"check_interval_minutes": 5,
+		"batch_size": 1000
+	}
+}

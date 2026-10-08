@@ -1,0 +1,302 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.seo.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			#tpl-body input { min-width: 180px; }
+			.tok { cursor: pointer; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><%= i18n.__('catalog.menu.catalog') %></li>
+					<li class="breadcrumb-item active"><%= i18n.__('catalog.seo.title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<h1 class="h4 mb-3"><%= i18n.__('catalog.seo.title') %></h1>
+
+				<div class="card rounded-0 mb-3">
+					<div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+						<span><%= i18n.__('catalog.seo.templates') %></span>
+						<% if (perms.edit) { %>
+						<div class="d-flex gap-2">
+							<button type="button" class="btn btn-sm btn-outline-primary rounded-0" id="btn-add-tpl"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.seo.add_template') %></button>
+							<button type="button" class="btn btn-sm btn-primary rounded-0" id="btn-save"><%= i18n.__('catalog.common.save') %></button>
+						</div>
+						<% } %>
+					</div>
+					<div class="card-body">
+						<p class="small text-muted mb-2"><%= i18n.__('catalog.seo.templates_help') %></p>
+						<div class="small mb-3">
+							<div><strong><%= i18n.__('catalog.seo.entity.products') %>:</strong> <code class="tok">{name}</code> <code class="tok">{h1}</code> <code class="tok">{brand}</code> <code class="tok">{category}</code> <code class="tok">{price}</code> <code class="tok">{currency}</code> <code class="tok">{sku}</code> <code class="tok">{model}</code> <code class="tok">{unit}</code> <code class="tok">{short_description}</code> <code class="tok">{description}</code></div>
+							<div><strong><%= i18n.__('catalog.seo.entity.categories') %>:</strong> <code class="tok">{name}</code> <code class="tok">{h1}</code> <code class="tok">{parent}</code> <code class="tok">{products}</code> <code class="tok">{min_price}</code> <code class="tok">{currency}</code> <code class="tok">{description}</code></div>
+							<div><strong><%= i18n.__('catalog.seo.entity.brands') %>:</strong> <code class="tok">{name}</code> <code class="tok">{country}</code> <code class="tok">{products}</code> <code class="tok">{min_price}</code> <code class="tok">{currency}</code> <code class="tok">{description}</code></div>
+							<div class="text-muted mt-1"><%= i18n.__('catalog.seo.brackets_help') %></div>
+						</div>
+						<div class="row g-2 mb-3" style="max-width: 520px">
+							<div class="col-6">
+								<label class="form-label small fw-semibold"><%= i18n.__('catalog.seo.title_max') %></label>
+								<input type="number" class="form-control form-control-sm rounded-0" id="title-max" min="30" max="120" value="<%= cfg.title_max %>" />
+							</div>
+							<div class="col-6">
+								<label class="form-label small fw-semibold"><%= i18n.__('catalog.seo.description_max') %></label>
+								<input type="number" class="form-control form-control-sm rounded-0" id="desc-max" min="70" max="320" value="<%= cfg.description_max %>" />
+							</div>
+						</div>
+						<div class="table-responsive">
+							<table class="table table-sm align-middle mb-0">
+								<thead>
+									<tr>
+										<th><%= i18n.__('catalog.seo.col_entity') %></th>
+										<th><%= i18n.__('catalog.seo.col_lang') %></th>
+										<th>Meta title</th>
+										<th>Meta description</th>
+										<th>OG title</th>
+										<th>OG description</th>
+										<th></th>
+									</tr>
+								</thead>
+								<tbody id="tpl-body"></tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+
+				<div class="row g-3">
+					<div class="col-lg-6">
+						<div class="card rounded-0 h-100">
+							<div class="card-header fw-semibold"><%= i18n.__('catalog.seo.test_title') %></div>
+							<div class="card-body">
+								<div class="row g-2 mb-3">
+									<div class="col-5">
+										<select class="form-select form-select-sm rounded-0" id="test-entity">
+											<option value="products"><%= i18n.__('catalog.seo.entity.products') %></option>
+											<option value="categories"><%= i18n.__('catalog.seo.entity.categories') %></option>
+											<option value="brands"><%= i18n.__('catalog.seo.entity.brands') %></option>
+										</select>
+									</div>
+									<div class="col-4"><input type="number" class="form-control form-control-sm rounded-0" id="test-id" placeholder="ID" min="1" /></div>
+									<div class="col-3"><button type="button" class="btn btn-sm btn-outline-primary rounded-0 w-100" id="btn-test"><%= i18n.__('catalog.seo.test_btn') %></button></div>
+								</div>
+								<div class="form-text mb-2"><%= i18n.__('catalog.seo.test_hint') %></div>
+								<div id="test-result"></div>
+							</div>
+						</div>
+					</div>
+					<div class="col-lg-6">
+						<div class="card rounded-0 h-100">
+							<div class="card-header fw-semibold"><%= i18n.__('catalog.seo.dup_title') %></div>
+							<div class="card-body">
+								<div class="row g-2 mb-3">
+									<div class="col-4">
+										<select class="form-select form-select-sm rounded-0" id="dup-entity">
+											<option value="products"><%= i18n.__('catalog.seo.entity.products') %></option>
+											<option value="categories"><%= i18n.__('catalog.seo.entity.categories') %></option>
+											<option value="brands"><%= i18n.__('catalog.seo.entity.brands') %></option>
+										</select>
+									</div>
+									<div class="col-3">
+										<select class="form-select form-select-sm rounded-0" id="dup-field">
+											<option value="meta_title">Meta title</option>
+											<option value="name"><%= i18n.__('catalog.seo.dup_name') %></option>
+										</select>
+									</div>
+									<div class="col-3">
+										<select class="form-select form-select-sm rounded-0" id="dup-lang">
+											<% languages.forEach(function (l) { %><option value="<%= l.id %>"><%= l.native_name %></option><% }); %>
+										</select>
+									</div>
+									<div class="col-2"><button type="button" class="btn btn-sm btn-outline-primary rounded-0 w-100" id="btn-dup"><i class="fa-solid fa-magnifying-glass"></i></button></div>
+								</div>
+								<div class="form-text mb-2"><%= i18n.__('catalog.seo.dup_hint') %></div>
+								<div id="dup-result"></div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</main>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const CAN_EDIT = <%= perms.edit ? 'true' : 'false' %>;
+				const LANG_CODES = ["*", <% languages.forEach(function (l) { %>"<%= l.code %>", <% }); %>];
+				const ENTITY = {
+					products: "<%= i18n.__('catalog.seo.entity.products') %>",
+					categories: "<%= i18n.__('catalog.seo.entity.categories') %>",
+					brands: "<%= i18n.__('catalog.seo.entity.brands') %>",
+				};
+				const FIELDS = ["meta_title", "meta_description", "og_title", "og_description"];
+				let templates = <%- JSON.stringify(cfg.templates).replace(/</g, '\\u003c') %>;
+				const notyf = new Notyf({ duration: 3500, position: { x: "right", y: "top" } });
+				const tbody = document.getElementById("tpl-body");
+				let lastFocused = null;
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+				function el(tag, cls, text) {
+					const n = document.createElement(tag);
+					if (cls) n.className = cls;
+					if (text !== undefined && text !== null) n.textContent = text;
+					return n;
+				}
+				function select(options, value, labels) {
+					const s = el("select", "form-select form-select-sm rounded-0");
+					options.forEach((o) => {
+						const opt = new Option(labels ? labels[o] || o : o, o);
+						s.add(opt);
+					});
+					s.value = value;
+					s.disabled = !CAN_EDIT;
+					return s;
+				}
+
+				function render() {
+					tbody.replaceChildren(
+						...templates.map((t, i) => {
+							const tr = el("tr");
+							const ent = select(Object.keys(ENTITY), t.entity, ENTITY);
+							ent.addEventListener("change", () => (t.entity = ent.value));
+							const lang = select(LANG_CODES.includes(t.lang) ? LANG_CODES : [...LANG_CODES, t.lang], t.lang);
+							lang.addEventListener("change", () => (t.lang = lang.value));
+							tr.append(el("td").appendChild(ent).parentNode, el("td").appendChild(lang).parentNode);
+							FIELDS.forEach((f) => {
+								const inp = el("input", "form-control form-control-sm rounded-0");
+								inp.value = t[f] || "";
+								inp.maxLength = f.endsWith("title") ? 255 : 512;
+								inp.disabled = !CAN_EDIT;
+								inp.addEventListener("input", () => (t[f] = inp.value));
+								inp.addEventListener("focus", () => (lastFocused = inp));
+								tr.appendChild(el("td").appendChild(inp).parentNode);
+							});
+							const td = el("td", "text-end");
+							if (CAN_EDIT) {
+								const del = el("button", "btn btn-sm btn-outline-danger rounded-0");
+								del.type = "button";
+								del.innerHTML = '<i class="fa-solid fa-trash"></i>';
+								del.addEventListener("click", () => {
+									templates.splice(i, 1);
+									render();
+								});
+								td.appendChild(del);
+							}
+							tr.appendChild(td);
+							return tr;
+						})
+					);
+				}
+
+				// Клік по токену — вставити в останнє поле, де був курсор
+				document.querySelectorAll(".tok").forEach((t) =>
+					t.addEventListener("click", () => {
+						if (!lastFocused || lastFocused.disabled) return;
+						const pos = lastFocused.selectionStart ?? lastFocused.value.length;
+						lastFocused.value = lastFocused.value.slice(0, pos) + t.textContent + lastFocused.value.slice(pos);
+						lastFocused.dispatchEvent(new Event("input"));
+						lastFocused.focus();
+					})
+				);
+
+				const cfgNow = () => ({
+					title_max: Number(document.getElementById("title-max").value) || 60,
+					description_max: Number(document.getElementById("desc-max").value) || 160,
+					templates,
+				});
+
+				const addBtn = document.getElementById("btn-add-tpl");
+				if (addBtn)
+					addBtn.addEventListener("click", () => {
+						templates.push({ entity: "products", lang: LANG_CODES[1] || "*", meta_title: "", meta_description: "", og_title: "", og_description: "" });
+						render();
+					});
+				const saveBtn = document.getElementById("btn-save");
+				if (saveBtn)
+					saveBtn.addEventListener("click", async () => {
+						try {
+							const r = await api("/api/catalog/products/settings/seo/save/", { value: cfgNow() });
+							templates = r.value.templates;
+							render();
+							notyf.success("<%= i18n.__('catalog.common.saved') %>");
+						} catch (err) {
+							notyf.error((err.errors || []).map((e) => e.field + ": " + e.message).join("; ") || err.error || "<%= i18n.__('catalog.common.error') %>");
+						}
+					});
+
+				document.getElementById("btn-test").addEventListener("click", async () => {
+					const box = document.getElementById("test-result");
+					try {
+						const r = await api("/api/catalog/products/seo/test/", { entity: document.getElementById("test-entity").value, id: document.getElementById("test-id").value, cfg: cfgNow() });
+						box.replaceChildren(
+							...r.langs.map((l) => {
+								const card = el("div", "border p-2 mb-2 small");
+								card.dir = l.direction;
+								card.appendChild(el("div", "fw-semibold mb-1", l.code));
+								FIELDS.forEach((f) => {
+									const row = el("div");
+									row.appendChild(el("span", "text-muted me-1", f + ":"));
+									row.appendChild(el("span", l.generated[f] ? "" : "fst-italic", l.values[f] || "—"));
+									if (!l.generated[f]) row.appendChild(el("span", "badge text-bg-light border ms-1", "<%= i18n.__('catalog.seo.manual') %>"));
+									card.appendChild(row);
+								});
+								return card;
+							})
+						);
+					} catch (err) {
+						box.replaceChildren(el("div", "text-danger small", err.error || "<%= i18n.__('catalog.common.error') %>"));
+					}
+				});
+
+				document.getElementById("btn-dup").addEventListener("click", async () => {
+					const box = document.getElementById("dup-result");
+					const entity = document.getElementById("dup-entity").value;
+					try {
+						const r = await api("/api/catalog/products/seo/duplicates/", { entity, field: document.getElementById("dup-field").value, id_lang: document.getElementById("dup-lang").value });
+						if (!r.rows.length) return box.replaceChildren(el("div", "text-success small", "<%= i18n.__('catalog.seo.dup_none') %>"));
+						const table = el("table", "table table-sm small mb-0");
+						const tb = el("tbody");
+						r.rows.forEach((d) => {
+							const tr = el("tr");
+							tr.appendChild(el("td", "text-break", d.value));
+							tr.appendChild(el("td", "text-end", String(d.count)));
+							const links = el("td");
+							d.ids.forEach((id) => {
+								const a = el("a", "me-1", "#" + id);
+								a.href = entity === "products" ? "/catalog/products/" + id + "/" : entity === "categories" ? "/catalog/categories/" : "/catalog/brands/";
+								a.target = "_blank";
+								links.appendChild(a);
+							});
+							tr.appendChild(links);
+							tb.appendChild(tr);
+						});
+						table.appendChild(tb);
+						box.replaceChildren(table);
+					} catch (err) {
+						box.replaceChildren(el("div", "text-danger small", err.error || "<%= i18n.__('catalog.common.error') %>"));
+					}
+				});
+
+				render();
+			})();
+		</script>
+	</body>
+</html>

@@ -1,0 +1,322 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.downloads.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.pc-sticky { position: sticky; top: 0; z-index: 1020; background: var(--bs-body-bg); }
+			.d-handle { cursor: grab; color: var(--bs-secondary-color); }
+			#d-body td { vertical-align: middle; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><a href="/catalog/products/"><%= i18n.__('catalog.products.title') %></a></li>
+					<li class="breadcrumb-item"><a href="/catalog/products/<%= productId %>/" id="bc-product">#<%= productId %></a></li>
+					<li class="breadcrumb-item active"><%= i18n.__('catalog.downloads.title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<div class="pc-sticky py-2 mb-3 border-bottom d-flex flex-wrap gap-2 align-items-center">
+					<h1 class="h4 mb-0 me-auto"><span id="d-title"></span> — <%= i18n.__('catalog.downloads.title') %></h1>
+					<span class="badge text-bg-light border" id="d-version"></span>
+					<a class="btn btn-outline-secondary rounded-0" href="/catalog/products/<%= productId %>/"><i class="fa-solid fa-arrow-left"></i> <%= i18n.__('catalog.variants.back') %></a>
+					<% if (perms.edit) { %>
+					<button type="button" class="btn btn-primary rounded-0" id="btn-save"><i class="fa-solid fa-floppy-disk"></i> <%= i18n.__('catalog.common.save') %></button>
+					<% } %>
+				</div>
+
+				<div class="alert alert-warning rounded-0 align-items-center gap-3" id="lock-banner" style="display: none">
+					<i class="fa-solid fa-lock"></i><span class="me-auto" id="lock-text"></span>
+					<% if (perms.edit) { %><button type="button" class="btn btn-sm btn-warning rounded-0" id="btn-takeover"><%= i18n.__('catalog.products.lock.takeover') %></button><% } %>
+				</div>
+				<div class="alert alert-info rounded-0 align-items-center gap-3" id="saved-banner" style="display: none">
+					<i class="fa-solid fa-rotate"></i><span class="me-auto"><%= i18n.__('catalog.products.lock.changed_by_other') %></span>
+					<button type="button" class="btn btn-sm btn-info rounded-0" id="btn-reload"><%= i18n.__('catalog.products.reload') %></button>
+				</div>
+				<div class="alert alert-danger rounded-0" id="type-warning" style="display: none"><%= i18n.__('catalog.downloads.not_digital') %></div>
+				<div class="alert alert-light border rounded-0"><%= i18n.__('catalog.downloads.hint') %></div>
+
+				<div class="card rounded-0">
+					<div class="card-header d-flex flex-wrap gap-2 align-items-center">
+						<strong class="me-auto"><%= i18n.__('catalog.downloads.files') %></strong>
+						<input type="file" class="form-control form-control-sm rounded-0 js-w" id="d-input" multiple style="max-width: 360px" />
+						<div class="progress rounded-0" style="width: 200px; display: none" id="d-progress"><div class="progress-bar" style="width: 0%"></div></div>
+					</div>
+					<div class="card-body p-0">
+						<div class="table-responsive">
+							<table class="table table-sm mb-0">
+								<thead>
+									<tr>
+										<th style="width: 24px"></th>
+										<% languages.forEach((l, i) => { %><th><%= i18n.__('catalog.downloads.f.name') %> (<%= String(l.iso).toUpperCase() %>)<% if (i === 0) { %> *<% } %></th><% }) %>
+										<th><%= i18n.__('catalog.downloads.f.file') %></th>
+										<th style="width: 110px"><%= i18n.__('catalog.downloads.f.version') %></th>
+										<th style="width: 120px"><%= i18n.__('catalog.downloads.f.max_downloads') %></th>
+										<th style="width: 120px"><%= i18n.__('catalog.downloads.f.expires_days') %></th>
+										<th style="width: 180px"><%= i18n.__('catalog.downloads.f.variant') %></th>
+										<th style="width: 80px"></th>
+									</tr>
+								</thead>
+								<tbody id="d-body"></tbody>
+							</table>
+						</div>
+						<div class="text-muted p-4 text-center" id="d-empty"><%= i18n.__('catalog.downloads.empty') %></div>
+					</div>
+				</div>
+			</div>
+		</main>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const PRODUCT_ID = <%= Number(productId) %>;
+				const PERMS = { edit: <%= perms.edit %> };
+				const LANGS = [<% languages.forEach((l) => { %><%= Number(l.id) %>,<% }) %>];
+				const HEARTBEAT_MS = <%= Number(heartbeatSeconds) * 1000 %>;
+				const ME = <%= Number(user.id) %>;
+
+				const notyf = new Notyf({ duration: 3500, position: { x: "right", y: "top" } });
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+				const errMsg = (err) => err.error || "<%= i18n.__('catalog.common.error') %>";
+				const size = (b) => {
+					const u = ["B", "KB", "MB", "GB"];
+					let i = 0;
+					let n = Number(b);
+					while (n >= 1024 && i < u.length - 1) (n /= 1024), i++;
+					return n.toFixed(i ? 1 : 0) + " " + u[i];
+				};
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+
+				let state = null;
+				let canWrite = false;
+				let dirty = false;
+				const body = document.getElementById("d-body");
+				Sortable.create(body, { handle: ".d-handle", animation: 150, onEnd: () => (dirty = true) });
+
+				function row(f) {
+					const tr = document.createElement("tr");
+					tr.dataset.json = JSON.stringify({ id: f.id || null, file: f.file, original_name: f.original_name, mime: f.mime, size: f.size, hash: f.hash });
+					let html = `<td><i class="fa-solid fa-grip-vertical d-handle"></i></td>`;
+					LANGS.forEach((l) => (html += `<td><input class="form-control form-control-sm rounded-0 js-w" data-name="${l}" maxlength="255" value="${esc(((f.names || {})[l] || {}).name || "")}"></td>`));
+					html += `<td><div>${esc(f.original_name)}</div><div class="small text-muted">${size(f.size)} · ${esc(f.mime)}</div></td>`;
+					html += `<td><input class="form-control form-control-sm rounded-0 js-w" data-d="version" maxlength="32" value="${esc(f.version || "")}"></td>`;
+					html += `<td><input class="form-control form-control-sm rounded-0 js-w" type="number" min="1" data-d="max_downloads" value="${f.max_downloads ?? ""}" placeholder="∞"></td>`;
+					html += `<td><input class="form-control form-control-sm rounded-0 js-w" type="number" min="1" data-d="expires_days" value="${f.expires_days ?? ""}" placeholder="∞"></td>`;
+					html += `<td><select class="form-select form-select-sm rounded-0 js-w" data-d="id_variant"><option value="0"><%= i18n.__('catalog.downloads.all_variants') %></option>${(state.variants || [])
+						.map((v) => `<option value="${v.id}" ${Number(f.id_variant) === v.id ? "selected" : ""}>${esc(v.sku || "#" + v.id)}</option>`)
+						.join("")}</select></td>`;
+					html += `<td class="text-end text-nowrap">${f.id ? `<a class="btn btn-sm btn-outline-secondary rounded-0 me-1" href="/catalog/products/${PRODUCT_ID}/downloads/${f.id}/file/" title="<%= i18n.__('catalog.downloads.download') %>"><i class="fa-solid fa-download"></i></a>` : ""}<button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-w js-del"><i class="fa-solid fa-xmark"></i></button></td>`;
+					tr.innerHTML = html;
+					return tr;
+				}
+				const refreshEmpty = () => (document.getElementById("d-empty").style.display = body.children.length ? "none" : "");
+				body.addEventListener("input", () => (dirty = true));
+				body.addEventListener("click", (e) => {
+					if (e.target.closest(".js-del") && canWrite) {
+						e.target.closest("tr").remove();
+						dirty = true;
+						refreshEmpty();
+					}
+				});
+
+				// ── Завантаження з прогресом (XHR — у fetch немає upload progress) ──
+				function uploadOne(file) {
+					return new Promise((resolve, reject) => {
+						const xhr = new XMLHttpRequest();
+						const bar = document.querySelector("#d-progress .progress-bar");
+						xhr.open("POST", `/api/catalog/products/${PRODUCT_ID}/downloads/upload/`);
+						xhr.setRequestHeader("Accept", "application/json");
+						xhr.upload.onprogress = (e) => e.lengthComputable && (bar.style.width = Math.round((e.loaded / e.total) * 100) + "%");
+						xhr.onload = () => {
+							let json = {};
+							try {
+								json = JSON.parse(xhr.responseText);
+							} catch {}
+							xhr.status < 300 && json.ok !== false ? resolve(json) : reject(json);
+						};
+						xhr.onerror = () => reject({});
+						const fd = new FormData();
+						fd.append("file", file);
+						xhr.send(fd);
+					});
+				}
+				document.getElementById("d-input").addEventListener("change", async (e) => {
+					const input = e.target;
+					const progress = document.getElementById("d-progress");
+					input.disabled = true;
+					progress.style.display = "";
+					for (const file of Array.from(input.files)) {
+						try {
+							const r = await uploadOne(file);
+							const base = file.name.replace(/\.[^.]+$/, "");
+							const names = {};
+							names[LANGS[0]] = { name: base };
+							body.appendChild(row({ ...r, names, id_variant: 0 }));
+							dirty = true;
+						} catch (err) {
+							notyf.error(file.name + ": " + errMsg(err));
+						}
+					}
+					refreshEmpty();
+					progress.style.display = "none";
+					input.value = "";
+					input.disabled = !canWrite;
+				});
+
+				function readFiles() {
+					return Array.from(body.querySelectorAll("tr")).map((tr) => {
+						const base = JSON.parse(tr.dataset.json);
+						const names = {};
+						tr.querySelectorAll("[data-name]").forEach((el) => (names[el.dataset.name] = { name: el.value }));
+						const g = (k) => tr.querySelector(`[data-d="${k}"]`).value.trim();
+						return {
+							...base,
+							names,
+							version: g("version") || null,
+							max_downloads: g("max_downloads") === "" ? null : parseInt(g("max_downloads"), 10),
+							expires_days: g("expires_days") === "" ? null : parseInt(g("expires_days"), 10),
+							id_variant: parseInt(g("id_variant"), 10) || 0,
+						};
+					});
+				}
+
+				async function load() {
+					state = await api(`/api/catalog/products/${PRODUCT_ID}/downloads/list/`);
+					document.getElementById("d-title").textContent = state.product.name;
+					document.getElementById("bc-product").textContent = state.product.name;
+					document.getElementById("d-version").textContent = "v" + state.product.version;
+					document.getElementById("type-warning").style.display = state.product.type === "digital" ? "none" : "";
+					body.innerHTML = "";
+					state.files.forEach((f) => body.appendChild(row(f)));
+					refreshEmpty();
+					setReadOnly(!canWrite);
+					dirty = false;
+				}
+				function setReadOnly(on) {
+					canWrite = !on && PERMS.edit && (!state || state.product.type === "digital");
+					document.querySelectorAll(".js-w").forEach((el) => (el.disabled = !canWrite));
+					const save = document.getElementById("btn-save");
+					if (save) save.disabled = !canWrite;
+				}
+
+				const saveBtn = document.getElementById("btn-save");
+				if (saveBtn)
+					saveBtn.addEventListener("click", async () => {
+						saveBtn.disabled = true;
+						try {
+							await api(`/api/catalog/products/${PRODUCT_ID}/downloads/save/`, { version: state.product.version, lock_token: lockToken, files: readFiles() });
+							notyf.success("<%= i18n.__('catalog.common.saved') %>");
+							await load();
+						} catch (err) {
+							if (err.code === "version_conflict") {
+								if (confirm("<%= i18n.__('catalog.products.lock.version_conflict') %>")) await load();
+							} else if (err.code === "lock_lost" || err.code === "lock_required") lostLock();
+							else notyf.error((err.errors || []).map((e) => `${e.field}: ${e.message}`).join("; ") || errMsg(err));
+						} finally {
+							saveBtn.disabled = !canWrite;
+						}
+					});
+
+				// ── Живе блокування ────────────────────────────
+				const lockToken = crypto.randomUUID();
+				let haveLock = false;
+				let hbTimer = null;
+				const show = (el, on) => (el.style.display = on ? "flex" : "none");
+				const lockBanner = document.getElementById("lock-banner");
+				const savedBanner = document.getElementById("saved-banner");
+				const emitAck = (ev, p) =>
+					new Promise((resolve) => {
+						const t = setTimeout(() => resolve({ ok: false }), 8000);
+						socket.emit(ev, p, (r) => {
+							clearTimeout(t);
+							resolve(r || { ok: false });
+						});
+					});
+				function showHolder(h) {
+					if (!h || haveLock) return show(lockBanner, false);
+					document.getElementById("lock-text").textContent = "<%= i18n.__('catalog.products.lock.editing') %> " + (h.user_name || "#" + h.id_user);
+					show(lockBanner, true);
+				}
+				async function acquireLock(force) {
+					if (!PERMS.edit) return setReadOnly(true), false;
+					const r = await emitAck("product:lock", { id: PRODUCT_ID, token: lockToken, force: !!force });
+					haveLock = r.ok === true;
+					if (haveLock) {
+						show(lockBanner, false);
+						setReadOnly(false);
+						clearInterval(hbTimer);
+						hbTimer = setInterval(async () => {
+							if (!(await emitAck("product:heartbeat", { id: PRODUCT_ID, token: lockToken })).ok) lostLock();
+						}, HEARTBEAT_MS);
+					} else {
+						setReadOnly(true);
+						showHolder(r.holder);
+					}
+					return haveLock;
+				}
+				function lostLock() {
+					if (!haveLock) return;
+					haveLock = false;
+					clearInterval(hbTimer);
+					setReadOnly(true);
+					notyf.error("<%= i18n.__('catalog.products.lock.lost') %>");
+				}
+				socket.on("product:lock:state", (d) => d.id === PRODUCT_ID && !haveLock && showHolder(d.holder));
+				socket.on("product:lock:lost", (d) => d.id === PRODUCT_ID && lostLock());
+				socket.on("product:saved", (d) => d.id === PRODUCT_ID && !(haveLock && d.by === ME) && show(savedBanner, true));
+				socket.on("connect", () => haveLock && ((haveLock = false), acquireLock(false)));
+				window.addEventListener("pagehide", () => haveLock && socket.emit("product:unlock", { id: PRODUCT_ID, token: lockToken }));
+				window.addEventListener("beforeunload", (e) => {
+					if (dirty && canWrite) {
+						e.preventDefault();
+						e.returnValue = "";
+					}
+				});
+				const takeover = document.getElementById("btn-takeover");
+				if (takeover)
+					takeover.addEventListener("click", async () => {
+						if (!confirm("<%= i18n.__('catalog.products.lock.confirm_takeover') %>")) return;
+						await load();
+						await acquireLock(true);
+					});
+				document.getElementById("btn-reload").addEventListener("click", async () => {
+					show(savedBanner, false);
+					await load();
+				});
+
+				(async () => {
+					try {
+						setReadOnly(true);
+						await load();
+						const w = await emitAck("product:watch", { id: PRODUCT_ID });
+						if (w.ok && w.holder && w.holder.id_user !== ME) showHolder(w.holder);
+						else await acquireLock(false);
+					} catch (err) {
+						notyf.error(errMsg(err));
+					}
+				})();
+			})();
+		</script>
+	</body>
+</html>
