@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+
+<head>
+    <%- include('../../../partials/head'); %>
+        <!-- tabulator -->
+        <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+        <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+        <!-- END tabulator -->
+</head>
+
+<body class="d-flex flex-column h-100">
+    <%- include('../../../partials/header'); %>
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12 mb-3">
+                    <div class="card border-primary rounded-0">
+                        <div class="card-header text-bg-primary rounded-0">
+                            <% if (i18n.__('lang_iso')==='en' ) { %>emails<% } else { %>Інтеграції<% } %>
+                        </div>
+                        <div id="orders-table"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <%- include('../../../partials/footer'); %> <%- include('../../../partials/script'); %>
+                <!-- tabulator -->
+                <script src="/assets/js/tabulator/tabulator.min.js"></script>
+                <script>
+                    //initialize table
+                    var table = new Tabulator("#orders-table", {
+                        layout: "fitColumns",
+                        ajaxURL: "/api/email/email-list/",
+                        ajaxConfig: "POST",
+                        paginationSize: 5,
+                        paginationSizeSelector: [10, 20, 30, 40],
+                        pagination: true,
+                        movableColumns: true,
+                        columns: [
+                            {
+                                title: "ID",
+                                field: "id",
+                                sorter: "string",
+                                headerSort: false,
+                                widthGrow: "1",
+                            },
+                            {
+                                title: "URL",
+                                field: "url",
+                                sorter: "string",
+                                headerSort: false,
+                            },
+                            {
+                                title: "System",
+                                field: "System",
+                                sorter: "string",
+                                headerSort: false,
+                                widthGrow: "1",
+                                formatter: function (cell, formatterParams, onRendered) {
+                                    if (cell.getRow().getData().system === 1) {
+                                        return '<div class="">Opencart 1.5</div>';
+                                    } else if (cell.getRow().getData().system === 2) {
+                                        return '<div class="">Opencart 3</div>';
+                                    } else if (cell.getRow().getData().system === 3) {
+                                        return '<div class="">Opencart 4</div>';
+                                    } else if (cell.getRow().getData().system === 4) {
+                                        return '<div class="">Prestashop 1.6</div>';
+                                    } else if (cell.getRow().getData().system === 5) {
+                                        return '<div class="">Prestashop 1.7</div>';
+                                    } else if (cell.getRow().getData().system === 6) {
+                                        return '<div class="">Prestashop 8</div>';
+                                    } else if (cell.getRow().getData().system === 7) {
+                                        return '<div class="">Prestashop 9</div>';
+                                    } else {
+                                        return '<div class=""></div>';
+                                    }
+                                },
+                            },
+                            {
+                                title: "Status",
+                                field: "status",
+                                sorter: "string",
+                                headerSort: false,
+                                widthGrow: "1",
+                                formatter: function (cell, formatterParams, onRendered) {
+                                    if (cell.getRow().getData().status === 1) {
+                                        return '<div class="badge bg-success rounded-0">Active</div>';
+                                    } else {
+                                        return '<div class="badge bg-danger rounded-0">Disabled</div>';
+                                    }
+                                },
+                            },
+                            {
+                                title: "Edit",
+                                field: "",
+                                headerSort: false,
+                                widthGrow: "1",
+                                formatter: function (cell, formatterParams, onRendered) {
+                                    return '<a href="/orders/' + cell.getRow().getData().id + '" class="text-center d-block"><i class="fa-regular fa-pen-to-square"></i></a>';
+                                },
+                            },
+                        ],
+                    });
+                </script>
+                <!-- END tabulator -->
+</body>
+
+</html>

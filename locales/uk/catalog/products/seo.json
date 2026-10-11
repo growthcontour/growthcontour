@@ -1,0 +1,59 @@
+{
+	"catalog": {
+		"menu": {
+			"seo": "SEO"
+		},
+		"seo": {
+			"title": "SEO",
+			"templates": "Шаблони мета-тегів",
+			"add_template": "Додати шаблон",
+			"templates_help": "Порожнє поле в товарі, категорії чи бренді означає «авто»: значення генерується за шаблоном з актуальних даних. Вручну заповнене поле має пріоритет. Мова «*» — для всіх мов, які не мають власного шаблону.",
+			"brackets_help": "Фрагмент у [квадратних дужках] зникає, якщо хоч один токен у ньому порожній: {name}[ — {brand}].",
+			"title_max": "Ліміт title, символів",
+			"description_max": "Ліміт description, символів",
+			"col_entity": "Сутність",
+			"col_lang": "Мова",
+			"entity": {
+				"products": "Товари",
+				"categories": "Категорії",
+				"brands": "Бренди"
+			},
+			"test_title": "Перевірка шаблонів",
+			"test_btn": "Перевірити",
+			"test_hint": "Показує результат для запису з урахуванням незбережених шаблонів на цій сторінці.",
+			"manual": "вручну",
+			"dup_title": "Дублікати",
+			"dup_name": "Назви (без meta title)",
+			"dup_hint": "Однакові заголовки сторінок у межах мови шкодять ранжуванню — Google вважає такі сторінки дублями.",
+			"dup_none": "Дублікатів немає",
+			"auto": "авто",
+			"serp": "Превʼю у видачі",
+			"robots_hint": "Вимкніть індексацію для службових, тестових і тимчасових товарів.",
+			"og_image_hint": "Рекомендовано 1200×630. Якщо не задано — використовується обкладинка товару.",
+			"canonical_hint": "Порожньо — канонічна адреса самої сторінки. Вказуйте лише для дублів.",
+			"f": {
+				"robots_index": "Індексувати (index)",
+				"robots_follow": "Переходити за посиланнями (follow)",
+				"og_image": "Картинка для соцмереж (Open Graph)",
+				"og_title": "OG title (соцмережі)",
+				"og_description": "OG description (соцмережі)",
+				"canonical_url": "Canonical URL"
+			}
+		},
+		"products": {
+			"f": {
+				"robots_index": "Індексувати",
+				"robots_follow": "Follow",
+				"og_image": "OG-картинка",
+				"og_title": "OG title",
+				"og_description": "OG description",
+				"canonical_url": "Canonical URL",
+				"slug_shared": "Один URL для всіх мов"
+			}
+		},
+		"sync": {
+			"push_seo": "SEO: URL, мета-теги, OG, canonical, robots, старі URL (301)",
+			"push_content": "Контент: назва, H1, описи"
+		}
+	}
+}

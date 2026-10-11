@@ -1,0 +1,17 @@
+{
+    "orders": {
+        "title": "Objednávky",
+        "columns": {
+            "id": "ID",
+            "source": "Zdroj",
+            "reference": "Reference",
+            "delivery": "Doručení",
+            "total": "Celkem",
+            "payment": "Platba",
+            "status": "Stav",
+            "date_add": "Datum přidání",
+            "date_edit": "Datum úpravy",
+            "edit": "Upravit"
+        }
+    }
+}

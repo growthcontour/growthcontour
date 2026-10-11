@@ -1,0 +1,53 @@
+{
+  "contact_center": {
+    "telegram": {
+      "edit": {
+        "title": "Налаштування Telegram",
+        "save": "Зберегти",
+        "saved": "Налаштування збережено.",
+        "server_error": "Помилка сервера.",
+        "breadcrumb": {
+          "home": "Головна",
+          "contact_center": "Контакт-центр",
+          "current": "Налаштування Telegram"
+        },
+        "bot": {
+          "title": "Налаштування бота",
+          "active": "Бот увімкнений",
+          "name": "Назва",
+          "description": "Опис",
+          "token": "Токен",
+          "token_empty": "Вкажіть токен.",
+          "token_invalid": "Токен недійсний.",
+          "validate": "Перевірити",
+          "note": "Замітка",
+          "username": "Ім'я бота",
+          "token_locked": "Токен підключено (прихований)",
+          "token_locked_hint": "Токен зберігається зашифровано і не редагується. Щоб змінити бота — створіть новий."
+        },
+        "notify": {
+          "title": "Сповіщення про нові повідомлення",
+          "active": "Сповіщення увімкнені",
+          "chat_id": "ID чату",
+          "topic": "Надсилати в гілку",
+          "topic_id": "ID гілки",
+          "recipients_title": "Отримувачі сповіщень",
+          "recipients_users": "Користувачі CRM",
+          "recipients_users_ph": "Пошук користувача...",
+          "recipients_groups": "Групи CRM",
+          "recipients_groups_ph": "— оберіть групу —"
+        },
+        "appearance": {
+          "title": "Вигляд",
+          "color_text": "Колір тексту",
+          "color_background": "Колір фону",
+          "icon": "Іконка"
+        },
+        "working_hours": {
+          "title": "Робочий час",
+          "info": "Вкажіть дні та години, коли користувачі не отримуватимуть сповіщення про те, що підтримка сьогодні не працює."
+        }
+      }
+    }
+  }
+}

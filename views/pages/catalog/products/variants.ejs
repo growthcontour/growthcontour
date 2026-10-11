@@ -1,0 +1,519 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.variants.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.vt td, .vt th { vertical-align: middle; white-space: nowrap; }
+			.vt input.form-control-sm, .vt select.form-select-sm { min-width: 90px; }
+			.vt .v-sku { min-width: 170px; }
+			.v-swatch { display: inline-block; width: 12px; height: 12px; border: 1px solid var(--bs-border-color); vertical-align: -1px; margin-right: 4px; }
+			.v-media { display: flex; gap: 4px; flex-wrap: wrap; max-width: 260px; }
+			.v-media img { width: 34px; height: 34px; object-fit: contain; border: 2px solid transparent; cursor: pointer; background: var(--bs-tertiary-bg); }
+			.v-media img.on { border-color: var(--bs-primary); }
+			.pc-sticky { position: sticky; top: 0; z-index: 1020; background: var(--bs-body-bg); }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><a href="/catalog/products/"><%= i18n.__('catalog.products.title') %></a></li>
+					<li class="breadcrumb-item"><a href="/catalog/products/<%= productId %>/" id="bc-product">#<%= productId %></a></li>
+					<li class="breadcrumb-item active"><%= i18n.__('catalog.variants.title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<div class="pc-sticky py-2 mb-3 border-bottom d-flex flex-wrap gap-2 align-items-center">
+					<h1 class="h4 mb-0 me-auto"><span id="v-title"></span> — <%= i18n.__('catalog.variants.title') %></h1>
+					<span class="badge text-bg-light border" id="v-version"></span>
+					<a class="btn btn-outline-secondary rounded-0" href="/catalog/products/<%= productId %>/"><i class="fa-solid fa-arrow-left"></i> <%= i18n.__('catalog.variants.back') %></a>
+					<% if (perms.edit) { %>
+					<button type="button" class="btn btn-primary rounded-0" id="btn-save"><i class="fa-solid fa-floppy-disk"></i> <%= i18n.__('catalog.common.save') %></button>
+					<% } %>
+				</div>
+
+				<div class="alert alert-warning rounded-0 align-items-center gap-3" id="lock-banner" style="display: none">
+					<i class="fa-solid fa-lock"></i>
+					<span class="me-auto" id="lock-text"></span>
+					<% if (perms.edit) { %>
+					<button type="button" class="btn btn-sm btn-warning rounded-0" id="btn-takeover"><%= i18n.__('catalog.products.lock.takeover') %></button>
+					<% } %>
+				</div>
+				<div class="alert alert-info rounded-0 align-items-center gap-3" id="saved-banner" style="display: none">
+					<i class="fa-solid fa-rotate"></i>
+					<span class="me-auto"><%= i18n.__('catalog.products.lock.changed_by_other') %></span>
+					<button type="button" class="btn btn-sm btn-info rounded-0" id="btn-reload"><%= i18n.__('catalog.products.reload') %></button>
+				</div>
+
+				<div class="row g-3 mb-4">
+					<!-- Осі -->
+					<div class="col-lg-4">
+						<div class="card rounded-0 h-100">
+							<div class="card-header"><strong><%= i18n.__('catalog.variants.axes.title') %></strong></div>
+							<div class="card-body">
+								<div class="form-text mb-2"><%= i18n.__('catalog.variants.axes.hint') %></div>
+								<div id="axes-list"></div>
+								<div class="text-muted small" id="axes-empty" style="display: none"><%= i18n.__('catalog.variants.axes.none_available') %></div>
+							</div>
+							<% if (perms.edit) { %>
+							<div class="card-footer text-end"><button type="button" class="btn btn-sm btn-outline-primary rounded-0" id="btn-save-axes"><%= i18n.__('catalog.variants.axes.save') %></button></div>
+							<% } %>
+						</div>
+					</div>
+					<!-- Генератор -->
+					<div class="col-lg-8">
+						<div class="card rounded-0 h-100">
+							<div class="card-header"><strong><%= i18n.__('catalog.variants.generator.title') %></strong></div>
+							<div class="card-body">
+								<div class="form-text mb-2"><%= i18n.__('catalog.variants.generator.hint') %></div>
+								<div class="row g-3" id="gen-values"></div>
+							</div>
+							<% if (perms.edit) { %>
+							<div class="card-footer d-flex align-items-center gap-3">
+								<span class="text-muted small me-auto" id="gen-count"></span>
+								<button type="button" class="btn btn-sm btn-primary rounded-0" id="btn-generate"><i class="fa-solid fa-wand-magic-sparkles"></i> <%= i18n.__('catalog.variants.generator.run') %></button>
+							</div>
+							<% } %>
+						</div>
+					</div>
+				</div>
+
+				<!-- Варіанти -->
+				<div class="card rounded-0">
+					<div class="card-header d-flex flex-wrap gap-2 align-items-center">
+						<strong class="me-auto"><%= i18n.__('catalog.variants.list.title') %> (<span id="v-count">0</span>)</strong>
+						<% if (perms.edit) { %>
+						<div class="input-group input-group-sm" style="max-width: 360px">
+							<select class="form-select rounded-0" id="bulk-field">
+								<option value="price"><%= i18n.__('catalog.variants.bulk.price') %></option>
+								<option value="compare_at_price"><%= i18n.__('catalog.variants.f.compare_at_price') %></option>
+								<% if (perms.cost) { %><option value="cost_price"><%= i18n.__('catalog.variants.f.cost_price') %></option><% } %>
+								<option value="weight_impact"><%= i18n.__('catalog.variants.f.weight_impact') %></option>
+							</select>
+							<input type="number" step="0.0001" class="form-control rounded-0" id="bulk-value" />
+							<button type="button" class="btn btn-outline-secondary rounded-0" id="btn-bulk-apply"><%= i18n.__('catalog.variants.bulk.apply') %></button>
+						</div>
+						<button type="button" class="btn btn-sm btn-outline-danger rounded-0" id="btn-delete-selected"><i class="fa-solid fa-trash"></i> <%= i18n.__('catalog.variants.bulk.delete') %></button>
+						<% } %>
+					</div>
+					<div class="card-body p-0">
+						<div class="table-responsive">
+							<table class="table table-sm table-hover vt mb-0">
+								<thead id="v-head"></thead>
+								<tbody id="v-body"></tbody>
+							</table>
+						</div>
+						<div class="text-muted p-4 text-center" id="v-empty"><%= i18n.__('catalog.variants.list.empty') %></div>
+					</div>
+				</div>
+			</div>
+		</main>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const PRODUCT_ID = <%= Number(productId) %>;
+				const PERMS = { edit: <%= perms.edit %>, cost: <%= perms.cost %>, stock: <%= perms.stock %> };
+				const CURRENCY = "<%= currency %>";
+				const HEARTBEAT_MS = <%= Number(heartbeatSeconds) * 1000 %>;
+				const ME = <%= Number(user.id) %>;
+
+				const notyf = new Notyf({ duration: 3500, position: { x: "right", y: "top" } });
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+				const errMsg = (err) => err.error || "<%= i18n.__('catalog.common.error') %>";
+				const fmt = (n) => Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+
+				let state = null;
+				let canWrite = false;
+				let dirty = false;
+
+				// ═══ ОСІ ═══════════════════════════════════════
+				function renderAxes() {
+					const box = document.getElementById("axes-list");
+					const hasVariants = state.variants.length > 0;
+					document.getElementById("axes-empty").style.display = state.axis_candidates.length ? "none" : "";
+					box.innerHTML = state.axis_candidates
+						.map(
+							(a) => `<div class="form-check"><input class="form-check-input js-axis" type="checkbox" value="${a.id}" id="ax-${a.id}" ${state.axes.includes(a.id) ? "checked" : ""} ${hasVariants || !canWrite ? "disabled" : ""}>
+								<label class="form-check-label" for="ax-${a.id}">${esc(a.name)} <span class="text-muted small">${esc(a.code)}</span></label></div>`
+						)
+						.join("");
+					if (hasVariants) box.insertAdjacentHTML("beforeend", `<div class="form-text mt-2"><%= i18n.__('catalog.variants.axes.locked') %></div>`);
+					const btn = document.getElementById("btn-save-axes");
+					if (btn) btn.disabled = hasVariants || !canWrite;
+				}
+
+				// ═══ ГЕНЕРАТОР ═════════════════════════════════
+				function renderGenerator() {
+					const box = document.getElementById("gen-values");
+					if (!state.axes.length) {
+						box.innerHTML = `<div class="col-12 text-muted"><%= i18n.__('catalog.variants.generator.no_axes') %></div>`;
+						updateGenCount();
+						return;
+					}
+					// За замовчуванням позначені значення, що вже використовуються у варіантах
+					const used = new Set(state.variants.flatMap((v) => v.value_ids));
+					box.innerHTML = state.axes
+						.map((idAttr) => {
+							const a = state.axis_candidates.find((x) => x.id === idAttr) || { name: "#" + idAttr };
+							const vals = state.values.filter((v) => v.id_attribute === idAttr);
+							return `<div class="col-md-4"><div class="fw-semibold mb-1">${esc(a.name)}</div>${vals
+								.map(
+									(v) => `<div class="form-check"><input class="form-check-input js-gen" type="checkbox" data-attr="${idAttr}" value="${v.id}" id="gv-${v.id}" ${used.has(v.id) ? "checked" : ""} ${canWrite ? "" : "disabled"}>
+										<label class="form-check-label" for="gv-${v.id}">${v.color_hex ? `<span class="v-swatch" style="background:${esc(v.color_hex)}"></span>` : ""}${esc(v.name)}</label></div>`
+								)
+								.join("")}</div>`;
+						})
+						.join("");
+					updateGenCount();
+				}
+				function selectedGenValues() {
+					const out = {};
+					state.axes.forEach((a) => (out[a] = []));
+					document.querySelectorAll(".js-gen:checked").forEach((cb) => out[cb.dataset.attr].push(parseInt(cb.value, 10)));
+					return out;
+				}
+				function updateGenCount() {
+					const el = document.getElementById("gen-count");
+					if (!el) return;
+					const sel = selectedGenValues();
+					const total = state.axes.length ? state.axes.reduce((n, a) => n * (sel[a] || []).length, 1) : 0;
+					el.textContent = "<%= i18n.__('catalog.variants.generator.count') %>".replace("%d", total).replace("%e", state.variants.length);
+				}
+				document.getElementById("gen-values").addEventListener("change", updateGenCount);
+
+				// ═══ ТАБЛИЦЯ ВАРІАНТІВ ═════════════════════════
+				const valueById = () => new Map(state.values.map((v) => [v.id, v]));
+				function variantLabel(v) {
+					const map = valueById();
+					return state.axes
+						.map((a) => v.value_ids.map((id) => map.get(id)).find((x) => x && x.id_attribute === a))
+						.filter(Boolean)
+						.map((x) => (x.color_hex ? `<span class="v-swatch" style="background:${esc(x.color_hex)}"></span>` : "") + esc(x.name))
+						.join(" / ");
+				}
+				function effectivePrice(v) {
+					const base = Number(state.product.price);
+					return v.price_mode === "fixed" ? Number(v.price) : base + Number(v.price || 0);
+				}
+
+				function renderTable() {
+					const head = document.getElementById("v-head");
+					const body = document.getElementById("v-body");
+					document.getElementById("v-count").textContent = state.variants.length;
+					document.getElementById("v-empty").style.display = state.variants.length ? "none" : "";
+					const dis = canWrite ? "" : "disabled";
+
+					let h = `<tr><th><input class="form-check-input" type="checkbox" id="v-all"></th><th><%= i18n.__('catalog.variants.f.combination') %></th>`;
+					h += `<th><%= i18n.__('catalog.variants.f.sku') %></th><th>EAN</th><th><%= i18n.__('catalog.variants.f.price_mode') %></th><th><%= i18n.__('catalog.variants.f.price') %></th>`;
+					h += `<th class="text-end"><%= i18n.__('catalog.variants.f.effective_price') %></th><th><%= i18n.__('catalog.variants.f.compare_at_price') %></th>`;
+					if (PERMS.cost) h += `<th><%= i18n.__('catalog.variants.f.cost_price') %></th>`;
+					h += `<th><%= i18n.__('catalog.variants.f.weight_impact') %></th>`;
+					state.warehouses.forEach((w) => (h += `<th title="${esc(w.name)}">${esc(w.code)}</th>`));
+					h += `<th><%= i18n.__('catalog.variants.f.media') %></th><th><%= i18n.__('catalog.variants.f.is_default') %></th><th><%= i18n.__('catalog.variants.f.status') %></th></tr>`;
+					head.innerHTML = state.variants.length ? h : "";
+
+					body.innerHTML = state.variants
+						.map((v) => {
+							const stock = new Map((v.stock || []).map((s) => [s.id_warehouse, s]));
+							let r = `<tr data-id="${v.id}">`;
+							r += `<td><input class="form-check-input js-sel" type="checkbox"></td>`;
+							r += `<td>${variantLabel(v)}</td>`;
+							r += `<td><input class="form-control form-control-sm rounded-0 v-sku" data-f="sku" maxlength="64" value="${esc(v.sku || "")}" ${dis}></td>`;
+							r += `<td><input class="form-control form-control-sm rounded-0" data-f="ean" maxlength="14" value="${esc(v.ean || "")}" ${dis}></td>`;
+							r += `<td><select class="form-select form-select-sm rounded-0" data-f="price_mode" ${dis}><option value="impact" ${v.price_mode === "impact" ? "selected" : ""}>±</option><option value="fixed" ${v.price_mode === "fixed" ? "selected" : ""}><%= i18n.__('catalog.variants.price_mode.fixed') %></option></select></td>`;
+							r += `<td><input class="form-control form-control-sm rounded-0" type="number" step="0.0001" data-f="price" value="${Number(v.price)}" ${dis}></td>`;
+							r += `<td class="text-end js-eff">${fmt(effectivePrice(v))} ${esc(CURRENCY)}</td>`;
+							r += `<td><input class="form-control form-control-sm rounded-0" type="number" min="0" step="0.0001" data-f="compare_at_price" value="${v.compare_at_price ?? ""}" ${dis}></td>`;
+							if (PERMS.cost) r += `<td><input class="form-control form-control-sm rounded-0" type="number" min="0" step="0.0001" data-f="cost_price" value="${v.cost_price ?? ""}" ${dis}></td>`;
+							r += `<td><input class="form-control form-control-sm rounded-0" type="number" step="0.0001" data-f="weight_impact" value="${v.weight_impact ?? ""}" ${dis}></td>`;
+							state.warehouses.forEach((w) => {
+								const s = stock.get(w.id) || { on_hand: 0, reserved: 0 };
+								r += `<td><input class="form-control form-control-sm rounded-0" type="number" step="0.001" data-wh="${w.id}" data-orig="${Number(s.on_hand)}" value="${Number(s.on_hand)}" ${canWrite && PERMS.stock ? "" : "disabled"} title="<%= i18n.__('catalog.products.stock.reserved') %>: ${Number(s.reserved)}"></td>`;
+							});
+							r += `<td><div class="v-media">${state.media.map((m) => `<img src="${esc(m.url)}" data-media="${m.id}" class="${v.media_ids.includes(m.id) ? "on" : ""}" alt="">`).join("")}</div></td>`;
+							r += `<td class="text-center"><input class="form-check-input" type="radio" name="_default" data-f="is_default" ${Number(v.is_default) ? "checked" : ""} ${dis}></td>`;
+							r += `<td class="text-center"><input class="form-check-input" type="checkbox" data-f="status" ${Number(v.status) ? "checked" : ""} ${dis}></td>`;
+							return r + "</tr>";
+						})
+						.join("");
+
+					const all = document.getElementById("v-all");
+					if (all) all.addEventListener("change", () => body.querySelectorAll(".js-sel").forEach((cb) => (cb.checked = all.checked)));
+				}
+
+				const vBody = document.getElementById("v-body");
+				vBody.addEventListener("input", (e) => {
+					dirty = true;
+					const tr = e.target.closest("tr");
+					if (!tr || !["price", "price_mode"].includes(e.target.dataset.f)) return;
+					const mode = tr.querySelector('[data-f="price_mode"]').value;
+					const price = Number(tr.querySelector('[data-f="price"]').value || 0);
+					tr.querySelector(".js-eff").textContent = fmt(mode === "fixed" ? price : Number(state.product.price) + price) + " " + CURRENCY;
+				});
+				vBody.addEventListener("change", (e) => e.target.dispatchEvent(new Event("input", { bubbles: true })));
+				vBody.addEventListener("click", (e) => {
+					const img = e.target.closest("img[data-media]");
+					if (!img || !canWrite) return;
+					img.classList.toggle("on");
+					dirty = true;
+				});
+
+				function readVariants() {
+					return Array.from(vBody.querySelectorAll("tr")).map((tr) => {
+						const g = (f) => tr.querySelector(`[data-f="${f}"]`);
+						const num = (f) => (g(f) && g(f).value !== "" ? Number(g(f).value) : null);
+						const out = {
+							id: parseInt(tr.dataset.id, 10),
+							sku: g("sku").value.trim() || null,
+							ean: g("ean").value.trim() || null,
+							price_mode: g("price_mode").value,
+							price: num("price") || 0,
+							compare_at_price: num("compare_at_price"),
+							weight_impact: num("weight_impact"),
+							is_default: g("is_default").checked,
+							status: g("status").checked,
+							media_ids: Array.from(tr.querySelectorAll("img.on")).map((i) => parseInt(i.dataset.media, 10)),
+							// Кількість надсилаємо лише для змінених складів
+							stock: Array.from(tr.querySelectorAll("[data-wh]"))
+								.filter((el) => el.value !== "" && Number(el.value) !== Number(el.dataset.orig))
+								.map((el) => ({ id_warehouse: parseInt(el.dataset.wh, 10), on_hand: Number(el.value) })),
+						};
+						if (PERMS.cost) out.cost_price = num("cost_price");
+						return out;
+					});
+				}
+
+				// ═══ ЗАВАНТАЖЕННЯ ══════════════════════════════
+				async function load() {
+					state = await api(`/api/catalog/products/${PRODUCT_ID}/variants/get/`);
+					document.getElementById("v-title").textContent = state.product.name;
+					document.getElementById("bc-product").textContent = state.product.name;
+					document.getElementById("v-version").textContent = "v" + state.product.version;
+					renderAxes();
+					renderGenerator();
+					renderTable();
+					dirty = false;
+				}
+
+				function setReadOnly(on) {
+					canWrite = !on && PERMS.edit;
+					const save = document.getElementById("btn-save");
+					if (save) save.disabled = !canWrite;
+					["btn-generate", "btn-bulk-apply", "btn-delete-selected"].forEach((id) => {
+						const el = document.getElementById(id);
+						if (el) el.disabled = !canWrite;
+					});
+					if (state) {
+						renderAxes();
+						renderGenerator();
+						renderTable();
+					}
+				}
+
+				const withLock = (body) => ({ ...body, version: state.product.version, lock_token: lockToken });
+				function handleMutationError(err) {
+					if (err.code === "version_conflict") {
+						if (confirm("<%= i18n.__('catalog.products.lock.version_conflict') %>")) load();
+					} else if (err.code === "lock_lost" || err.code === "lock_required") lostLock();
+					else notyf.error(errMsg(err));
+				}
+
+				// ═══ ДІЇ ═══════════════════════════════════════
+				const saveAxesBtn = document.getElementById("btn-save-axes");
+				if (saveAxesBtn)
+					saveAxesBtn.addEventListener("click", async () => {
+						const axes = Array.from(document.querySelectorAll(".js-axis:checked")).map((cb) => parseInt(cb.value, 10));
+						try {
+							await api(`/api/catalog/products/${PRODUCT_ID}/variants/axes/`, withLock({ axes }));
+							notyf.success("<%= i18n.__('catalog.common.saved') %>");
+							await load();
+						} catch (err) {
+							handleMutationError(err);
+						}
+					});
+
+				const genBtn = document.getElementById("btn-generate");
+				if (genBtn)
+					genBtn.addEventListener("click", async () => {
+						if (dirty && !confirm("<%= i18n.__('catalog.variants.unsaved') %>")) return;
+						genBtn.disabled = true;
+						try {
+							const r = await api(`/api/catalog/products/${PRODUCT_ID}/variants/generate/`, withLock({ values: selectedGenValues() }));
+							notyf.success("<%= i18n.__('catalog.variants.generator.created') %>".replace("%d", r.created));
+							await load();
+						} catch (err) {
+							handleMutationError(err);
+						} finally {
+							genBtn.disabled = !canWrite;
+						}
+					});
+
+				const saveBtn = document.getElementById("btn-save");
+				if (saveBtn)
+					saveBtn.addEventListener("click", async () => {
+						saveBtn.disabled = true;
+						try {
+							await api(`/api/catalog/products/${PRODUCT_ID}/variants/save/`, withLock({ variants: readVariants() }));
+							notyf.success("<%= i18n.__('catalog.common.saved') %>");
+							await load();
+						} catch (err) {
+							if (err.errors && err.errors.length) notyf.error(err.errors.map((e) => `${e.field}: ${e.message}`).join("; "));
+							handleMutationError(err);
+						} finally {
+							saveBtn.disabled = !canWrite;
+						}
+					});
+
+				const bulkBtn = document.getElementById("btn-bulk-apply");
+				if (bulkBtn)
+					bulkBtn.addEventListener("click", () => {
+						const field = document.getElementById("bulk-field").value;
+						const value = document.getElementById("bulk-value").value;
+						const rows = Array.from(vBody.querySelectorAll("tr")).filter((tr) => tr.querySelector(".js-sel").checked);
+						if (!rows.length) return notyf.error("<%= i18n.__('catalog.variants.bulk.select_first') %>");
+						rows.forEach((tr) => {
+							const el = tr.querySelector(`[data-f="${field}"]`);
+							if (el) {
+								el.value = value;
+								el.dispatchEvent(new Event("input", { bubbles: true }));
+							}
+						});
+					});
+
+				const delBtn = document.getElementById("btn-delete-selected");
+				if (delBtn)
+					delBtn.addEventListener("click", async () => {
+						const ids = Array.from(vBody.querySelectorAll("tr")).filter((tr) => tr.querySelector(".js-sel").checked).map((tr) => parseInt(tr.dataset.id, 10));
+						if (!ids.length) return notyf.error("<%= i18n.__('catalog.variants.bulk.select_first') %>");
+						if (!confirm("<%= i18n.__('catalog.variants.bulk.confirm_delete') %>".replace("%d", ids.length))) return;
+						try {
+							await api(`/api/catalog/products/${PRODUCT_ID}/variants/delete/`, withLock({ ids }));
+							notyf.success("<%= i18n.__('catalog.common.deleted') %>");
+							await load();
+						} catch (err) {
+							handleMutationError(err);
+						}
+					});
+
+				// ═══ ЖИВЕ БЛОКУВАННЯ (спільне з карточкою) ════
+				const lockToken = crypto.randomUUID();
+				let haveLock = false;
+				let heartbeatTimer = null;
+				const lockBanner = document.getElementById("lock-banner");
+				const savedBanner = document.getElementById("saved-banner");
+				const show = (el, on) => (el.style.display = on ? "flex" : "none");
+
+				function emitAck(event, payload) {
+					return new Promise((resolve) => {
+						const t = setTimeout(() => resolve({ ok: false, error: "timeout" }), 8000);
+						socket.emit(event, payload, (r) => {
+							clearTimeout(t);
+							resolve(r || { ok: false });
+						});
+					});
+				}
+				function showHolder(holder) {
+					if (!holder || haveLock) return show(lockBanner, false);
+					const since = holder.since ? new Date(String(holder.since).replace(" ", "T")).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+					document.getElementById("lock-text").textContent = "<%= i18n.__('catalog.products.lock.editing') %> " + (holder.user_name || "#" + holder.id_user) + (since ? " <%= i18n.__('catalog.products.lock.since') %> " + since : "");
+					show(lockBanner, true);
+				}
+				async function acquireLock(force) {
+					if (!PERMS.edit) return setReadOnly(true), false;
+					const r = await emitAck("product:lock", { id: PRODUCT_ID, token: lockToken, force: !!force });
+					haveLock = r.ok === true;
+					if (haveLock) {
+						show(lockBanner, false);
+						setReadOnly(false);
+						clearInterval(heartbeatTimer);
+						heartbeatTimer = setInterval(async () => {
+							const hb = await emitAck("product:heartbeat", { id: PRODUCT_ID, token: lockToken });
+							if (!hb.ok) lostLock();
+						}, HEARTBEAT_MS);
+					} else {
+						setReadOnly(true);
+						if (r.holder) showHolder(r.holder);
+					}
+					return haveLock;
+				}
+				function lostLock() {
+					if (!haveLock) return;
+					haveLock = false;
+					clearInterval(heartbeatTimer);
+					setReadOnly(true);
+					notyf.error("<%= i18n.__('catalog.products.lock.lost') %>");
+					emitAck("product:watch", { id: PRODUCT_ID }).then((r) => r.ok && showHolder(r.holder));
+				}
+
+				socket.on("product:lock:state", (d) => d.id === PRODUCT_ID && !haveLock && showHolder(d.holder));
+				socket.on("product:lock:lost", (d) => d.id === PRODUCT_ID && lostLock());
+				socket.on("product:saved", (d) => {
+					if (d.id === PRODUCT_ID && !(haveLock && d.by === ME)) show(savedBanner, true);
+				});
+				socket.on("product:deleted", (d) => {
+					if (d.id !== PRODUCT_ID) return;
+					notyf.error("<%= i18n.__('catalog.products.deleted_by_other') %>");
+					setTimeout(() => (window.location.href = "/catalog/products/"), 1500);
+				});
+				socket.on("connect", () => {
+					if (haveLock) {
+						haveLock = false;
+						acquireLock(false);
+					}
+				});
+				window.addEventListener("pagehide", () => haveLock && socket.emit("product:unlock", { id: PRODUCT_ID, token: lockToken }));
+				window.addEventListener("beforeunload", (e) => {
+					if (dirty && canWrite) {
+						e.preventDefault();
+						e.returnValue = "";
+					}
+				});
+
+				const takeover = document.getElementById("btn-takeover");
+				if (takeover)
+					takeover.addEventListener("click", async () => {
+						if (!confirm("<%= i18n.__('catalog.products.lock.confirm_takeover') %>")) return;
+						await load();
+						if (await acquireLock(true)) notyf.success("<%= i18n.__('catalog.products.lock.taken') %>");
+					});
+				document.getElementById("btn-reload").addEventListener("click", async () => {
+					show(savedBanner, false);
+					await load().catch((err) => notyf.error(errMsg(err)));
+				});
+
+				// ═══ СТАРТ ═════════════════════════════════════
+				(async () => {
+					try {
+						setReadOnly(true);
+						await load();
+						const w = await emitAck("product:watch", { id: PRODUCT_ID });
+						if (w.ok && w.holder && w.holder.id_user !== ME) showHolder(w.holder);
+						else await acquireLock(false);
+					} catch (err) {
+						notyf.error(errMsg(err));
+					}
+				})();
+			})();
+		</script>
+	</body>
+</html>

@@ -1,0 +1,17 @@
+{
+    "orders": {
+        "title": "Pasūtījumi",
+        "columns": {
+            "id": "ID",
+            "source": "Avots",
+            "reference": "Atsauce",
+            "delivery": "Piegāde",
+            "total": "Kopā",
+            "payment": "Maksājums",
+            "status": "Statuss",
+            "date_add": "Pievienošanas datums",
+            "date_edit": "Rediģēšanas datums",
+            "edit": "Rediģēt"
+        }
+    }
+}

@@ -1,0 +1,43 @@
+<div class="mb-3">
+  <label for="f_token" class="form-label"><%= i18n.__('contact_center.channels.telegram.token') %></label>
+  <input type="text" class="form-control rounded-0" id="f_token" name="token" autocomplete="off"
+         placeholder="<%= data.settings.has_token ? data.settings.token_mask : '123456789:AA...' %>" />
+  <small class="text-muted">
+    <%= data.settings.has_token ? i18n.__('contact_center.channels.telegram.token_hint_change') : i18n.__('contact_center.channels.telegram.token_hint_new') %>
+  </small>
+</div>
+
+<% if (data.settings.bot_username) { %>
+<div class="row">
+  <div class="col-12 col-md-6 mb-3">
+    <label class="form-label"><%= i18n.__('contact_center.channels.telegram.bot_username') %></label>
+    <input type="text" class="form-control rounded-0 bg-light" value="@<%= data.settings.bot_username %>" readonly />
+  </div>
+  <div class="col-12 col-md-6 mb-3">
+    <label class="form-label"><%= i18n.__('contact_center.channels.telegram.bot_id') %></label>
+    <input type="text" class="form-control rounded-0 bg-light" value="<%= data.settings.bot_id || '' %>" readonly />
+  </div>
+</div>
+<% } %>
+
+<div class="mb-0">
+  <label class="form-label"><%= i18n.__('contact_center.channels.telegram.webhook_url') %></label>
+  <div class="input-group">
+    <input type="text" class="form-control rounded-0 bg-light" id="f_webhook_url"
+           value="<%= data.appUrl %>/api/contact-center/webhook/telegram/<%= data.settings.webhook_secret %>" readonly />
+    <button type="button" class="btn btn-outline-secondary rounded-0 copy-field" data-target="f_webhook_url">
+      <i class="fa-regular fa-copy"></i>
+    </button>
+  </div>
+  <small class="text-muted"><%= i18n.__('contact_center.channels.telegram.webhook_hint') %></small>
+</div>
+
+<script>
+  // Поля Telegram для загального збереження.
+  // Порожній токен = "не змінювати" — маску назад не відправляємо.
+  window.collectChannelFields = function () {
+    return {
+      token: document.getElementById("f_token").value.trim(),
+    };
+  };
+</script>

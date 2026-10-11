@@ -1,0 +1,2349 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.products.card_title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.pc-sticky { position: sticky; top: 0; z-index: 1020; background: var(--bs-body-bg); }
+			.pc-media { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+			.pc-media-item { border: 1px solid var(--bs-border-color); padding: 6px; background: var(--bs-body-bg); }
+			.pc-media-item.cover { border-color: var(--bs-success); box-shadow: 0 0 0 2px var(--bs-success-bg-subtle); }
+			.pc-media-item img { width: 100%; height: 140px; object-fit: contain; background: var(--bs-tertiary-bg); cursor: grab; }
+			.pc-cat-tree ul { list-style: none; padding-left: 1.25rem; margin: 0; }
+			.pc-cat-tree > ul { padding-left: 0; }
+			.pc-attr-row { border-bottom: 1px solid var(--bs-border-color-translucent); padding: 0.5rem 0; }
+			.pc-opt { border: 1px solid var(--bs-border-color); margin-bottom: 1rem; }
+			.pc-opt > .pc-opt-head { background: var(--bs-tertiary-bg); padding: 0.5rem 0.75rem; }
+			.pc-opt td, .pc-opt th { vertical-align: middle; white-space: nowrap; }
+			.pc-readonly .js-editable { pointer-events: none; opacity: 0.65; }
+			.sortable-ghost { opacity: 0.4; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><a href="/catalog/products/"><%= i18n.__('catalog.products.title') %></a></li>
+					<li class="breadcrumb-item active" id="bc-title"><%= productId ? '#' + productId : i18n.__('catalog.products.add') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<div class="pc-sticky py-2 mb-3 border-bottom d-flex flex-wrap gap-2 align-items-center">
+					<h1 class="h4 mb-0 me-auto" id="pc-title"><%= productId ? '' : i18n.__('catalog.products.add') %></h1>
+					<span class="badge text-bg-light border" id="pc-version"></span>
+					<a class="badge text-decoration-none d-none" id="pc-quality" href="/catalog/quality/" target="_blank"></a>
+					<% if (productId) { %>
+					<a class="btn btn-outline-secondary rounded-0 js-type-link" data-type="variable" href="/catalog/products/<%= productId %>/variants/"><i class="fa-solid fa-layer-group"></i> <%= i18n.__('catalog.variants.title') %></a>
+					<a class="btn btn-outline-secondary rounded-0 js-type-link" data-type="bundle" href="/catalog/products/<%= productId %>/bundle/"><i class="fa-solid fa-boxes-stacked"></i> <%= i18n.__('catalog.products.bundle_btn') %></a>
+					<a class="btn btn-outline-secondary rounded-0" href="/catalog/reviews/?product=<%= productId %>"><i class="fa-regular fa-star"></i> <%= i18n.__('catalog.products.reviews_btn') %></a>
+					<a class="btn btn-outline-secondary rounded-0 js-type-link" data-type="digital" href="/catalog/products/<%= productId %>/downloads/"><i class="fa-solid fa-file-arrow-down"></i> <%= i18n.__('catalog.products.downloads_btn') %></a>
+					<% } %>
+					<% if (productId && perms.add) { %>
+					<button type="button" class="btn btn-outline-secondary rounded-0" id="btn-copy"><i class="fa-regular fa-copy"></i> <%= i18n.__('catalog.products.copy') %></button>
+					<% } %>
+					<% if (productId && perms.delete) { %>
+					<button type="button" class="btn btn-outline-danger rounded-0" id="btn-delete"><i class="fa-solid fa-trash"></i> <%= i18n.__('catalog.common.delete') %></button>
+					<% } %>
+					<% if (perms.add || perms.edit) { %>
+					<button type="submit" form="pc-form" class="btn btn-primary rounded-0" id="btn-save"><i class="fa-solid fa-floppy-disk"></i> <%= i18n.__('catalog.common.save') %></button>
+					<% } %>
+				</div>
+
+				<div class="alert alert-warning rounded-0 align-items-center gap-3" id="lock-banner" style="display: none">
+					<i class="fa-solid fa-lock"></i>
+					<span class="me-auto" id="lock-text"></span>
+					<% if (perms.edit) { %>
+					<button type="button" class="btn btn-sm btn-warning rounded-0" id="btn-takeover"><%= i18n.__('catalog.products.lock.takeover') %></button>
+					<% } %>
+				</div>
+				<div class="alert alert-info rounded-0 align-items-center gap-3" id="saved-banner" style="display: none">
+					<i class="fa-solid fa-rotate"></i>
+					<span class="me-auto"><%= i18n.__('catalog.products.lock.changed_by_other') %></span>
+					<button type="button" class="btn btn-sm btn-info rounded-0" id="btn-reload"><%= i18n.__('catalog.products.reload') %></button>
+				</div>
+
+				<form id="pc-form" novalidate>
+					<ul class="nav nav-tabs mb-3" role="tablist">
+						<li class="nav-item"><button class="nav-link rounded-0 active" data-bs-toggle="tab" data-bs-target="#t-general" type="button"><%= i18n.__('catalog.products.tabs.general') %></button></li>
+						<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#t-content" type="button"><%= i18n.__('catalog.products.tabs.content') %></button></li>
+						<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#t-prices" type="button"><%= i18n.__('catalog.products.tabs.prices') %></button></li>
+						<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#t-stock" type="button"><%= i18n.__('catalog.products.tabs.stock') %></button></li>
+						<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#t-media" type="button"><%= i18n.__('catalog.products.tabs.media') %></button></li>
+						<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#t-categories" type="button"><%= i18n.__('catalog.products.tabs.categories') %></button></li>
+						<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#t-attributes" type="button"><%= i18n.__('catalog.products.tabs.attributes') %></button></li>
+						<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#t-options" type="button"><%= i18n.__('catalog.products.tabs.options') %></button></li>
+						<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#t-shipping" type="button"><%= i18n.__('catalog.products.tabs.shipping') %></button></li>
+						<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#t-links" type="button"><%= i18n.__('catalog.products.tabs.links') %></button></li>
+						<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#t-extra" type="button"><%= i18n.__('catalog.products.tabs.extra') %></button></li>
+						<% if (productId) { %>
+						<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#t-history" type="button" id="tab-history-btn"><i class="fa-solid fa-clock-rotate-left"></i> <%= i18n.__('catalog.history.tab') %></button></li>
+						<% } %>
+					</ul>
+
+					<div class="tab-content js-editable">
+						<!-- ═══ ОСНОВНЕ ═══ -->
+						<div class="tab-pane fade show active" id="t-general">
+							<div class="row g-3">
+								<div class="col-md-3" data-field="type">
+									<label class="form-label"><%= i18n.__('catalog.products.f.type') %></label>
+									<select class="form-select rounded-0" name="type">
+										<option value="simple"><%= i18n.__('catalog.products.types.simple') %></option>
+										<option value="variable"><%= i18n.__('catalog.products.types.variable') %></option>
+										<option value="bundle"><%= i18n.__('catalog.products.types.bundle') %></option>
+										<option value="digital"><%= i18n.__('catalog.products.types.digital') %></option>
+										<option value="service"><%= i18n.__('catalog.products.types.service') %></option>
+										<option value="gift_card"><%= i18n.__('catalog.products.types.gift_card') %></option>
+									</select>
+									<div class="form-text"><%= i18n.__('catalog.products.hints.type') %></div>
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="status">
+									<label class="form-label"><%= i18n.__('catalog.products.f.status') %></label>
+									<select class="form-select rounded-0" name="status">
+										<option value="draft"><%= i18n.__('catalog.products.status.draft') %></option>
+										<option value="active"><%= i18n.__('catalog.products.status.active') %></option>
+										<option value="archived"><%= i18n.__('catalog.products.status.archived') %></option>
+									</select>
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="visibility">
+									<label class="form-label"><%= i18n.__('catalog.products.f.visibility') %></label>
+									<select class="form-select rounded-0" name="visibility">
+										<option value="all"><%= i18n.__('catalog.products.visibility.all') %></option>
+										<option value="catalog"><%= i18n.__('catalog.products.visibility.catalog') %></option>
+										<option value="search"><%= i18n.__('catalog.products.visibility.search') %></option>
+										<option value="none"><%= i18n.__('catalog.products.visibility.none') %></option>
+									</select>
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="item_condition">
+									<label class="form-label"><%= i18n.__('catalog.products.f.item_condition') %></label>
+									<select class="form-select rounded-0" name="item_condition">
+										<option value="new"><%= i18n.__('catalog.products.condition.new') %></option>
+										<option value="used"><%= i18n.__('catalog.products.condition.used') %></option>
+										<option value="refurbished"><%= i18n.__('catalog.products.condition.refurbished') %></option>
+									</select>
+									<div class="invalid-feedback"></div>
+								</div>
+
+								<div class="col-md-3" data-field="sku">
+									<label class="form-label"><%= i18n.__('catalog.products.f.sku') %></label>
+									<input class="form-control rounded-0" name="sku" maxlength="64" placeholder="<%= cfg.skuAuto ? i18n.__('catalog.products.hints.auto') : '' %>" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="model">
+									<label class="form-label"><%= i18n.__('catalog.products.f.model') %></label>
+									<input class="form-control rounded-0" name="model" maxlength="128" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="mpn">
+									<label class="form-label"><%= i18n.__('catalog.products.f.mpn') %></label>
+									<input class="form-control rounded-0" name="mpn" maxlength="64" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="ean">
+									<label class="form-label"><%= i18n.__('catalog.products.f.ean') %></label>
+									<input class="form-control rounded-0" name="ean" maxlength="14" inputmode="numeric" placeholder="<%= cfg.eanAuto ? i18n.__('catalog.products.hints.auto') : '' %>" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="upc">
+									<label class="form-label">UPC</label>
+									<input class="form-control rounded-0" name="upc" maxlength="12" inputmode="numeric" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="jan">
+									<label class="form-label">JAN</label>
+									<input class="form-control rounded-0" name="jan" maxlength="13" inputmode="numeric" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="isbn">
+									<label class="form-label">ISBN</label>
+									<input class="form-control rounded-0" name="isbn" maxlength="17" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="id_brand">
+									<label class="form-label"><%= i18n.__('catalog.products.f.brand') %></label>
+									<div class="input-group">
+										<input type="search" class="form-control rounded-0" id="brand-search" placeholder="<%= i18n.__('catalog.common.search') %>" style="max-width: 40%" />
+										<select class="form-select rounded-0" name="id_brand" data-type="intnull"><option value=""><%= i18n.__('catalog.common.none') %></option></select>
+									</div>
+									<div class="invalid-feedback"></div>
+								</div>
+
+								<div class="col-md-3" data-field="id_attribute_set">
+									<label class="form-label"><%= i18n.__('catalog.products.f.attribute_set') %></label>
+									<select class="form-select rounded-0" name="id_attribute_set" data-type="intnull"><option value=""><%= i18n.__('catalog.common.none') %></option></select>
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="product_type_label">
+									<label class="form-label"><%= i18n.__('catalog.products.f.product_type_label') %></label>
+									<input class="form-control rounded-0" name="product_type_label" maxlength="128" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="vendor">
+									<label class="form-label"><%= i18n.__('catalog.products.f.vendor') %></label>
+									<input class="form-control rounded-0" name="vendor" maxlength="128" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="sort_order">
+									<label class="form-label"><%= i18n.__('catalog.products.f.sort_order') %></label>
+									<input class="form-control rounded-0" type="number" name="sort_order" data-type="int" value="0" />
+									<div class="invalid-feedback"></div>
+								</div>
+
+								<div class="col-12 d-flex flex-wrap gap-4">
+									<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="is_featured" data-type="bool" id="pf-featured" /><label class="form-check-label" for="pf-featured"><%= i18n.__('catalog.products.f.is_featured') %></label></div>
+									<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="on_sale_flag" data-type="bool" id="pf-sale" /><label class="form-check-label" for="pf-sale"><%= i18n.__('catalog.products.f.on_sale_flag') %></label></div>
+									<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="online_only" data-type="bool" id="pf-online" /><label class="form-check-label" for="pf-online"><%= i18n.__('catalog.products.f.online_only') %></label></div>
+									<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="show_condition" data-type="bool" id="pf-showcond" /><label class="form-check-label" for="pf-showcond"><%= i18n.__('catalog.products.f.show_condition') %></label></div>
+								</div>
+							</div>
+						</div>
+
+						<!-- ═══ ОПИС І SEO ═══ -->
+						<div class="tab-pane fade" id="t-content">
+							<div class="form-check form-switch mb-3">
+								<input class="form-check-input" type="checkbox" id="slug-shared" />
+								<label class="form-check-label" for="slug-shared"><%= i18n.__('catalog.languages.slug_shared') %></label>
+								<div class="form-text"><%= i18n.__('catalog.languages.slug_shared_hint') %></div>
+							</div>
+							<div class="row g-3 mb-3">
+								<div class="col-md-5">
+									<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="robots_index" data-type="bool" id="pf-robots-index" checked /><label class="form-check-label" for="pf-robots-index"><%= i18n.__('catalog.seo.f.robots_index') %></label></div>
+									<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="robots_follow" data-type="bool" id="pf-robots-follow" checked /><label class="form-check-label" for="pf-robots-follow"><%= i18n.__('catalog.seo.f.robots_follow') %></label></div>
+									<div class="form-text"><%= i18n.__('catalog.seo.robots_hint') %></div>
+								</div>
+								<div class="col-md-7" data-field="og_image">
+									<label class="form-label"><%= i18n.__('catalog.seo.f.og_image') %></label>
+									<input type="hidden" name="og_image" />
+									<div class="d-flex gap-2 align-items-center">
+										<img id="og-image-preview" alt="" style="height: 63px; width: 120px; object-fit: cover; display: none" />
+										<input type="file" class="form-control form-control-sm rounded-0" id="og-image-file" accept="image/*" />
+										<button type="button" class="btn btn-sm btn-outline-danger rounded-0" id="og-image-clear"><i class="fa-solid fa-xmark"></i></button>
+									</div>
+									<div class="form-text"><%= i18n.__('catalog.seo.og_image_hint') %></div>
+									<div class="invalid-feedback"></div>
+								</div>
+							</div>
+							<ul class="nav nav-pills mb-3">
+								<% languages.forEach((l, i) => { %>
+								<li class="nav-item"><button class="nav-link rounded-0<%= i === 0 ? ' active' : '' %>" type="button" data-bs-toggle="tab" data-bs-target="#lang-<%= l.id %>"><%= String(l.iso).toUpperCase() %><% if (i === 0) { %> *<% } %></button></li>
+								<% }) %>
+							</ul>
+							<div class="tab-content">
+								<% languages.forEach((l, i) => { %>
+								<div class="tab-pane fade<%= i === 0 ? ' show active' : '' %>" id="lang-<%= l.id %>">
+									<div class="row g-3">
+										<div class="col-md-8" data-field="descriptions.<%= l.id %>.name">
+											<label class="form-label"><%= i18n.__('catalog.products.f.name') %><% if (i === 0) { %> *<% } %></label>
+											<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="name" maxlength="255" />
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="col-md-4" data-field="descriptions.<%= l.id %>.unit_label">
+											<label class="form-label"><%= i18n.__('catalog.products.f.unit_label') %></label>
+											<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="unit_label" maxlength="32" />
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="col-12" data-field="descriptions.<%= l.id %>.short_description">
+											<label class="form-label"><%= i18n.__('catalog.products.f.short_description') %></label>
+											<textarea class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="short_description" data-html data-dir="<%= l.direction %>" rows="4"></textarea>
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="col-12" data-field="descriptions.<%= l.id %>.description">
+											<label class="form-label"><%= i18n.__('catalog.products.f.description') %></label>
+											<textarea class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="description" data-html data-dir="<%= l.direction %>" rows="12"></textarea>
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="col-md-6" data-field="descriptions.<%= l.id %>.h1">
+											<label class="form-label">H1</label>
+											<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="h1" maxlength="255" />
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="col-md-6" data-field="descriptions.<%= l.id %>.slug">
+											<label class="form-label"><%= i18n.__('catalog.products.f.slug') %></label>
+											<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="slug" maxlength="191" />
+											<div class="form-text"><%= i18n.__('catalog.products.hints.slug') %></div>
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="col-md-6" data-field="descriptions.<%= l.id %>.meta_title">
+											<label class="form-label">Meta title</label>
+											<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="meta_title" maxlength="255" />
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="col-md-6" data-field="descriptions.<%= l.id %>.meta_keywords">
+											<label class="form-label">Meta keywords</label>
+											<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="meta_keywords" maxlength="512" />
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="col-12" data-field="descriptions.<%= l.id %>.meta_description">
+											<label class="form-label">Meta description</label>
+											<textarea class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="meta_description" rows="2" maxlength="512"></textarea>
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="col-md-6" data-field="descriptions.<%= l.id %>.og_title">
+											<label class="form-label"><%= i18n.__('catalog.seo.f.og_title') %></label>
+											<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="og_title" maxlength="255" />
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="col-md-6" data-field="descriptions.<%= l.id %>.canonical_url">
+											<label class="form-label"><%= i18n.__('catalog.seo.f.canonical_url') %></label>
+											<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="canonical_url" maxlength="512" placeholder="https://… / /path" dir="ltr" />
+											<div class="form-text"><%= i18n.__('catalog.seo.canonical_hint') %></div>
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="col-12" data-field="descriptions.<%= l.id %>.og_description">
+											<label class="form-label"><%= i18n.__('catalog.seo.f.og_description') %></label>
+											<textarea class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="og_description" rows="2" maxlength="512"></textarea>
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="col-12">
+											<div class="small text-muted mb-1"><%= i18n.__('catalog.seo.serp') %></div>
+											<div class="border p-3 bg-body-tertiary" data-serp="<%= l.id %>" dir="<%= l.direction %>"></div>
+										</div>
+										<div class="col-md-6" data-field="descriptions.<%= l.id %>.tags">
+											<label class="form-label"><%= i18n.__('catalog.products.f.tags') %></label>
+											<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="tags" maxlength="512" />
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="col-md-6" data-field="descriptions.<%= l.id %>.search_keywords">
+											<label class="form-label"><%= i18n.__('catalog.products.f.search_keywords') %></label>
+											<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="search_keywords" maxlength="512" />
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="col-md-3" data-field="descriptions.<%= l.id %>.text_in_stock">
+											<label class="form-label"><%= i18n.__('catalog.products.f.text_in_stock') %></label>
+											<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="text_in_stock" maxlength="255" />
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="col-md-3" data-field="descriptions.<%= l.id %>.text_out_of_stock">
+											<label class="form-label"><%= i18n.__('catalog.products.f.text_out_of_stock') %></label>
+											<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="text_out_of_stock" maxlength="255" />
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="col-md-3" data-field="descriptions.<%= l.id %>.delivery_text_in_stock">
+											<label class="form-label"><%= i18n.__('catalog.products.f.delivery_text_in_stock') %></label>
+											<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="delivery_text_in_stock" maxlength="255" />
+											<div class="invalid-feedback"></div>
+										</div>
+										<div class="col-md-3" data-field="descriptions.<%= l.id %>.delivery_text_out_stock">
+											<label class="form-label"><%= i18n.__('catalog.products.f.delivery_text_out_stock') %></label>
+											<input class="form-control rounded-0" data-lang="<%= l.id %>" data-desc="delivery_text_out_stock" maxlength="255" />
+											<div class="invalid-feedback"></div>
+										</div>
+									</div>
+								</div>
+								<% }) %>
+							</div>
+						</div>
+
+						<!-- ═══ ЦІНИ ═══ -->
+						<div class="tab-pane fade" id="t-prices">
+							<div class="row g-3 mb-4">
+								<div class="col-md-3" data-field="price">
+									<label class="form-label"><%= i18n.__('catalog.products.f.price') %>, <%= cfg.currency %></label>
+									<input class="form-control rounded-0" type="number" min="0" step="0.0001" name="price" data-type="number0" value="0" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="compare_at_price">
+									<label class="form-label"><%= i18n.__('catalog.products.f.compare_at_price') %></label>
+									<input class="form-control rounded-0" type="number" min="0" step="0.0001" name="compare_at_price" data-type="number" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<% if (perms.cost) { %>
+								<div class="col-md-3" data-field="cost_price">
+									<label class="form-label"><%= i18n.__('catalog.products.f.cost_price') %></label>
+									<input class="form-control rounded-0" type="number" min="0" step="0.0001" name="cost_price" data-type="number" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="wholesale_price">
+									<label class="form-label"><%= i18n.__('catalog.products.f.wholesale_price') %></label>
+									<input class="form-control rounded-0" type="number" min="0" step="0.0001" name="wholesale_price" data-type="number" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<% } %>
+								<div class="col-md-3" data-field="id_tax_class">
+									<label class="form-label"><%= i18n.__('catalog.products.f.tax_class') %></label>
+									<select class="form-select rounded-0" name="id_tax_class" data-type="intnull">
+										<option value=""><%= i18n.__('catalog.common.none') %></option>
+										<% taxClasses.forEach((t) => { %><option value="<%= t.id %>"><%= t.name %> (<%= Number(t.rate) %>%)</option><% }) %>
+									</select>
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="unit_price">
+									<label class="form-label"><%= i18n.__('catalog.products.f.unit_price') %></label>
+									<input class="form-control rounded-0" type="number" min="0" step="0.0001" name="unit_price" data-type="number" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-2" data-field="unit_price_base">
+									<label class="form-label"><%= i18n.__('catalog.products.f.unit_price_base') %></label>
+									<input class="form-control rounded-0" type="number" min="0" step="0.001" name="unit_price_base" data-type="number" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-1" data-field="unit_price_unit">
+									<label class="form-label"><%= i18n.__('catalog.products.f.unit_price_unit') %></label>
+									<input class="form-control rounded-0" name="unit_price_unit" maxlength="16" placeholder="kg" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="ecotax">
+									<label class="form-label"><%= i18n.__('catalog.products.f.ecotax') %></label>
+									<input class="form-control rounded-0" type="number" min="0" step="0.0001" name="ecotax" data-type="number" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="points_price">
+									<label class="form-label"><%= i18n.__('catalog.products.f.points_price') %></label>
+									<input class="form-control rounded-0" type="number" min="0" step="1" name="points_price" data-type="intnull" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-12 d-flex flex-wrap gap-4">
+									<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="show_price" data-type="bool" id="pf-showprice" checked /><label class="form-check-label" for="pf-showprice"><%= i18n.__('catalog.products.f.show_price') %></label></div>
+									<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="price_on_request" data-type="bool" id="pf-onrequest" /><label class="form-check-label" for="pf-onrequest"><%= i18n.__('catalog.products.f.price_on_request') %></label></div>
+									<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="available_for_order" data-type="bool" id="pf-available" checked /><label class="form-check-label" for="pf-available"><%= i18n.__('catalog.products.f.available_for_order') %></label></div>
+								</div>
+							</div>
+
+							<div data-field="prices">
+								<div class="d-flex align-items-center mb-2">
+									<strong class="me-auto"><%= i18n.__('catalog.products.prices.title') %></strong>
+									<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="btn-add-price"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.products.prices.add') %></button>
+								</div>
+								<div class="invalid-feedback"></div>
+								<div class="table-responsive">
+									<table class="table table-sm align-middle">
+										<thead>
+											<tr>
+												<th><%= i18n.__('catalog.products.prices.kind') %></th>
+												<th><%= i18n.__('catalog.products.prices.customer_group') %></th>
+												<th><%= i18n.__('catalog.products.prices.min_qty') %></th>
+												<th><%= i18n.__('catalog.products.prices.reduction_type') %></th>
+												<th><%= i18n.__('catalog.products.prices.value') %></th>
+												<th><%= i18n.__('catalog.products.prices.priority') %></th>
+												<th><%= i18n.__('catalog.products.prices.date_start') %></th>
+												<th><%= i18n.__('catalog.products.prices.date_end') %></th>
+												<th></th>
+											</tr>
+										</thead>
+										<tbody id="prices-body"></tbody>
+									</table>
+								</div>
+							</div>
+
+							<div data-field="rewards" class="mt-4">
+								<div class="d-flex align-items-center mb-2">
+									<strong class="me-auto"><%= i18n.__('catalog.products.rewards.title') %></strong>
+									<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="btn-add-reward"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.products.rewards.add') %></button>
+								</div>
+								<div class="form-text mb-2"><%= i18n.__('catalog.products.rewards.hint') %></div>
+								<div class="invalid-feedback"></div>
+								<table class="table table-sm align-middle" style="max-width: 520px">
+									<thead><tr><th><%= i18n.__('catalog.products.prices.customer_group') %></th><th><%= i18n.__('catalog.products.rewards.points') %></th><th></th></tr></thead>
+									<tbody id="rewards-body"></tbody>
+								</table>
+							</div>
+
+							<div data-field="customer_groups" class="mt-4">
+								<strong class="d-block mb-1"><%= i18n.__('catalog.groups.visibility.title') %></strong>
+								<div class="form-text mb-2"><%= i18n.__('catalog.groups.visibility.hint') %></div>
+								<div class="d-flex flex-wrap gap-3" id="cg-visibility">
+									<% customerGroups.forEach((g) => { %>
+									<div class="form-check"><input class="form-check-input" type="checkbox" value="<%= g.id %>" id="cg-vis-<%= g.id %>" /><label class="form-check-label" for="cg-vis-<%= g.id %>"><%= g.name %></label></div>
+									<% }) %>
+								</div>
+								<div class="invalid-feedback"></div>
+							</div>
+
+							<% if (productId) { %>
+							<div class="mt-4" id="price-schedule">
+								<strong class="d-block mb-1"><%= i18n.__('catalog.schedule.title') %></strong>
+								<div class="form-text mb-2"><%= i18n.__('catalog.schedule.hint') %></div>
+								<% if (perms.edit) { %>
+								<div class="row g-2 align-items-end mb-2" id="ps-form">
+									<div class="col-md-2" data-ps="field">
+										<label class="form-label small"><%= i18n.__('catalog.schedule.f.field') %></label>
+										<select class="form-select form-select-sm rounded-0" data-psf="field">
+											<option value="price"><%= i18n.__('catalog.products.f.price') %></option>
+											<option value="compare_at_price"><%= i18n.__('catalog.products.f.compare_at_price') %></option>
+										</select>
+									</div>
+									<div class="col-md-2" data-ps="value">
+										<label class="form-label small"><%= i18n.__('catalog.schedule.f.value') %>, <%= cfg.currency %></label>
+										<input class="form-control form-control-sm rounded-0" type="number" min="0" step="0.0001" data-psf="value" />
+										<div class="invalid-feedback"></div>
+									</div>
+									<div class="col-md-2" data-ps="run_at">
+										<label class="form-label small"><%= i18n.__('catalog.schedule.f.run_at') %></label>
+										<input class="form-control form-control-sm rounded-0" type="datetime-local" data-psf="run_at" />
+										<div class="invalid-feedback"></div>
+									</div>
+									<div class="col-md-2" data-ps="revert_at">
+										<label class="form-label small"><%= i18n.__('catalog.schedule.f.revert_at') %></label>
+										<input class="form-control form-control-sm rounded-0" type="datetime-local" data-psf="revert_at" />
+										<div class="invalid-feedback"></div>
+									</div>
+									<div class="col-md-2" data-ps="comment">
+										<label class="form-label small"><%= i18n.__('catalog.schedule.f.comment') %></label>
+										<input class="form-control form-control-sm rounded-0" maxlength="255" data-psf="comment" />
+									</div>
+									<div class="col-md-2">
+										<div class="form-check mb-1"><input class="form-check-input" type="checkbox" data-psf="set_compare_at" id="ps-cmp" checked /><label class="form-check-label small" for="ps-cmp"><%= i18n.__('catalog.schedule.f.set_compare_at') %></label></div>
+										<button type="button" class="btn btn-sm btn-outline-primary rounded-0 w-100" id="ps-add"><i class="fa-solid fa-calendar-plus"></i> <%= i18n.__('catalog.schedule.add') %></button>
+									</div>
+								</div>
+								<% } %>
+								<div class="table-responsive">
+									<table class="table table-sm align-middle">
+										<thead>
+											<tr>
+												<th><%= i18n.__('catalog.schedule.f.field') %></th>
+												<th class="text-end"><%= i18n.__('catalog.schedule.f.value') %></th>
+												<th><%= i18n.__('catalog.schedule.f.run_at') %></th>
+												<th><%= i18n.__('catalog.schedule.f.revert_at') %></th>
+												<th><%= i18n.__('catalog.schedule.f.status') %></th>
+												<th class="text-end"><%= i18n.__('catalog.schedule.f.old_price') %></th>
+												<th><%= i18n.__('catalog.schedule.f.comment') %></th>
+												<th></th>
+											</tr>
+										</thead>
+										<tbody id="ps-body"><tr><td colspan="8" class="text-muted">—</td></tr></tbody>
+									</table>
+								</div>
+							</div>
+							<% } %>
+						</div>
+
+						<!-- ═══ СКЛАД ═══ -->
+						<div class="tab-pane fade" id="t-stock">
+							<div class="row g-3 mb-4">
+								<div class="col-md-2" data-field="min_qty">
+									<label class="form-label"><%= i18n.__('catalog.products.f.min_qty') %></label>
+									<input class="form-control rounded-0" type="number" min="0.001" step="0.001" name="min_qty" data-type="number0" value="1" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-2" data-field="max_qty">
+									<label class="form-label"><%= i18n.__('catalog.products.f.max_qty') %></label>
+									<input class="form-control rounded-0" type="number" min="0" step="0.001" name="max_qty" data-type="number" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-2" data-field="qty_step">
+									<label class="form-label"><%= i18n.__('catalog.products.f.qty_step') %></label>
+									<input class="form-control rounded-0" type="number" min="0.001" step="0.001" name="qty_step" data-type="number0" value="1" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-2" data-field="low_stock_threshold">
+									<label class="form-label"><%= i18n.__('catalog.products.f.low_stock_threshold') %></label>
+									<input class="form-control rounded-0" type="number" min="0" step="0.001" name="low_stock_threshold" data-type="number" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-2" data-field="out_of_stock_action">
+									<label class="form-label"><%= i18n.__('catalog.products.f.out_of_stock_action') %></label>
+									<select class="form-select rounded-0" name="out_of_stock_action">
+										<option value="default"><%= i18n.__('catalog.products.oos.default') %></option>
+										<option value="deny"><%= i18n.__('catalog.products.oos.deny') %></option>
+										<option value="backorder"><%= i18n.__('catalog.products.oos.backorder') %></option>
+										<option value="preorder"><%= i18n.__('catalog.products.oos.preorder') %></option>
+									</select>
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-2" data-field="id_stock_status">
+									<label class="form-label"><%= i18n.__('catalog.products.f.stock_status') %></label>
+									<select class="form-select rounded-0" name="id_stock_status" data-type="intnull">
+										<option value=""><%= i18n.__('catalog.common.none') %></option>
+										<% stockStatuses.forEach((s) => { %><option value="<%= s.id %>"><%= s.name %></option><% }) %>
+									</select>
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-2" data-field="available_date">
+									<label class="form-label"><%= i18n.__('catalog.products.f.available_date') %></label>
+									<input class="form-control rounded-0" type="date" name="available_date" data-type="date" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-2" data-field="preorder_release_date">
+									<label class="form-label"><%= i18n.__('catalog.products.f.preorder_release_date') %></label>
+									<input class="form-control rounded-0" type="date" name="preorder_release_date" data-type="date" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-8 d-flex flex-wrap gap-4 pt-md-4">
+									<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="track_inventory" data-type="bool" id="pf-track" checked /><label class="form-check-label" for="pf-track"><%= i18n.__('catalog.products.f.track_inventory') %></label></div>
+									<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="subtract_stock" data-type="bool" id="pf-subtract" checked /><label class="form-check-label" for="pf-subtract"><%= i18n.__('catalog.products.f.subtract_stock') %></label></div>
+									<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="low_stock_alert" data-type="bool" id="pf-lowalert" /><label class="form-check-label" for="pf-lowalert"><%= i18n.__('catalog.products.f.low_stock_alert') %></label></div>
+									<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="sold_individually" data-type="bool" id="pf-single" /><label class="form-check-label" for="pf-single"><%= i18n.__('catalog.products.f.sold_individually') %></label></div>
+								</div>
+							</div>
+
+							<div class="alert alert-light border rounded-0" id="stock-variable-note" style="display: none"><%= i18n.__('catalog.products.stock.variable_note') %></div>
+							<div data-field="stock" id="stock-block">
+								<strong class="d-block mb-2"><%= i18n.__('catalog.products.stock.title') %></strong>
+								<% if (!perms.stock) { %><div class="form-text mb-2"><%= i18n.__('catalog.products.stock.read_only') %></div><% } %>
+								<div class="invalid-feedback"></div>
+								<div class="table-responsive">
+									<table class="table table-sm align-middle">
+										<thead>
+											<tr>
+												<th><%= i18n.__('catalog.products.stock.warehouse') %></th>
+												<th style="width: 140px"><%= i18n.__('catalog.products.stock.on_hand') %></th>
+												<th class="text-end"><%= i18n.__('catalog.products.stock.reserved') %></th>
+												<th class="text-end"><%= i18n.__('catalog.products.stock.incoming') %></th>
+												<th class="text-end"><%= i18n.__('catalog.products.stock.available') %></th>
+												<% if (perms.locations) { %><th style="width: 180px"><%= i18n.__('catalog.products.stock.location') %></th><% } %>
+												<th style="width: 120px"><%= i18n.__('catalog.products.stock.reorder_point') %></th>
+												<th style="width: 120px"><%= i18n.__('catalog.products.stock.reorder_qty') %></th>
+											</tr>
+										</thead>
+										<tbody id="stock-body"></tbody>
+									</table>
+								</div>
+								<div class="form-text"><%= i18n.__('catalog.products.stock.hint') %></div>
+							</div>
+						</div>
+
+						<!-- ═══ ФОТО ═══ -->
+						<div class="tab-pane fade" id="t-media">
+							<div data-field="media">
+								<div class="d-flex align-items-center gap-2 mb-3">
+									<input type="file" class="form-control rounded-0" id="media-input" accept="image/*" multiple style="max-width: 420px" />
+									<span class="form-text"><%= i18n.__('catalog.products.media.hint') %></span>
+								</div>
+								<div class="invalid-feedback"></div>
+								<div class="pc-media" id="media-list"></div>
+							</div>
+						</div>
+
+						<!-- ═══ КАТЕГОРІЇ ═══ -->
+						<div class="tab-pane fade" id="t-categories">
+							<div class="form-text mb-2"><%= i18n.__('catalog.products.categories.hint') %></div>
+							<input type="search" class="form-control form-control-sm rounded-0 mb-2" id="cat-search" placeholder="<%= i18n.__('catalog.common.search') %>" style="max-width: 320px" />
+							<div data-field="categories"><div class="invalid-feedback"></div></div>
+							<div data-field="id_category_main"><div class="invalid-feedback"></div></div>
+							<div class="pc-cat-tree" id="cat-tree"></div>
+						</div>
+
+						<!-- ═══ ХАРАКТЕРИСТИКИ ═══ -->
+						<div class="tab-pane fade" id="t-attributes">
+							<div class="d-flex flex-wrap gap-2 mb-3">
+								<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="btn-apply-set"><i class="fa-solid fa-list-check"></i> <%= i18n.__('catalog.products.attributes.apply_set') %></button>
+								<select class="form-select form-select-sm rounded-0" id="attr-add-select" style="max-width: 360px"></select>
+								<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="btn-add-attr"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.products.attributes.add') %></button>
+							</div>
+							<div data-field="attributes"><div class="invalid-feedback"></div></div>
+							<div id="attr-list"></div>
+						</div>
+
+						<!-- ═══ ОПЦІЇ ═══ -->
+						<div class="tab-pane fade" id="t-options">
+							<div class="form-text mb-2"><%= i18n.__('catalog.products.opt.hint') %></div>
+							<div class="d-flex flex-wrap gap-2 mb-3">
+								<select class="form-select form-select-sm rounded-0" id="opt-add-select" style="max-width: 360px"></select>
+								<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="btn-add-opt"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.products.opt.add') %></button>
+							</div>
+							<div data-field="options"><div class="invalid-feedback"></div></div>
+							<div id="opt-list"></div>
+
+							<hr class="my-4" />
+
+							<div data-field="customization">
+								<div class="d-flex align-items-center mb-2">
+									<strong class="me-auto"><%= i18n.__('catalog.products.custom.title') %></strong>
+									<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="btn-add-custom"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.products.custom.add') %></button>
+								</div>
+								<div class="form-text mb-2"><%= i18n.__('catalog.products.custom.hint') %></div>
+								<div class="invalid-feedback"></div>
+								<div class="table-responsive">
+									<table class="table table-sm align-middle">
+										<thead>
+											<tr>
+												<th><%= i18n.__('catalog.products.custom.type') %></th>
+												<% languages.forEach((l) => { %><th><%= i18n.__('catalog.products.custom.label') %> (<%= String(l.iso).toUpperCase() %>)</th><% }) %>
+												<th><%= i18n.__('catalog.products.custom.max_length') %></th>
+												<th><%= i18n.__('catalog.products.custom.price') %></th>
+												<th><%= i18n.__('catalog.products.custom.required') %></th>
+												<th></th>
+											</tr>
+										</thead>
+										<tbody id="custom-body"></tbody>
+									</table>
+								</div>
+							</div>
+						</div>
+
+						<!-- ═══ ДОСТАВКА ═══ -->
+						<div class="tab-pane fade" id="t-shipping">
+							<div class="row g-3">
+								<div class="col-12">
+									<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="requires_shipping" data-type="bool" id="pf-ship" checked /><label class="form-check-label" for="pf-ship"><%= i18n.__('catalog.products.f.requires_shipping') %></label></div>
+								</div>
+								<div class="col-md-2" data-field="weight">
+									<label class="form-label"><%= i18n.__('catalog.products.f.weight') %></label>
+									<input class="form-control rounded-0" type="number" min="0" step="0.0001" name="weight" data-type="number" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-2" data-field="weight_unit">
+									<label class="form-label"><%= i18n.__('catalog.products.f.weight_unit') %></label>
+									<select class="form-select rounded-0" name="weight_unit" data-type="textnull">
+										<option value=""><%= i18n.__('catalog.products.hints.default_unit') %> (<%= cfg.units.weight %>)</option>
+										<option value="kg">kg</option><option value="g">g</option><option value="lb">lb</option><option value="oz">oz</option>
+									</select>
+								</div>
+								<div class="col-md-2" data-field="length">
+									<label class="form-label"><%= i18n.__('catalog.products.f.length') %></label>
+									<input class="form-control rounded-0" type="number" min="0" step="0.0001" name="length" data-type="number" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-2" data-field="width">
+									<label class="form-label"><%= i18n.__('catalog.products.f.width') %></label>
+									<input class="form-control rounded-0" type="number" min="0" step="0.0001" name="width" data-type="number" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-2" data-field="height">
+									<label class="form-label"><%= i18n.__('catalog.products.f.height') %></label>
+									<input class="form-control rounded-0" type="number" min="0" step="0.0001" name="height" data-type="number" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-2" data-field="length_unit">
+									<label class="form-label"><%= i18n.__('catalog.products.f.length_unit') %></label>
+									<select class="form-select rounded-0" name="length_unit" data-type="textnull">
+										<option value=""><%= i18n.__('catalog.products.hints.default_unit') %> (<%= cfg.units.length %>)</option>
+										<option value="cm">cm</option><option value="mm">mm</option><option value="m">m</option><option value="in">in</option>
+									</select>
+								</div>
+								<div class="col-md-3" data-field="shipping_class">
+									<label class="form-label"><%= i18n.__('catalog.products.f.shipping_class') %></label>
+									<input class="form-control rounded-0" name="shipping_class" maxlength="64" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="additional_shipping_cost">
+									<label class="form-label"><%= i18n.__('catalog.products.f.additional_shipping_cost') %></label>
+									<input class="form-control rounded-0" type="number" min="0" step="0.0001" name="additional_shipping_cost" data-type="number" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-2" data-field="delivery_time_type">
+									<label class="form-label"><%= i18n.__('catalog.products.f.delivery_time_type') %></label>
+									<select class="form-select rounded-0" name="delivery_time_type">
+										<option value="default"><%= i18n.__('catalog.products.delivery.default') %></option>
+										<option value="custom"><%= i18n.__('catalog.products.delivery.custom') %></option>
+										<option value="none"><%= i18n.__('catalog.products.delivery.none') %></option>
+									</select>
+								</div>
+								<div class="col-md-2" data-field="hs_code">
+									<label class="form-label"><%= i18n.__('catalog.products.f.hs_code') %></label>
+									<input class="form-control rounded-0" name="hs_code" maxlength="16" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-2" data-field="country_of_origin">
+									<label class="form-label"><%= i18n.__('catalog.products.f.country_of_origin') %></label>
+									<input class="form-control rounded-0 text-uppercase" name="country_of_origin" maxlength="2" />
+									<div class="invalid-feedback"></div>
+								</div>
+							</div>
+						</div>
+
+						<!-- ═══ ПОВ’ЯЗАНІ ТА ПОСТАЧАЛЬНИКИ ═══ -->
+						<div class="tab-pane fade" id="t-links">
+							<div data-field="related" class="mb-4">
+								<strong class="d-block mb-2"><%= i18n.__('catalog.products.related.title') %></strong>
+								<div class="d-flex gap-2 mb-2">
+									<input type="search" class="form-control rounded-0" id="related-search" placeholder="<%= i18n.__('catalog.products.related.search') %>" style="max-width: 360px" list="related-options" />
+									<datalist id="related-options"></datalist>
+									<select class="form-select rounded-0" id="related-type" style="max-width: 200px">
+										<option value="related"><%= i18n.__('catalog.products.related.types.related') %></option>
+										<option value="upsell"><%= i18n.__('catalog.products.related.types.upsell') %></option>
+										<option value="crosssell"><%= i18n.__('catalog.products.related.types.crosssell') %></option>
+										<option value="accessory"><%= i18n.__('catalog.products.related.types.accessory') %></option>
+									</select>
+									<button type="button" class="btn btn-outline-secondary rounded-0" id="btn-add-related"><i class="fa-solid fa-plus"></i></button>
+								</div>
+								<div class="invalid-feedback"></div>
+								<ul class="list-group rounded-0" id="related-list" style="max-width: 760px"></ul>
+							</div>
+
+							<div data-field="suppliers">
+								<strong class="d-block mb-2"><%= i18n.__('catalog.products.suppliers.title') %></strong>
+								<div class="d-flex gap-2 mb-2">
+									<input type="search" class="form-control rounded-0" id="supplier-search" placeholder="<%= i18n.__('catalog.common.search') %>" style="max-width: 240px" />
+									<select class="form-select rounded-0" id="supplier-select" style="max-width: 320px"></select>
+									<button type="button" class="btn btn-outline-secondary rounded-0" id="btn-add-supplier"><i class="fa-solid fa-plus"></i></button>
+								</div>
+								<div class="invalid-feedback"></div>
+								<div class="table-responsive">
+									<table class="table table-sm align-middle">
+										<thead>
+											<tr>
+												<th><%= i18n.__('catalog.products.suppliers.supplier') %></th>
+												<th><%= i18n.__('catalog.products.suppliers.supplier_sku') %></th>
+												<% if (perms.cost) { %><th><%= i18n.__('catalog.products.suppliers.supplier_price') %></th><th><%= i18n.__('catalog.products.suppliers.currency') %></th><% } %>
+												<th><%= i18n.__('catalog.products.suppliers.lead_time_days') %></th>
+												<th><%= i18n.__('catalog.products.suppliers.min_order_qty') %></th>
+												<th><%= i18n.__('catalog.products.suppliers.is_default') %></th>
+												<th></th>
+											</tr>
+										</thead>
+										<tbody id="suppliers-body"></tbody>
+									</table>
+								</div>
+							</div>
+						</div>
+
+						<% if (productId) { %>
+						<!-- ═══ ІСТОРІЯ ═══ -->
+						<div class="tab-pane fade" id="t-history">
+							<div class="alert alert-light border rounded-0 small d-none" id="h-lowest"></div>
+							<div id="h-list"></div>
+							<div class="text-muted p-4 text-center d-none" id="h-empty"><%= i18n.__('catalog.history.empty') %></div>
+							<div class="text-center mt-2">
+								<button type="button" class="btn btn-sm btn-outline-secondary rounded-0 d-none" id="h-more"><%= i18n.__('catalog.history.more') %></button>
+							</div>
+						</div>
+						<% } %>
+
+						<!-- ═══ ДОДАТКОВО ═══ -->
+						<div class="tab-pane fade" id="t-extra">
+							<div class="row g-3">
+								<div class="col-md-3" data-field="published_at">
+									<label class="form-label"><%= i18n.__('catalog.products.f.published_at') %></label>
+									<input class="form-control rounded-0" type="datetime-local" name="published_at" data-type="datetime" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="unpublished_at">
+									<label class="form-label"><%= i18n.__('catalog.products.f.unpublished_at') %></label>
+									<input class="form-control rounded-0" type="datetime-local" name="unpublished_at" data-type="datetime" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="redirect_type">
+									<label class="form-label"><%= i18n.__('catalog.products.f.redirect_type') %></label>
+									<select class="form-select rounded-0" name="redirect_type">
+										<option value="none"><%= i18n.__('catalog.products.redirect.none') %></option>
+										<option value="301_product">301 → <%= i18n.__('catalog.products.redirect.product') %></option>
+										<option value="302_product">302 → <%= i18n.__('catalog.products.redirect.product') %></option>
+										<option value="301_category">301 → <%= i18n.__('catalog.products.redirect.category') %></option>
+										<option value="302_category">302 → <%= i18n.__('catalog.products.redirect.category') %></option>
+										<option value="404">404</option>
+										<option value="410">410</option>
+									</select>
+									<div class="form-text"><%= i18n.__('catalog.products.hints.redirect') %></div>
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="redirect_target_id">
+									<label class="form-label"><%= i18n.__('catalog.products.f.redirect_target_id') %></label>
+									<input class="form-control rounded-0" type="number" min="1" name="redirect_target_id" data-type="intnull" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="age_restriction">
+									<label class="form-label"><%= i18n.__('catalog.products.f.age_restriction') %></label>
+									<input class="form-control rounded-0" type="number" min="0" max="99" name="age_restriction" data-type="intnull" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="layout_template">
+									<label class="form-label"><%= i18n.__('catalog.products.f.layout_template') %></label>
+									<input class="form-control rounded-0" name="layout_template" maxlength="64" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="gift_card_value">
+									<label class="form-label"><%= i18n.__('catalog.products.f.gift_card_value') %></label>
+									<input class="form-control rounded-0" type="number" min="0" step="0.01" name="gift_card_value" data-type="number" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-3" data-field="gift_card_expiry_days">
+									<label class="form-label"><%= i18n.__('catalog.products.f.gift_card_expiry_days') %></label>
+									<input class="form-control rounded-0" type="number" min="1" name="gift_card_expiry_days" data-type="intnull" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-12">
+									<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="allow_gift_wrap" data-type="bool" id="pf-giftwrap" /><label class="form-check-label" for="pf-giftwrap"><%= i18n.__('catalog.products.f.allow_gift_wrap') %></label></div>
+								</div>
+								<div class="col-12" data-field="internal_note">
+									<label class="form-label"><%= i18n.__('catalog.products.f.internal_note') %></label>
+									<textarea class="form-control rounded-0" name="internal_note" rows="4" maxlength="10000"></textarea>
+									<div class="form-text"><%= i18n.__('catalog.products.hints.internal_note') %></div>
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-12 text-muted small" id="pc-meta"></div>
+							</div>
+						</div>
+					</div>
+				</form>
+			</div>
+		</main>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				// ═══ КОНТЕКСТ ══════════════════════════════════
+				const PRODUCT_ID = <%= productId ? Number(productId) : 'null' %>;
+				const PERMS = { add: <%= perms.add %>, edit: <%= perms.edit %>, delete: <%= perms.delete %>, cost: <%= perms.cost %>, stock: <%= perms.stock %>, locations: <%= perms.locations %> };
+				const LANGS = [<% languages.forEach((l) => { %><%= Number(l.id) %>,<% }) %>];
+				const LANG_ISO = { <% languages.forEach((l) => { %><%= Number(l.id) %>: "<%= String(l.iso).toUpperCase() %>", <% }) %> };
+				const PRIMARY_LANG = LANGS[0];
+				const DEFAULT_STATUS = "<%= cfg.defaultStatus %>";
+				const DEFAULT_SET = <%= cfg.defaultAttributeSet ? Number(cfg.defaultAttributeSet) : 'null' %>;
+				const HEARTBEAT_MS = <%= Number(cfg.lock.heartbeat_seconds) * 1000 %>;
+				const ME = <%= Number(user.id) %>;
+				const VALUE_OPTION_TYPES = ["select", "radio", "checkbox", "color"];
+
+				const notyf = new Notyf({ duration: 3500, position: { x: "right", y: "top" } });
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+				const errMsg = (err) => err.error || "<%= i18n.__('catalog.common.error') %>";
+				const form = document.getElementById("pc-form");
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+
+				let product = null;
+				let canWrite = PRODUCT_ID ? PERMS.edit : PERMS.add;
+				let dirty = false;
+				form.addEventListener("input", () => (dirty = true));
+				form.addEventListener("change", () => (dirty = true));
+
+				// ═══ ПРОСТІ ПОЛЯ ═══════════════════════════════
+				const toInputDatetime = (v) => (v ? String(v).replace(" ", "T").slice(0, 16) : "");
+				const fromInputDatetime = (v) => (v ? v.replace("T", " ") + ":00" : null);
+
+				function readCore() {
+					const out = {};
+					form.querySelectorAll("[name]").forEach((el) => {
+						if (el.name.startsWith("_")) return;
+						const t = el.dataset.type;
+						const v = el.value.trim();
+						if (t === "bool") out[el.name] = el.checked;
+						else if (t === "int") out[el.name] = v === "" ? 0 : parseInt(v, 10);
+						else if (t === "intnull") out[el.name] = v === "" ? null : parseInt(v, 10);
+						else if (t === "number") out[el.name] = v === "" ? null : Number(v);
+						else if (t === "number0") out[el.name] = v === "" ? 0 : Number(v);
+						else if (t === "datetime") out[el.name] = fromInputDatetime(v);
+						else out[el.name] = v === "" ? null : v;
+					});
+					return out;
+				}
+				function fillCore(row) {
+					form.querySelectorAll("[name]").forEach((el) => {
+						if (el.name.startsWith("_")) return;
+						const v = row[el.name];
+						const t = el.dataset.type;
+						if (t === "bool") el.checked = v === undefined ? el.defaultChecked : !!Number(v);
+						else if (t === "datetime") el.value = toInputDatetime(v);
+						else if (t === "date") el.value = v ? String(v).slice(0, 10) : "";
+						else if (v === undefined) el.value = el.defaultValue;
+						else el.value = v == null ? "" : v;
+					});
+				}
+				function readDescriptions() {
+					const out = {};
+					form.querySelectorAll("[data-desc]").forEach((el) => ((out[el.dataset.lang] = out[el.dataset.lang] || {})[el.dataset.desc] = el.value));
+					return out;
+				}
+				// Один URL для всіх мов: поле slug лишається тільки в основній мові
+				function applySlugShared() {
+					const on = document.getElementById("slug-shared").checked;
+					document.querySelectorAll('#t-content [data-field$=".slug"]').forEach((el) => {
+						const lang = Number(el.dataset.field.split(".")[1]);
+						el.classList.toggle("d-none", on && lang !== PRIMARY_LANG);
+					});
+				}
+				document.getElementById("slug-shared").addEventListener("change", applySlugShared);
+
+				function fillDescriptions(d) {
+					form.querySelectorAll("[data-desc]").forEach((el) => (el.value = ((d || {})[el.dataset.lang] || {})[el.dataset.desc] || ""));
+				}
+
+				// ═══ ПОМИЛКИ ═══════════════════════════════════
+				function clearErrors() {
+					form.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+					form.querySelectorAll(".invalid-feedback").forEach((el) => {
+						el.textContent = "";
+						el.style.display = "";
+					});
+				}
+				function showErrors(errors) {
+					let first = null;
+					(errors || []).forEach((e) => {
+						const field = String(e.field || "");
+						const parts = field.split(".");
+						let box = null;
+						for (let n = parts.length; n > 0 && !box; n--) box = form.querySelector(`[data-field="${CSS.escape(parts.slice(0, n).join("."))}"]`);
+						if (!box) return;
+						box.querySelectorAll(":scope > input, :scope > select, :scope > textarea, :scope > .input-group > *").forEach((el) => el.classList.add("is-invalid"));
+						const fb = box.querySelector(".invalid-feedback");
+						if (fb) {
+							fb.textContent = (fb.textContent ? fb.textContent + "; " : "") + (box.dataset.field !== field ? field + ": " : "") + e.message;
+							fb.style.display = "block";
+						}
+						if (!first) first = box;
+					});
+					if (first) {
+						const panes = [];
+						let p = first.closest(".tab-pane");
+						while (p) {
+							panes.unshift(p);
+							p = p.parentElement.closest(".tab-pane");
+						}
+						panes.forEach((pane) => {
+							const btn = document.querySelector(`[data-bs-target="#${pane.id}"]`);
+							if (btn) bootstrap.Tab.getOrCreateInstance(btn).show();
+						});
+						first.scrollIntoView({ behavior: "smooth", block: "center" });
+					}
+				}
+
+				// ═══ БРЕНД ═════════════════════════════════════
+				const brandSelect = form.querySelector('[name="id_brand"]');
+				async function loadBrands(search, keepId) {
+					const r = await api("/api/catalog/products/brands/options/", { search });
+					const current = keepId || brandSelect.value;
+					brandSelect.querySelectorAll("option:not(:first-child)").forEach((o) => o.remove());
+					r.rows.forEach((b) => brandSelect.add(new Option(b.name, b.id)));
+					if (current && !r.rows.some((b) => String(b.id) === String(current))) brandSelect.add(new Option("#" + current, current));
+					brandSelect.value = current || "";
+				}
+				let brandTimer;
+				document.getElementById("brand-search").addEventListener("input", (e) => {
+					clearTimeout(brandTimer);
+					brandTimer = setTimeout(() => loadBrands(e.target.value.trim()).catch(() => {}), 300);
+				});
+
+				// ═══ ЦІНИ І БОНУСИ ═════════════════════════════
+				const CUSTOMER_GROUPS = <%- JSON.stringify(customerGroups.map((g) => ({ id: g.id, name: g.name }))).replace(/</g, "\\u003c") %>;
+				function groupOptions(selected) {
+					const sel = Number(selected || 0);
+					const list = [{ id: 0, name: "<%= i18n.__('catalog.groups.all') %>" }, ...CUSTOMER_GROUPS];
+					// Неактивна/невідома група з даних — показуємо, щоб не загубити значення
+					if (!list.some((g) => g.id === sel)) list.push({ id: sel, name: "#" + sel });
+					return list.map((g) => `<option value="${g.id}"${g.id === sel ? " selected" : ""}>${esc(g.name)}</option>`).join("");
+				}
+				const readVisibility = () => Array.from(document.querySelectorAll("#cg-visibility input:checked")).map((el) => parseInt(el.value, 10));
+
+				const pricesBody = document.getElementById("prices-body");
+				function priceRow(p) {
+					const tr = document.createElement("tr");
+					tr.innerHTML = `
+						<td><select class="form-select form-select-sm rounded-0" data-p="kind">
+							<option value="special"><%= i18n.__('catalog.products.prices.kinds.special') %></option>
+							<option value="tier"><%= i18n.__('catalog.products.prices.kinds.tier') %></option></select></td>
+						<td><select class="form-select form-select-sm rounded-0" data-p="id_customer_group" style="min-width:140px">${groupOptions(p.id_customer_group)}</select></td>
+						<td><input class="form-control form-control-sm rounded-0" type="number" min="0.001" step="0.001" data-p="min_qty" value="${esc(p.min_qty || 1)}" style="width:100px"></td>
+						<td><select class="form-select form-select-sm rounded-0" data-p="reduction_type">
+							<option value="new_price"><%= i18n.__('catalog.products.prices.types.new_price') %></option>
+							<option value="fixed"><%= i18n.__('catalog.products.prices.types.fixed') %></option>
+							<option value="percent"><%= i18n.__('catalog.products.prices.types.percent') %></option></select></td>
+						<td><input class="form-control form-control-sm rounded-0" type="number" min="0" step="0.0001" data-p="value" value="${esc(p.value ?? "")}" style="width:120px"></td>
+						<td><input class="form-control form-control-sm rounded-0" type="number" data-p="priority" value="${Number(p.priority || 0)}" style="width:80px"></td>
+						<td><input class="form-control form-control-sm rounded-0" type="datetime-local" data-p="date_start" value="${esc(toInputDatetime(p.date_start))}"></td>
+						<td><input class="form-control form-control-sm rounded-0" type="datetime-local" data-p="date_end" value="${esc(toInputDatetime(p.date_end))}"></td>
+						<td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-row-del"><i class="fa-solid fa-xmark"></i></button></td>`;
+					tr.querySelector('[data-p="kind"]').value = p.kind || "special";
+					tr.querySelector('[data-p="reduction_type"]').value = p.reduction_type || "new_price";
+					return tr;
+				}
+				function readPrices() {
+					return Array.from(pricesBody.querySelectorAll("tr"))
+						.map((tr) => {
+							const g = (k) => tr.querySelector(`[data-p="${k}"]`).value;
+							return {
+								kind: g("kind"),
+								id_customer_group: parseInt(g("id_customer_group"), 10) || 0,
+								min_qty: Number(g("min_qty")) || 1,
+								reduction_type: g("reduction_type"),
+								value: g("value") === "" ? null : Number(g("value")),
+								priority: parseInt(g("priority"), 10) || 0,
+								date_start: fromInputDatetime(g("date_start")),
+								date_end: fromInputDatetime(g("date_end")),
+							};
+						})
+						.filter((p) => p.value !== null);
+				}
+				document.getElementById("btn-add-price").addEventListener("click", () => pricesBody.appendChild(priceRow({})));
+
+				const rewardsBody = document.getElementById("rewards-body");
+				function rewardRow(r) {
+					const tr = document.createElement("tr");
+					tr.innerHTML = `
+						<td><select class="form-select form-select-sm rounded-0" data-r="id_customer_group">${groupOptions(r.id_customer_group)}</select></td>
+						<td><input class="form-control form-control-sm rounded-0" type="number" min="0" step="1" data-r="points" value="${esc(r.points ?? "")}"></td>
+						<td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-row-del"><i class="fa-solid fa-xmark"></i></button></td>`;
+					return tr;
+				}
+				function readRewards() {
+					return Array.from(rewardsBody.querySelectorAll("tr"))
+						.map((tr) => ({ id_customer_group: parseInt(tr.querySelector('[data-r="id_customer_group"]').value, 10) || 0, points: parseInt(tr.querySelector('[data-r="points"]').value, 10) }))
+						.filter((r) => Number.isInteger(r.points));
+				}
+				document.getElementById("btn-add-reward").addEventListener("click", () => rewardsBody.appendChild(rewardRow({})));
+				form.addEventListener("click", (e) => {
+					const del = e.target.closest(".js-row-del");
+					if (del) {
+						del.closest("tr, li").remove();
+						dirty = true;
+					}
+				});
+
+				// ═══ ЗАЛИШКИ ═══════════════════════════════════
+				const stockBody = document.getElementById("stock-body");
+				const locationsCache = {};
+				async function locationsOf(idWarehouse) {
+					if (!PERMS.locations) return [];
+					if (!locationsCache[idWarehouse]) {
+						locationsCache[idWarehouse] = api(`/api/catalog/products/warehouses/${idWarehouse}/locations/list/`)
+							.then((r) => r.rows)
+							.catch(() => []);
+					}
+					return locationsCache[idWarehouse];
+				}
+				async function renderStock(rows) {
+					stockBody.innerHTML = "";
+					for (const s of rows) {
+						const tr = document.createElement("tr");
+						tr.dataset.wh = s.id_warehouse;
+						tr.dataset.orig = Number(s.on_hand);
+						let html = `<td>${esc(s.code)} — ${esc(s.name)}${Number(s.is_sellable) ? "" : ` <span class="badge text-bg-light border"><%= i18n.__('catalog.products.stock.not_sellable') %></span>`}</td>`;
+						html += `<td><input class="form-control form-control-sm rounded-0" type="number" step="0.001" data-s="on_hand" value="${Number(s.on_hand)}"></td>`;
+						html += `<td class="text-end">${Number(s.reserved).toLocaleString()}</td><td class="text-end">${Number(s.incoming).toLocaleString()}</td><td class="text-end fw-semibold">${Number(s.available).toLocaleString()}</td>`;
+						if (PERMS.locations) html += `<td><select class="form-select form-select-sm rounded-0" data-s="id_location"><option value=""></option></select></td>`;
+						html += `<td><input class="form-control form-control-sm rounded-0" type="number" min="0" step="0.001" data-s="reorder_point" value="${s.reorder_point ?? ""}"></td>`;
+						html += `<td><input class="form-control form-control-sm rounded-0" type="number" min="0" step="0.001" data-s="reorder_qty" value="${s.reorder_qty ?? ""}"></td>`;
+						tr.innerHTML = html;
+						stockBody.appendChild(tr);
+						if (PERMS.locations) {
+							const sel = tr.querySelector('[data-s="id_location"]');
+							(await locationsOf(s.id_warehouse)).forEach((l) => sel.add(new Option(l.code + (l.name ? " — " + l.name : ""), l.id)));
+							sel.value = s.id_location || "";
+						}
+						tr.querySelectorAll("[data-s]").forEach((el) => (el.disabled = !canWrite || !PERMS.stock));
+					}
+				}
+				function readStock() {
+					if (!PERMS.stock) return [];
+					return Array.from(stockBody.querySelectorAll("tr")).map((tr) => {
+						const g = (k) => {
+							const el = tr.querySelector(`[data-s="${k}"]`);
+							return el ? el.value : "";
+						};
+						const onHand = g("on_hand") === "" ? null : Number(g("on_hand"));
+						return {
+							id_warehouse: parseInt(tr.dataset.wh, 10),
+							on_hand: onHand !== null && onHand !== Number(tr.dataset.orig) ? onHand : null,
+							id_location: g("id_location") ? parseInt(g("id_location"), 10) : null,
+							reorder_point: g("reorder_point") === "" ? null : Number(g("reorder_point")),
+							reorder_qty: g("reorder_qty") === "" ? null : Number(g("reorder_qty")),
+						};
+					});
+				}
+				function applyTypeUi() {
+					// Кнопки розділів — лише для збереженого типу (сторінки працюють зі збереженим товаром)
+					const savedType = product && product.type;
+					document.querySelectorAll(".js-type-link").forEach((a) => (a.style.display = a.dataset.type === savedType ? "" : "none"));
+					const variable = form.querySelector('[name="type"]').value === "variable";
+					document.getElementById("stock-variable-note").style.display = variable ? "" : "none";
+					document.getElementById("stock-block").style.display = variable ? "none" : "";
+				}
+				form.querySelector('[name="type"]').addEventListener("change", applyTypeUi);
+
+				// ═══ ФОТО ══════════════════════════════════════
+				const mediaList = document.getElementById("media-list");
+				let media = [];
+				function renderMedia() {
+					mediaList.innerHTML = "";
+					media.forEach((m, i) => {
+						const div = document.createElement("div");
+						div.className = "pc-media-item" + (m.is_cover ? " cover" : "");
+						div.dataset.index = i;
+						let alts = "";
+						LANGS.forEach((l) => (alts += `<input class="form-control form-control-sm rounded-0 mt-1" data-alt="${l}" placeholder="alt ${LANG_ISO[l]}" maxlength="255" value="${esc((m.alt || {})[l] || "")}" ${canWrite ? "" : "disabled"}>`));
+						div.innerHTML = `
+							<img src="${esc(m.url_medium)}" alt="">
+							<div class="d-flex justify-content-between align-items-center mt-1">
+								<div class="form-check mb-0"><input class="form-check-input js-cover" type="radio" name="_cover" ${m.is_cover ? "checked" : ""} ${canWrite ? "" : "disabled"}><label class="form-check-label small"><%= i18n.__('catalog.products.media.cover') %></label></div>
+								<button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-media-del" ${canWrite ? "" : "disabled"}><i class="fa-solid fa-xmark"></i></button>
+							</div>${alts}`;
+						mediaList.appendChild(div);
+					});
+				}
+				function syncAltsFromDom() {
+					mediaList.querySelectorAll(".pc-media-item").forEach((div) => {
+						const m = media[parseInt(div.dataset.index, 10)];
+						div.querySelectorAll("[data-alt]").forEach((el) => ((m.alt = m.alt || {})[el.dataset.alt] = el.value));
+					});
+				}
+				Sortable.create(mediaList, {
+					animation: 150,
+					filter: "input,button",
+					preventOnFilter: false,
+					onEnd: () => {
+						syncAltsFromDom();
+						media = Array.from(mediaList.children).map((div) => media[parseInt(div.dataset.index, 10)]);
+						renderMedia();
+						dirty = true;
+					},
+				});
+				mediaList.addEventListener("click", (e) => {
+					const div = e.target.closest(".pc-media-item");
+					if (!div || !canWrite) return;
+					syncAltsFromDom();
+					const i = parseInt(div.dataset.index, 10);
+					if (e.target.closest(".js-media-del")) {
+						const wasCover = media[i].is_cover;
+						media.splice(i, 1);
+						if (wasCover && media[0]) media[0].is_cover = true;
+					} else if (e.target.closest(".js-cover")) {
+						media.forEach((m, k) => (m.is_cover = k === i));
+					} else return;
+					renderMedia();
+					dirty = true;
+				});
+				document.getElementById("media-input").addEventListener("change", async (e) => {
+					const input = e.target;
+					const files = Array.from(input.files);
+					input.disabled = true;
+					syncAltsFromDom();
+					for (const file of files) {
+						try {
+							const fd = new FormData();
+							fd.append("file", file);
+							const res = await fetch("/api/catalog/products/images/products/upload/", { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: fd });
+							const json = await res.json().catch(() => ({}));
+							if (!res.ok || json.ok === false) throw json;
+							if (media.some((m) => m.file === json.file)) continue;
+							media.push({ id: null, file: json.file, url_medium: json.url, is_cover: media.length === 0, alt: {} });
+							dirty = true;
+						} catch (err) {
+							notyf.error(file.name + ": " + errMsg(err));
+						}
+					}
+					renderMedia();
+					input.disabled = !canWrite;
+					input.value = "";
+				});
+				function readMedia() {
+					syncAltsFromDom();
+					return media.map((m) => ({ id: m.id || null, file: m.file, is_cover: !!m.is_cover, alt: m.alt || {} }));
+				}
+
+				// ═══ КАТЕГОРІЇ ═════════════════════════════════
+				const catTree = document.getElementById("cat-tree");
+				let catRows = [];
+				function renderCategories(selected, main) {
+					const sel = new Set(selected.map(Number));
+					const build = (parent) => {
+						const kids = catRows.filter((c) => (c.id_parent || null) === parent);
+						if (!kids.length) return "";
+						return (
+							"<ul>" +
+							kids
+								.map(
+									(c) => `<li data-name="${esc(String(c.name).toLowerCase())}">
+										<div class="d-flex align-items-center gap-2 py-1">
+											<input class="form-check-input mt-0 js-cat" type="checkbox" value="${c.id}" ${sel.has(c.id) ? "checked" : ""}>
+											<span class="${c.status ? "" : "text-decoration-line-through text-muted"}">${esc(c.name)}</span>
+											<label class="small text-muted ms-2"><input class="form-check-input mt-0 js-cat-main" type="radio" name="_main" value="${c.id}" ${main === c.id ? "checked" : ""} ${sel.has(c.id) ? "" : "disabled"}> <%= i18n.__('catalog.products.categories.main') %></label>
+										</div>${build(c.id)}</li>`
+								)
+								.join("") +
+							"</ul>"
+						);
+					};
+					catTree.innerHTML = build(null) || `<div class="text-muted"><%= i18n.__('catalog.products.categories.empty') %></div>`;
+				}
+				catTree.addEventListener("change", (e) => {
+					const cb = e.target.closest(".js-cat");
+					if (!cb) return;
+					const radio = cb.closest("div").querySelector(".js-cat-main");
+					radio.disabled = !cb.checked;
+					if (!cb.checked && radio.checked) radio.checked = false;
+					if (cb.checked && !catTree.querySelector(".js-cat-main:checked")) radio.checked = true;
+				});
+				document.getElementById("cat-search").addEventListener("input", (e) => {
+					const q = e.target.value.trim().toLowerCase();
+					catTree.querySelectorAll("li").forEach((li) => (li.style.display = !q || li.dataset.name.includes(q) || li.querySelector(`li[data-name*="${CSS.escape(q)}"]`) ? "" : "none"));
+				});
+				const readCategories = () => Array.from(catTree.querySelectorAll(".js-cat:checked")).map((cb) => parseInt(cb.value, 10));
+				function readMainCategory() {
+					const r = catTree.querySelector(".js-cat-main:checked");
+					return r ? parseInt(r.value, 10) : null;
+				}
+
+				// ═══ ХАРАКТЕРИСТИКИ ════════════════════════════
+				const attrList = document.getElementById("attr-list");
+				const attrAddSelect = document.getElementById("attr-add-select");
+				let dict = { groups: [], attributes: [], values: [] };
+				const attrById = () => new Map(dict.attributes.map((a) => [a.id, a]));
+				const valuesOf = (idAttribute) => dict.values.filter((v) => v.id_attribute === idAttribute);
+
+				function attrInput(a, val) {
+					const v = val || { value_ids: [], number: null, date: null, text: {} };
+					if (a.type === "select" || a.type === "color") {
+						return `<select class="form-select form-select-sm rounded-0" data-a="value"><option value=""></option>${valuesOf(a.id)
+							.map((x) => `<option value="${x.id}" ${v.value_ids.includes(x.id) ? "selected" : ""}>${esc(x.name)}${x.color_hex ? " ■" : ""}</option>`)
+							.join("")}</select>`;
+					}
+					if (a.type === "multiselect") {
+						return `<select class="form-select form-select-sm rounded-0" data-a="values" multiple size="${Math.min(valuesOf(a.id).length || 1, 6)}">${valuesOf(a.id)
+							.map((x) => `<option value="${x.id}" ${v.value_ids.includes(x.id) ? "selected" : ""}>${esc(x.name)}</option>`)
+							.join("")}</select>`;
+					}
+					if (a.type === "integer" || a.type === "decimal") {
+						return `<div class="input-group input-group-sm"><input class="form-control rounded-0" type="number" step="${a.type === "integer" ? 1 : "any"}" data-a="number" value="${v.number ?? ""}">${a.unit ? `<span class="input-group-text rounded-0">${esc(a.unit)}</span>` : ""}</div>`;
+					}
+					if (a.type === "boolean") {
+						return `<select class="form-select form-select-sm rounded-0" data-a="bool"><option value=""></option><option value="1" ${v.number === 1 ? "selected" : ""}><%= i18n.__('catalog.common.yes') %></option><option value="0" ${v.number === 0 ? "selected" : ""}><%= i18n.__('catalog.common.no') %></option></select>`;
+					}
+					if (a.type === "date") return `<input class="form-control form-control-sm rounded-0" type="date" data-a="date" value="${esc(v.date ? String(v.date).slice(0, 10) : "")}">`;
+					const text = { ...(v.text || {}) };
+					if (text[0] && !text[PRIMARY_LANG]) text[PRIMARY_LANG] = text[0];
+					return LANGS.map((l) =>
+						a.type === "textarea"
+							? `<textarea class="form-control form-control-sm rounded-0 mb-1" data-a="text" data-lang="${l}" rows="2" placeholder="${LANG_ISO[l]}">${esc(text[l] || "")}</textarea>`
+							: `<input class="form-control form-control-sm rounded-0 mb-1" data-a="text" data-lang="${l}" placeholder="${LANG_ISO[l]}" value="${esc(text[l] || "")}">`
+					).join("");
+				}
+				function addAttributeRow(idAttribute, val) {
+					const a = attrById().get(idAttribute);
+					if (!a || attrList.querySelector(`[data-attr="${idAttribute}"]`)) return;
+					const div = document.createElement("div");
+					div.className = "row g-2 align-items-start pc-attr-row";
+					div.dataset.attr = idAttribute;
+					div.innerHTML = `
+						<div class="col-md-4"><strong>${esc(a.name)}</strong>${Number(a.is_required) ? ' <span class="text-danger">*</span>' : ""}
+							<div class="small text-muted">${esc(a.group_name || "")}${a.unit ? " · " + esc(a.unit) : ""}</div></div>
+						<div class="col-md-7">${attrInput(a, val)}</div>
+						<div class="col-md-1 text-end"><button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-attr-del"><i class="fa-solid fa-xmark"></i></button></div>`;
+					attrList.appendChild(div);
+					refreshAttrSelect();
+				}
+				function refreshAttrSelect() {
+					const used = new Set(Array.from(attrList.children).map((d) => parseInt(d.dataset.attr, 10)));
+					attrAddSelect.innerHTML = "";
+					dict.attributes.filter((a) => !used.has(a.id)).forEach((a) => attrAddSelect.add(new Option((a.group_name ? a.group_name + " → " : "") + a.name, a.id)));
+				}
+				attrList.addEventListener("click", (e) => {
+					if (e.target.closest(".js-attr-del")) {
+						e.target.closest(".pc-attr-row").remove();
+						refreshAttrSelect();
+						dirty = true;
+					}
+				});
+				document.getElementById("btn-add-attr").addEventListener("click", () => {
+					const id = parseInt(attrAddSelect.value, 10);
+					if (id) addAttributeRow(id);
+				});
+				async function applySet(idSet) {
+					if (!idSet) return;
+					const r = await api(`/api/catalog/products/attributes/sets/${idSet}/get/`).catch(() => null);
+					if (r) r.row.items.forEach((it) => addAttributeRow(it.id_attribute));
+				}
+				document.getElementById("btn-apply-set").addEventListener("click", () => applySet(parseInt(form.querySelector('[name="id_attribute_set"]').value, 10)));
+				function readAttributes() {
+					return Array.from(attrList.children).map((div) => {
+						const out = { id_attribute: parseInt(div.dataset.attr, 10), value_ids: [], number: null, date: null, text: {} };
+						const one = div.querySelector('[data-a="value"]');
+						if (one && one.value) out.value_ids = [parseInt(one.value, 10)];
+						const many = div.querySelector('[data-a="values"]');
+						if (many) out.value_ids = Array.from(many.selectedOptions).map((o) => parseInt(o.value, 10));
+						const num = div.querySelector('[data-a="number"]');
+						if (num && num.value !== "") out.number = Number(num.value);
+						const bool = div.querySelector('[data-a="bool"]');
+						if (bool && bool.value !== "") out.number = Number(bool.value);
+						const date = div.querySelector('[data-a="date"]');
+						if (date && date.value) out.date = date.value;
+						div.querySelectorAll('[data-a="text"]').forEach((el) => (out.text[el.dataset.lang] = el.value));
+						if (Object.keys(out.text).length) out.text[0] = out.text[PRIMARY_LANG] || "";
+						return out;
+					});
+				}
+
+				// ═══ ОПЦІЇ ═════════════════════════════════════
+				const optList = document.getElementById("opt-list");
+				const optAddSelect = document.getElementById("opt-add-select");
+				let optDict = { options: [], values: [] };
+				const optById = () => new Map(optDict.options.map((o) => [o.id, o]));
+				const optValuesOf = (idOption) => optDict.values.filter((v) => v.id_option === idOption);
+				const OPT_TYPES = {
+					select: "<%= i18n.__('catalog.options.types.select') %>",
+					radio: "<%= i18n.__('catalog.options.types.radio') %>",
+					checkbox: "<%= i18n.__('catalog.options.types.checkbox') %>",
+					color: "<%= i18n.__('catalog.options.types.color') %>",
+					text: "<%= i18n.__('catalog.options.types.text') %>",
+					textarea: "<%= i18n.__('catalog.options.types.textarea') %>",
+					number: "<%= i18n.__('catalog.options.types.number') %>",
+					file: "<%= i18n.__('catalog.options.types.file') %>",
+					date: "<%= i18n.__('catalog.options.types.date') %>",
+					time: "<%= i18n.__('catalog.options.types.time') %>",
+					datetime: "<%= i18n.__('catalog.options.types.datetime') %>",
+				};
+
+				function optValueRow(o, v) {
+					const value = optValuesOf(o.id).find((x) => x.id === v.id_option_value) || { name: "#" + v.id_option_value };
+					const tr = document.createElement("tr");
+					tr.dataset.value = v.id_option_value;
+					tr.innerHTML = `
+						<td>${value.color_hex ? `<span style="display:inline-block;width:12px;height:12px;background:${esc(value.color_hex)};border:1px solid #ccc"></span> ` : ""}${esc(value.name)}</td>
+						<td><select class="form-select form-select-sm rounded-0" data-ov="price_mode"><option value="fixed">±</option><option value="percent">%</option></select></td>
+						<td><input class="form-control form-control-sm rounded-0" type="number" step="0.0001" data-ov="price" value="${Number(v.price || 0)}" style="width:110px"></td>
+						<td><input class="form-control form-control-sm rounded-0" type="number" step="1" data-ov="points" value="${Number(v.points || 0)}" style="width:80px"></td>
+						<td><input class="form-control form-control-sm rounded-0" type="number" step="0.0001" data-ov="weight" value="${Number(v.weight || 0)}" style="width:90px"></td>
+						<td><input class="form-control form-control-sm rounded-0" type="number" min="0" step="0.001" data-ov="quantity" value="${v.quantity ?? ""}" style="width:90px"></td>
+						<td class="text-center"><input class="form-check-input" type="checkbox" data-ov="subtract_stock" ${Number(v.subtract_stock) ? "checked" : ""}></td>
+						<td><input class="form-control form-control-sm rounded-0" data-ov="sku_suffix" maxlength="32" value="${esc(v.sku_suffix || "")}" style="width:100px"></td>
+						<td class="text-center"><input class="form-check-input" type="${o.type === "checkbox" ? "checkbox" : "radio"}" name="_ovdef_${o.id}" data-ov="is_default" ${Number(v.is_default) ? "checked" : ""}></td>
+						<td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-row-del"><i class="fa-solid fa-xmark"></i></button></td>`;
+					tr.querySelector('[data-ov="price_mode"]').value = v.price_mode || "fixed";
+					return tr;
+				}
+				function addOptionBlock(idOption, data) {
+					const o = optById().get(idOption);
+					if (!o || optList.querySelector(`[data-opt="${idOption}"]`)) return;
+					const d = data || { is_required: false, default_value: null, values: [] };
+					const isValueType = VALUE_OPTION_TYPES.includes(o.type);
+					const div = document.createElement("div");
+					div.className = "pc-opt";
+					div.dataset.opt = idOption;
+					div.innerHTML = `
+						<div class="pc-opt-head d-flex flex-wrap align-items-center gap-3">
+							<strong class="me-auto">${esc(o.name)} <span class="text-muted small">${esc(OPT_TYPES[o.type] || o.type)}</span></strong>
+							<div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" data-o="is_required" ${Number(d.is_required) ? "checked" : ""}><label class="form-check-label small"><%= i18n.__('catalog.products.opt.required') %></label></div>
+							${isValueType ? "" : `<input class="form-control form-control-sm rounded-0" data-o="default_value" maxlength="255" placeholder="<%= i18n.__('catalog.products.opt.default_value') %>" value="${esc(d.default_value || "")}" style="max-width:240px">`}
+							<button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-opt-del"><i class="fa-solid fa-xmark"></i></button>
+						</div>
+						${
+							isValueType
+								? `<div class="p-2">
+									<div class="d-flex gap-2 mb-2">
+										<select class="form-select form-select-sm rounded-0 js-ov-select" style="max-width:300px"></select>
+										<button type="button" class="btn btn-sm btn-outline-secondary rounded-0 js-ov-add"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.products.opt.add_value') %></button>
+										<button type="button" class="btn btn-sm btn-outline-secondary rounded-0 js-ov-all"><%= i18n.__('catalog.products.opt.add_all') %></button>
+									</div>
+									<div class="table-responsive"><table class="table table-sm mb-0">
+										<thead><tr>
+											<th><%= i18n.__('catalog.products.opt.value') %></th><th></th><th><%= i18n.__('catalog.products.opt.price') %></th><th><%= i18n.__('catalog.products.opt.points') %></th>
+											<th><%= i18n.__('catalog.products.opt.weight') %></th><th><%= i18n.__('catalog.products.opt.quantity') %></th><th><%= i18n.__('catalog.products.opt.subtract') %></th>
+											<th><%= i18n.__('catalog.products.opt.sku_suffix') %></th><th><%= i18n.__('catalog.products.opt.is_default') %></th><th></th>
+										</tr></thead>
+										<tbody class="js-ov-body"></tbody>
+									</table></div>
+								</div>`
+								: ""
+						}`;
+					optList.appendChild(div);
+					if (isValueType) {
+						const body = div.querySelector(".js-ov-body");
+						(d.values || []).forEach((v) => body.appendChild(optValueRow(o, v)));
+						refreshOptValueSelect(div);
+					}
+					refreshOptSelect();
+				}
+				function refreshOptValueSelect(div) {
+					const o = optById().get(parseInt(div.dataset.opt, 10));
+					const used = new Set(Array.from(div.querySelectorAll(".js-ov-body tr")).map((tr) => parseInt(tr.dataset.value, 10)));
+					const sel = div.querySelector(".js-ov-select");
+					sel.innerHTML = "";
+					optValuesOf(o.id).filter((v) => !used.has(v.id)).forEach((v) => sel.add(new Option(v.name, v.id)));
+				}
+				function refreshOptSelect() {
+					const used = new Set(Array.from(optList.children).map((d) => parseInt(d.dataset.opt, 10)));
+					optAddSelect.innerHTML = "";
+					optDict.options.filter((o) => !used.has(o.id)).forEach((o) => optAddSelect.add(new Option(`${o.name} (${OPT_TYPES[o.type] || o.type})`, o.id)));
+				}
+				optList.addEventListener("click", (e) => {
+					const block = e.target.closest(".pc-opt");
+					if (!block) return;
+					const o = optById().get(parseInt(block.dataset.opt, 10));
+					if (e.target.closest(".js-opt-del")) {
+						block.remove();
+						refreshOptSelect();
+						dirty = true;
+						return;
+					}
+					const body = block.querySelector(".js-ov-body");
+					if (e.target.closest(".js-ov-add")) {
+						const id = parseInt(block.querySelector(".js-ov-select").value, 10);
+						if (id) body.appendChild(optValueRow(o, { id_option_value: id }));
+					} else if (e.target.closest(".js-ov-all")) {
+						const used = new Set(Array.from(body.querySelectorAll("tr")).map((tr) => parseInt(tr.dataset.value, 10)));
+						optValuesOf(o.id).filter((v) => !used.has(v.id)).forEach((v) => body.appendChild(optValueRow(o, { id_option_value: v.id })));
+					} else if (!e.target.closest(".js-row-del")) return;
+					setTimeout(() => refreshOptValueSelect(block));
+					dirty = true;
+				});
+				document.getElementById("btn-add-opt").addEventListener("click", () => {
+					const id = parseInt(optAddSelect.value, 10);
+					if (id) addOptionBlock(id);
+					dirty = true;
+				});
+				function readOptions() {
+					return Array.from(optList.children).map((div) => {
+						const req = div.querySelector('[data-o="is_required"]');
+						const def = div.querySelector('[data-o="default_value"]');
+						return {
+							id_option: parseInt(div.dataset.opt, 10),
+							is_required: req.checked,
+							default_value: def && def.value.trim() ? def.value.trim() : null,
+							values: Array.from(div.querySelectorAll(".js-ov-body tr")).map((tr) => {
+								const g = (k) => tr.querySelector(`[data-ov="${k}"]`);
+								return {
+									id_option_value: parseInt(tr.dataset.value, 10),
+									price_mode: g("price_mode").value,
+									price: Number(g("price").value || 0),
+									points: parseInt(g("points").value, 10) || 0,
+									weight: Number(g("weight").value || 0),
+									quantity: g("quantity").value === "" ? null : Number(g("quantity").value),
+									subtract_stock: g("subtract_stock").checked,
+									sku_suffix: g("sku_suffix").value.trim() || null,
+									is_default: g("is_default").checked,
+								};
+							}),
+						};
+					});
+				}
+
+				// ═══ ПЕРСОНАЛІЗАЦІЯ ════════════════════════════
+				const customBody = document.getElementById("custom-body");
+				function customRow(c) {
+					const tr = document.createElement("tr");
+					tr.dataset.id = c.id || "";
+					let html = `<td><select class="form-select form-select-sm rounded-0" data-c="type"><option value="text"><%= i18n.__('catalog.products.custom.types.text') %></option><option value="file"><%= i18n.__('catalog.products.custom.types.file') %></option></select></td>`;
+					LANGS.forEach((l) => (html += `<td><input class="form-control form-control-sm rounded-0" data-c="label" data-lang="${l}" maxlength="255" value="${esc(((c.labels || {})[l] || {}).label || "")}"></td>`));
+					html += `<td><input class="form-control form-control-sm rounded-0" type="number" min="1" max="65535" data-c="max_length" value="${c.max_length ?? ""}" style="width:90px"></td>`;
+					html += `<td><input class="form-control form-control-sm rounded-0" type="number" min="0" step="0.0001" data-c="price" value="${Number(c.price || 0)}" style="width:110px"></td>`;
+					html += `<td class="text-center"><input class="form-check-input" type="checkbox" data-c="is_required" ${Number(c.is_required) ? "checked" : ""}></td>`;
+					html += `<td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-row-del"><i class="fa-solid fa-xmark"></i></button></td>`;
+					tr.innerHTML = html;
+					tr.querySelector('[data-c="type"]').value = c.type || "text";
+					return tr;
+				}
+				document.getElementById("btn-add-custom").addEventListener("click", () => {
+					customBody.appendChild(customRow({}));
+					dirty = true;
+				});
+				function readCustomization() {
+					return Array.from(customBody.querySelectorAll("tr")).map((tr) => {
+						const labels = {};
+						tr.querySelectorAll('[data-c="label"]').forEach((el) => (labels[el.dataset.lang] = { label: el.value }));
+						const max = tr.querySelector('[data-c="max_length"]').value;
+						return {
+							id: tr.dataset.id ? parseInt(tr.dataset.id, 10) : null,
+							type: tr.querySelector('[data-c="type"]').value,
+							max_length: max === "" ? null : parseInt(max, 10),
+							price: Number(tr.querySelector('[data-c="price"]').value || 0),
+							is_required: tr.querySelector('[data-c="is_required"]').checked,
+							labels,
+						};
+					});
+				}
+
+				// ═══ ПОВ’ЯЗАНІ ═════════════════════════════════
+				const relatedList = document.getElementById("related-list");
+				const RELATED_TYPES = {
+					related: "<%= i18n.__('catalog.products.related.types.related') %>",
+					upsell: "<%= i18n.__('catalog.products.related.types.upsell') %>",
+					crosssell: "<%= i18n.__('catalog.products.related.types.crosssell') %>",
+					accessory: "<%= i18n.__('catalog.products.related.types.accessory') %>",
+				};
+				let relatedFound = [];
+				function relatedItem(r) {
+					const li = document.createElement("li");
+					li.className = "list-group-item d-flex align-items-center gap-2 rounded-0";
+					li.dataset.id = r.id_related;
+					li.dataset.type = r.type;
+					li.innerHTML = `<span class="badge text-bg-light border">${esc(RELATED_TYPES[r.type])}</span><a class="flex-grow-1" href="/catalog/products/${r.id_related}/" target="_blank">${esc(r.name)}</a><span class="text-muted small">${esc(r.sku || "")}</span><button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-row-del"><i class="fa-solid fa-xmark"></i></button>`;
+					return li;
+				}
+				let relTimer;
+				document.getElementById("related-search").addEventListener("input", (e) => {
+					clearTimeout(relTimer);
+					relTimer = setTimeout(async () => {
+						const r = await api("/api/catalog/products/search/", { search: e.target.value.trim(), exclude: PRODUCT_ID || 0 }).catch(() => ({ rows: [] }));
+						relatedFound = r.rows;
+						document.getElementById("related-options").innerHTML = r.rows.map((p) => `<option value="${esc(p.name)} [#${p.id}]"></option>`).join("");
+					}, 300);
+				});
+				document.getElementById("btn-add-related").addEventListener("click", () => {
+					const input = document.getElementById("related-search");
+					const m = input.value.match(/\[#(\d+)\]$/);
+					const p = m && relatedFound.find((x) => x.id === parseInt(m[1], 10));
+					if (!p) return;
+					const type = document.getElementById("related-type").value;
+					if (relatedList.querySelector(`[data-id="${p.id}"][data-type="${type}"]`)) return;
+					relatedList.appendChild(relatedItem({ id_related: p.id, type, name: p.name, sku: p.sku }));
+					input.value = "";
+					dirty = true;
+				});
+				Sortable.create(relatedList, { animation: 150 });
+				const readRelated = () => Array.from(relatedList.children).map((li) => ({ id_related: parseInt(li.dataset.id, 10), type: li.dataset.type }));
+
+				// ═══ ПОСТАЧАЛЬНИКИ ═════════════════════════════
+				const suppliersBody = document.getElementById("suppliers-body");
+				const supplierSelect = document.getElementById("supplier-select");
+				async function loadSupplierOptions(search) {
+					const r = await api("/api/catalog/products/suppliers/options/", { search }).catch(() => ({ rows: [] }));
+					supplierSelect.innerHTML = "";
+					r.rows.forEach((s) => supplierSelect.add(new Option(s.name + (s.code ? ` (${s.code})` : ""), s.id)));
+				}
+				let supTimer;
+				document.getElementById("supplier-search").addEventListener("input", (e) => {
+					clearTimeout(supTimer);
+					supTimer = setTimeout(() => loadSupplierOptions(e.target.value.trim()), 300);
+				});
+				function supplierRow(s) {
+					const tr = document.createElement("tr");
+					tr.dataset.id = s.id_supplier;
+					tr.innerHTML =
+						`<td>${esc(s.name)}</td>` +
+						`<td><input class="form-control form-control-sm rounded-0" data-sp="supplier_sku" maxlength="64" value="${esc(s.supplier_sku || "")}"></td>` +
+						(PERMS.cost
+							? `<td><input class="form-control form-control-sm rounded-0" type="number" min="0" step="0.0001" data-sp="supplier_price" value="${s.supplier_price ?? ""}"></td>
+							   <td><input class="form-control form-control-sm rounded-0 text-uppercase" data-sp="currency" maxlength="3" value="${esc(s.currency || "")}" style="width:70px"></td>`
+							: "") +
+						`<td><input class="form-control form-control-sm rounded-0" type="number" min="0" data-sp="lead_time_days" value="${s.lead_time_days ?? ""}" style="width:90px"></td>` +
+						`<td><input class="form-control form-control-sm rounded-0" type="number" min="0" step="0.001" data-sp="min_order_qty" value="${s.min_order_qty ?? ""}" style="width:100px"></td>` +
+						`<td class="text-center"><input class="form-check-input" type="radio" name="_sup_default" data-sp="is_default" ${Number(s.is_default) ? "checked" : ""}></td>` +
+						`<td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-row-del"><i class="fa-solid fa-xmark"></i></button></td>`;
+					return tr;
+				}
+				document.getElementById("btn-add-supplier").addEventListener("click", () => {
+					const id = parseInt(supplierSelect.value, 10);
+					if (!id || suppliersBody.querySelector(`[data-id="${id}"]`)) return;
+					suppliersBody.appendChild(supplierRow({ id_supplier: id, name: supplierSelect.selectedOptions[0].text }));
+					dirty = true;
+				});
+				function readSuppliers() {
+					return Array.from(suppliersBody.querySelectorAll("tr")).map((tr) => {
+						const g = (k) => {
+							const el = tr.querySelector(`[data-sp="${k}"]`);
+							return el ? el.value.trim() : "";
+						};
+						const out = {
+							id_supplier: parseInt(tr.dataset.id, 10),
+							supplier_sku: g("supplier_sku") || null,
+							lead_time_days: g("lead_time_days") === "" ? null : parseInt(g("lead_time_days"), 10),
+							min_order_qty: g("min_order_qty") === "" ? null : Number(g("min_order_qty")),
+							is_default: tr.querySelector('[data-sp="is_default"]').checked,
+						};
+						if (PERMS.cost) {
+							out.supplier_price = g("supplier_price") === "" ? null : Number(g("supplier_price"));
+							out.currency = g("currency") ? g("currency").toUpperCase() : null;
+						}
+						return out;
+					});
+				}
+
+				// ═══ ЗАВАНТАЖЕННЯ / ЗАПОВНЕННЯ ═════════════════
+				async function loadDictionaries() {
+					const [cats, attrs, setsRes, opts] = await Promise.all([
+						api("/api/catalog/products/categories/tree/").catch(() => ({ rows: [] })),
+						api("/api/catalog/products/attributes/dictionary/").catch(() => ({ groups: [], attributes: [], values: [] })),
+						api("/api/catalog/products/attributes/sets/list/").catch(() => ({ rows: [] })),
+						api("/api/catalog/products/options/dictionary/").catch(() => ({ options: [], values: [] })),
+					]);
+					catRows = cats.rows;
+					dict = attrs;
+					optDict = opts;
+					const setSelect = form.querySelector('[name="id_attribute_set"]');
+					setsRes.rows.forEach((s) => setSelect.add(new Option(s.name, s.id)));
+					loadSupplierOptions("");
+				}
+
+				function fillAll(p) {
+					product = p;
+					clearErrors();
+					fillCore(p);
+					fillDescriptions(p.descriptions);
+					document.getElementById("slug-shared").checked = Number(p.slug_shared) === 1;
+					(() => {
+						const Q_RULE = {
+							images: "<%= i18n.__('catalog.quality.rule.images') %>",
+							images_3: "<%= i18n.__('catalog.quality.rule.images_3') %>",
+							description: "<%= i18n.__('catalog.quality.rule.description') %>",
+							short_description: "<%= i18n.__('catalog.quality.rule.short_description') %>",
+							category: "<%= i18n.__('catalog.quality.rule.category') %>",
+							brand: "<%= i18n.__('catalog.quality.rule.brand') %>",
+							sku: "<%= i18n.__('catalog.quality.rule.sku') %>",
+							gtin: "<%= i18n.__('catalog.quality.rule.gtin') %>",
+							price: "<%= i18n.__('catalog.quality.rule.price') %>",
+							translations: "<%= i18n.__('catalog.quality.rule.translations') %>",
+							shipping: "<%= i18n.__('catalog.quality.rule.shipping') %>",
+							attributes: "<%= i18n.__('catalog.quality.rule.attributes') %>",
+						};
+						const qb = document.getElementById("pc-quality");
+						if (p.quality_score == null) return qb.classList.add("d-none");
+						const s = Number(p.quality_score);
+						const issues = String(p.quality_issues || "").split(",").filter(Boolean);
+						qb.className = "badge text-decoration-none text-bg-" + (s >= 80 ? "success" : s >= 50 ? "warning" : "danger");
+						qb.textContent = "<%= i18n.__('catalog.quality.score') %> " + s + "%";
+						qb.title = "<%= i18n.__('catalog.quality.card_title') %>:\n" + (issues.length ? issues.map((c) => "• " + (Q_RULE[c] || c)).join("\n") : "<%= i18n.__('catalog.quality.card_ok') %>");
+					})();
+					applySlugShared();
+					pricesBody.innerHTML = "";
+					(p.prices || []).forEach((x) => pricesBody.appendChild(priceRow(x)));
+					rewardsBody.innerHTML = "";
+					(p.rewards || []).forEach((x) => rewardsBody.appendChild(rewardRow(x)));
+					document.querySelectorAll("#cg-visibility input").forEach((el) => (el.checked = (p.customer_groups || []).includes(Number(el.value))));
+					renderStock(p.stock || []);
+					media = (p.media || []).filter((m) => m.type === "image").map((m) => ({ ...m, alt: { ...(m.alt || {}) } }));
+					renderMedia();
+					renderCategories(p.categories || [], p.id_category_main || null);
+					attrList.innerHTML = "";
+					(p.attributes || []).forEach((a) => addAttributeRow(a.id_attribute, a));
+					refreshAttrSelect();
+					optList.innerHTML = "";
+					(p.options || []).forEach((o) => addOptionBlock(o.id_option, o));
+					refreshOptSelect();
+					customBody.innerHTML = "";
+					(p.customization || []).forEach((c) => customBody.appendChild(customRow(c)));
+					relatedList.innerHTML = "";
+					(p.related || []).forEach((r) => relatedList.appendChild(relatedItem(r)));
+					suppliersBody.innerHTML = "";
+					(p.suppliers || []).forEach((s) => suppliersBody.appendChild(supplierRow(s)));
+					loadBrands("", p.id_brand).catch(() => {});
+					applyTypeUi();
+
+					const name = ((p.descriptions || {})[PRIMARY_LANG] || {}).name || (PRODUCT_ID ? "#" + PRODUCT_ID : "");
+					document.getElementById("pc-title").textContent = name || "<%= i18n.__('catalog.products.add') %>";
+					document.getElementById("bc-title").textContent = name || "<%= i18n.__('catalog.products.add') %>";
+					document.getElementById("pc-version").textContent = p.version ? "v" + p.version : "";
+					document.getElementById("pc-meta").textContent = p.id ? `ID ${p.id} · UUID ${p.uuid} · <%= i18n.__('catalog.products.f.date_add') %>: ${p.date_add} · <%= i18n.__('catalog.products.f.date_edit') %>: ${p.date_edit}` : "";
+					setReadOnly(!canWrite);
+					dirty = false;
+				}
+
+				async function loadProduct() {
+					const r = await api(`/api/catalog/products/${PRODUCT_ID}/get/`);
+					fillAll(r.row);
+				}
+
+				// ═══ РЕЖИМ ЧИТАННЯ ═════════════════════════════
+				function setReadOnly(on) {
+					canWrite = !on && (PRODUCT_ID ? PERMS.edit : PERMS.add);
+					document.body.classList.toggle("pc-readonly", !canWrite);
+					form.querySelectorAll("input, select, textarea, button").forEach((el) => {
+						if (el.closest(".nav")) return;
+						if (el.id === "cat-search") return;
+						el.disabled = !canWrite || (!!el.dataset.s && !PERMS.stock);
+					});
+					const save = document.getElementById("btn-save");
+					if (save) save.disabled = !canWrite;
+				}
+
+				// ═══ ЖИВЕ БЛОКУВАННЯ ═══════════════════════════
+				const lockToken = crypto.randomUUID();
+				let haveLock = false;
+				let heartbeatTimer = null;
+				const lockBanner = document.getElementById("lock-banner");
+				const savedBanner = document.getElementById("saved-banner");
+				const show = (el, on) => (el.style.display = on ? "flex" : "none");
+
+				function showHolder(holder) {
+					if (!holder || haveLock) return show(lockBanner, false);
+					const since = holder.since ? new Date(String(holder.since).replace(" ", "T")).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+					document.getElementById("lock-text").textContent = "<%= i18n.__('catalog.products.lock.editing') %> " + (holder.user_name || "#" + holder.id_user) + (since ? " <%= i18n.__('catalog.products.lock.since') %> " + since : "");
+					show(lockBanner, true);
+				}
+				function emitAck(event, payload) {
+					return new Promise((resolve) => {
+						const t = setTimeout(() => resolve({ ok: false, error: "timeout" }), 8000);
+						socket.emit(event, payload, (r) => {
+							clearTimeout(t);
+							resolve(r || { ok: false });
+						});
+					});
+				}
+				async function acquireLock(force) {
+					if (!PERMS.edit) {
+						setReadOnly(true);
+						return false;
+					}
+					const r = await emitAck("product:lock", { id: PRODUCT_ID, token: lockToken, force: !!force });
+					haveLock = r.ok === true;
+					if (haveLock) {
+						show(lockBanner, false);
+						setReadOnly(false);
+						clearInterval(heartbeatTimer);
+						heartbeatTimer = setInterval(async () => {
+							const hb = await emitAck("product:heartbeat", { id: PRODUCT_ID, token: lockToken });
+							if (!hb.ok) lostLock();
+						}, HEARTBEAT_MS);
+					} else {
+						setReadOnly(true);
+						if (r.holder) showHolder(r.holder);
+					}
+					return haveLock;
+				}
+				function lostLock() {
+					if (!haveLock) return;
+					haveLock = false;
+					clearInterval(heartbeatTimer);
+					setReadOnly(true);
+					notyf.error("<%= i18n.__('catalog.products.lock.lost') %>");
+					emitAck("product:watch", { id: PRODUCT_ID }).then((r) => r.ok && showHolder(r.holder));
+				}
+
+				if (PRODUCT_ID) {
+					socket.on("product:lock:state", (d) => d.id === PRODUCT_ID && !haveLock && showHolder(d.holder));
+					socket.on("product:lock:lost", (d) => d.id === PRODUCT_ID && lostLock());
+					socket.on("product:saved", (d) => {
+						if (d.id !== PRODUCT_ID || (haveLock && d.by === ME)) return;
+						if (!haveLock) show(savedBanner, true);
+					});
+					socket.on("product:deleted", (d) => {
+						if (d.id !== PRODUCT_ID) return;
+						notyf.error("<%= i18n.__('catalog.products.deleted_by_other') %>");
+						setTimeout(() => (window.location.href = "/catalog/products/"), 1500);
+					});
+					socket.on("connect", () => {
+						if (haveLock) {
+							haveLock = false;
+							acquireLock(false);
+						} else emitAck("product:watch", { id: PRODUCT_ID }).then((r) => r.ok && showHolder(r.holder));
+					});
+					window.addEventListener("pagehide", () => haveLock && socket.emit("product:unlock", { id: PRODUCT_ID, token: lockToken }));
+				}
+
+				const takeover = document.getElementById("btn-takeover");
+				if (takeover)
+					takeover.addEventListener("click", async () => {
+						if (!confirm("<%= i18n.__('catalog.products.lock.confirm_takeover') %>")) return;
+						await loadProduct();
+						if (await acquireLock(true)) notyf.success("<%= i18n.__('catalog.products.lock.taken') %>");
+					});
+				document.getElementById("btn-reload").addEventListener("click", async () => {
+					show(savedBanner, false);
+					await loadProduct().catch((err) => notyf.error(errMsg(err)));
+				});
+
+				// ═══ ЗБЕРЕЖЕННЯ ════════════════════════════════
+				form.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					if (!canWrite) return;
+					clearErrors();
+					const btn = document.getElementById("btn-save");
+					btn.disabled = true;
+					try {
+						const data = readCore();
+						data.id_category_main = readMainCategory();
+						const payload = {
+							id: PRODUCT_ID,
+							version: product ? product.version : null,
+							lock_token: PRODUCT_ID ? lockToken : null,
+							data,
+							descriptions: readDescriptions(),
+							slug_shared: document.getElementById("slug-shared").checked,
+							categories: readCategories(),
+							media: readMedia(),
+							attributes: readAttributes(),
+							options: readOptions(),
+							customization: readCustomization(),
+							stock: data.type === "variable" ? [] : readStock(),
+							prices: readPrices(),
+							rewards: readRewards(),
+							customer_groups: readVisibility(),
+							related: readRelated(),
+							suppliers: readSuppliers(),
+						};
+						const r = await api("/api/catalog/products/save/", payload);
+						notyf.success("<%= i18n.__('catalog.common.saved') %>");
+						dirty = false;
+						if (!PRODUCT_ID) return (window.location.href = `/catalog/products/${r.id}/`);
+						await loadProduct();
+					} catch (err) {
+						if (err.code === "version_conflict") {
+							if (confirm("<%= i18n.__('catalog.products.lock.version_conflict') %>")) await loadProduct();
+						} else if (err.code === "lock_lost" || err.code === "lock_required") {
+							lostLock();
+						} else {
+							showErrors(err.errors);
+							notyf.error(errMsg(err));
+						}
+					} finally {
+						btn.disabled = !canWrite;
+					}
+				});
+
+				window.addEventListener("beforeunload", (e) => {
+					if (dirty && canWrite) {
+						e.preventDefault();
+						e.returnValue = "";
+					}
+				});
+
+				// ═══ КОПІЮВАННЯ / ВИДАЛЕННЯ ════════════════════
+				const copyBtn = document.getElementById("btn-copy");
+				if (copyBtn)
+					copyBtn.addEventListener("click", async () => {
+						if (dirty && !confirm("<%= i18n.__('catalog.products.unsaved_copy') %>")) return;
+						try {
+							const r = await api(`/api/catalog/products/${PRODUCT_ID}/copy/`);
+							notyf.success("<%= i18n.__('catalog.products.copied') %>");
+							dirty = false;
+							window.location.href = `/catalog/products/${r.id}/`;
+						} catch (err) {
+							notyf.error(errMsg(err));
+						}
+					});
+				const delBtn = document.getElementById("btn-delete");
+				if (delBtn)
+					delBtn.addEventListener("click", async () => {
+						const name = ((product.descriptions || {})[PRIMARY_LANG] || {}).name || "#" + PRODUCT_ID;
+						if (!confirm("<%= i18n.__('catalog.products.confirm_delete') %>".replace("%s", name))) return;
+						try {
+							await api(`/api/catalog/products/${PRODUCT_ID}/delete/`);
+							dirty = false;
+							if (haveLock) socket.emit("product:unlock", { id: PRODUCT_ID, token: lockToken });
+							window.location.href = "/catalog/products/";
+						} catch (err) {
+							notyf.error(errMsg(err));
+						}
+					});
+
+				// ═══ СТАРТ ═════════════════════════════════════
+				(async () => {
+					try {
+						await loadDictionaries();
+						if (PRODUCT_ID) {
+							setReadOnly(true);
+							await loadProduct();
+							const w = await emitAck("product:watch", { id: PRODUCT_ID });
+							if (w.ok && w.holder && w.holder.id_user !== ME) showHolder(w.holder);
+							else await acquireLock(false);
+						} else {
+							fillAll({ status: DEFAULT_STATUS, id_attribute_set: DEFAULT_SET, descriptions: {}, stock: [], media: [], categories: [], attributes: [], options: [], customization: [], prices: [], rewards: [], related: [], suppliers: [] });
+							form.querySelector('[name="id_attribute_set"]').value = DEFAULT_SET || "";
+							if (DEFAULT_SET) await applySet(DEFAULT_SET);
+						}
+					} catch (err) {
+						notyf.error(errMsg(err));
+					}
+				})();
+			})();
+		</script>
+		<% if (productId) { %>
+		<script>
+			(function () {
+				"use strict";
+
+				const PRODUCT_ID = <%= Number(productId) %>;
+				const SOURCE = {
+					card: "<%= i18n.__('catalog.history.source.card') %>",
+					bulk: "<%= i18n.__('catalog.history.source.bulk') %>",
+					import: "<%= i18n.__('catalog.history.source.import') %>",
+					copy: "<%= i18n.__('catalog.history.source.copy') %>",
+					trash: "<%= i18n.__('catalog.history.source.trash') %>",
+					sync: "<%= i18n.__('catalog.history.source.sync') %>",
+					api: "<%= i18n.__('catalog.history.source.api') %>",
+				};
+				const ACTION = {
+					create: ["text-bg-success", "<%= i18n.__('catalog.history.action.create') %>"],
+					update: ["text-bg-primary", "<%= i18n.__('catalog.history.action.update') %>"],
+					delete: ["text-bg-danger", "<%= i18n.__('catalog.history.action.delete') %>"],
+					restore: ["text-bg-info", "<%= i18n.__('catalog.history.action.restore') %>"],
+				};
+				const list = document.getElementById("h-list");
+				const more = document.getElementById("h-more");
+				let offset = 0;
+				let loaded = false;
+
+				function el(tag, cls, text) {
+					const n = document.createElement(tag);
+					if (cls) n.className = cls;
+					if (text !== undefined && text !== null) n.textContent = text;
+					return n;
+				}
+				function value(v) {
+					if (v === null || v === undefined) return el("span", "text-muted", "—");
+					if (Array.isArray(v)) return el("span", "", v.join(", ") || "—");
+					if (typeof v === "object") {
+						const s = el("span");
+						s.appendChild(document.createTextNode(v.preview + "… "));
+						s.appendChild(el("span", "text-muted small", "(<%= i18n.__('catalog.history.truncated') %> " + v.len + ")"));
+						return s;
+					}
+					return el("span", "text-break", String(v));
+				}
+
+				function renderEvent(ev) {
+					const card = el("div", "border rounded-0 mb-2");
+					const head = el("div", "d-flex flex-wrap gap-2 align-items-center bg-light px-3 py-2 small");
+					const act = ACTION[ev.action] || ["text-bg-secondary", ev.action];
+					head.appendChild(el("span", "badge " + act[0], act[1]));
+					head.appendChild(el("span", "fw-semibold", new Date(ev.ts).toLocaleString()));
+					head.appendChild(el("span", "", ev.user ? ev.user.name || "#" + ev.user.id : "<%= i18n.__('catalog.history.system') %>"));
+					head.appendChild(el("span", "badge text-bg-light border", SOURCE[ev.source] || ev.source));
+					if (ev.meta && ev.meta.copied_from) head.appendChild(el("span", "text-muted", "<%= i18n.__('catalog.history.copied_from') %> #" + ev.meta.copied_from));
+					card.appendChild(head);
+
+					if (ev.changes && ev.changes.length) {
+						const table = el("table", "table table-sm small mb-0");
+						const tbody = el("tbody");
+						ev.changes.forEach((c) => {
+							const tr = el("tr");
+							const f = el("td", "text-muted", c.label || c.field);
+							f.style.width = "28%";
+							if (c.lang_code) f.appendChild(el("span", "badge text-bg-light border ms-1", c.lang_code));
+							tr.appendChild(f);
+							const o = el("td", "text-danger");
+							o.style.width = "36%";
+							o.appendChild(value(c.old));
+							const n = el("td", "text-success");
+							n.appendChild(value(c.new));
+							tr.appendChild(o);
+							tr.appendChild(n);
+							tbody.appendChild(tr);
+						});
+						table.appendChild(tbody);
+						card.appendChild(table);
+					}
+					return card;
+				}
+
+				async function load(reset) {
+					if (reset) {
+						offset = 0;
+						list.replaceChildren();
+					}
+					const res = await fetch(`/api/catalog/products/${PRODUCT_ID}/history/`, {
+						method: "POST",
+						credentials: "same-origin",
+						headers: { "Content-Type": "application/json", Accept: "application/json" },
+						body: JSON.stringify({ offset, limit: 30 }),
+					});
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					json.rows.forEach((ev) => list.appendChild(renderEvent(ev)));
+					offset += json.rows.length;
+					more.classList.toggle("d-none", !json.has_more);
+					document.getElementById("h-empty").classList.toggle("d-none", offset > 0);
+					if (reset) {
+						const box = document.getElementById("h-lowest");
+						box.classList.toggle("d-none", json.lowest_price_30d === null);
+						box.textContent = "<%= i18n.__('catalog.history.lowest_30d') %>: " + Number(json.lowest_price_30d).toLocaleString(undefined, { minimumFractionDigits: 2 });
+					}
+				}
+
+				document.getElementById("tab-history-btn").addEventListener("shown.bs.tab", () => {
+					if (!loaded) load(true).then(() => (loaded = true)).catch(() => {});
+				});
+				more.addEventListener("click", () => load(false).catch(() => {}));
+				// Після збереження товару історія має оновитись при наступному відкритті вкладки
+				if (typeof socket !== "undefined") socket.on("product:saved", (d) => d.id === PRODUCT_ID && (loaded = false));
+				document.addEventListener("submit", () => (loaded = false), true);
+			})();
+		</script>
+		<% } %>
+		<script>
+			(function () {
+				"use strict";
+
+				const ENTITY = "products";
+				const getId = () => <%= productId ? Number(productId) : 'null' %>;
+				const root = document.getElementById("t-content");
+				const FIELDS = ["meta_title", "meta_description", "og_title", "og_description"];
+				const WATCH = new Set(["name", "h1", "short_description", "description", "slug", "unit_label", ...FIELDS]);
+				let limits = { title_max: 60, description_max: 160 };
+				let timer = null;
+				let seq = 0;
+
+				function readDraft() {
+					const out = {};
+					root.querySelectorAll("[data-desc]").forEach((el) => ((out[el.dataset.lang] = out[el.dataset.lang] || {})[el.dataset.desc] = el.value));
+					return out;
+				}
+				const maxFor = (f) => (f.endsWith("title") ? limits.title_max : limits.description_max);
+				function counter(input) {
+					let c = input.parentElement.querySelector(".seo-counter");
+					if (!c) {
+						c = document.createElement("div");
+						input.insertAdjacentElement("afterend", c);
+					}
+					const own = input.value.trim().length;
+					const len = own || (input.placeholder || "").length;
+					const max = maxFor(input.dataset.desc);
+					c.className = "seo-counter small text-end " + (len > max ? "text-danger" : len < max * 0.5 ? "text-warning" : "text-success");
+					c.textContent = (own ? "" : "<%= i18n.__('catalog.seo.auto') %> · ") + len + " / " + max;
+				}
+				function serp(id, v) {
+					const box = root.querySelector(`[data-serp="${id}"]`);
+					if (!box) return;
+					const t = document.createElement("div");
+					t.className = "fs-6 text-primary text-truncate";
+					t.textContent = v.meta_title || "—";
+					const u = document.createElement("div");
+					u.className = "small text-success text-truncate";
+					u.textContent = "…/" + (v.slug || "…");
+					const d = document.createElement("div");
+					d.className = "small text-body-secondary";
+					d.textContent = v.meta_description || "";
+					box.replaceChildren(t, u, d);
+				}
+				async function refresh() {
+					const my = ++seq;
+					try {
+						const res = await fetch("/api/catalog/products/seo/preview/", {
+							method: "POST",
+							credentials: "same-origin",
+							headers: { "Content-Type": "application/json", Accept: "application/json" },
+							body: JSON.stringify({ entity: ENTITY, id: getId(), descriptions: readDraft() }),
+						});
+						const json = await res.json().catch(() => ({}));
+						if (!res.ok || !json.ok || my !== seq) return;
+						limits = json.limits;
+						json.langs.forEach((l) => {
+							FIELDS.forEach((f) => {
+								const input = root.querySelector(`[data-lang="${l.id}"][data-desc="${f}"]`);
+								if (input) input.placeholder = l.values[f] || "";
+							});
+							const slugInput = root.querySelector(`[data-lang="${l.id}"][data-desc="slug"]`);
+							serp(l.id, { ...l.values, slug: (slugInput && slugInput.value) || l.slug });
+						});
+					} catch {}
+					root.querySelectorAll(FIELDS.map((f) => `[data-desc="${f}"]`).join(",")).forEach(counter);
+				}
+				root.addEventListener("input", (e) => {
+					const f = e.target.dataset && e.target.dataset.desc;
+					if (!f || !WATCH.has(f)) return;
+					if (FIELDS.includes(f)) counter(e.target);
+					clearTimeout(timer);
+					timer = setTimeout(refresh, 600);
+				});
+
+				// ── OG-картинка ──
+				const ogInput = document.querySelector('[name="og_image"]');
+				const ogPreview = document.getElementById("og-image-preview");
+				const ogFile = document.getElementById("og-image-file");
+				function showOg() {
+					const v = ogInput.value;
+					ogPreview.src = v ? "/assets/images/products/" + v : "";
+					ogPreview.style.display = v ? "" : "none";
+				}
+				ogFile.addEventListener("change", async () => {
+					if (!ogFile.files[0]) return;
+					ogFile.disabled = true;
+					try {
+						const fd = new FormData();
+						fd.append("file", ogFile.files[0]);
+						const res = await fetch("/api/catalog/products/images/products/upload/", { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" }, body: fd });
+						const json = await res.json().catch(() => ({}));
+						if (!res.ok || json.ok === false) throw json;
+						ogInput.value = json.file;
+						showOg();
+					} catch (err) {
+						alert(err.error || "<%= i18n.__('catalog.common.error') %>");
+					} finally {
+						ogFile.disabled = false;
+						ogFile.value = "";
+					}
+				});
+				document.getElementById("og-image-clear").addEventListener("click", () => {
+					ogInput.value = "";
+					showOg();
+				});
+
+				document.querySelector('[data-bs-target="#t-content"]').addEventListener("shown.bs.tab", () => {
+					showOg();
+					refresh();
+				});
+			})();
+		</script>
+		<% if (productId) { %>
+		<script>
+			/* ─── Заплановані зміни ціни ─── */
+			(() => {
+				const PID = <%= Number(productId) %>;
+				const CAN_EDIT = <%= perms.edit %>;
+				const body = document.getElementById("ps-body");
+				const box = document.getElementById("ps-form");
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+				const dt = (v) => (v ? String(v).slice(0, 16) : "—");
+				const money = (v) => (v === null || v === undefined ? "—" : Number(v).toLocaleString(undefined, { maximumFractionDigits: 4 }));
+				const FIELDS = { price: "<%= i18n.__('catalog.products.f.price') %>", compare_at_price: "<%= i18n.__('catalog.products.f.compare_at_price') %>" };
+				const STATUS = {
+					pending: ["secondary", "<%= i18n.__('catalog.schedule.status.pending') %>"],
+					applied: ["success", "<%= i18n.__('catalog.schedule.status.applied') %>"],
+					reverted: ["info", "<%= i18n.__('catalog.schedule.status.reverted') %>"],
+					canceled: ["light", "<%= i18n.__('catalog.schedule.status.canceled') %>"],
+					failed: ["danger", "<%= i18n.__('catalog.schedule.status.failed') %>"],
+				};
+
+				async function call(url, data) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(data || {}) });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+
+				async function load() {
+					const r = await call(`/api/catalog/products/${PID}/price-schedule/list/`);
+					if (!r.rows.length) {
+						body.innerHTML = `<tr><td colspan="8" class="text-muted">—</td></tr>`;
+						return;
+					}
+					body.innerHTML = r.rows
+						.map((s) => {
+							const st = STATUS[s.status] || ["secondary", s.status];
+							const cancel = CAN_EDIT && (s.status === "pending" || (s.status === "applied" && s.revert_at));
+							return `<tr>
+								<td>${esc(FIELDS[s.field] || s.field)}${Number(s.set_compare_at) ? ` <i class="fa-solid fa-tag text-muted" title="<%= i18n.__('catalog.schedule.f.set_compare_at') %>"></i>` : ""}</td>
+								<td class="text-end">${money(s.value)}</td>
+								<td>${esc(dt(s.run_at))}</td>
+								<td>${esc(dt(s.revert_at))}</td>
+								<td><span class="badge text-bg-${st[0]}" title="${esc(s.error || "")}">${esc(st[1])}</span>${s.error ? ` <small class="text-muted">${esc(s.error)}</small>` : ""}</td>
+								<td class="text-end">${money(s.old_price)}</td>
+								<td><small>${esc(s.comment || "")}</small><br><small class="text-muted">${esc(s.user_name || "")}</small></td>
+								<td class="text-end">${cancel ? `<button type="button" class="btn btn-sm btn-outline-danger rounded-0" data-cancel="${s.id}" title="<%= i18n.__('catalog.schedule.cancel') %>"><i class="fa-solid fa-ban"></i></button>` : ""}</td>
+							</tr>`;
+						})
+						.join("");
+				}
+
+				body.addEventListener("click", async (e) => {
+					const b = e.target.closest("[data-cancel]");
+					if (!b || !confirm("<%= i18n.__('catalog.schedule.confirm_cancel') %>")) return;
+					try {
+						await call(`/api/catalog/products/${PID}/price-schedule/${b.dataset.cancel}/cancel/`);
+						await load();
+					} catch (err) {
+						alert(err.error || "<%= i18n.__('catalog.common.error') %>");
+					}
+				});
+
+				if (box) {
+					const f = (k) => box.querySelector(`[data-psf="${k}"]`);
+					f("field").addEventListener("change", () => {
+						const isPrice = f("field").value === "price";
+						f("set_compare_at").disabled = !isPrice;
+						if (!isPrice) f("set_compare_at").checked = false;
+					});
+					document.getElementById("ps-add").addEventListener("click", async (e) => {
+						const btn = e.currentTarget;
+						box.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+						const toDt = (v) => (v ? v.replace("T", " ") + ":00" : null);
+						const data = {
+							field: f("field").value,
+							value: f("value").value === "" ? null : Number(f("value").value),
+							run_at: toDt(f("run_at").value),
+							revert_at: toDt(f("revert_at").value),
+							set_compare_at: f("set_compare_at").checked,
+							comment: f("comment").value.trim() || null,
+						};
+						btn.disabled = true;
+						try {
+							await call(`/api/catalog/products/${PID}/price-schedule/save/`, { data });
+							["value", "run_at", "revert_at", "comment"].forEach((k) => (f(k).value = ""));
+							await load();
+						} catch (err) {
+							(err.errors || []).forEach((x) => {
+								const cell = box.querySelector(`[data-ps="${CSS.escape(x.field || "")}"]`);
+								if (!cell) return;
+								cell.querySelectorAll("input,select").forEach((el) => el.classList.add("is-invalid"));
+								const fb = cell.querySelector(".invalid-feedback");
+								if (fb) fb.textContent = x.message;
+							});
+							alert(err.error || "<%= i18n.__('catalog.common.error') %>");
+						} finally {
+							btn.disabled = false;
+						}
+					});
+				}
+
+				document.querySelector('[data-bs-target="#t-prices"]').addEventListener("shown.bs.tab", () => load().catch(() => {}));
+			})();
+		</script>
+		<% } %>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.3/tinymce.min.js" referrerpolicy="origin"></script>
+		<script>
+			/* ─── TinyMCE 6: HTML-редактор описів ─── */
+			(() => {
+				if (!window.tinymce) return;
+				const KIND = "products";
+				const UI_LANG = "<%= i18n.__('lang_iso') %>";
+				const proto = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value");
+
+				// Bootstrap-модалки перехоплюють фокус — пропускаємо діалоги TinyMCE
+				document.addEventListener(
+					"focusin",
+					(e) => {
+						if (e.target.closest(".tox-tinymce, .tox-tinymce-aux, .tox-dialog")) e.stopImmediatePropagation();
+					},
+					true
+				);
+
+				async function upload(blobInfo, progress) {
+					const fd = new FormData();
+					fd.append("file", blobInfo.blob(), blobInfo.filename());
+					const res = await fetch(`/api/catalog/products/images/${KIND}/upload/`, { method: "POST", body: fd, credentials: "same-origin" });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || !json.ok) throw { message: json.error || "<%= i18n.__('catalog.common.error') %>", remove: true };
+					progress(100);
+					return json.url;
+				}
+
+				document.querySelectorAll("textarea[data-html]").forEach((el) => {
+					let editor = null;
+					let syncing = false;
+
+					// Існуючий код сторінки читає/пише el.value — тримаємо редактор у синхроні без змін у ньому
+					Object.defineProperty(el, "value", {
+						configurable: true,
+						get() {
+							return proto.get.call(el);
+						},
+						set(v) {
+							proto.set.call(el, v);
+							if (editor && !syncing && editor.initialized) editor.setContent(v || "");
+						},
+					});
+
+					const push = () => {
+						syncing = true;
+						editor.save();
+						syncing = false;
+						el.dispatchEvent(new Event("input", { bubbles: true }));
+					};
+
+					tinymce.init({
+						target: el,
+						language: UI_LANG && UI_LANG !== "en" ? UI_LANG : undefined,
+						language_url: UI_LANG && UI_LANG !== "en" ? `https://cdn.jsdelivr.net/npm/tinymce-i18n/langs6/${UI_LANG}.js` : undefined,
+						directionality: el.dataset.dir === "rtl" ? "rtl" : "ltr",
+						height: Math.max(220, Number(el.getAttribute("rows") || 6) * 45),
+						menubar: "edit view insert format table tools",
+						plugins: "advlist autolink lists link image media table charmap searchreplace visualblocks code fullscreen preview wordcount directionality",
+						toolbar: "undo redo | blocks | bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image media table | ltr rtl | removeformat code fullscreen",
+						promotion: false,
+						branding: false,
+						relative_urls: false,
+						remove_script_host: true,
+						convert_urls: true,
+						paste_data_images: false,
+						automatic_uploads: true,
+						images_upload_handler: upload,
+						images_file_types: "jpeg,jpg,png,webp,avif,gif",
+						image_dimensions: true,
+						image_caption: true,
+						link_default_target: "_blank",
+						link_assume_external_targets: "https",
+						invalid_elements: "script,style,object,embed,form,input,button,textarea,select",
+						table_default_attributes: {},
+						table_default_styles: { "border-collapse": "collapse", width: "100%" },
+						readonly: el.disabled,
+						setup(ed) {
+							editor = ed;
+							ed.on("init", () => ed.setContent(proto.get.call(el) || ""));
+							ed.on("input change undo redo ExecCommand", push);
+						},
+					});
+
+					// Форма вмикає/вимикає поля через disabled — віддзеркалюємо в редактор
+					new MutationObserver(() => editor && editor.initialized && editor.mode.set(el.disabled ? "readonly" : "design")).observe(el, { attributes: true, attributeFilter: ["disabled"] });
+				});
+			})();
+		</script>
+	</body>
+</html>

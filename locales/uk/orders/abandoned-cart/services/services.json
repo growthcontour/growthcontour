@@ -1,0 +1,49 @@
+{
+    "orders": {
+        "abandoned-cart": {
+            "services": {
+                "title": "Сервіси розсилок",
+                "breadcrumb": {
+                    "home": "Головна",
+                    "orders": "Замовлення",
+                    "abandoned_cart": "Покинуті кошики",
+                    "current": "Сервіси розсилок"
+                },
+                "columns": {
+                    "id": "ID",
+                    "service": "Сервіс",
+                    "channel": "Канал",
+                    "description": "Опис",
+                    "status": "Статус",
+                    "default": "За замовч.",
+                    "connect": "Підключити"
+                },
+                "channels": {
+                    "sms": "SMS",
+                    "email": "Email",
+                    "viber": "Viber"
+                },
+                "status": {
+                    "connected": "Підключено",
+                    "not_connected": "Не підключено",
+                    "yes": "Так"
+                },
+                "modal": {
+                    "title": "Підключити сервіс",
+                    "loading": "Завантаження...",
+                    "close": "Закрити",
+                    "save": "Зберегти",
+                    "saving": "Збереження",
+                    "connected": "Сервіс підключено.",
+                    "saved": "Сервіс підключено.",
+                    "missing_fields": "Не заповнені поля",
+                    "save_error": "Помилка збереження.",
+                    "server_error": "Помилка сервера.",
+                    "load_error": "Помилка завантаження даних сервісу.",
+                    "secret_saved": "збережено, введіть для заміни",
+                    "no_fields": "Немає полів для налаштування."
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,101 @@
+{
+    "leads": {
+        "fields": {
+            "title": "Назва",
+            "note": "Нотатка",
+            "value": "Сума",
+            "id_status": "Статус",
+            "id_pipeline": "Воронка",
+            "id_stage": "Крок воронки",
+            "temperature": "Температура",
+            "qualification": "Кваліфікація",
+            "priority": "Пріоритет",
+            "id_manager": "Менеджер",
+            "id_team": "Команда",
+            "id_source": "Джерело",
+            "lead_source": "Джерело ліда",
+            "website": "Сайт",
+            "capture_type": "Тип захоплення",
+            "capture_ref": "Ref захоплення",
+            "contact_info": "Контактна інформація",
+            "contact_info.name": "Ім'я контакту",
+            "contact_info.phone": "Телефон",
+            "contact_info.email": "Email",
+            "contact_info.company": "Компанія",
+            "contact_info.position": "Посада",
+            "utm": "UTM",
+            "fingerprint": "Fingerprint",
+            "custom_fields": "Кастомні поля",
+            "score_fit": "Fit score",
+            "score_activity": "Activity score",
+            "score": "Score",
+            "grade": "Grade",
+            "expected_close_date": "Очікувана дата закриття",
+            "response_deadline": "Дедлайн відповіді",
+            "first_response_at": "Перша відповідь",
+            "id_loss_reason": "Причина програшу",
+            "loss_note": "Коментар програшу",
+            "is_converted": "Конвертовано",
+            "is_duplicate": "Дублікат"
+        },
+        "history": {
+            "actions": {
+                "field_change": "Зміна поля",
+                "status_change": "Зміна статусу",
+                "stage_change": "Зміна кроку",
+                "pipeline_change": "Зміна воронки",
+                "assigned": "Призначено",
+                "unassigned": "Знято призначення",
+                "score_change": "Зміна score",
+                "converted": "Конвертовано",
+                "comment": "Коментар",
+                "comment_pin": "Коментар закріплено",
+                "file_attached": "Файл прикріплено",
+                "file_deleted": "Файл видалено",
+                "task_created": "Задача створена",
+                "email_sent": "Email надіслано",
+                "call_logged": "Дзвінок записано",
+                "meeting_logged": "Зустріч записана",
+                "sla_breach": "Порушення SLA",
+                "automation_fired": "Автоматизація спрацювала",
+                "duplicate_marked": "Позначено як дублікат",
+                "deleted": "Видалено",
+                "restored": "Відновлено"
+            },
+            "sources": {
+                "web": "Веб",
+                "api": "API",
+                "automation": "Автоматизація",
+                "import": "Імпорт",
+                "system": "Система"
+            },
+            "system": "Система",
+            "no_data": "Історія порожня"
+        },
+        "temperature": {
+            "cold": "Холодний",
+            "warm": "Теплий",
+            "hot": "Гарячий"
+        },
+        "qualification": {
+            "unqualified": "Некваліфікований",
+            "mql": "MQL",
+            "sql": "SQL",
+            "pql": "PQL"
+        },
+        "priority": {
+            "0": "Низький",
+            "1": "Нормальний",
+            "2": "Високий",
+            "3": "Терміновий"
+        },
+        "capture_type": {
+            "api": "API",
+            "form": "Форма",
+            "manual": "Вручну",
+            "import": "Імпорт",
+            "chat": "Чат",
+            "webhook": "Webhook"
+        }
+    }
+}

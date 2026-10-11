@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+<head>
+	<title><%= i18n.__('orders.integrations.title') %></title>
+	<%- include('../../../partials/head'); %>
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/monolith.min.css" />
+	<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+	<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+	<style>
+		#integrations-table .tabulator-col, #integrations-table .tabulator-cell { border-right: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; }
+		#integrations-table .tabulator-col:last-child, #integrations-table .tabulator-cell:last-child { border-right: none; }
+		.src-badge { display: inline-block; padding: 2px 8px; font-size: 12px; }
+		.pickr .pcr-button { border: 1px solid #eee; border-radius: 0; }
+		.form-label.req::after { content: " *"; color: #dc3545; }
+		.mono { font-family: monospace; }
+	</style>
+</head>
+<body class="d-flex flex-column h-100">
+	<%- include('../../../partials/header'); %>
+
+	<div class="breadcrumbs pt-3 pb-3">
+		<div class="container-fluid">
+			<div class="row align-items-center">
+				<div class="col">
+					<span><%= i18n.__('orders.integrations.title') %></span>
+					<div>
+						<ul class="list-inline mb-0">
+							<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('orders.integrations.breadcrumb.home') %></span></a></li>
+							<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= i18n.__('header.nav.settings') %></li>
+							<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= i18n.__('orders.integrations.title') %></li>
+						</ul>
+					</div>
+				</div>
+				<div class="col-auto">
+					<a href="/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="container-fluid mt-3">
+		<div class="row">
+			<div class="col-12 mb-3">
+				<button type="button" class="btn btn-primary rounded-0 mb-3" id="btn_add_integration"><i class="fa-solid fa-plus me-1"></i><%= i18n.__('orders.integrations.add_button') %></button>
+				<div class="card border-primary rounded-0">
+					<div class="card-header text-bg-primary rounded-0"><%= i18n.__('orders.integrations.title') %></div>
+					<div id="integrations-table"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- ─── МОДАЛКА: ДОДАВАННЯ / РЕДАГУВАННЯ ─── -->
+	<div class="modal fade" id="modalIntegration" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered modal-lg">
+			<div class="modal-content rounded-0">
+				<div class="modal-header">
+					<h1 class="modal-title fs-5"><span id="int_modal_title"></span> <span class="text-muted d-none" id="int_id_wrap">#<span id="int_id_label"></span></span></h1>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+				</div>
+				<div class="modal-body">
+					<input type="hidden" id="int_id" />
+
+					<div class="mb-3">
+						<label class="form-label req" for="int_name"><%= i18n.__('orders.integrations.fields.name') %></label>
+						<input type="text" class="form-control rounded-0" id="int_name" maxlength="255" />
+					</div>
+
+					<div class="row">
+						<div class="col-12 col-md-5 mb-3">
+							<label class="form-label req" for="int_platform"><%= i18n.__('orders.integrations.fields.platform') %></label>
+							<select class="form-select rounded-0" id="int_platform"></select>
+						</div>
+						<div class="col-6 col-md-3 mb-3 d-none" data-field="version">
+							<label class="form-label" for="int_platform_version">Версія</label>
+							<select class="form-select rounded-0" id="int_platform_version"></select>
+						</div>
+						<div class="col-6 col-md-4 mb-3">
+							<label class="form-label" for="int_status"><%= i18n.__('orders.integrations.fields.status') %></label>
+							<select class="form-select rounded-0" id="int_status">
+								<option value="active"><%= i18n.__('orders.integrations.status_opt.active') %></option>
+								<option value="disabled"><%= i18n.__('orders.integrations.status_opt.disabled') %></option>
+							</select>
+						</div>
+					</div>
+
+					<div class="mb-3 d-none" data-field="default_status">
+						<label class="form-label" for="int_default_status">Стартовий статус замовлення</label>
+						<select class="form-select rounded-0" id="int_default_status"><option value="">— оберіть статус —</option></select>
+						<small class="text-muted">Усі замовлення від цієї інтеграції створюються з цим статусом.</small>
+					</div>
+
+					<div class="mb-3 d-none" data-field="base_url">
+						<label class="form-label" for="int_base_url">Адреса сайту</label>
+						<input type="url" class="form-control rounded-0" id="int_base_url" placeholder="https://shop.com" maxlength="255" />
+					</div>
+
+					<div class="mb-3 d-none" data-field="callback_url">
+						<label class="form-label" for="int_callback_url">API endpoint модуля</label>
+						<div class="input-group">
+							<input type="url" class="form-control rounded-0 mono" id="int_callback_url" maxlength="512" />
+							<button type="button" class="btn btn-outline-secondary rounded-0" id="btn_fill_callback" title="Заповнити з адреси сайту"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+						</div>
+						<small class="text-muted" id="int_callback_hint"></small>
+					</div>
+
+					<div class="mb-3 d-none" data-field="outbound_token">
+						<label class="form-label" for="int_outbound_token">Ключ доступу CRM → сайт</label>
+						<div class="input-group">
+							<input type="text" class="form-control rounded-0 mono" id="int_outbound_token" maxlength="255" autocomplete="off" />
+							<button type="button" class="btn btn-outline-secondary rounded-0" id="btn_gen_token" title="Згенерувати"><i class="fa-solid fa-rotate"></i></button>
+							<button type="button" class="btn btn-outline-secondary rounded-0" id="btn_copy_token" title="Копіювати"><i class="fa-regular fa-copy"></i></button>
+						</div>
+						<small class="text-muted">Вставте цей ключ у налаштування модуля на сайті. Після зміни ключа оновіть його і там.</small>
+					</div>
+
+					<div class="row d-none" data-cap="orders">
+						<div class="col-12 col-md-6 mb-3">
+							<div class="form-check">
+								<input type="checkbox" class="form-check-input rounded-0" id="int_sync_orders_out" value="1" />
+								<label class="form-check-label" for="int_sync_orders_out"><%= i18n.__('orders.integrations.fields.sync_orders_out') %></label>
+							</div>
+						</div>
+						<div class="col-12 col-md-6 mb-3">
+							<div class="form-check">
+								<input type="checkbox" class="form-check-input rounded-0" id="int_sync_status_out" value="1" />
+								<label class="form-check-label" for="int_sync_status_out"><%= i18n.__('orders.integrations.fields.sync_status_out') %></label>
+							</div>
+						</div>
+					</div>
+
+					<div class="row">
+						<div class="col-6 col-md-4 mb-3">
+							<label class="form-label"><%= i18n.__('orders.integrations.fields.color_background') %></label>
+							<div class="pickr-color" data-target="int_color_background"></div>
+							<input type="hidden" id="int_color_background" value="#607d8b" />
+						</div>
+						<div class="col-6 col-md-4 mb-3">
+							<label class="form-label"><%= i18n.__('orders.integrations.fields.color_text') %></label>
+							<div class="pickr-color" data-target="int_color_text"></div>
+							<input type="hidden" id="int_color_text" value="#ffffff" />
+						</div>
+						<div class="col-12 col-md-4 mb-3">
+							<label class="form-label"><%= i18n.__('orders.integrations.fields.preview') %></label>
+							<div><span class="src-badge" id="int_preview">example</span></div>
+						</div>
+					</div>
+
+					<div class="mb-3">
+						<label class="form-label" for="int_note"><%= i18n.__('orders.integrations.fields.note') %></label>
+						<input type="text" class="form-control rounded-0" id="int_note" maxlength="999" />
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('orders.integrations.modal.close') %></button>
+					<button type="button" class="btn btn-primary rounded-0" id="btn_save_integration"><%= i18n.__('orders.integrations.modal.save') %></button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- ─── МОДАЛКА: ВИДАЛЕННЯ ─── -->
+	<div class="modal fade" id="modalDeleteIntegration" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered">
+			<div class="modal-content rounded-0">
+				<div class="modal-header">
+					<h1 class="modal-title fs-5"><%= i18n.__('orders.integrations.delete_modal.title') %></h1>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+				</div>
+				<div class="modal-body">
+					<p class="mb-2"><%= i18n.__('orders.integrations.delete_modal.confirm_text') %></p>
+					<p class="mb-2"><strong id="delete_int_name"></strong> <span class="text-muted">#<span id="delete_int_id"></span></span></p>
+					<small class="text-muted">Токени цієї інтеграції буде видалено разом з нею.</small>
+					<div class="alert alert-danger rounded-0 mt-3 mb-0 d-none" id="delete_int_blocked"></div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('orders.integrations.delete_modal.close') %></button>
+					<button type="button" class="btn btn-danger rounded-0" id="btn_confirm_delete_integration"><%= i18n.__('orders.integrations.delete_modal.delete') %></button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<%- include('../../../partials/footer'); %> <%- include('../../../partials/script'); %>
+	<script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
+	<script src="/assets/js/notyf/notyf.min.js"></script>
+	<script src="/assets/js/tabulator/tabulator.min.js"></script>
+	<script>
+		const PLATFORMS = <%- JSON.stringify(platforms).replace(/</g, '\\u003c') %>;
+		const T = {
+			add: "<%= i18n.__('orders.integrations.modal.title_add') %>",
+			edit: "<%= i18n.__('orders.integrations.modal.title_edit') %>",
+			saved: "<%= i18n.__('orders.integrations.modal.saved') %>",
+			empty: "<%= i18n.__('orders.integrations.table.empty') %>",
+			active: "<%= i18n.__('orders.integrations.status_opt.active') %>",
+			disabled: "<%= i18n.__('orders.integrations.status_opt.disabled') %>",
+		};
+
+		const notyf = new Notyf({
+			position: { x: "right", y: "top" },
+			duration: 4000,
+			types: [
+				{ type: "success", dismissible: true, icon: false },
+				{ type: "error", background: "indianred", dismissible: true, icon: false },
+			],
+		});
+		const byId = (id) => document.getElementById(id);
+		const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+		const modal = (id) => bootstrap.Modal.getOrCreateInstance(byId(id));
+
+		async function api(url, body) {
+			const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+			const data = await res.json().catch(() => ({}));
+			if (!res.ok) throw Object.assign(new Error(data.message || "Error"), { status: res.status, data });
+			return data;
+		}
+
+		function busy(btn, on) {
+			if (on) { btn.dataset.html = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+			else { btn.disabled = false; btn.innerHTML = btn.dataset.html || btn.innerHTML; }
+		}
+
+		// ─── Кольори ───
+		function updatePreview() {
+			const el = byId("int_preview");
+			el.style.backgroundColor = byId("int_color_background").value || "#607d8b";
+			el.style.color = byId("int_color_text").value || "#ffffff";
+			el.textContent = byId("int_name").value || "example";
+		}
+		function initPickr(target, inputId, def) {
+			const pickr = Pickr.create({
+				el: '[data-target="' + target + '"]', theme: "monolith", default: def,
+				swatches: ["#0057b8", "#2fb25c", "#e74c3c", "#3498db", "#8e44ad", "#f1c40f", "#e67e22", "#7f8c8d", "#34495e", "#607d8b", "#ffffff", "#000000"],
+				components: { preview: true, opacity: false, hue: true, interaction: { input: true, save: true } },
+			});
+			pickr.on("save", (c) => { if (c) { byId(inputId).value = c.toHEXA().toString(0).slice(0, 7); updatePreview(); } pickr.hide(); });
+			return pickr;
+		}
+		const pickrBg = initPickr("int_color_background", "int_color_background", "#607d8b");
+		const pickrText = initPickr("int_color_text", "int_color_text", "#ffffff");
+		byId("int_name").addEventListener("input", updatePreview);
+
+		// ─── Статуси (стартовий статус для custom) ───
+		(async function loadStatuses() {
+			try {
+				const rows = await api("/api/orders/statuses/list/");
+				byId("int_default_status").innerHTML = '<option value="">— оберіть статус —</option>' +
+					(Array.isArray(rows) ? rows : []).map((s) => '<option value="' + s.id + '">' + esc(s.text || "#" + s.id) + "</option>").join("");
+			} catch (e) { /* select лишиться порожнім */ }
+		})();
+
+		// ─── Платформа → поля ───
+		let currentPlatform = "";
+		let lastAutoCallback = "";
+
+		byId("int_platform").innerHTML = '<option value="">— оберіть —</option>' +
+			Object.entries(PLATFORMS).map(([k, pl]) => '<option value="' + esc(k) + '">' + esc(pl.label) + "</option>").join("");
+
+		function applyPlatform(key, version) {
+			const pl = PLATFORMS[key] || null;
+			currentPlatform = key;
+
+			document.querySelectorAll("[data-field]").forEach((el) => {
+				const f = el.dataset.field;
+				const mode = !pl ? false : f === "version" ? (pl.versions ? "required" : false) : pl.fields[f];
+				el.classList.toggle("d-none", !mode);
+				const lbl = el.querySelector(".form-label");
+				if (lbl) lbl.classList.toggle("req", mode === "required");
+			});
+			document.querySelectorAll("[data-cap]").forEach((el) => {
+				el.classList.toggle("d-none", !(pl && pl.caps.includes(el.dataset.cap) && pl.fields.callback_url));
+			});
+
+			const versions = (pl && pl.versions) || [];
+			byId("int_platform_version").innerHTML = versions.map((v) => '<option value="' + esc(v) + '">' + esc(v) + "</option>").join("");
+			if (versions.length) byId("int_platform_version").value = versions.includes(version) ? version : versions[versions.length - 1];
+
+			const auto = !!(pl && pl.callback_template);
+			byId("btn_fill_callback").classList.toggle("d-none", !auto);
+			byId("int_callback_hint").textContent = auto
+				? "Формується автоматично з адреси сайту. Змінюйте лише якщо модуль встановлено за нестандартним шляхом."
+				: "Адреса, на яку CRM надсилає зміни в магазин.";
+		}
+
+		function autoCallback(force) {
+			const pl = PLATFORMS[currentPlatform];
+			if (!pl || !pl.callback_template) return;
+			const base = byId("int_base_url").value.trim().replace(/\/+$/, "");
+			if (!/^https?:\/\/[^\s/]+/i.test(base)) return;
+			const val = pl.callback_template.replace("{base_url}", base);
+			const cur = byId("int_callback_url").value.trim();
+			if (force || !cur || cur === lastAutoCallback) { byId("int_callback_url").value = val; lastAutoCallback = val; }
+		}
+
+		function genToken() {
+			const a = new Uint8Array(32);
+			crypto.getRandomValues(a);
+			return Array.from(a, (b) => b.toString(16).padStart(2, "0")).join("");
+		}
+
+		byId("int_platform").addEventListener("change", function () {
+			applyPlatform(this.value);
+			autoCallback(false);
+			const pl = PLATFORMS[this.value];
+			if (pl && pl.fields.outbound_token === "required" && !byId("int_outbound_token").value) byId("int_outbound_token").value = genToken();
+		});
+		byId("int_base_url").addEventListener("input", () => autoCallback(false));
+		byId("btn_fill_callback").addEventListener("click", () => autoCallback(true));
+		byId("btn_gen_token").addEventListener("click", () => {
+			if (byId("int_outbound_token").value && !confirm("Згенерувати новий ключ? Старий перестане працювати, доки ви не оновите його на сайті.")) return;
+			byId("int_outbound_token").value = genToken();
+		});
+		byId("btn_copy_token").addEventListener("click", () => {
+			const v = byId("int_outbound_token").value;
+			if (v) navigator.clipboard.writeText(v).then(() => notyf.success("Скопійовано"));
+		});
+
+		// ─── Відкриття форми ───
+		function openForm(i) {
+			const isEdit = !!(i && i.id);
+			byId("int_id").value = isEdit ? i.id : "";
+			byId("int_id_label").textContent = isEdit ? i.id : "";
+			byId("int_id_wrap").classList.toggle("d-none", !isEdit);
+			byId("int_modal_title").textContent = isEdit ? T.edit : T.add;
+
+			byId("int_name").value = (i && i.name) || "";
+			byId("int_platform").value = (i && i.platform) || "";
+			byId("int_status").value = (i && i.status) || "active";
+			byId("int_default_status").value = (i && i.default_status_id) || "";
+			byId("int_base_url").value = (i && i.base_url) || "";
+			byId("int_callback_url").value = (i && i.callback_url) || "";
+			byId("int_outbound_token").value = (i && i.outbound_token) || "";
+			byId("int_sync_orders_out").checked = isEdit ? Number(i.sync_orders_out) === 1 : true;
+			byId("int_sync_status_out").checked = isEdit ? Number(i.sync_status_out) === 1 : true;
+			byId("int_note").value = (i && i.note) || "";
+
+			const bg = (i && i.color_background) || "#607d8b";
+			const tc = (i && i.color_text) || "#ffffff";
+			byId("int_color_background").value = bg;
+			byId("int_color_text").value = tc;
+			pickrBg.setColor(bg);
+			pickrText.setColor(tc);
+
+			applyPlatform(byId("int_platform").value, i && i.platform_version);
+			lastAutoCallback = "";
+			updatePreview();
+			modal("modalIntegration").show();
+		}
+
+		byId("btn_add_integration").addEventListener("click", () => openForm(null));
+
+		document.addEventListener("click", async (e) => {
+			const edit = e.target.closest(".edit-integration-btn");
+			if (edit) {
+				try { openForm(await api("/api/settings/integrations/get/", { id: Number(edit.dataset.id) })); }
+				catch (err) { notyf.error(err.message); }
+				return;
+			}
+			const del = e.target.closest(".delete-integration-btn");
+			if (del) {
+				byId("delete_int_id").textContent = del.dataset.id;
+				byId("delete_int_name").textContent = del.dataset.name || "";
+				byId("delete_int_blocked").classList.add("d-none");
+				modal("modalDeleteIntegration").show();
+			}
+		});
+
+		// ─── Збереження ───
+		byId("btn_save_integration").addEventListener("click", async function () {
+			if (this.disabled) return;
+			busy(this, true);
+			const id = byId("int_id").value;
+			const payload = {
+				id: id ? Number(id) : undefined,
+				name: byId("int_name").value,
+				platform: byId("int_platform").value,
+				platform_version: byId("int_platform_version").value || null,
+				status: byId("int_status").value,
+				default_status_id: byId("int_default_status").value || null,
+				base_url: byId("int_base_url").value,
+				callback_url: byId("int_callback_url").value,
+				outbound_token: byId("int_outbound_token").value,
+				sync_orders_out: byId("int_sync_orders_out").checked ? 1 : 0,
+				sync_status_out: byId("int_sync_status_out").checked ? 1 : 0,
+				color_background: byId("int_color_background").value,
+				color_text: byId("int_color_text").value,
+				note: byId("int_note").value,
+			};
+			try {
+				await api(id ? "/api/settings/integrations/update/" : "/api/settings/integrations/add/", payload);
+				modal("modalIntegration").hide();
+				notyf.success(T.saved);
+				table.replaceData();
+			} catch (err) {
+				notyf.error(err.message);
+			} finally {
+				busy(this, false);
+			}
+		});
+
+		// ─── Видалення ───
+		byId("btn_confirm_delete_integration").addEventListener("click", async function () {
+			if (this.disabled) return;
+			busy(this, true);
+			try {
+				const data = await api("/api/settings/integrations/delete/", { id: Number(byId("delete_int_id").textContent) });
+				modal("modalDeleteIntegration").hide();
+				notyf.success(data.message || "OK");
+				table.replaceData();
+			} catch (err) {
+				if (err.status === 409) {
+					byId("delete_int_blocked").textContent = err.message;
+					byId("delete_int_blocked").classList.remove("d-none");
+				} else notyf.error(err.message);
+			} finally {
+				busy(this, false);
+			}
+		});
+
+		// ─── Таблиця ───
+		const ok = '<i class="fa-solid fa-check text-success"></i>';
+		const no = '<i class="fa-solid fa-xmark text-muted"></i>';
+		var table = new Tabulator("#integrations-table", {
+			layout: "fitColumns",
+			ajaxURL: "/api/settings/integrations/list/",
+			ajaxConfig: "POST",
+			pagination: true,
+			paginationSize: 20,
+			placeholder: T.empty,
+			columns: [
+				{ title: "ID", field: "id", headerSort: false, width: 70 },
+				{ title: "<%= i18n.__('orders.integrations.columns.name') %>", field: "name", headerSort: false, widthGrow: 3, formatter: (cell) => {
+					const d = cell.getRow().getData();
+					const pl = PLATFORMS[d.platform];
+					const plat = (pl ? pl.label : d.platform || "—") + (d.platform_version ? " " + d.platform_version : "");
+					return '<span class="src-badge" style="background:' + esc(d.color_background || "#607d8b") + ";color:" + esc(d.color_text || "#fff") + '">' + esc(d.name) + "</span>" +
+						'<small class="text-muted d-block">' + esc(plat) + (d.base_url ? " · " + esc(d.base_url) : "") + "</small>";
+				}},
+				{ title: "Зв'язок", field: "callback_url", headerSort: false, widthGrow: 2, formatter: (cell) => {
+					const d = cell.getRow().getData();
+					const pl = PLATFORMS[d.platform];
+					if (!pl || !pl.fields.callback_url) return '<small class="text-muted">—</small>';
+					return "<small>Endpoint: " + (d.callback_url ? ok : no) + " &nbsp; Ключ: " + (d.has_outbound_token ? ok : no) + "</small>";
+				}},
+				{ title: "<%= i18n.__('orders.integrations.columns.sync') %>", field: "sync_orders_out", headerSort: false, widthGrow: 2, formatter: (cell) => {
+					const d = cell.getRow().getData();
+					return "<small><%= i18n.__('orders.integrations.columns.orders_out') %>: " + (Number(d.sync_orders_out) ? ok : no) +
+						" &nbsp; <%= i18n.__('orders.integrations.columns.status_out') %>: " + (Number(d.sync_status_out) ? ok : no) + "</small>";
+				}},
+				{ title: "<%= i18n.__('orders.integrations.columns.tokens') %>", field: "tokens_count", headerSort: false, width: 90 },
+				{ title: "<%= i18n.__('orders.integrations.columns.status') %>", field: "status", headerSort: false, width: 110, formatter: (cell) => {
+					const s = cell.getValue();
+					return '<span class="badge rounded-0 ' + (s === "active" ? "text-bg-success" : "text-bg-secondary") + '">' + (T[s] || esc(s)) + "</span>";
+				}},
+				{ title: "<%= i18n.__('orders.integrations.columns.date_add') %>", field: "date_add", headerSort: false, widthGrow: 1 },
+				{ title: "", field: "id", headerSort: false, width: 90, formatter: (cell) => {
+					const d = cell.getRow().getData();
+					return '<div class="d-flex justify-content-center gap-2">' +
+						'<button type="button" class="bg-transparent border-0 text-primary edit-integration-btn" data-id="' + d.id + '"><i class="fa-regular fa-pen-to-square"></i></button>' +
+						'<button type="button" class="bg-transparent border-0 text-danger delete-integration-btn" data-id="' + d.id + '" data-name="' + esc(d.name) + '"><i class="fa-regular fa-trash-can"></i></button>' +
+						"</div>";
+				}},
+			],
+		});
+	</script>
+</body>
+</html>

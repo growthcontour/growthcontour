@@ -1,0 +1,80 @@
+{
+	"catalog": {
+		"common": {
+			"delete": "Видалити",
+			"remove": "Прибрати",
+			"uploaded": "Файл завантажено",
+			"file_required": "Оберіть файл"
+		},
+		"categories": {
+			"title": "Категорії товарів",
+			"add": "Додати категорію",
+			"add_child": "Підкатегорія",
+			"edit": "Категорія",
+			"root": "— корінь —",
+			"select_hint": "Оберіть категорію в дереві або створіть нову",
+			"dnd_hint": "Перетягуйте за ⋮⋮, щоб змінити порядок або батька",
+			"expand_all": "Розгорнути все",
+			"collapse_all": "Згорнути все",
+			"confirm_delete": "Видалити категорію «%s»? Цю дію не можна скасувати.",
+			"confirm_delete_products": "Видалити категорію «%s»? До неї прив’язано товарів: %d. Вони залишаться, але втратять цю категорію. Дію не можна скасувати.",
+			"f": {
+				"parent": "Батьківська категорія",
+				"sort_order": "Сортування",
+				"menu_columns": "Колонок у меню",
+				"default_sort": "Сортування товарів",
+				"layout_template": "Шаблон сторінки",
+				"status": "Активна",
+				"show_in_menu": "Показувати в меню",
+				"is_filterable": "Фільтри на сторінці",
+				"image": "Зображення",
+				"icon": "Іконка",
+				"banner": "Банер",
+				"name": "Назва",
+				"h1": "Заголовок H1",
+				"description": "Опис",
+				"description_bottom": "Опис внизу сторінки",
+				"meta_title": "Meta title",
+				"meta_description": "Meta description",
+				"meta_keywords": "Meta keywords",
+				"slug": "SEO URL"
+			},
+			"hints": {
+				"slug": "Порожньо — згенерується з назви"
+			},
+			"sort": {
+				"inherit": "За замовчуванням",
+				"sort_order": "Ручний порядок",
+				"name": "За назвою",
+				"price_asc": "Від дешевих",
+				"price_desc": "Від дорогих",
+				"newest": "Новинки",
+				"popular": "Популярні",
+				"rating": "За рейтингом"
+			}
+		},
+		"brands": {
+			"title": "Бренди",
+			"add": "Додати бренд",
+			"edit": "Бренд",
+			"products_count": "Товарів",
+			"confirm_delete": "Видалити бренд «%s»? Його можна буде відновити з кошика.",
+			"f": {
+				"logo": "Логотип",
+				"code": "Код",
+				"website": "Сайт",
+				"country": "Країна (ISO)",
+				"sort_order": "Сортування",
+				"status": "Активний",
+				"name": "Назва",
+				"description": "Опис",
+				"meta_title": "Meta title",
+				"meta_description": "Meta description",
+				"slug": "SEO URL"
+			},
+			"hints": {
+				"slug": "Порожньо — згенерується з назви"
+			}
+		}
+	}
+}

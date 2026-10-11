@@ -1,0 +1,312 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.options.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="/assets/css/tabulator/tabulator_bootstrap5.min.css" />
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.ov-handle { cursor: grab; color: var(--bs-secondary-color); }
+			.sortable-ghost { background: var(--bs-warning-bg-subtle); }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><%= i18n.__('catalog.menu.catalog') %></li>
+					<li class="breadcrumb-item active"><%= i18n.__('catalog.options.title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<div class="d-flex justify-content-between align-items-center mb-3">
+					<h1 class="h4 mb-0"><%= i18n.__('catalog.options.title') %></h1>
+					<% if (perms.add) { %>
+					<button class="btn btn-primary rounded-0" id="btn-add"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.options.add') %></button>
+					<% } %>
+				</div>
+				<div class="alert alert-light border rounded-0"><%= i18n.__('catalog.options.hint') %></div>
+				<div id="grid"></div>
+			</div>
+		</main>
+
+		<div class="modal fade" id="opt-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-xl modal-dialog-scrollable">
+				<form class="modal-content rounded-0" id="opt-form" novalidate>
+					<div class="modal-header">
+						<h5 class="modal-title" id="opt-title"></h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= i18n.__('catalog.common.close') %>"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" name="id" />
+						<div class="row g-3 mb-3">
+							<div class="col-md-4" data-field="type">
+								<label class="form-label"><%= i18n.__('catalog.options.f.type') %> *</label>
+								<select class="form-select rounded-0" name="type">
+									<optgroup label="<%= i18n.__('catalog.options.groups.values') %>">
+										<option value="select"><%= i18n.__('catalog.options.types.select') %></option>
+										<option value="radio"><%= i18n.__('catalog.options.types.radio') %></option>
+										<option value="checkbox"><%= i18n.__('catalog.options.types.checkbox') %></option>
+										<option value="color"><%= i18n.__('catalog.options.types.color') %></option>
+									</optgroup>
+									<optgroup label="<%= i18n.__('catalog.options.groups.input') %>">
+										<option value="text"><%= i18n.__('catalog.options.types.text') %></option>
+										<option value="textarea"><%= i18n.__('catalog.options.types.textarea') %></option>
+										<option value="number"><%= i18n.__('catalog.options.types.number') %></option>
+										<option value="file"><%= i18n.__('catalog.options.types.file') %></option>
+										<option value="date"><%= i18n.__('catalog.options.types.date') %></option>
+										<option value="time"><%= i18n.__('catalog.options.types.time') %></option>
+										<option value="datetime"><%= i18n.__('catalog.options.types.datetime') %></option>
+									</optgroup>
+								</select>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="code">
+								<label class="form-label"><%= i18n.__('catalog.options.f.code') %></label>
+								<input class="form-control rounded-0" name="code" maxlength="64" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="sort_order">
+								<label class="form-label"><%= i18n.__('catalog.options.f.sort_order') %></label>
+								<input class="form-control rounded-0" type="number" name="sort_order" data-type="int" value="0" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<% languages.forEach((l, i) => { %>
+							<div class="col-md-6" data-field="names.<%= l.id %>.name">
+								<label class="form-label"><%= i18n.__('catalog.options.f.name') %> (<%= String(l.iso).toUpperCase() %>)<% if (i === 0) { %> *<% } %></label>
+								<input class="form-control rounded-0" data-lang="<%= l.id %>" data-name="name" maxlength="255" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<% }) %>
+						</div>
+
+						<div id="values-block" data-field="values">
+							<div class="d-flex align-items-center mb-2">
+								<strong class="me-auto"><%= i18n.__('catalog.options.values.title') %></strong>
+								<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="btn-add-value"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.options.values.add') %></button>
+							</div>
+							<div class="invalid-feedback"></div>
+							<table class="table table-sm align-middle">
+								<thead>
+									<tr>
+										<th style="width: 24px"></th>
+										<th class="js-color-col" style="width: 70px"><%= i18n.__('catalog.options.values.color') %></th>
+										<% languages.forEach((l) => { %><th><%= i18n.__('catalog.options.values.name') %> (<%= String(l.iso).toUpperCase() %>)</th><% }) %>
+										<th class="text-end" style="width: 90px"><%= i18n.__('catalog.options.values.products') %></th>
+										<th style="width: 40px"></th>
+									</tr>
+								</thead>
+								<tbody id="values-body"></tbody>
+							</table>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<% if (perms.delete) { %>
+						<button type="button" class="btn btn-outline-danger rounded-0 me-auto" id="btn-delete"><i class="fa-solid fa-trash"></i> <%= i18n.__('catalog.common.delete') %></button>
+						<% } %>
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('catalog.common.cancel') %></button>
+						<% if (perms.add || perms.edit) { %>
+						<button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('catalog.common.save') %></button>
+						<% } %>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const PERMS = { add: <%= perms.add %>, edit: <%= perms.edit %>, delete: <%= perms.delete %> };
+				const LANGS = [<% languages.forEach((l) => { %><%= Number(l.id) %>,<% }) %>];
+				const PRIMARY_LANG = LANGS[0];
+				const VALUE_TYPES = ["select", "radio", "checkbox", "color"];
+				const TYPE_LABELS = {
+					select: "<%= i18n.__('catalog.options.types.select') %>",
+					radio: "<%= i18n.__('catalog.options.types.radio') %>",
+					checkbox: "<%= i18n.__('catalog.options.types.checkbox') %>",
+					color: "<%= i18n.__('catalog.options.types.color') %>",
+					text: "<%= i18n.__('catalog.options.types.text') %>",
+					textarea: "<%= i18n.__('catalog.options.types.textarea') %>",
+					number: "<%= i18n.__('catalog.options.types.number') %>",
+					file: "<%= i18n.__('catalog.options.types.file') %>",
+					date: "<%= i18n.__('catalog.options.types.date') %>",
+					time: "<%= i18n.__('catalog.options.types.time') %>",
+					datetime: "<%= i18n.__('catalog.options.types.datetime') %>",
+				};
+
+				const notyf = new Notyf({ duration: 3500, position: { x: "right", y: "top" } });
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+				const errMsg = (err) => err.error || "<%= i18n.__('catalog.common.error') %>";
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+
+				let rows = [];
+				const grid = new Tabulator("#grid", {
+					layout: "fitColumns",
+					placeholder: "—",
+					columns: [
+						{ title: "<%= i18n.__('catalog.options.f.name') %>", field: "name", formatter: (c) => esc(c.getValue()) },
+						{ title: "<%= i18n.__('catalog.options.f.code') %>", field: "code", width: 180, formatter: (c) => esc(c.getValue()) },
+						{ title: "<%= i18n.__('catalog.options.f.type') %>", field: "type", width: 200, formatter: (c) => esc(TYPE_LABELS[c.getValue()] || c.getValue()) },
+						{ title: "<%= i18n.__('catalog.options.values.title') %>", field: "values_count", width: 110, hozAlign: "right" },
+						{ title: "<%= i18n.__('catalog.options.values.products') %>", field: "products", width: 110, hozAlign: "right" },
+						{ title: "<%= i18n.__('catalog.options.f.sort_order') %>", field: "sort_order", width: 120, hozAlign: "right" },
+						{ title: "", field: "_a", width: 60, hozAlign: "right", headerSort: false, formatter: () => `<button class="btn btn-sm btn-outline-${PERMS.edit ? "primary" : "secondary"} rounded-0"><i class="fa-solid fa-${PERMS.edit ? "pen" : "eye"}"></i></button>`, cellClick: (e, cell) => open(cell.getRow().getData().id).catch((err) => notyf.error(errMsg(err))) },
+					],
+				});
+				const reload = () =>
+					api("/api/catalog/products/options/list/")
+						.then((r) => {
+							rows = r.rows;
+							grid.replaceData(rows);
+						})
+						.catch((err) => notyf.error(errMsg(err)));
+				grid.on("tableBuilt", reload);
+
+				const modal = new bootstrap.Modal("#opt-modal");
+				const form = document.getElementById("opt-form");
+				const valuesBody = document.getElementById("values-body");
+				Sortable.create(valuesBody, { handle: ".ov-handle", animation: 150 });
+
+				function valueRow(v) {
+					const tr = document.createElement("tr");
+					tr.dataset.id = v.id || "";
+					let html = `<td><i class="fa-solid fa-grip-vertical ov-handle"></i></td>`;
+					html += `<td class="js-color-col"><input type="color" class="form-control form-control-sm form-control-color rounded-0" data-v="color_hex" value="${esc(v.color_hex || "#000000")}"></td>`;
+					LANGS.forEach((l) => (html += `<td><input class="form-control form-control-sm rounded-0" data-v="name" data-lang="${l}" maxlength="255" value="${esc(((v.names || {})[l] || {}).name || "")}"></td>`));
+					html += `<td class="text-end text-muted small">${Number(v.products || 0)}</td>`;
+					html += `<td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-del" ${Number(v.products || 0) ? "disabled title=\"<%= i18n.__('catalog.options.values.in_use') %>\"" : ""}><i class="fa-solid fa-xmark"></i></button></td>`;
+					tr.innerHTML = html;
+					return tr;
+				}
+				valuesBody.addEventListener("click", (e) => {
+					const del = e.target.closest(".js-del");
+					if (del) del.closest("tr").remove();
+				});
+				document.getElementById("btn-add-value").addEventListener("click", () => {
+					const tr = valueRow({});
+					valuesBody.appendChild(tr);
+					applyTypeUi();
+					tr.querySelector('[data-v="name"]').focus();
+				});
+
+				function applyTypeUi() {
+					const type = form.querySelector('[name="type"]').value;
+					document.getElementById("values-block").style.display = VALUE_TYPES.includes(type) ? "" : "none";
+					form.querySelectorAll(".js-color-col").forEach((el) => (el.style.display = type === "color" ? "" : "none"));
+				}
+				form.querySelector('[name="type"]').addEventListener("change", applyTypeUi);
+
+				function clearErrors() {
+					form.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+					form.querySelectorAll(".invalid-feedback").forEach((el) => {
+						el.textContent = "";
+						el.style.display = "";
+					});
+				}
+				function showErrors(errors) {
+					(errors || []).forEach((e) => {
+						const field = String(e.field || "");
+						const box = form.querySelector(`[data-field="${CSS.escape(field)}"]`) || form.querySelector(`[data-field="${CSS.escape(field.split(".")[0])}"]`);
+						if (!box) return;
+						box.querySelectorAll(":scope > input, :scope > select").forEach((el) => el.classList.add("is-invalid"));
+						const fb = box.querySelector(".invalid-feedback");
+						if (fb) {
+							fb.textContent = (fb.textContent ? fb.textContent + "; " : "") + (box.dataset.field !== field ? field + ": " : "") + e.message;
+							fb.style.display = "block";
+						}
+					});
+				}
+
+				async function open(id) {
+					clearErrors();
+					form.reset();
+					let row = { type: "select", names: {}, values: [] };
+					if (id) row = (await api(`/api/catalog/products/options/${id}/get/`)).row;
+					form.querySelector('[name="id"]').value = id || "";
+					form.querySelector('[name="type"]').value = row.type;
+					form.querySelector('[name="code"]').value = row.code || "";
+					form.querySelector('[name="sort_order"]').value = row.sort_order || 0;
+					form.querySelectorAll("[data-lang][data-name]").forEach((el) => (el.value = ((row.names || {})[el.dataset.lang] || {}).name || ""));
+					valuesBody.innerHTML = "";
+					row.values.forEach((v) => valuesBody.appendChild(valueRow(v)));
+					applyTypeUi();
+					form.querySelectorAll("input,select,button.js-del,#btn-add-value").forEach((el) => {
+						if (el.classList.contains("js-del") && el.disabled) return;
+						el.disabled = id ? !PERMS.edit : !PERMS.add;
+					});
+					const del = document.getElementById("btn-delete");
+					if (del) del.style.display = id ? "" : "none";
+					document.getElementById("opt-title").textContent = id ? "<%= i18n.__('catalog.options.edit') %>: " + (((row.names || {})[PRIMARY_LANG] || {}).name || row.code) : "<%= i18n.__('catalog.options.add') %>";
+					modal.show();
+				}
+
+				form.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					clearErrors();
+					const btn = form.querySelector('[type="submit"]');
+					btn.disabled = true;
+					try {
+						const type = form.querySelector('[name="type"]').value;
+						const names = {};
+						form.querySelectorAll("[data-lang][data-name]").forEach((el) => (names[el.dataset.lang] = { name: el.value }));
+						const values = Array.from(valuesBody.querySelectorAll("tr")).map((tr) => {
+							const vn = {};
+							tr.querySelectorAll('[data-v="name"]').forEach((el) => (vn[el.dataset.lang] = { name: el.value }));
+							return { id: tr.dataset.id ? parseInt(tr.dataset.id, 10) : null, color_hex: type === "color" ? tr.querySelector('[data-v="color_hex"]').value : null, names: vn };
+						});
+						const id = form.querySelector('[name="id"]').value;
+						await api("/api/catalog/products/options/save/", {
+							id: id ? parseInt(id, 10) : null,
+							data: { type, code: form.querySelector('[name="code"]').value.trim() || null, sort_order: parseInt(form.querySelector('[name="sort_order"]').value, 10) || 0, names, values },
+						});
+						modal.hide();
+						notyf.success("<%= i18n.__('catalog.common.saved') %>");
+						reload();
+					} catch (err) {
+						showErrors(err.errors);
+						notyf.error(errMsg(err));
+					} finally {
+						btn.disabled = false;
+					}
+				});
+
+				const delBtn = document.getElementById("btn-delete");
+				if (delBtn)
+					delBtn.addEventListener("click", async () => {
+						const id = parseInt(form.querySelector('[name="id"]').value, 10);
+						const row = rows.find((r) => r.id === id);
+						if (!row || !confirm("<%= i18n.__('catalog.options.confirm_delete') %>".replace("%s", row.name))) return;
+						try {
+							await api(`/api/catalog/products/options/${id}/delete/`);
+							modal.hide();
+							notyf.success("<%= i18n.__('catalog.common.deleted') %>");
+							reload();
+						} catch (err) {
+							notyf.error(errMsg(err));
+						}
+					});
+
+				const addBtn = document.getElementById("btn-add");
+				if (addBtn) addBtn.addEventListener("click", () => open(null).catch((err) => notyf.error(errMsg(err))));
+			})();
+		</script>
+	</body>
+</html>

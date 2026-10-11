@@ -1,0 +1,230 @@
+<header>
+	<div class="container-fluid">
+		<div class="row pt-3 pb-3">
+			<div class="col-12 col-lg-4">
+				<p class="header-logo mb-0">
+					<a href="/" style="display: block">
+						<img src="/assets/images/logo/logo.png" class="img-fluid" />
+					</a>
+				</p>
+			</div>
+			<div class="col-12 col-lg-8 text-lg-end">
+				<ul class="list-inline justify-content-end mb-0">
+					<li class="list-inline-item">
+						<div class="dropdown">
+							<button class="btn btn-primary position-relative rounded-0 notification-button" type="button" data-bs-toggle="offcanvas" data-bs-target="#notification_panel" aria-controls="notification_panel">
+								<i class="fa-regular fa-bell"></i>
+							</button>
+						</div>
+					</li>
+					<li class="list-inline-item">
+						<div class="dropdown">
+							<button class="btn btn-primary rounded-0" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+								<i class="fa-solid fa-gear"></i>
+							</button>
+							<ul class="dropdown-menu dropdown-menu-end rounded-0">
+								<li>
+									<a class="dropdown-item<% if (header.subnavbar === 'profile') { %> active<% } %>" href="/users/profile/"> <i class="fa-regular fa-user fa-fw me-1"></i> <%= i18n.__('header.menu.profile') %> </a>
+								</li>
+								<li>
+									<a class="dropdown-item" href="/users/profile/edit"> <i class="fa-solid fa-shield-halved fa-fw me-1"></i> <%= i18n.__('header.menu.security') %> </a>
+								</li>
+								<li>
+									<hr class="dropdown-divider" />
+								</li>
+								<li><a class="dropdown-item" href="/logout/"> <%= i18n.__('header.menu.logout') %> </a></li>
+							</ul>
+						</div>
+					</li>
+				</ul>
+			</div>
+		</div>
+	</div>
+	<div class="header-navbar">
+		<div class="container-fluid">
+			<div class="row">
+				<div class="col-12">
+					<ul class="nav">
+						<li class="nav-item">
+							<a class="nav-link<% if (header.navbar === 'home') { %> active<% } %>" href="/"><%= i18n.__('header.nav.home') %></a>
+						</li>
+						<li class="nav-item dropdown">
+							<a class="nav-link<% if (header.navbar === 'contact-center') { %> active<% } %>" href="#" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false"><%= i18n.__('header.nav.contact_center') %> <i class="fa-solid fa-angle-down"></i></a>
+							<ul class="dropdown-menu rounded-0">
+								<li><a class="dropdown-item" href="/contact-center/"><%= i18n.__('header.nav.contact_center') %></a></li>
+								<li><a class="dropdown-item" href="/contact-center/channels/"><%= i18n.__('contact_center.channels.title') %></a></li>
+							</ul>
+						</li>
+						<li class="nav-item"></li>
+						<li class="nav-item dropdown dropdown-nav">
+							<a class="nav-link dropdown-toggle<% if (header.navbar === 'orders') { %> active<% } %>" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false"> <%= i18n.__('header.nav.orders') %> </a>
+							<div class="dropdown-menu rounded-0" aria-labelledby="service">
+								<div class="row">
+									<div class="col-lg-3">
+										<div class="navbar-block">
+											<span> <%= i18n.__('header.nav.orders') %> </span>
+											<ul class="list-unstyled navbar-list">
+												<li><a href="/orders/"> <%= i18n.__('header.nav.orders') %> </a></li>
+												<li><a href="/orders/status/"> <%= i18n.__('header.nav.orders_status') %> </a></li>
+											</ul>
+										</div>
+									</div>
+									<div class="col-lg-3">
+										<div class="navbar-block">
+											<span class="mb-2"> <%= i18n.__('header.nav.clients') %> </span>
+											<ul class="list-unstyled navbar-list">
+												<li><a href="/clients/"> <%= i18n.__('header.nav.clients') %> </a></li>
+											</ul>
+										</div>
+									</div>
+									<div class="col-lg-3">
+										<div class="navbar-block">
+											<span class="mb-2"> <%= i18n.__('header.nav.abandoned_cart') %> </span>
+											<ul class="list-unstyled navbar-list">
+												<li><a href="/orders/abandoned-cart/"> <%= i18n.__('header.nav.abandoned_cart') %> </a></li>
+												<li><a href="/orders/abandoned-cart/event/"> <%= i18n.__('header.nav.events') %> </a></li>
+												<li><a href="/orders/abandoned-cart/services/"> <%= i18n.__('header.nav.services') %> </a></li>
+											</ul>
+										</div>
+									</div>
+								</div>
+							</div>
+						</li>
+            <% if (can('catalog') || can('products.list') || can('products.categories') || can('products.brands') || can('products.attributes') || can('products.options') || can('products.warehouses') || can('products.suppliers') || can('products.stock') || can('products.import') || can('products.sync') || can('products.settings')) { %>
+            <li class="nav-item dropdown dropdown-nav">
+              <a class="nav-link dropdown-toggle<% if (header.navbar === 'catalog') { %> active<% } %>" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false"> <%= i18n.__('catalog.menu.catalog') %> </a>
+              <div class="dropdown-menu rounded-0">
+                <div class="row">
+                  <% if (can('products.list') || can('products.categories') || can('products.brands') || can('products.attributes') || can('products.options') || can('products.import')) { %>
+                  <div class="col-lg-3">
+                    <div class="navbar-block">
+                      <span><a href="/catalog/" class="text-reset text-decoration-none"><%= i18n.__('catalog.menu.group_catalog') %></a></span>
+                      <ul class="list-unstyled navbar-list">
+                        <% if (can('products.list')) { %><li><a href="/catalog/products/"<% if (header.subnavbar === 'products_list') { %> class="active"<% } %>><%= i18n.__('catalog.menu.products') %></a></li><% } %>
+                        <% if (can('products.categories')) { %><li><a href="/catalog/categories/"<% if (header.subnavbar === 'products_categories') { %> class="active"<% } %>><%= i18n.__('catalog.menu.categories') %></a></li><% } %>
+                        <% if (can('products.brands')) { %><li><a href="/catalog/brands/"<% if (header.subnavbar === 'products_brands') { %> class="active"<% } %>><%= i18n.__('catalog.menu.brands') %></a></li><% } %>
+                        <% if (can('products.attributes')) { %><li><a href="/catalog/attributes/"<% if (header.subnavbar === 'products_attributes') { %> class="active"<% } %>><%= i18n.__('catalog.menu.attributes') %></a></li><% } %>
+                        <% if (can('products.options')) { %><li><a href="/catalog/options/"<% if (header.subnavbar === 'products_options') { %> class="active"<% } %>><%= i18n.__('catalog.menu.options') %></a></li><% } %>
+                        <% if (can('products.list')) { %><li><a href="/catalog/reviews/"<% if (header.subnavbar === 'products_reviews') { %> class="active"<% } %>><%= i18n.__('catalog.menu.reviews') %></a></li><% } %>
+                        <% if (can('products.list')) { %><li><a href="/catalog/quality/"<% if (header.subnavbar === 'products_quality') { %> class="active"<% } %>><%= i18n.__('catalog.menu.quality') %></a></li><% } %>
+                        <% if (can('products.import')) { %><li><a href="/catalog/import/"<% if (header.subnavbar === 'products_import') { %> class="active"<% } %>><%= i18n.__('catalog.menu.import') %></a></li><% } %>
+                        <% if (can('products.sync')) { %><li><a href="/catalog/sync/"<% if (header.subnavbar === 'products_sync') { %> class="active"<% } %>><%= i18n.__('catalog.menu.sync') %></a></li><% } %>
+                      </ul>
+                    </div>
+                  </div>
+                  <% } %>
+                  <% if (can('products.warehouses') || can('products.suppliers') || can('products.stock')) { %>
+                  <div class="col-lg-3">
+                    <div class="navbar-block">
+                      <span><a href="/catalog/stock/" class="text-reset text-decoration-none"><%= i18n.__('catalog.menu.group_stock') %></a></span>
+                      <ul class="list-unstyled navbar-list">
+                        <% if (can('products.warehouses')) { %><li><a href="/catalog/stock/warehouses/"<% if (header.subnavbar === 'products_warehouses') { %> class="active"<% } %>><%= i18n.__('catalog.menu.warehouses') %></a></li><% } %>
+                        <% if (can('products.suppliers')) { %><li><a href="/catalog/stock/suppliers/"<% if (header.subnavbar === 'products_suppliers') { %> class="active"<% } %>><%= i18n.__('catalog.menu.suppliers') %></a></li><% } %>
+                        <% if (can('products.stock')) { %><li><a href="/catalog/stock/documents/"<% if (header.subnavbar === 'products_stock') { %> class="active"<% } %>><%= i18n.__('catalog.menu.stock_documents') %></a></li><% } %>
+                        <% if (can('products.stock')) { %><li><a href="/catalog/stock/movements/"><%= i18n.__('catalog.menu.stock_movements') %></a></li><% } %>
+                        <% if (can('products.stock')) { %><li><a href="/catalog/stock/reservations/"><%= i18n.__('catalog.menu.stock_reservations') %></a></li><% } %>
+                      </ul>
+                    </div>
+                  </div>
+                  <% } %>
+                  <% if (can('products.settings')) { %>
+                  <div class="col-lg-3">
+                    <div class="navbar-block">
+                      <span><a href="/catalog/settings/" class="text-reset text-decoration-none"><%= i18n.__('catalog.menu.group_settings') %></a></span>
+                      <ul class="list-unstyled navbar-list">
+                        <li><a href="/catalog/settings/"<% if (header.subnavbar === 'products_settings') { %> class="active"<% } %>><%= i18n.__('catalog.menu.settings') %></a></li>
+                        <li><a href="/catalog/settings/images/"<% if (header.subnavbar === 'products_images') { %> class="active"<% } %>><%= i18n.__('catalog.menu.images_maintenance') %></a></li>
+                        <li><a href="/catalog/settings/languages/"<% if (header.subnavbar === 'products_languages') { %> class="active"<% } %>><%= i18n.__('catalog.menu.languages') %></a></li>
+                        <li><a href="/catalog/settings/seo/"<% if (header.subnavbar === 'products_seo') { %> class="active"<% } %>><%= i18n.__('catalog.menu.seo') %></a></li>
+                        <li><a href="/catalog/settings/customer-groups/"<% if (header.subnavbar === 'products_customer_groups') { %> class="active"<% } %>><%= i18n.__('catalog.menu.customer_groups') %></a></li>
+                        <li><a href="/catalog/settings/alerts/"<% if (header.subnavbar === 'products_alerts') { %> class="active"<% } %>><%= i18n.__('catalog.menu.alerts') %></a></li>
+                        <%- typeof hook === 'function' ? hook('displayCatalogMenu', { i18n, can, header }) : '' %>
+                      </ul>
+                    </div>
+                  </div>
+                  <% } %>
+                </div>
+              </div>
+            </li>
+            <% } %>
+						<li class="nav-item dropdown">
+							<a class="nav-link<% if (header.navbar === 'clients') { %> active<% } %>" href="#" data-bs-toggle="dropdown" role="button" aria-expanded="false"> <%= i18n.__('header.nav.clients') %> <i class="fa-solid fa-angle-down"></i> </a>
+							<ul class="dropdown-menu rounded-0">
+								<li><a class="dropdown-item" href="/clients/"> <%= i18n.__('header.nav.clients') %> </a></li>
+								<% const _can = typeof can === 'function' ? can : () => false; %>
+								<% if (_can('clients.merge')) { %><li><a class="dropdown-item" href="/clients/duplicates/"> Можливі дублі </a></li><% } %>
+								<% if (_can('clients.import', 'add') || _can('clients.settings', 'edit')) { %><li><hr class="dropdown-divider" /></li><% } %>
+								<% if (_can('clients.import', 'add')) { %><li><a class="dropdown-item" href="/clients/import/"><i class="fa-solid fa-file-import me-1"></i> Імпорт </a></li><% } %>
+								<% if (_can('clients.settings', 'edit')) { %><li><a class="dropdown-item" href="/clients/settings/"><i class="fa-solid fa-gear me-1"></i> Довідники </a></li><% } %>
+							</ul>
+						</li>
+						<li class="nav-item dropdown">
+							<a class="nav-link<% if (header.navbar === 'mailing') { %> active<% } %>" href="#" data-bs-toggle="dropdown" role="button" aria-expanded="false"> <%= i18n.__('header.nav.mailing') %> <i class="fa-solid fa-angle-down"></i> </a>
+							<ul class="dropdown-menu rounded-0">
+								<li><a class="dropdown-item<% if (header.subnavbar === 'mailing_campaigns') { %> active<% } %>" href="/mailing/"><%= i18n.__('header.nav.mailing_campaigns') %></a></li>
+								<li><a class="dropdown-item<% if (header.subnavbar === 'mailing_automations') { %> active<% } %>" href="/mailing/automations/"><%= i18n.__('header.nav.mailing_automations') %></a></li>
+								<li><a class="dropdown-item<% if (header.subnavbar === 'mailing_contacts') { %> active<% } %>" href="/mailing/contacts/"><%= i18n.__('header.nav.mailing_contacts') %></a></li>
+								<li><a class="dropdown-item<% if (header.subnavbar === 'mailing_templates') { %> active<% } %>" href="/mailing/templates/"><%= i18n.__('header.nav.mailing_templates') %></a></li>
+								<li><hr class="dropdown-divider" /></li>
+								<li><a class="dropdown-item<% if (header.subnavbar === 'mailing_settings') { %> active<% } %>" href="/mailing/settings/"><%= i18n.__('header.nav.mailing_settings') %></a></li>
+							</ul>
+						</li>
+						<li class="nav-item dropdown">
+							<a class="nav-link<% if (header.navbar === 'leads') { %> active<% } %>" href="#" data-bs-toggle="dropdown" role="button" aria-expanded="false"> <%= i18n.__('header.nav.leads') %> <i class="fa-solid fa-angle-down"></i> </a>
+							<ul class="dropdown-menu rounded-0">
+								<li><a class="dropdown-item" href="/leads/"> <%= i18n.__('header.nav.leads') %> </a></li>
+								<li><a class="dropdown-item" href="#"><%= i18n.__('header.nav.test') %></a></li>
+								<li><a class="dropdown-item" href="#"><%= i18n.__('header.nav.test') %></a></li>
+								<li>
+									<hr class="dropdown-divider" />
+								</li>
+								<li><a class="dropdown-item" href="/leads/settings/"> <%= i18n.__('header.nav.settings') %> </a></li>
+							</ul>
+						</li>
+						<li class="nav-item dropdown">
+							<a class="nav-link<% if (header.navbar === 'deals') { %> active<% } %>" href="#" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false"> <%= i18n.__('header.nav.deals') %> <i class="fa-solid fa-angle-down"></i> </a>
+							<ul class="dropdown-menu rounded-0">
+								<li><a class="dropdown-item" href="/deals/"> <%= i18n.__('header.nav.deals') %> </a></li>
+								<li>
+									<hr class="dropdown-divider" />
+								</li>
+								<li><a class="dropdown-item" href="/leads/settings/"> <%= i18n.__('header.nav.settings') %> </a></li>
+							</ul>
+						</li>
+						<li class="nav-item dropdown">
+							<a class="nav-link<% if (header.navbar === 'users') { %> active<% } %>" href="#" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false"> <%= i18n.__('header.nav.users') %> <i class="fa-solid fa-angle-down"></i> </a>
+							<ul class="dropdown-menu rounded-0">
+								<li>
+									<a class="dropdown-item<% if (header.subnavbar === 'users') { %> active<% } %>" href="/users/"> <%= i18n.__('header.nav.users') %> </a>
+								</li>
+								<li><a class="dropdown-item<% if (header.subnavbar === 'groups') { %> active<% } %>" href="/users/groups"><%= i18n.__('header.nav.groups') %></a></li>
+								<li><a class="dropdown-item<% if (header.subnavbar === 'access') { %> active<% } %>" href="/users/access"><%= i18n.__('header.nav.permissions') %></a></li>
+								<% if (typeof can === 'function' && can('system.audit')) { %>
+								<li><a class="dropdown-item" href="/audit/"><i class="fa-solid fa-clipboard-list me-1"></i> Журнал дій</a></li>
+								<% } %>
+							</ul>
+						</li>
+						<li class="nav-item">
+							<a class="nav-link<% if (header.navbar === 'faq') { %> active<% } %>" href="/faq/"><%= i18n.__('header.nav.faq') %></a>
+						</li>
+						<% if (typeof can === 'function' && can('settings.modules')) { %>
+						<li class="nav-item">
+							<a class="nav-link<% if (header.navbar === 'modules') { %> active<% } %>" href="/modules/"><%= i18n.__('header.nav.modules') %></a>
+						</li>
+						<% } %>
+						<li class="nav-item dropdown">
+							<a class="nav-link<% if (header.navbar === 'settings') { %> active<% } %>" href="#" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false"> <%= i18n.__('header.nav.settings') %> <i class="fa-solid fa-angle-down"></i> </a>
+							<ul class="dropdown-menu rounded-0">
+								<li>
+									<a class="dropdown-item<% if (header.subnavbar === 'integrations') { %> active<% } %>" href="/settings/integrations/"> <%= i18n.__('header.nav.integration') %> </a>
+								</li>
+								<li><a class="dropdown-item<% if (header.subnavbar === 'email') { %> active<% } %>" href="/settings/email"><%= i18n.__('header.nav.email') %></a></li>
+								<li><a class="dropdown-item<% if (header.subnavbar === 'tokens') { %> active<% } %>" href="/settings/tokens/"> <%= i18n.__('header.nav.tokens') %> </a></li>
+							</ul>
+						</li>
+					</ul>
+				</div>
+			</div>
+		</div>
+	</div>
+</header>

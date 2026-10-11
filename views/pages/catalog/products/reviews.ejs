@@ -1,0 +1,580 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.reviews.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="/assets/css/tabulator/tabulator_bootstrap5.min.css" />
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.rv-stars {
+				color: #f5a623;
+				white-space: nowrap;
+				letter-spacing: 1px;
+			}
+			.rv-thumb {
+				width: 72px;
+				height: 72px;
+				object-fit: cover;
+				border: 1px solid var(--bs-border-color);
+			}
+			.rv-picker {
+				position: absolute;
+				z-index: 1060;
+				max-height: 280px;
+				overflow: auto;
+				width: 100%;
+			}
+			.rv-body {
+				white-space: pre-wrap;
+			}
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<!-- ─── ХЛІБНІ КРИХТИ ─────────────────────────────────────────── -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('catalog.reviews.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('catalog.common.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/catalog"><%= i18n.__('catalog.menu.catalog') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('catalog.reviews.title') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/catalog" class="btn btn-primary rounded-0">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+					<h1 class="h4 mb-0 me-auto"><%= i18n.__('catalog.reviews.title') %></h1>
+					<% if (perms.edit) { %>
+					<button class="btn btn-outline-secondary rounded-0" id="btn-sync"><i class="fa-solid fa-rotate"></i> <%= i18n.__('catalog.reviews.sync_now') %></button>
+					<% } %> <% if (perms.add) { %>
+					<button class="btn btn-primary rounded-0" id="btn-add"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.reviews.add') %></button>
+					<% } %>
+				</div>
+
+				<ul class="nav nav-tabs mb-3" id="status-tabs">
+					<li class="nav-item"><button class="nav-link rounded-0 active" data-status=""><%= i18n.__('catalog.reviews.all') %></button></li>
+					<li class="nav-item">
+						<button class="nav-link rounded-0" data-status="pending"><%= i18n.__('catalog.reviews.status.pending') %> <span class="badge text-bg-warning" data-count="pending">0</span></button>
+					</li>
+					<li class="nav-item">
+						<button class="nav-link rounded-0" data-status="approved"><%= i18n.__('catalog.reviews.status.approved') %> <span class="badge text-bg-light border" data-count="approved">0</span></button>
+					</li>
+					<li class="nav-item">
+						<button class="nav-link rounded-0" data-status="rejected"><%= i18n.__('catalog.reviews.status.rejected') %> <span class="badge text-bg-light border" data-count="rejected">0</span></button>
+					</li>
+					<li class="nav-item">
+						<button class="nav-link rounded-0" data-status="spam"><%= i18n.__('catalog.reviews.status.spam') %> <span class="badge text-bg-light border" data-count="spam">0</span></button>
+					</li>
+				</ul>
+
+				<div class="row g-2 mb-3 align-items-center">
+					<div class="col-md-3"><input class="form-control rounded-0" id="f-search" placeholder="<%= i18n.__('catalog.reviews.search') %>" /></div>
+					<div class="col-md-2">
+						<select class="form-select rounded-0" id="f-rating">
+							<option value=""><%= i18n.__('catalog.reviews.any_rating') %></option>
+							<% [5, 4, 3, 2, 1].forEach((n) => { %>
+							<option value="<%= n %>"><%= '★'.repeat(n) %></option>
+							<% }) %>
+						</select>
+					</div>
+					<div class="col-md-2">
+						<select class="form-select rounded-0" id="f-source">
+							<option value=""><%= i18n.__('catalog.reviews.any_source') %></option>
+							<option value="crm">CRM</option>
+							<% integrations.forEach((i) => { %>
+							<option value="<%= i.id %>"><%= i.name %></option>
+							<% }) %>
+						</select>
+					</div>
+					<div class="col-md-2"><input class="form-control rounded-0" id="f-product" type="number" min="1" placeholder="<%= i18n.__('catalog.reviews.product_id') %>" value="<%= productFilter || '' %>" /></div>
+					<div class="col-md-3 d-flex gap-3">
+						<div class="form-check"><input class="form-check-input" type="checkbox" id="f-noreply" /><label class="form-check-label" for="f-noreply"><%= i18n.__('catalog.reviews.no_reply') %></label></div>
+						<div class="form-check">
+							<input class="form-check-input" type="checkbox" id="f-unmatched" /><label class="form-check-label" for="f-unmatched"><%= i18n.__('catalog.reviews.unmatched') %> <span class="badge text-bg-danger" data-count="unmatched">0</span></label>
+						</div>
+					</div>
+				</div>
+
+				<% if (perms.edit || perms.delete) { %>
+				<div class="d-flex flex-wrap gap-2 mb-2" id="bulk">
+					<span class="text-muted small align-self-center"><%= i18n.__('catalog.reviews.selected') %>: <b id="sel-count">0</b></span>
+					<% if (perms.edit) { %>
+					<button class="btn btn-sm btn-outline-success rounded-0" data-bulk="approved" disabled><i class="fa-solid fa-check"></i> <%= i18n.__('catalog.reviews.approve') %></button>
+					<button class="btn btn-sm btn-outline-secondary rounded-0" data-bulk="rejected" disabled><i class="fa-solid fa-ban"></i> <%= i18n.__('catalog.reviews.reject') %></button>
+					<button class="btn btn-sm btn-outline-warning rounded-0" data-bulk="spam" disabled><i class="fa-solid fa-shield-halved"></i> <%= i18n.__('catalog.reviews.mark_spam') %></button>
+					<% } %> <% if (perms.delete) { %>
+					<button class="btn btn-sm btn-outline-danger rounded-0" data-bulk="delete" disabled><i class="fa-solid fa-trash"></i> <%= i18n.__('catalog.common.delete') %></button>
+					<% } %>
+				</div>
+				<% } %>
+
+				<div id="grid"></div>
+				<div class="small text-muted mt-3" id="sync-state"></div>
+			</div>
+		</main>
+
+		<div class="modal fade" id="rv-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-lg modal-dialog-scrollable">
+				<form class="modal-content rounded-0" id="rv-form" novalidate>
+					<div class="modal-header">
+						<h5 class="modal-title" id="rv-title"></h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= i18n.__('catalog.common.close') %>"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" name="id" />
+						<div class="alert alert-info rounded-0 py-2 small d-none" id="rv-external"></div>
+						<div class="row g-3">
+							<div class="col-md-8 position-relative" data-field="id_product">
+								<label class="form-label"><%= i18n.__('catalog.reviews.f.product') %> *</label>
+								<input type="hidden" name="id_product" />
+								<input class="form-control rounded-0" id="rv-product" autocomplete="off" placeholder="<%= i18n.__('catalog.reviews.product_search') %>" />
+								<div class="list-group rounded-0 rv-picker d-none" id="rv-product-list"></div>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="rating">
+								<label class="form-label"><%= i18n.__('catalog.reviews.f.rating') %> *</label>
+								<select class="form-select rounded-0 rv-own" name="rating">
+									<% [5, 4, 3, 2, 1].forEach((n) => { %>
+									<option value="<%= n %>"><%= '★'.repeat(n) %> (<%= n %>)</option>
+									<% }) %>
+								</select>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="author_name">
+								<label class="form-label"><%= i18n.__('catalog.reviews.f.author_name') %> *</label>
+								<input class="form-control rounded-0 rv-own" name="author_name" maxlength="128" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="author_email">
+								<label class="form-label">Email</label>
+								<input class="form-control rounded-0 rv-own" type="email" name="author_email" maxlength="191" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="date_add">
+								<label class="form-label"><%= i18n.__('catalog.reviews.f.date_add') %></label>
+								<input class="form-control rounded-0 rv-own" type="datetime-local" name="date_add" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-12" data-field="title">
+								<label class="form-label"><%= i18n.__('catalog.reviews.f.title') %></label>
+								<input class="form-control rounded-0 rv-own" name="title" maxlength="255" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-12" data-field="body">
+								<label class="form-label"><%= i18n.__('catalog.reviews.f.body') %></label>
+								<textarea class="form-control rounded-0 rv-own" name="body" rows="5" maxlength="10000"></textarea>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-6" data-field="pros">
+								<label class="form-label"><%= i18n.__('catalog.reviews.f.pros') %></label>
+								<textarea class="form-control rounded-0 rv-own" name="pros" rows="2" maxlength="2000"></textarea>
+							</div>
+							<div class="col-md-6" data-field="cons">
+								<label class="form-label"><%= i18n.__('catalog.reviews.f.cons') %></label>
+								<textarea class="form-control rounded-0 rv-own" name="cons" rows="2" maxlength="2000"></textarea>
+							</div>
+							<div class="col-12" data-field="media">
+								<label class="form-label"><%= i18n.__('catalog.reviews.f.photos') %></label>
+								<div class="d-flex flex-wrap gap-2 align-items-center" id="rv-media"></div>
+								<input class="form-control form-control-sm rounded-0 mt-2 rv-own" type="file" accept="image/*" id="rv-upload" multiple />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="status">
+								<label class="form-label"><%= i18n.__('catalog.reviews.f.status') %></label>
+								<select class="form-select rounded-0" name="status">
+									<option value="pending"><%= i18n.__('catalog.reviews.status.pending') %></option>
+									<option value="approved"><%= i18n.__('catalog.reviews.status.approved') %></option>
+									<option value="rejected"><%= i18n.__('catalog.reviews.status.rejected') %></option>
+									<option value="spam"><%= i18n.__('catalog.reviews.status.spam') %></option>
+								</select>
+							</div>
+							<div class="col-md-8 d-flex align-items-end">
+								<div class="form-check"><input class="form-check-input rv-own" type="checkbox" name="verified_purchase" data-type="bool" id="rv-verified" /><label class="form-check-label" for="rv-verified"><%= i18n.__('catalog.reviews.f.verified') %></label></div>
+							</div>
+							<div class="col-12" data-field="reply">
+								<label class="form-label"><%= i18n.__('catalog.reviews.f.reply') %></label>
+								<textarea class="form-control rounded-0" name="reply" rows="4" maxlength="5000"></textarea>
+								<div class="form-text" id="rv-reply-meta"></div>
+								<div class="invalid-feedback"></div>
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('catalog.common.cancel') %></button>
+						<% if (perms.edit || perms.add) { %><button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('catalog.common.save') %></button><% } %>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %> <%- include('../../../partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const PERMS = { add: <%= perms.add %>, edit: <%= perms.edit %>, delete: <%= perms.delete %> };
+				const STATUS = {
+					pending: ["warning", "<%= i18n.__('catalog.reviews.status.pending') %>"],
+					approved: ["success", "<%= i18n.__('catalog.reviews.status.approved') %>"],
+					rejected: ["secondary", "<%= i18n.__('catalog.reviews.status.rejected') %>"],
+					spam: ["danger", "<%= i18n.__('catalog.reviews.status.spam') %>"],
+				};
+				const notyf = new Notyf({ duration: 3000, position: { x: "right", y: "top" } });
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+				const stars = (n) => `<span class="rv-stars">${"★".repeat(n)}<span class="text-muted">${"★".repeat(5 - n)}</span></span>`;
+				const errMsg = (e) => notyf.error((e && e.error) || "<%= i18n.__('catalog.common.error') %>");
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+
+				// ── Фільтри ────────────────────────────────────────
+				const filters = { status: "" };
+				function readFilters() {
+					return {
+						...filters,
+						search: document.getElementById("f-search").value.trim(),
+						rating: document.getElementById("f-rating").value,
+						source: document.getElementById("f-source").value,
+						id_product: document.getElementById("f-product").value,
+						no_reply: document.getElementById("f-noreply").checked,
+						unmatched: document.getElementById("f-unmatched").checked,
+					};
+				}
+
+				// ── Таблиця ────────────────────────────────────────
+				const grid = new Tabulator("#grid", {
+					layout: "fitColumns",
+					placeholder: "—",
+					pagination: true,
+					paginationMode: "remote",
+					paginationSize: 50,
+					paginationSizeSelector: [25, 50, 100, 200],
+					sortMode: "remote",
+					selectableRows: PERMS.edit || PERMS.delete,
+					ajaxURL: "/api/catalog/products/reviews/list/",
+					ajaxRequestFunc: async (url, cfg, params) => {
+						const sort = (params.sort || [])[0] || {};
+						const r = await api(url, { ...readFilters(), page: params.page, size: params.size, sort: sort.field, dir: sort.dir });
+						Object.entries(r.counts || {}).forEach(([k, v]) => document.querySelectorAll(`[data-count="${k}"]`).forEach((el) => (el.textContent = Number(v || 0))));
+						return r;
+					},
+					columns: [
+						{ formatter: "rowSelection", titleFormatter: "rowSelection", hozAlign: "center", headerSort: false, width: 40, visible: PERMS.edit || PERMS.delete },
+						{ title: "<%= i18n.__('catalog.reviews.f.date_add') %>", field: "date_add", width: 140, formatter: (c) => esc(String(c.getValue() || "").slice(0, 16)) },
+						{ title: "<%= i18n.__('catalog.reviews.f.rating') %>", field: "rating", width: 110, formatter: (c) => stars(Number(c.getValue())) },
+						{
+							title: "<%= i18n.__('catalog.reviews.f.product') %>",
+							field: "product_name",
+							width: 240,
+							headerSort: false,
+							formatter: (c) => {
+								const r = c.getRow().getData();
+								if (!r.id_product) return `<span class="badge text-bg-danger"><%= i18n.__('catalog.reviews.unmatched') %></span> <small class="text-muted">${esc(r.external_product_id || "")}</small>`;
+								return `<a href="/catalog/products/${r.id_product}/" target="_blank">${esc(r.product_name || "#" + r.id_product)}</a><br><small class="text-muted">${esc(r.sku || "")}</small>`;
+							},
+						},
+						{
+							title: "<%= i18n.__('catalog.reviews.f.body') %>",
+							field: "body",
+							headerSort: false,
+							formatter: (c) => {
+								const r = c.getRow().getData();
+								return `${r.title ? `<b>${esc(r.title)}</b><br>` : ""}<span class="small">${esc(r.body || "")}</span>`;
+							},
+							variableHeight: true,
+						},
+						{
+							title: "<%= i18n.__('catalog.reviews.f.author_name') %>",
+							field: "author_name",
+							width: 170,
+							headerSort: false,
+							formatter: (c) => {
+								const r = c.getRow().getData();
+								return `${esc(r.author_name)}${Number(r.verified_purchase) ? ` <i class="fa-solid fa-circle-check text-success" title="<%= i18n.__('catalog.reviews.f.verified') %>"></i>` : ""}<br><small class="text-muted">${esc(r.integration_name || "CRM")}</small>`;
+							},
+						},
+						{
+							title: "",
+							field: "photos",
+							width: 90,
+							headerSort: false,
+							hozAlign: "center",
+							formatter: (c) => {
+								const r = c.getRow().getData();
+								return [
+									Number(r.photos) ? `<i class="fa-regular fa-image" title="${Number(r.photos)}"></i>` : "",
+									Number(r.has_reply) ? `<i class="fa-solid fa-reply text-primary" title="<%= i18n.__('catalog.reviews.f.reply') %>"></i>` : "",
+									Number(r.need_push) ? `<i class="fa-solid fa-cloud-arrow-up text-warning" title="<%= i18n.__('catalog.reviews.queued') %>"></i>` : "",
+								].join(" ");
+							},
+						},
+						{ title: "<%= i18n.__('catalog.reviews.f.status') %>", field: "status", width: 120, formatter: (c) => `<span class="badge text-bg-${(STATUS[c.getValue()] || [])[0]}">${esc((STATUS[c.getValue()] || [])[1] || c.getValue())}</span>` },
+						{ title: "", field: "_a", width: 60, headerSort: false, hozAlign: "right", formatter: () => `<button class="btn btn-sm btn-outline-primary rounded-0" data-act="open"><i class="fa-solid fa-${PERMS.edit ? "pen" : "eye"}"></i></button>`, cellClick: (e, c) => e.target.closest("[data-act]") && open(c.getRow().getData().id).catch(errMsg) },
+					],
+				});
+				const reload = () => grid.setData();
+
+				document.getElementById("status-tabs").addEventListener("click", (e) => {
+					const b = e.target.closest("[data-status]");
+					if (!b) return;
+					document.querySelectorAll("#status-tabs .nav-link").forEach((x) => x.classList.toggle("active", x === b));
+					filters.status = b.dataset.status;
+					reload();
+				});
+				let ft;
+				["f-search", "f-product"].forEach((idEl) => document.getElementById(idEl).addEventListener("input", () => (clearTimeout(ft), (ft = setTimeout(reload, 350)))));
+				["f-rating", "f-source", "f-noreply", "f-unmatched"].forEach((idEl) => document.getElementById(idEl).addEventListener("change", reload));
+
+				// ── Масові дії ─────────────────────────────────────
+				const bulkBox = document.getElementById("bulk");
+				if (bulkBox) {
+					grid.on("rowSelectionChanged", (data) => {
+						document.getElementById("sel-count").textContent = data.length;
+						bulkBox.querySelectorAll("[data-bulk]").forEach((b) => (b.disabled = !data.length));
+					});
+					bulkBox.addEventListener("click", async (e) => {
+						const b = e.target.closest("[data-bulk]");
+						if (!b) return;
+						const ids = grid.getSelectedData().map((r) => r.id);
+						if (!ids.length) return;
+						try {
+							if (b.dataset.bulk === "delete") {
+								if (!confirm("<%= i18n.__('catalog.reviews.confirm_delete') %>".replace("%s", ids.length))) return;
+								await api("/api/catalog/products/reviews/delete/", { ids });
+							} else {
+								await api("/api/catalog/products/reviews/moderate/", { ids, status: b.dataset.bulk });
+							}
+							notyf.success("<%= i18n.__('catalog.common.saved') %>");
+							reload();
+						} catch (err) {
+							errMsg(err);
+						}
+					});
+				}
+
+				// ── Модалка ────────────────────────────────────────
+				const form = document.getElementById("rv-form");
+				const modal = new bootstrap.Modal("#rv-modal");
+				const productInput = document.getElementById("rv-product");
+				const productList = document.getElementById("rv-product-list");
+				const mediaBox = document.getElementById("rv-media");
+				let media = [];
+				let current = null;
+
+				function renderMedia() {
+					const own = !current || !current.id_integration;
+					mediaBox.innerHTML = media
+						.map(
+							(m, i) => `<div class="position-relative"><a href="${esc(m.url_large || m.url)}" target="_blank"><img class="rv-thumb" src="${esc(m.url)}" alt=""></a>${
+								own && (PERMS.edit || PERMS.add) ? `<button type="button" class="btn btn-sm btn-danger rounded-0 position-absolute top-0 end-0 py-0 px-1" data-rm="${i}">&times;</button>` : ""
+							}</div>`
+						)
+						.join("");
+				}
+				mediaBox.addEventListener("click", (e) => {
+					const b = e.target.closest("[data-rm]");
+					if (!b) return;
+					media.splice(Number(b.dataset.rm), 1);
+					renderMedia();
+				});
+				document.getElementById("rv-upload").addEventListener("change", async (e) => {
+					const files = Array.from(e.target.files || []).slice(0, 10 - media.length);
+					for (const f of files) {
+						const fd = new FormData();
+						fd.append("file", f);
+						try {
+							const res = await fetch("/api/catalog/products/images/products/upload/", { method: "POST", body: fd, credentials: "same-origin" });
+							const j = await res.json();
+							if (!res.ok || !j.ok) throw j;
+							media.push({ file: j.file, url: j.url });
+						} catch (err) {
+							errMsg(err);
+						}
+					}
+					e.target.value = "";
+					renderMedia();
+				});
+
+				// Пошук товару (існуючий picker угод)
+				let pt;
+				productInput.addEventListener("input", () => {
+					clearTimeout(pt);
+					form.querySelector('[name="id_product"]').value = "";
+					const s = productInput.value.trim();
+					if (s.length < 2) return productList.classList.add("d-none");
+					pt = setTimeout(async () => {
+						try {
+							const r = await api("/api/catalog/products/picker/search/", { search: s });
+							productList.innerHTML = r.rows.map((p) => `<button type="button" class="list-group-item list-group-item-action rounded-0" data-pid="${p.id}" data-name="${esc(p.name)}">${esc(p.name)} <small class="text-muted">${esc(p.sku || "")} #${p.id}</small></button>`).join("") || `<div class="list-group-item text-muted">—</div>`;
+							productList.classList.remove("d-none");
+						} catch (err) {
+							errMsg(err);
+						}
+					}, 300);
+				});
+				productList.addEventListener("click", (e) => {
+					const b = e.target.closest("[data-pid]");
+					if (!b) return;
+					form.querySelector('[name="id_product"]').value = b.dataset.pid;
+					productInput.value = b.dataset.name;
+					productList.classList.add("d-none");
+				});
+
+				function clearErrors() {
+					form.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+					form.querySelectorAll(".invalid-feedback").forEach((el) => ((el.textContent = ""), (el.style.display = "")));
+				}
+				function showErrors(errors) {
+					(errors || []).forEach((x) => {
+						const box = form.querySelector(`[data-field="${CSS.escape(String(x.field || "").split(".")[0])}"]`);
+						if (!box) return;
+						box.querySelectorAll("input:not([type=hidden]),select,textarea").forEach((el) => el.classList.add("is-invalid"));
+						const fb = box.querySelector(".invalid-feedback");
+						if (fb) ((fb.textContent = x.message), (fb.style.display = "block"));
+					});
+				}
+
+				async function open(id) {
+					clearErrors();
+					form.reset();
+					productList.classList.add("d-none");
+					current = id ? (await api(`/api/catalog/products/reviews/${id}/get/`)).row : null;
+					const r = current || { rating: 5, status: "approved" };
+					form.querySelector('[name="id"]').value = id || "";
+					form.querySelectorAll("[name]").forEach((el) => {
+						if (el.name === "id") return;
+						const v = r[el.name];
+						if (el.type === "checkbox") el.checked = !!Number(v);
+						else if (el.type === "datetime-local") el.value = v ? String(v).replace(" ", "T").slice(0, 16) : "";
+						else el.value = v == null ? "" : v;
+					});
+					productInput.value = r.id_product ? "#" + r.id_product : "";
+					if (r.id_product) api(`/api/catalog/products/picker/${r.id_product}/`).then((p) => (productInput.value = p.row.name || productInput.value)).catch(() => {});
+					media = (r.media || []).slice();
+					renderMedia();
+
+					// Відгук з магазину: текст і оцінка належать покупцю — редагуються лише статус, відповідь і товар
+					const ext = !!(current && current.id_integration);
+					form.querySelectorAll(".rv-own").forEach((el) => (el.disabled = ext || !(id ? PERMS.edit : PERMS.add)));
+					form.querySelectorAll('[name="status"],[name="reply"]').forEach((el) => (el.disabled = !(id ? PERMS.edit : PERMS.add)));
+					productInput.disabled = !(id ? PERMS.edit : PERMS.add);
+					const extBox = document.getElementById("rv-external");
+					extBox.classList.toggle("d-none", !ext);
+					if (ext) extBox.textContent = "<%= i18n.__('catalog.reviews.external_hint') %>".replace("%s", current.integration_name || "#" + current.id_integration) + (current.external_id ? ` (ID ${current.external_id})` : "");
+					document.getElementById("rv-reply-meta").textContent = current && current.reply_at ? `${String(current.reply_at).slice(0, 16)} ${current.reply_user || ""}` : "";
+					document.getElementById("rv-title").textContent = id ? "<%= i18n.__('catalog.reviews.edit') %> #" + id : "<%= i18n.__('catalog.reviews.add') %>";
+					modal.show();
+				}
+
+				form.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					clearErrors();
+					const btn = form.querySelector('[type="submit"]');
+					btn.disabled = true;
+					try {
+						const id = form.querySelector('[name="id"]').value;
+						const g = (n) => form.querySelector(`[name="${n}"]`);
+						const idProduct = parseInt(g("id_product").value, 10) || (current && current.id_product) || null;
+						// Відгук з магазину без товару — спершу зіставлення
+						if (current && current.id_integration && !current.id_product && idProduct) {
+							await api(`/api/catalog/products/reviews/${id}/assign/`, { id_product: idProduct });
+						}
+						const data = {
+							id_product: idProduct,
+							id_variant: current ? Number(current.id_variant || 0) : 0,
+							id_lang: current ? current.id_lang : null,
+							rating: parseInt(g("rating").value, 10),
+							author_name: g("author_name").value,
+							author_email: g("author_email").value || null,
+							title: g("title").value || null,
+							body: g("body").value || null,
+							pros: g("pros").value || null,
+							cons: g("cons").value || null,
+							verified_purchase: g("verified_purchase").checked,
+							status: g("status").value,
+							reply: g("reply").value || null,
+							date_add: g("date_add").value ? g("date_add").value.replace("T", " ") + ":00" : null,
+							media: media.map((m) => m.file),
+						};
+						await api("/api/catalog/products/reviews/save/", { id: id ? parseInt(id, 10) : null, data });
+						modal.hide();
+						notyf.success("<%= i18n.__('catalog.common.saved') %>");
+						reload();
+					} catch (err) {
+						showErrors(err.errors);
+						errMsg(err);
+					} finally {
+						btn.disabled = false;
+					}
+				});
+
+				const addBtn = document.getElementById("btn-add");
+				if (addBtn) addBtn.addEventListener("click", () => open(null).catch(errMsg));
+
+				// ── Обмін з магазинами ─────────────────────────────
+				async function loadSyncState() {
+					try {
+						const r = await api("/api/catalog/products/reviews/sync/state/");
+						document.getElementById("sync-state").innerHTML = r.rows
+							.map(
+								(s) =>
+									`<i class="fa-solid fa-store"></i> ${esc(s.name)}: <%= i18n.__('catalog.reviews.last_pull') %> ${esc(s.last_pull ? String(s.last_pull).slice(0, 16) : "—")}` +
+									(Number(s.queued) ? ` · <%= i18n.__('catalog.reviews.queued') %>: ${Number(s.queued)}` : "") +
+									(s.last_error ? ` · <span class="text-danger">${esc(s.last_error)}</span>` : "")
+							)
+							.join("<br>");
+					} catch (e) {}
+				}
+				loadSyncState();
+				const syncBtn = document.getElementById("btn-sync");
+				if (syncBtn)
+					syncBtn.addEventListener("click", async () => {
+						syncBtn.disabled = true;
+						try {
+							const r = await api("/api/catalog/products/reviews/sync/");
+							const sum = r.rows.reduce((a, x) => ((a.created += x.created || 0), (a.sent += x.sent || 0), a), { created: 0, sent: 0 });
+							notyf.success("<%= i18n.__('catalog.reviews.sync_done') %>".replace("%n", sum.created).replace("%s", sum.sent));
+							reload();
+							loadSyncState();
+						} catch (err) {
+							errMsg(err);
+						} finally {
+							syncBtn.disabled = false;
+						}
+					});
+			})();
+		</script>
+	</body>
+</html>
