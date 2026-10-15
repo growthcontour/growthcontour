@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.mg-table td, .mg-table th { vertical-align: top; font-size: 13px; }
+			.mg-table th { width: 20%; color: #6c757d; font-weight: 600; }
+			.mg-diff { background: #fff8e1; }
+			.mg-col.winner { background: #eef7ee; }
+			.mg-head label { cursor: pointer; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+		<%
+			const d = data, A = d.a, B = d.b;
+			const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (x) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[x]);
+			const KIND = { person: "Людина", organization: "Організація", group: "Група" };
+			const STATUS = { active: "Активний", blocked: "Заблокований", archived: "Архів" };
+			const contactsHtml = (c) => c.contacts.map((x) => '<div><i class="' + esc(x.icon || "fa-solid fa-address-book") + ' text-muted me-1"></i>' + esc(x.value) + (x.primary ? ' <i class="fa-solid fa-star text-warning"></i>' : "") + "</div>").join("") || '<span class="text-muted">—</span>';
+			const identsHtml = (c) => c.identifiers.map((x) => "<div>" + esc(x.type) + ": <code>" + esc(x.value) + "</code></div>").join("") || '<span class="text-muted">—</span>';
+			const rows = [
+				["Тип", KIND[A.kind], KIND[B.kind]],
+				["Правова форма", A.legal, B.legal],
+				["Стадія", A.lifecycle && A.lifecycle.name, B.lifecycle && B.lifecycle.name],
+				["Статус", STATUS[A.status], STATUS[B.status]],
+				["Менеджер", A.manager_name, B.manager_name],
+				["Країна", A.country, B.country],
+				["Джерело", A.source, B.source],
+				["Створено", A.date_add, B.date_add],
+				["Остання активність", A.date_last_activity, B.date_last_activity],
+				["Замовлень", A.orders_valid_count + (A.orders_count !== A.orders_valid_count ? " / " + A.orders_count : ""), B.orders_valid_count + (B.orders_count !== B.orders_valid_count ? " / " + B.orders_count : "")],
+				["Виручка", A.revenue_base + " " + d.base_currency, B.revenue_base + " " + d.base_currency],
+				["Лідів", A.leads_count, B.leads_count],
+				["Діалогів", A.chats_count, B.chats_count],
+				["Адрес", A.addresses_count, B.addresses_count],
+				["Зв'язків", A.relationships_count, B.relationships_count],
+			];
+		%>
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span>Порівняння й злиття</span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item"><a href="/clients/"><%= i18n.__('header.nav.clients') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/clients/duplicates/">Можливі дублі</a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> #<%= A.id %> і #<%= B.id %></li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto"><a href="/clients/duplicates/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a></div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3">
+			<% if (A.kind !== B.kind) { %>
+			<div class="alert alert-warning rounded-0"><i class="fa-solid fa-triangle-exclamation me-1"></i> Клієнти різного типу. Дані людини чи організації злитого запису не перенесуться, решта (контакти, адреси, замовлення) — так.</div>
+			<% } %>
+
+			<div class="card border-primary rounded-0 mb-3">
+				<div class="card-body p-0">
+					<table class="table table-bordered mg-table mb-0">
+						<thead>
+							<tr class="mg-head">
+								<th></th>
+								<% [A, B].forEach(function (c) { %>
+								<td class="mg-col" data-col="<%= c.id %>">
+									<label class="d-flex align-items-center gap-2">
+										<input type="radio" name="winner" value="<%= c.id %>" class="form-check-input" <%= d.winner === c.id ? 'checked' : '' %> />
+										<span><a href="/clients/<%= c.id %>/" target="_blank" class="fw-bold"><%= c.display_name || ('#' + c.id) %></a> <span class="text-muted">#<%= c.id %></span><br /><small class="text-success winner-label">Залишиться</small><small class="text-danger loser-label">Буде злитий</small></span>
+									</label>
+								</td>
+								<% }) %>
+							</tr>
+						</thead>
+						<tbody>
+							<% rows.forEach(function (r) { const diff = String(r[1] ?? "") !== String(r[2] ?? ""); %>
+							<tr>
+								<th><%= r[0] %></th>
+								<td class="mg-col <%= diff ? 'mg-diff' : '' %>" data-col="<%= A.id %>"><%= r[1] == null || r[1] === '' ? '—' : r[1] %></td>
+								<td class="mg-col <%= diff ? 'mg-diff' : '' %>" data-col="<%= B.id %>"><%= r[2] == null || r[2] === '' ? '—' : r[2] %></td>
+							</tr>
+							<% }) %>
+							<tr>
+								<th>Контакти</th>
+								<td class="mg-col" data-col="<%= A.id %>"><%- contactsHtml(A) %></td>
+								<td class="mg-col" data-col="<%= B.id %>"><%- contactsHtml(B) %></td>
+							</tr>
+							<tr>
+								<th>Реквізити</th>
+								<td class="mg-col" data-col="<%= A.id %>"><%- identsHtml(A) %></td>
+								<td class="mg-col" data-col="<%= B.id %>"><%- identsHtml(B) %></td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+
+			<div class="card rounded-0 mb-3">
+				<div class="card-body">
+					<div class="fw-semibold mb-2">Що станеться</div>
+					<ul class="small mb-3">
+						<li>Усі контакти, адреси, реквізити, теги, зв'язки, замовлення, ліди й діалоги злитого клієнта перейдуть до того, хто залишиться. Однакові контакти не дублюватимуться.</li>
+						<li>Порожні поля клієнта, що залишиться, заповняться даними злитого. Заповнені поля не змінюються.</li>
+						<li>Злитий запис не видаляється: він стане архівним, а його посилання вестимуть на актуального клієнта.</li>
+						<li>Злиття можна скасувати в картці клієнта, блок «Історія злиттів».</li>
+					</ul>
+					<button class="btn btn-danger rounded-0" id="mg-go"><i class="fa-solid fa-code-merge me-1"></i>Злити клієнтів</button>
+					<a href="/clients/duplicates/" class="btn btn-outline-secondary rounded-0 ms-2">Скасувати</a>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				const A = <%= A.id %>, B = <%= B.id %>;
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 5000, types: [{ type: "error", background: "indianred", icon: false }] });
+				const winner = () => Number((document.querySelector('input[name="winner"]:checked') || {}).value);
+
+				function paint() {
+					const w = winner();
+					document.querySelectorAll(".mg-col").forEach((el) => el.classList.toggle("winner", Number(el.dataset.col) === w));
+					document.querySelectorAll(".mg-head .mg-col").forEach((el) => {
+						const isW = Number(el.dataset.col) === w;
+						el.querySelector(".winner-label").style.display = isW ? "" : "none";
+						el.querySelector(".loser-label").style.display = isW ? "none" : "";
+					});
+				}
+				document.querySelectorAll('input[name="winner"]').forEach((r) => r.addEventListener("change", paint));
+				paint();
+
+				document.getElementById("mg-go").addEventListener("click", async function () {
+					const w = winner();
+					const l = w === A ? B : A;
+					if (!confirm("Злити клієнта #" + l + " у клієнта #" + w + "?")) return;
+					this.disabled = true;
+					try {
+						const r = await fetch("/api/clients/merge/", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ winner: w, loser: l }) });
+						const j = await r.json();
+						if (!r.ok || j.ok === false) throw new Error(j.error || "Помилка");
+						location.href = "/clients/" + w + "/?merged=" + j.id_merge;
+					} catch (e) {
+						notyf.error(e.message);
+						this.disabled = false;
+					}
+				});
+			})();
+		</script>
+	</body>
+</html>

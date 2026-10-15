@@ -1,0 +1,281 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.languages.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><%= i18n.__('catalog.menu.catalog') %></li>
+					<li class="breadcrumb-item active"><%= i18n.__('catalog.languages.title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<div class="d-flex justify-content-between align-items-center mb-3">
+					<h1 class="h4 mb-0"><%= i18n.__('catalog.languages.title') %></h1>
+					<% if (perms.edit) { %>
+					<button type="button" class="btn btn-primary rounded-0" id="btn-add"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.languages.add') %></button>
+					<% } %>
+				</div>
+				<div class="alert alert-light border rounded-0 small"><%= i18n.__('catalog.languages.intro') %></div>
+
+				<div class="card rounded-0">
+					<div class="table-responsive">
+						<table class="table table-sm align-middle mb-0">
+							<thead>
+								<tr>
+									<th><%= i18n.__('catalog.languages.f.code') %></th>
+									<th><%= i18n.__('catalog.languages.f.native_name') %></th>
+									<th><%= i18n.__('catalog.languages.f.name') %></th>
+									<th><%= i18n.__('catalog.languages.f.direction') %></th>
+									<th class="text-end"><%= i18n.__('catalog.languages.f.translations') %></th>
+									<th class="text-end"><%= i18n.__('catalog.languages.f.sort_order') %></th>
+									<th><%= i18n.__('catalog.languages.f.status') %></th>
+									<th></th>
+								</tr>
+							</thead>
+							<tbody id="rows"></tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</main>
+
+		<div class="modal fade" id="lang-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog">
+				<form class="modal-content rounded-0" id="lang-form" novalidate>
+					<div class="modal-header">
+						<h5 class="modal-title" id="lang-title"></h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" name="id" />
+						<div class="row g-3">
+							<div class="col-md-6" data-field="code">
+								<label class="form-label"><%= i18n.__('catalog.languages.f.code') %> *</label>
+								<input class="form-control rounded-0" name="code" maxlength="16" placeholder="ar, pt-BR, zh-Hans" required />
+								<div class="form-text"><%= i18n.__('catalog.languages.code_hint') %></div>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-6" data-field="direction">
+								<label class="form-label"><%= i18n.__('catalog.languages.f.direction') %></label>
+								<select class="form-select rounded-0" name="direction">
+									<option value="ltr"><%= i18n.__('catalog.languages.ltr') %></option>
+									<option value="rtl"><%= i18n.__('catalog.languages.rtl') %></option>
+								</select>
+							</div>
+							<div class="col-md-6" data-field="native_name">
+								<label class="form-label"><%= i18n.__('catalog.languages.f.native_name') %> *</label>
+								<input class="form-control rounded-0" name="native_name" maxlength="64" required />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-6" data-field="name">
+								<label class="form-label"><%= i18n.__('catalog.languages.f.name') %> *</label>
+								<input class="form-control rounded-0" name="name" maxlength="64" required />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-6">
+								<label class="form-label"><%= i18n.__('catalog.languages.f.sort_order') %></label>
+								<input class="form-control rounded-0" type="number" name="sort_order" value="0" />
+							</div>
+							<div class="col-md-6 pt-md-4" data-field="status">
+								<div class="form-check form-switch">
+									<input class="form-check-input" type="checkbox" name="status" id="lf-status" checked />
+									<label class="form-check-label" for="lf-status"><%= i18n.__('catalog.languages.f.status') %></label>
+								</div>
+								<div class="invalid-feedback"></div>
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('catalog.common.cancel') %></button>
+						<button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('catalog.common.save') %></button>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const CAN_EDIT = <%= perms.edit ? 'true' : 'false' %>;
+				// Мови з письмом справа наліво (основний субтег BCP 47)
+				const RTL = ["ar", "arc", "ckb", "dv", "fa", "he", "ks", "ku", "ps", "sd", "syr", "ug", "ur", "yi"];
+				const notyf = new Notyf({ duration: 3500, position: { x: "right", y: "top" } });
+				const modal = new bootstrap.Modal("#lang-modal");
+				const form = document.getElementById("lang-form");
+				let rows = [];
+				let touched = {};
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+				function el(tag, cls, text) {
+					const n = document.createElement(tag);
+					if (cls) n.className = cls;
+					if (text !== undefined) n.textContent = text;
+					return n;
+				}
+
+				function render() {
+					const tbody = document.getElementById("rows");
+					tbody.replaceChildren(
+						...rows.map((r) => {
+							const tr = el("tr");
+							const code = el("td");
+							code.appendChild(el("code", "", r.code));
+							if (Number(r.is_primary)) code.appendChild(el("span", "badge text-bg-primary ms-2", "<%= i18n.__('catalog.languages.primary') %>"));
+							tr.appendChild(code);
+							const native = el("td", "", r.native_name);
+							native.dir = r.direction;
+							tr.appendChild(native);
+							tr.appendChild(el("td", "", r.name));
+							tr.appendChild(el("td", "", r.direction === "rtl" ? "<%= i18n.__('catalog.languages.rtl') %>" : "<%= i18n.__('catalog.languages.ltr') %>"));
+							tr.appendChild(el("td", "text-end", String(r.translations)));
+							tr.appendChild(el("td", "text-end", String(r.sort_order)));
+							tr.appendChild(el("td", "", Number(r.status) ? "<%= i18n.__('catalog.common.active') %>" : "<%= i18n.__('catalog.common.inactive') %>"));
+							const act = el("td", "text-end text-nowrap");
+							if (CAN_EDIT) {
+								const edit = el("button", "btn btn-sm btn-outline-primary rounded-0 me-1");
+								edit.type = "button";
+								edit.innerHTML = '<i class="fa-solid fa-pen"></i>';
+								edit.addEventListener("click", () => open(r));
+								act.appendChild(edit);
+								if (!Number(r.is_primary) && Number(r.status)) {
+									const pr = el("button", "btn btn-sm btn-outline-secondary rounded-0 me-1", "<%= i18n.__('catalog.languages.make_primary') %>");
+									pr.type = "button";
+									pr.addEventListener("click", () => makePrimary(r));
+									act.appendChild(pr);
+								}
+								if (!Number(r.is_primary)) {
+									const del = el("button", "btn btn-sm btn-outline-danger rounded-0");
+									del.type = "button";
+									del.innerHTML = '<i class="fa-solid fa-trash"></i>';
+									del.disabled = Number(r.translations) > 0;
+									del.title = Number(r.translations) > 0 ? "<%= i18n.__('catalog.languages.in_use') %>" : "";
+									del.addEventListener("click", () => removeLang(r));
+									act.appendChild(del);
+								}
+							}
+							tr.appendChild(act);
+							return tr;
+						})
+					);
+				}
+
+				async function load() {
+					rows = (await api("/api/catalog/products/languages/list/")).rows;
+					render();
+				}
+
+				function clearErrors() {
+					form.querySelectorAll(".is-invalid").forEach((x) => x.classList.remove("is-invalid"));
+					form.querySelectorAll(".invalid-feedback").forEach((x) => (x.textContent = ""));
+				}
+				function showErrors(errors) {
+					(errors || []).forEach((e) => {
+						const box = form.querySelector(`[data-field="${e.field}"]`);
+						if (!box) return;
+						box.querySelectorAll("input,select").forEach((x) => x.classList.add("is-invalid"));
+						const fb = box.querySelector(".invalid-feedback");
+						if (fb) {
+							fb.textContent = e.message;
+							fb.style.display = "block";
+						}
+					});
+				}
+
+				function open(r) {
+					clearErrors();
+					form.reset();
+					touched = { native_name: !!r, name: !!r, direction: !!r };
+					form.id.value = r ? r.id : "";
+					form.code.value = r ? r.code : "";
+					form.native_name.value = r ? r.native_name : "";
+					form.name.value = r ? r.name : "";
+					form.direction.value = r ? r.direction : "ltr";
+					form.sort_order.value = r ? r.sort_order : rows.length;
+					form.status.checked = r ? !!Number(r.status) : true;
+					form.status.disabled = !!(r && Number(r.is_primary));
+					document.getElementById("lang-title").textContent = r ? "<%= i18n.__('catalog.languages.edit') %>: " + r.code : "<%= i18n.__('catalog.languages.add') %>";
+					modal.show();
+				}
+
+				// Підказки з Intl: назва мовою оригіналу й англійською, напрямок письма
+				form.code.addEventListener("input", () => {
+					const code = form.code.value.trim().replace(/_/g, "-");
+					if (!code) return;
+					try {
+						const nativeName = new Intl.DisplayNames([code], { type: "language" }).of(code);
+						const enName = new Intl.DisplayNames(["en"], { type: "language" }).of(code);
+						if (!touched.native_name && nativeName && nativeName !== code) form.native_name.value = nativeName.charAt(0).toLocaleUpperCase(code) + nativeName.slice(1);
+						if (!touched.name && enName && enName !== code) form.name.value = enName;
+					} catch {}
+					if (!touched.direction) form.direction.value = RTL.includes(code.split("-")[0].toLowerCase()) ? "rtl" : "ltr";
+				});
+				["native_name", "name", "direction"].forEach((n) => form[n].addEventListener("input", () => (touched[n] = true)));
+
+				form.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					clearErrors();
+					try {
+						await api("/api/catalog/products/languages/save/", {
+							id: form.id.value ? Number(form.id.value) : null,
+							code: form.code.value,
+							native_name: form.native_name.value,
+							name: form.name.value,
+							direction: form.direction.value,
+							sort_order: Number(form.sort_order.value) || 0,
+							status: form.status.checked,
+						});
+						modal.hide();
+						notyf.success("<%= i18n.__('catalog.common.saved') %>");
+						await load();
+					} catch (err) {
+						showErrors(err.errors);
+						notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>");
+					}
+				});
+
+				async function makePrimary(r) {
+					if (!confirm("<%= i18n.__('catalog.languages.confirm_primary') %>".replace("%s", r.native_name))) return;
+					try {
+						await api("/api/catalog/products/languages/" + r.id + "/primary/");
+						await load();
+					} catch (err) {
+						notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>");
+					}
+				}
+				async function removeLang(r) {
+					if (!confirm("<%= i18n.__('catalog.languages.confirm_delete') %>".replace("%s", r.native_name))) return;
+					try {
+						await api("/api/catalog/products/languages/" + r.id + "/delete/");
+						await load();
+					} catch (err) {
+						notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>");
+					}
+				}
+
+				const addBtn = document.getElementById("btn-add");
+				if (addBtn) addBtn.addEventListener("click", () => open(null));
+				load().catch((err) => notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>"));
+			})();
+		</script>
+	</body>
+</html>

@@ -1,0 +1,17 @@
+{
+    "orders": {
+        "title": "Bestillinger",
+        "columns": {
+            "id": "ID",
+            "source": "Kilde",
+            "reference": "Referanse",
+            "delivery": "Levering",
+            "total": "Totalt",
+            "payment": "Betaling",
+            "status": "Status",
+            "date_add": "Lagt til dato",
+            "date_edit": "Redigert dato",
+            "edit": "Rediger"
+        }
+    }
+}

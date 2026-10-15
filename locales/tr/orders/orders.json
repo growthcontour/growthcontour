@@ -1,0 +1,17 @@
+{
+    "orders": {
+        "title": "Siparişler",
+        "columns": {
+            "id": "ID",
+            "source": "Kaynak",
+            "reference": "Referans",
+            "delivery": "Teslimat",
+            "total": "Toplam",
+            "payment": "Ödeme",
+            "status": "Durum",
+            "date_add": "Eklenme tarihi",
+            "date_edit": "Düzenlenme tarihi",
+            "edit": "Düzenle"
+        }
+    }
+}

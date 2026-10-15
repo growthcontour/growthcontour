@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('contact_center.instagram.settings.title') %></title>
+		<%- include('../../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<!-- tabulator -->
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<style>
+			#toket_list_table .tabulator-col,
+			#toket_list_table .tabulator-cell {
+				border-right: 1px solid #dee2e6;
+				border-bottom: 1px solid #dee2e6;
+			}
+			#toket_list_table .tabulator-col:last-child,
+			#toket_list_table .tabulator-cell:last-child {
+				border-right: none;
+			}
+			#toket_list_table .tabulator-row:last-child .tabulator-cell {
+				border-bottom: none;
+			}
+		</style>
+		<!-- END tabulator -->
+	</head>
+
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../../partials/header'); %>
+
+		<!-- ─── ХЛІБНІ КРИХТИ ─────────────────────────────────────────── -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('contact_center.instagram.settings.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('contact_center.instagram.settings.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/contact-center"><%= i18n.__('contact_center.instagram.settings.breadcrumb.contact_center') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('contact_center.instagram.settings.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/contact-center" class="btn btn-primary rounded-0">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3">
+			<div class="row">
+				<div class="col-12 col-lg-12 mb-3">
+					<button type="button" class="btn btn-primary rounded-0 mb-3" id="btn_add_ig_token"><i class="fa-brands fa-instagram me-1"></i> Додати акаунт Instagram</button>
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('contact_center.instagram.settings.title') %></div>
+						<div id="toket_list_table"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- MODAL: Delete account -->
+		<div class="modal fade" id="modalDeleteIgToken" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5"><%= i18n.__('contact_center.instagram.settings.delete_modal.title') %></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<p class="mb-2"><%= i18n.__('contact_center.instagram.settings.delete_modal.confirm_text') %></p>
+						<p class="mb-0">
+							<strong id="del_ig_name"></strong> <span class="text-muted">#<span id="del_ig_id"></span></span>
+						</p>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('contact_center.instagram.settings.delete_modal.close') %></button>
+						<button type="button" class="btn btn-danger rounded-0" id="btn_confirm_delete_ig_token"><%= i18n.__('contact_center.instagram.settings.delete_modal.delete') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- END MODAL -->
+
+		<!-- MODAL: Додати акаунт по токену -->
+		<div class="modal fade" id="modalAddIgToken" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5">Додати акаунт Instagram</h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<div class="mb-3">
+							<label class="form-label">Назва (для CRM)</label>
+							<input type="text" class="form-control rounded-0" id="add_ig_name" />
+						</div>
+						<div class="mb-2">
+							<label class="form-label">Access Token</label>
+							<input type="text" class="form-control rounded-0" id="add_ig_token" placeholder="IGAA..." />
+							<small class="text-muted">Токен з вашого Instagram-додатку.</small>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal">Закрити</button>
+						<button type="button" class="btn btn-primary rounded-0" id="btn_confirm_add_ig_token">Додати</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../../../partials/footer'); %> <%- include('../../../../partials/script'); %>
+
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			const notyf = new Notyf({
+				position: { x: "right", y: "top" },
+				types: [
+					{ type: "success", dismissible: true, icon: false },
+					{ type: "error", background: "indianred", dismissible: true, icon: false },
+				],
+			});
+		</script>
+		<script>
+			document.getElementById("btn_add_ig_token").addEventListener("click", function () {
+				document.getElementById("add_ig_name").value = "";
+				document.getElementById("add_ig_token").value = "";
+				bootstrap.Modal.getOrCreateInstance(document.getElementById("modalAddIgToken")).show();
+			});
+
+			document.getElementById("btn_confirm_add_ig_token").addEventListener("click", async function () {
+				const btn = this;
+				if (btn.disabled) return;
+				const original = btn.innerHTML;
+				btn.disabled = true;
+				btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+				try {
+					const res = await fetch("/api/contact-center/instagram/settings/token/create/", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							name: document.getElementById("add_ig_name").value,
+							token: document.getElementById("add_ig_token").value,
+						}),
+					});
+					const data = await res.json().catch(() => ({}));
+					if (!res.ok || data.status !== "success") throw new Error(data.message || "Error");
+					bootstrap.Modal.getOrCreateInstance(document.getElementById("modalAddIgToken")).hide();
+					notyf.success("Акаунт додано.");
+					table.replaceData();
+					if (data.id) window.location.href = "/contact-center/instagram/settings/" + data.id;
+				} catch (err) {
+					notyf.error(err.message);
+				} finally {
+					btn.disabled = false;
+					btn.innerHTML = original;
+				}
+			});
+		</script>
+
+		<!-- Видалення акаунта -->
+		<script>
+			let delIgTokenId = null;
+			$(document).on("click", ".delete-ig-token-btn", function () {
+				delIgTokenId = $(this).data("id");
+				document.getElementById("del_ig_id").textContent = delIgTokenId;
+				document.getElementById("del_ig_name").textContent = $(this).data("name") || "";
+				bootstrap.Modal.getOrCreateInstance(document.getElementById("modalDeleteIgToken")).show();
+			});
+
+			document.getElementById("btn_confirm_delete_ig_token").addEventListener("click", async function () {
+				const btn = this;
+				if (btn.disabled || !delIgTokenId) return;
+				const original = btn.innerHTML;
+				btn.disabled = true;
+				btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+				try {
+					const res = await fetch("/api/contact-center/instagram/settings/token/delete/", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ id: delIgTokenId }),
+					});
+					const data = await res.json().catch(() => ({}));
+					if (!res.ok || data.status !== "success") throw new Error(data.message || "Error");
+					bootstrap.Modal.getOrCreateInstance(document.getElementById("modalDeleteIgToken")).hide();
+					notyf.success(data.message || "OK");
+					table.replaceData();
+				} catch (err) {
+					notyf.error(err.message);
+				} finally {
+					btn.disabled = false;
+					btn.innerHTML = original;
+				}
+			});
+		</script>
+
+		<!-- Tabulator -->
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			var TR = {
+				id: "<%= i18n.__('contact_center.instagram.settings.table.id') %>",
+				name: "<%= i18n.__('contact_center.instagram.settings.table.name') %>",
+				username: "<%= i18n.__('contact_center.instagram.settings.table.username') %>",
+				active: "<%= i18n.__('contact_center.instagram.settings.table.active') %>",
+				notify_active: "<%= i18n.__('contact_center.instagram.settings.table.notify_active') %>",
+				expires: "<%= i18n.__('contact_center.instagram.settings.table.expires') %>",
+				date_add: "<%= i18n.__('contact_center.instagram.settings.table.date_add') %>",
+				edit: "<%= i18n.__('contact_center.instagram.settings.table.edit') %>",
+				st_on: "<%= i18n.__('contact_center.instagram.settings.status.on') %>",
+				st_off: "<%= i18n.__('contact_center.instagram.settings.status.off') %>",
+				st_acc_on: "<%= i18n.__('contact_center.instagram.settings.status.acc_on') %>",
+			};
+
+			var table = new Tabulator("#toket_list_table", {
+				layout: "fitColumns",
+				ajaxURL: "/api/contact-center/instagram/token-list/",
+				ajaxConfig: "POST",
+				paginationSize: 5,
+				paginationSizeSelector: [10, 20, 30, 40],
+				pagination: true,
+				movableColumns: true,
+				columns: [
+					{ title: TR.id, formatter: "rownum", field: "id", headerSort: false, widthGrow: "1" },
+					{ title: TR.name, field: "name", sorter: "string", headerSort: false },
+					{ title: TR.username, field: "username", sorter: "string", headerSort: false },
+					{
+						title: TR.active,
+						field: "active",
+						headerSort: false,
+						formatter: function (cell) {
+							return Number(cell.getValue()) === 1 ? '<span class="badge text-bg-success">' + TR.st_acc_on + "</span>" : '<span class="badge text-bg-secondary">' + TR.st_off + "</span>";
+						},
+					},
+					{
+						title: TR.notify_active,
+						field: "notify_active",
+						headerSort: false,
+						formatter: function (cell) {
+							return Number(cell.getValue()) === 1 ? '<span class="badge text-bg-success">' + TR.st_on + "</span>" : '<span class="badge text-bg-secondary">' + TR.st_off + "</span>";
+						},
+					},
+					{ title: TR.expires, field: "token_expires_at", headerSort: false },
+					{ title: TR.date_add, field: "date_add", sorter: "string", headerSort: false },
+					{
+						title: TR.edit,
+						field: "",
+						headerSort: false,
+						widthGrow: "1",
+						formatter: function (cell) {
+							var d = cell.getRow().getData();
+							return '<div class="d-flex gap-2">' + '<a class="btn btn-primary rounded-0" href="/contact-center/instagram/settings/' + d.id + '"><i class="fa-regular fa-pen-to-square"></i></a>' + '<button type="button" class="btn btn-outline-danger rounded-0 delete-ig-token-btn" data-id="' + d.id + '" data-name="' + (d.name ? String(d.name).replace(/"/g, "&quot;") : "") + '"><i class="fa-regular fa-trash-can"></i></button>' + "</div>";
+						},
+					},
+				],
+			});
+		</script>
+		<!-- END Tabulator -->
+	</body>
+</html>

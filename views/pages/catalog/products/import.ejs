@@ -1,0 +1,240 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.import.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="/assets/css/tabulator/tabulator_bootstrap5.min.css" />
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><%= i18n.__('catalog.menu.catalog') %></li>
+					<li class="breadcrumb-item"><a href="/catalog/products/"><%= i18n.__('catalog.products.title') %></a></li>
+					<li class="breadcrumb-item active"><%= i18n.__('catalog.import.title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<h1 class="h4 mb-3"><%= i18n.__('catalog.import.title') %></h1>
+
+				<div class="row g-3">
+					<div class="col-lg-5">
+						<div class="card rounded-0">
+							<div class="card-header fw-semibold"><%= i18n.__('catalog.import.export_title') %></div>
+							<div class="card-body">
+								<form id="exportForm" class="row g-2">
+									<div class="col-6">
+										<label class="form-label"><%= i18n.__('catalog.import.format') %></label>
+										<select class="form-select rounded-0" name="format">
+											<option value="xlsx">XLSX</option>
+											<option value="csv">CSV</option>
+										</select>
+									</div>
+									<div class="col-6">
+										<label class="form-label"><%= i18n.__('catalog.import.status') %></label>
+										<select class="form-select rounded-0" name="status">
+											<option value=""><%= i18n.__('catalog.import.status_all') %></option>
+											<option value="active"><%= i18n.__('catalog.import.status_active') %></option>
+											<option value="draft"><%= i18n.__('catalog.import.status_draft') %></option>
+											<option value="archived"><%= i18n.__('catalog.import.status_archived') %></option>
+										</select>
+									</div>
+									<div class="col-12">
+										<label class="form-label"><%= i18n.__('catalog.import.category_id') %></label>
+										<input class="form-control rounded-0" name="id_category" inputmode="numeric" pattern="\d*" />
+										<div class="form-text"><%= i18n.__('catalog.import.category_hint') %></div>
+									</div>
+									<div class="col-12 d-flex gap-2">
+										<button type="submit" class="btn btn-primary rounded-0"><i class="fa-solid fa-download"></i> <%= i18n.__('catalog.import.export_btn') %></button>
+										<a class="btn btn-outline-secondary rounded-0" href="/api/catalog/products/import/template/"><%= i18n.__('catalog.import.template_btn') %></a>
+									</div>
+								</form>
+							</div>
+						</div>
+
+						<div class="card rounded-0 mt-3">
+							<div class="card-header fw-semibold"><%= i18n.__('catalog.import.help_title') %></div>
+							<div class="card-body small">
+								<ul class="mb-0">
+									<li><%= i18n.__('catalog.import.help_formats') %></li>
+									<li><%= i18n.__('catalog.import.help_langs') %></li>
+									<li><%= i18n.__('catalog.import.help_empty') %></li>
+									<li><%= i18n.__('catalog.import.help_categories') %></li>
+									<li><%= i18n.__('catalog.import.help_qty') %></li>
+									<li><%= i18n.__('catalog.import.help_lock') %></li>
+									<li><%= i18n.__('catalog.import.help_limit') %> <%= maxRows %></li>
+								</ul>
+							</div>
+						</div>
+					</div>
+
+					<div class="col-lg-7">
+						<div class="card rounded-0">
+							<div class="card-header fw-semibold"><%= i18n.__('catalog.import.import_title') %></div>
+							<div class="card-body">
+								<% if (!perms.add && !perms.edit) { %>
+								<div class="alert alert-warning small rounded-0"><%= i18n.__('catalog.import.dry_only') %></div>
+								<% } %>
+								<form id="importForm" class="row g-2">
+									<div class="col-12">
+										<label class="form-label"><%= i18n.__('catalog.import.file') %></label>
+										<input class="form-control rounded-0" type="file" name="file" accept=".xlsx,.csv,.txt" required />
+									</div>
+									<div class="col-md-6">
+										<label class="form-label"><%= i18n.__('catalog.import.mode') %></label>
+										<select class="form-select rounded-0" name="mode">
+											<option value="upsert"><%= i18n.__('catalog.import.mode_upsert') %></option>
+											<option value="create"><%= i18n.__('catalog.import.mode_create') %></option>
+											<option value="update"><%= i18n.__('catalog.import.mode_update') %></option>
+										</select>
+									</div>
+									<div class="col-md-6">
+										<label class="form-label"><%= i18n.__('catalog.import.match_by') %></label>
+										<select class="form-select rounded-0" name="match_by">
+											<option value="sku"><%= i18n.__('catalog.import.match_sku') %></option>
+											<option value="id"><%= i18n.__('catalog.import.match_id') %></option>
+										</select>
+									</div>
+									<div class="col-12">
+										<div class="form-check">
+											<input class="form-check-input" type="checkbox" id="dryRun" checked <%= !perms.add && !perms.edit ? 'disabled' : '' %> />
+											<label class="form-check-label" for="dryRun"><%= i18n.__('catalog.import.dry_run') %></label>
+										</div>
+										<div class="form-check">
+											<input class="form-check-input" type="checkbox" id="emptyClears" />
+											<label class="form-check-label" for="emptyClears"><%= i18n.__('catalog.import.empty_clears') %></label>
+										</div>
+									</div>
+									<div class="col-12">
+										<button type="submit" class="btn btn-primary rounded-0" id="importBtn">
+											<span class="spinner-border spinner-border-sm d-none me-1" id="importSpinner"></span>
+											<%= i18n.__('catalog.import.import_btn') %>
+										</button>
+									</div>
+								</form>
+							</div>
+						</div>
+
+						<div class="card rounded-0 mt-3 d-none" id="resultCard">
+							<div class="card-header fw-semibold d-flex justify-content-between">
+								<span><%= i18n.__('catalog.import.result_title') %></span>
+								<span class="badge text-bg-warning d-none" id="dryBadge"><%= i18n.__('catalog.import.dry_badge') %></span>
+							</div>
+							<div class="card-body">
+								<div class="d-flex flex-wrap gap-2 mb-3" id="summary"></div>
+								<div class="alert alert-warning small rounded-0 d-none" id="unknownCols"></div>
+								<div id="reportTable"></div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</main>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const notyf = new Notyf({ duration: 4000, position: { x: "right", y: "top" } });
+				const STATUS_LABEL = {
+					created: "<%= i18n.__('catalog.import.st_created') %>",
+					updated: "<%= i18n.__('catalog.import.st_updated') %>",
+					skipped: "<%= i18n.__('catalog.import.st_skipped') %>",
+					error: "<%= i18n.__('catalog.import.st_error') %>",
+				};
+				const STATUS_COLOR = { created: "success", updated: "primary", skipped: "warning", error: "danger" };
+				let table = null;
+
+				document.getElementById("exportForm").addEventListener("submit", function (e) {
+					e.preventDefault();
+					const params = new URLSearchParams();
+					for (const [k, v] of new FormData(this)) if (String(v).trim() !== "") params.set(k, String(v).trim());
+					window.location.href = "/api/catalog/products/export/?" + params.toString();
+				});
+
+				document.getElementById("importForm").addEventListener("submit", async function (e) {
+					e.preventDefault();
+					const dry = document.getElementById("dryRun").checked;
+					if (!dry && !confirm("<%= i18n.__('catalog.import.confirm_real') %>")) return;
+
+					const fd = new FormData(this);
+					fd.set("dry_run", dry ? "1" : "0");
+					fd.set("empty_clears", document.getElementById("emptyClears").checked ? "1" : "0");
+
+					const btn = document.getElementById("importBtn");
+					const spinner = document.getElementById("importSpinner");
+					btn.disabled = true;
+					spinner.classList.remove("d-none");
+					try {
+						const res = await fetch("/api/catalog/products/import/", { method: "POST", body: fd, credentials: "same-origin", headers: { Accept: "application/json" } });
+						const json = await res.json().catch(() => ({}));
+						if (!res.ok || !json.ok) throw json;
+						render(json);
+						notyf.success(json.dry_run ? "<%= i18n.__('catalog.import.dry_done') %>" : "<%= i18n.__('catalog.import.done') %>");
+					} catch (err) {
+						notyf.error(err.error || "<%= i18n.__('catalog.import.request_failed') %>");
+					} finally {
+						btn.disabled = false;
+						spinner.classList.add("d-none");
+					}
+				});
+
+				function badge(text, color) {
+					const b = document.createElement("span");
+					b.className = "badge fs-6 text-bg-" + color;
+					b.textContent = text;
+					return b;
+				}
+
+				function render(json) {
+					document.getElementById("resultCard").classList.remove("d-none");
+					document.getElementById("dryBadge").classList.toggle("d-none", !json.dry_run);
+
+					const summary = document.getElementById("summary");
+					summary.replaceChildren(badge("<%= i18n.__('catalog.import.st_total') %>: " + json.summary.total, "secondary"));
+					for (const k of ["created", "updated", "skipped", "error"]) summary.appendChild(badge(STATUS_LABEL[k] + ": " + json.summary[k], STATUS_COLOR[k]));
+
+					const unk = document.getElementById("unknownCols");
+					unk.classList.toggle("d-none", !(json.unknown_columns && json.unknown_columns.length));
+					unk.textContent = "<%= i18n.__('catalog.import.unknown_columns') %>: " + (json.unknown_columns || []).join(", ");
+
+					const data = json.report.map((r) => ({ line: r.line, key: r.key || "", status: r.status, message: (r.errors || []).map((x) => x.field + ": " + x.message).join("; ") }));
+					if (table) table.destroy();
+					table = new Tabulator("#reportTable", {
+						data,
+						layout: "fitColumns",
+						height: data.length > 15 ? 450 : false,
+						placeholder: "<%= i18n.__('catalog.import.no_problems') %>",
+						columns: [
+							{ title: "<%= i18n.__('catalog.import.col_line') %>", field: "line", width: 90, sorter: "number" },
+							{ title: "<%= i18n.__('catalog.import.col_key') %>", field: "key", width: 180, formatter: "plaintext" },
+							{
+								title: "<%= i18n.__('catalog.import.col_status') %>",
+								field: "status",
+								width: 130,
+								formatter: (c) => {
+									const s = document.createElement("span");
+									s.className = "badge text-bg-" + (STATUS_COLOR[c.getValue()] || "secondary");
+									s.textContent = STATUS_LABEL[c.getValue()] || c.getValue();
+									return s;
+								},
+							},
+							{ title: "<%= i18n.__('catalog.import.col_message') %>", field: "message", formatter: "plaintext" },
+						],
+					});
+				}
+			})();
+		</script>
+	</body>
+</html>

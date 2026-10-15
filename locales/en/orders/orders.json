@@ -1,0 +1,78 @@
+{
+    "orders": {
+        "title": "Orders",
+        "breadcrumb": {
+            "home": "Home",
+            "current": "Orders"
+        },
+        "columns": {
+            "id": "ID",
+            "source": "Source",
+            "reference": "Reference",
+            "delivery": "Delivery",
+            "total": "Total",
+            "payment": "Payment",
+            "status": "Status",
+            "date_add": "Date added",
+            "date_edit": "Date edited",
+            "edit": "Edit"
+        },
+        "statuses": {
+            "title": "Order statuses",
+            "breadcrumb": {
+                "home": "Home",
+                "orders": "Orders",
+                "current": "Order statuses"
+            },
+            "columns": {
+                "id": "ID",
+                "status": "Status",
+                "icon": "Icon",
+                "date_add": "Date added",
+                "date_edit": "Date edited"
+            },
+            "add_modal": {
+                "button": "Add status",
+                "title": "Add status",
+                "name": "Status name",
+                "color_text": "Text color",
+                "color_background": "Background color",
+                "icon": "Icon",
+                "close": "Close",
+                "save": "Save",
+                "server_error": "Server error."
+            },
+            "edit_modal": {
+                "title": "Edit status",
+                "name": "Status name",
+                "color_text": "Text color",
+                "color_background": "Background color",
+                "icon": "Icon",
+                "close": "Close",
+                "save": "Save",
+                "added": "Status created.",
+                "saved": "Status updated.",
+                "server_error": "Server error."
+            },
+            "delete_modal": {
+                "title": "Видалення статусу",
+                "confirm_text": "Ви впевнені, що хочете видалити цей статус?",
+                "close": "Скасувати",
+                "delete": "Видалити",
+                "deleted": "Статус видалено.",
+                "server_error": "Помилка сервера."
+            },
+            "flags": {
+                "logable": "Consider the order as confirmed",
+                "invoice": "Allow viewing/downloading the PDF invoice",
+                "hidden": "Hide the status in customer orders",
+                "send_email": "Send email on status change",
+                "pdf_invoice": "Attach PDF invoice to the email",
+                "pdf_delivery": "Attach PDF delivery note to the email",
+                "shipped": "Mark the order as shipped",
+                "paid": "Mark the order as paid",
+                "delivery": "Show delivery PDF"
+            }
+        }
+    }
+}

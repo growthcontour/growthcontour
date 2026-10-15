@@ -1,0 +1,12 @@
+{
+    "online": {
+        "no_users": "No users",
+        "you": "You",
+        "just_now": "just now",
+        "minutes_ago": "min ago",
+        "last_seen_at": "Last seen at",
+        "online_for": "online for",
+        "hours": "h",
+        "minutes": "min"
+    }
+}

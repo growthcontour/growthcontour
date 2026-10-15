@@ -1,0 +1,17 @@
+{
+    "orders": {
+        "title": "Sifarişlər",
+        "columns": {
+            "id": "ID",
+            "source": "Mənbə",
+            "reference": "İstinad",
+            "delivery": "Çatdırılma",
+            "total": "Cəmi",
+            "payment": "Ödəniş",
+            "status": "Status",
+            "date_add": "Əlavə edilmə tarixi",
+            "date_edit": "Redaktə tarixi",
+            "edit": "Redaktə et"
+        }
+    }
+}

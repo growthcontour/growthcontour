@@ -1,0 +1,439 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.warehouses.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="/assets/css/tabulator/tabulator_bootstrap5.min.css" />
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><%= i18n.__('catalog.menu.catalog') %></li>
+					<li class="breadcrumb-item active"><%= i18n.__('catalog.warehouses.title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<div class="d-flex justify-content-between align-items-center mb-3">
+					<h1 class="h4 mb-0"><%= i18n.__('catalog.warehouses.title') %></h1>
+					<% if (perms.add) { %>
+					<button class="btn btn-primary rounded-0" id="btn-add"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.warehouses.add') %></button>
+					<% } %>
+				</div>
+				<div id="grid"></div>
+			</div>
+		</main>
+
+		<!-- Склад -->
+		<div class="modal fade" id="wh-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-lg modal-dialog-scrollable">
+				<form class="modal-content rounded-0" id="wh-form" novalidate>
+					<div class="modal-header">
+						<h5 class="modal-title" id="wh-title"></h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= i18n.__('catalog.common.close') %>"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" name="id" />
+						<div class="row g-3">
+							<div class="col-md-4" data-field="code">
+								<label class="form-label"><%= i18n.__('catalog.warehouses.f.code') %> *</label>
+								<input class="form-control rounded-0 text-uppercase" name="code" maxlength="32" required />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-8" data-field="name">
+								<label class="form-label"><%= i18n.__('catalog.warehouses.f.name') %> *</label>
+								<input class="form-control rounded-0" name="name" maxlength="255" required />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="type">
+								<label class="form-label"><%= i18n.__('catalog.warehouses.f.type') %></label>
+								<select class="form-select rounded-0" name="type">
+									<option value="own"><%= i18n.__('catalog.warehouses.types.own') %></option>
+									<option value="supplier"><%= i18n.__('catalog.warehouses.types.supplier') %></option>
+									<option value="dropship"><%= i18n.__('catalog.warehouses.types.dropship') %></option>
+									<option value="store"><%= i18n.__('catalog.warehouses.types.store') %></option>
+									<option value="transit"><%= i18n.__('catalog.warehouses.types.transit') %></option>
+								</select>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-8" data-field="id_supplier">
+								<label class="form-label"><%= i18n.__('catalog.warehouses.f.supplier') %></label>
+								<select class="form-select rounded-0" name="id_supplier" data-type="intnull">
+									<option value=""><%= i18n.__('catalog.common.none') %></option>
+								</select>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-2" data-field="country">
+								<label class="form-label"><%= i18n.__('catalog.warehouses.f.country') %></label>
+								<input class="form-control rounded-0 text-uppercase" name="country" maxlength="2" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="city">
+								<label class="form-label"><%= i18n.__('catalog.warehouses.f.city') %></label>
+								<input class="form-control rounded-0" name="city" maxlength="128" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="address">
+								<label class="form-label"><%= i18n.__('catalog.warehouses.f.address') %></label>
+								<input class="form-control rounded-0" name="address" maxlength="512" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-2" data-field="postcode">
+								<label class="form-label"><%= i18n.__('catalog.warehouses.f.postcode') %></label>
+								<input class="form-control rounded-0" name="postcode" maxlength="16" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-3" data-field="latitude">
+								<label class="form-label"><%= i18n.__('catalog.warehouses.f.latitude') %></label>
+								<input class="form-control rounded-0" type="number" step="0.0000001" name="latitude" data-type="number" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-3" data-field="longitude">
+								<label class="form-label"><%= i18n.__('catalog.warehouses.f.longitude') %></label>
+								<input class="form-control rounded-0" type="number" step="0.0000001" name="longitude" data-type="number" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-3" data-field="phone">
+								<label class="form-label"><%= i18n.__('catalog.warehouses.f.phone') %></label>
+								<input class="form-control rounded-0" type="tel" name="phone" maxlength="32" placeholder="+…" />
+								<div class="form-text"><%= i18n.__('catalog.common.phone_hint') %></div>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-3" data-field="carrier_ref">
+								<label class="form-label"><%= i18n.__('catalog.warehouses.f.carrier_ref') %></label>
+								<input class="form-control rounded-0" name="carrier_ref" maxlength="64" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-3" data-field="priority">
+								<label class="form-label"><%= i18n.__('catalog.warehouses.f.priority') %></label>
+								<input class="form-control rounded-0" type="number" name="priority" data-type="int" value="0" />
+								<div class="form-text"><%= i18n.__('catalog.warehouses.hints.priority') %></div>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-3" data-field="sort_order">
+								<label class="form-label"><%= i18n.__('catalog.warehouses.f.sort_order') %></label>
+								<input class="form-control rounded-0" type="number" name="sort_order" data-type="int" value="0" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-6 pt-md-4">
+								<div class="form-check form-switch" data-field="status">
+									<input class="form-check-input" type="checkbox" name="status" data-type="bool" id="wh-status" checked />
+									<label class="form-check-label" for="wh-status"><%= i18n.__('catalog.warehouses.f.status') %></label>
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="form-check form-switch">
+									<input class="form-check-input" type="checkbox" name="is_sellable" data-type="bool" id="wh-sellable" checked />
+									<label class="form-check-label" for="wh-sellable"><%= i18n.__('catalog.warehouses.f.is_sellable') %></label>
+								</div>
+								<div class="form-check form-switch">
+									<input class="form-check-input" type="checkbox" name="allow_negative" data-type="bool" id="wh-neg" />
+									<label class="form-check-label" for="wh-neg"><%= i18n.__('catalog.warehouses.f.allow_negative') %></label>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('catalog.common.cancel') %></button>
+						<button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('catalog.common.save') %></button>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<!-- Комірки -->
+		<div class="modal fade" id="loc-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-lg modal-dialog-scrollable">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h5 class="modal-title" id="loc-title"></h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= i18n.__('catalog.common.close') %>"></button>
+					</div>
+					<div class="modal-body">
+						<% if (perms.edit) { %>
+						<form class="row g-2 mb-3" id="loc-form" novalidate>
+							<input type="hidden" name="id" />
+							<div class="col-md-4" data-field="code">
+								<input class="form-control rounded-0 text-uppercase" name="code" maxlength="64" placeholder="<%= i18n.__('catalog.warehouses.loc.code') %> *" required />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-5" data-field="name">
+								<input class="form-control rounded-0" name="name" maxlength="255" placeholder="<%= i18n.__('catalog.warehouses.loc.name') %>" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-3 d-flex gap-2">
+								<button type="submit" class="btn btn-primary rounded-0 flex-grow-1"><%= i18n.__('catalog.common.save') %></button>
+								<button type="reset" class="btn btn-outline-secondary rounded-0" title="<%= i18n.__('catalog.common.cancel') %>"><i class="fa-solid fa-xmark"></i></button>
+							</div>
+						</form>
+						<% } %>
+						<div id="loc-grid"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const PERMS = { add: <%= perms.add %>, edit: <%= perms.edit %>, delete: <%= perms.delete %> };
+				const TYPES = {
+					own: "<%= i18n.__('catalog.warehouses.types.own') %>",
+					supplier: "<%= i18n.__('catalog.warehouses.types.supplier') %>",
+					dropship: "<%= i18n.__('catalog.warehouses.types.dropship') %>",
+					store: "<%= i18n.__('catalog.warehouses.types.store') %>",
+					transit: "<%= i18n.__('catalog.warehouses.types.transit') %>",
+				};
+
+				const notyf = new Notyf({ duration: 3000, position: { x: "right", y: "top" } });
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+
+				// ── Форма: читання / заповнення / помилки ───────────
+				function readForm(form) {
+					const out = {};
+					form.querySelectorAll("[name]").forEach((el) => {
+						if (el.name === "id") return;
+						const type = el.dataset.type;
+						if (type === "bool") out[el.name] = el.checked;
+						else if (type === "int") out[el.name] = el.value === "" ? 0 : parseInt(el.value, 10);
+						else if (type === "intnull") out[el.name] = el.value === "" ? null : parseInt(el.value, 10);
+						else if (type === "number") out[el.name] = el.value === "" ? null : parseFloat(el.value);
+						else out[el.name] = el.value.trim();
+					});
+					return out;
+				}
+				function fillForm(form, row) {
+					form.reset();
+					form.querySelectorAll("[name]").forEach((el) => {
+						const v = row[el.name];
+						if (el.dataset.type === "bool") el.checked = v === undefined ? el.defaultChecked : !!Number(v);
+						else el.value = v == null ? "" : v;
+					});
+				}
+				function clearErrors(form) {
+					form.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+					form.querySelectorAll(".invalid-feedback").forEach((el) => {
+						el.textContent = "";
+						el.style.display = "";
+					});
+				}
+				function showErrors(form, errors) {
+					(errors || []).forEach((e) => {
+						const box = form.querySelector(`[data-field="${CSS.escape(e.field || "")}"]`);
+						if (!box) return;
+						const input = box.querySelector("[name]");
+						if (input) input.classList.add("is-invalid");
+						const fb = box.querySelector(".invalid-feedback");
+						if (fb) {
+							fb.textContent = e.message;
+							fb.style.display = "block";
+						}
+					});
+				}
+
+				// ── Список складів ─────────────────────────────────
+				const yesNo = (cell) => (Number(cell.getValue()) ? `<i class="fa-solid fa-check text-success"></i>` : `<i class="fa-solid fa-xmark text-muted"></i>`);
+				const actions = (cell) => {
+					const r = cell.getRow().getData();
+					let html = `<button class="btn btn-sm btn-outline-secondary rounded-0 me-1" data-act="locations" title="<%= i18n.__('catalog.warehouses.locations') %>"><i class="fa-solid fa-table-cells"></i></button>`;
+					if (PERMS.edit) html += `<button class="btn btn-sm btn-outline-primary rounded-0 me-1" data-act="edit" title="<%= i18n.__('catalog.warehouses.edit') %>"><i class="fa-solid fa-pen"></i></button>`;
+					if (PERMS.edit && !r.is_default && r.status) html += `<button class="btn btn-sm btn-outline-success rounded-0 me-1" data-act="default" title="<%= i18n.__('catalog.warehouses.make_default') %>"><i class="fa-solid fa-star"></i></button>`;
+					if (PERMS.delete && !r.is_default) html += `<button class="btn btn-sm btn-outline-danger rounded-0" data-act="delete"><i class="fa-solid fa-trash"></i></button>`;
+					return html;
+				};
+
+				const grid = new Tabulator("#grid", {
+					layout: "fitColumns",
+					placeholder: "—",
+					columns: [
+						{ title: "<%= i18n.__('catalog.warehouses.f.code') %>", field: "code", width: 140, formatter: (c) => esc(c.getValue()) + (c.getRow().getData().is_default ? ` <span class="badge text-bg-success"><%= i18n.__('catalog.warehouses.default') %></span>` : "") },
+						{ title: "<%= i18n.__('catalog.warehouses.f.name') %>", field: "name", formatter: (c) => esc(c.getValue()) },
+						{ title: "<%= i18n.__('catalog.warehouses.f.type') %>", field: "type", width: 150, formatter: (c) => esc(TYPES[c.getValue()] || c.getValue()) },
+						{ title: "<%= i18n.__('catalog.warehouses.f.city') %>", field: "city", width: 140, formatter: (c) => esc(c.getValue()) },
+						{ title: "<%= i18n.__('catalog.warehouses.f.supplier') %>", field: "supplier_name", width: 180, formatter: (c) => esc(c.getValue()) },
+						{ title: "<%= i18n.__('catalog.warehouses.f.priority') %>", field: "priority", width: 100, hozAlign: "right" },
+						{ title: "<%= i18n.__('catalog.warehouses.locations') %>", field: "locations_count", width: 100, hozAlign: "right" },
+						{ title: "<%= i18n.__('catalog.warehouses.on_hand') %>", field: "on_hand_total", width: 120, hozAlign: "right", formatter: (c) => Number(c.getValue()).toLocaleString() },
+						{ title: "<%= i18n.__('catalog.warehouses.f.is_sellable') %>", field: "is_sellable", width: 110, hozAlign: "center", formatter: yesNo },
+						{ title: "<%= i18n.__('catalog.warehouses.f.status') %>", field: "status", width: 90, hozAlign: "center", formatter: yesNo },
+						{ title: "", field: "_a", width: 180, hozAlign: "right", headerSort: false, formatter: actions, cellClick: (e, cell) => onAction(e, cell.getRow().getData()) },
+					],
+				});
+				const reload = () =>
+					api("/api/catalog/products/warehouses/list/")
+						.then((r) => grid.replaceData(r.rows))
+						.catch((e) => notyf.error(e.error || "<%= i18n.__('catalog.common.error') %>"));
+				grid.on("tableBuilt", reload);
+
+				// ── Постачальники для select ────────────────────────
+				async function loadSuppliers(selected) {
+					const sel = document.querySelector('#wh-form [name="id_supplier"]');
+					const r = await api("/api/catalog/products/suppliers/options/", {});
+					sel.querySelectorAll("option:not(:first-child)").forEach((o) => o.remove());
+					r.rows.forEach((s) => sel.add(new Option(s.name + (s.code ? ` (${s.code})` : ""), s.id)));
+					sel.value = selected || "";
+				}
+
+				// ── Модалка складу ─────────────────────────────────
+				const whModal = new bootstrap.Modal("#wh-modal");
+				const whForm = document.getElementById("wh-form");
+
+				async function openWarehouse(id) {
+					clearErrors(whForm);
+					let row = {};
+					if (id) row = (await api(`/api/catalog/products/warehouses/${id}/get/`)).row;
+					fillForm(whForm, row);
+					whForm.querySelector('[name="id"]').value = id || "";
+					document.getElementById("wh-title").textContent = id ? "<%= i18n.__('catalog.warehouses.edit') %>: " + row.name : "<%= i18n.__('catalog.warehouses.add') %>";
+					await loadSuppliers(row.id_supplier);
+					whModal.show();
+				}
+
+				whForm.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					clearErrors(whForm);
+					const btn = whForm.querySelector('[type="submit"]');
+					btn.disabled = true;
+					try {
+						const id = whForm.querySelector('[name="id"]').value;
+						await api("/api/catalog/products/warehouses/save/", { id: id ? parseInt(id, 10) : null, data: readForm(whForm) });
+						whModal.hide();
+						notyf.success("<%= i18n.__('catalog.common.saved') %>");
+						reload();
+					} catch (err) {
+						showErrors(whForm, err.errors);
+						notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>");
+					} finally {
+						btn.disabled = false;
+					}
+				});
+
+				const addBtn = document.getElementById("btn-add");
+				if (addBtn) addBtn.addEventListener("click", () => openWarehouse(null).catch((e) => notyf.error(e.error || "<%= i18n.__('catalog.common.error') %>")));
+
+				async function onAction(e, row) {
+					const btn = e.target.closest("[data-act]");
+					if (!btn) return;
+					try {
+						if (btn.dataset.act === "edit") return await openWarehouse(row.id);
+						if (btn.dataset.act === "locations") return await openLocations(row);
+						if (btn.dataset.act === "default") {
+							await api(`/api/catalog/products/warehouses/${row.id}/default/`);
+							notyf.success("<%= i18n.__('catalog.common.saved') %>");
+							return reload();
+						}
+						if (btn.dataset.act === "delete") {
+							if (!confirm("<%= i18n.__('catalog.warehouses.confirm_delete') %>".replace("%s", row.name))) return;
+							await api(`/api/catalog/products/warehouses/${row.id}/delete/`);
+							notyf.success("<%= i18n.__('catalog.common.deleted') %>");
+							return reload();
+						}
+					} catch (err) {
+						notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>");
+					}
+				}
+
+				// ── Комірки ────────────────────────────────────────
+				const locModal = new bootstrap.Modal("#loc-modal");
+				const locForm = document.getElementById("loc-form");
+				let locWarehouse = null;
+
+				const locGrid = new Tabulator("#loc-grid", {
+					layout: "fitColumns",
+					height: 400,
+					placeholder: "—",
+					columns: [
+						{ title: "<%= i18n.__('catalog.warehouses.f.code') %>", field: "code", width: 160, formatter: (c) => esc(c.getValue()) },
+						{ title: "<%= i18n.__('catalog.warehouses.loc.name') %>", field: "name", formatter: (c) => esc(c.getValue()) },
+						{ title: "<%= i18n.__('catalog.warehouses.loc.items') %>", field: "items", width: 100, hozAlign: "right" },
+						{
+							title: "",
+							field: "_a",
+							width: 110,
+							hozAlign: "right",
+							headerSort: false,
+							formatter: () => (PERMS.edit ? `<button class="btn btn-sm btn-outline-primary rounded-0 me-1" data-act="edit"><i class="fa-solid fa-pen"></i></button><button class="btn btn-sm btn-outline-danger rounded-0" data-act="delete"><i class="fa-solid fa-trash"></i></button>` : ""),
+							cellClick: async (e, cell) => {
+								const btn = e.target.closest("[data-act]");
+								if (!btn) return;
+								const r = cell.getRow().getData();
+								if (btn.dataset.act === "edit") {
+									clearErrors(locForm);
+									fillForm(locForm, r);
+									locForm.querySelector('[name="id"]').value = r.id;
+									locForm.querySelector('[name="code"]').focus();
+									return;
+								}
+								if (!confirm("<%= i18n.__('catalog.warehouses.confirm_delete_loc') %>".replace("%s", r.code))) return;
+								try {
+									await api(`/api/catalog/products/warehouses/${locWarehouse}/locations/${r.id}/delete/`);
+									notyf.success("<%= i18n.__('catalog.common.deleted') %>");
+									reloadLocations();
+								} catch (err) {
+									notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>");
+								}
+							},
+						},
+					],
+				});
+				const reloadLocations = () => api(`/api/catalog/products/warehouses/${locWarehouse}/locations/list/`).then((r) => locGrid.replaceData(r.rows));
+
+				async function openLocations(row) {
+					locWarehouse = row.id;
+					document.getElementById("loc-title").textContent = "<%= i18n.__('catalog.warehouses.locations') %>: " + row.name;
+					if (locForm) {
+						locForm.reset();
+						clearErrors(locForm);
+						locForm.querySelector('[name="id"]').value = "";
+					}
+					locModal.show();
+					await reloadLocations();
+				}
+				document.getElementById("loc-modal").addEventListener("shown.bs.modal", () => locGrid.redraw(true));
+				document.getElementById("loc-modal").addEventListener("hidden.bs.modal", reload);
+
+				if (locForm) {
+					locForm.addEventListener("reset", () => {
+						clearErrors(locForm);
+						setTimeout(() => (locForm.querySelector('[name="id"]').value = ""));
+					});
+					locForm.addEventListener("submit", async (e) => {
+						e.preventDefault();
+						clearErrors(locForm);
+						try {
+							const id = locForm.querySelector('[name="id"]').value;
+							await api(`/api/catalog/products/warehouses/${locWarehouse}/locations/save/`, {
+								id: id ? parseInt(id, 10) : null,
+								data: { code: locForm.querySelector('[name="code"]').value.trim(), name: locForm.querySelector('[name="name"]').value.trim() || null },
+							});
+							locForm.reset();
+							notyf.success("<%= i18n.__('catalog.common.saved') %>");
+							reloadLocations();
+						} catch (err) {
+							showErrors(locForm, err.errors);
+							notyf.error(err.error || "<%= i18n.__('catalog.common.error') %>");
+						}
+					});
+				}
+			})();
+		</script>
+	</body>
+</html>
