@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><% if (i18n.__('lang_iso') === 'en') { %>User list<% } else { %>Список користувачів<% } %></title>
+		<%- include('../../partials/head'); %>
+		<!-- tabulator -->
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<!-- END tabulator -->
+	</head>
+
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+		<div class="container-fluid">
+			<div class="row">
+				<div class="col-12"> </div>
+			</div>
+		</div>
+		<div class="container-fluid">
+			<div class="row">
+				<div class="col-12 col-md-4 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('profile.profile') %></div>
+						<div class="card-body">
+							<h5 class="card-title">Special title treatment</h5>
+							<p class="card-text">With supporting text below as a natural lead-in to additional content.</p>
+						</div>
+					</div>
+				</div>
+				<div class="col-12 col-md-8 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0">Featured</div>
+						<div class="card-body">
+							<h5 class="card-title">Special title treatment</h5>
+							<p class="card-text">With supporting text below as a natural lead-in to additional content.</p>
+							<a href="#" class="btn btn-primary">Go somewhere</a>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+	</body>
+</html>

@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="<%= i18n.__('lang_iso') %>">
+<head>
+	<%- include('../../partials/head'); %>
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/css/tabulator_bootstrap5.min.css" />
+	<style>
+		.tabulator { font-size: 0.9rem; }
+		.mailing-sub { font-size: 0.8rem; color: #6c757d; }
+	</style>
+	<title><%= i18n.__('mailing.ui.report.title') %></title>
+	<style>
+		.stat-tile { border-left: 3px solid var(--bs-primary); }
+		.stat-tile .v { font-size: 1.5rem; font-weight: 600; }
+		.hbar { height: 8px; background: var(--bs-primary); }
+		.hbar.c { background: var(--bs-success); }
+	</style>
+</head>
+<body>
+	<%- include('../../partials/header'); %>
+	<% const canEdit = can('mailing.campaigns', 'edit'); const canSend = can('mailing.send', 'edit'); %>
+
+	<!-- ─── ХЛІБНІ КРИХТИ ─────────────────────────────────────────── -->
+	<div class="breadcrumbs pt-3 pb-3">
+		<div class="container-fluid">
+			<div class="row align-items-center">
+				<div class="col">
+					<span><%= i18n.__('mailing.ui.contacts.title') %></span>
+					<div>
+						<ul class="list-inline mb-0">
+							<li class="list-inline-item">
+								<a href="/">
+									<i class="fas fa-home"></i>
+									<span><%= i18n.__('header.nav.home') %></span>
+								</a>
+							</li>
+							<li class="list-inline-item">
+								<i class="fas fa-chevron-right"></i>
+								<a href="/mailing/"><%= i18n.__('header.nav.mailing') %></a>
+							</li>
+							<li class="list-inline-item">
+								<i class="fas fa-chevron-right"></i>
+								<%= i18n.__('mailing.ui.contacts.title') %>
+							</li>
+						</ul>
+					</div>
+				</div>
+				<div class="col-auto">
+					<a href="/mailing/" class="btn btn-primary rounded-0">
+						<i class="fa-solid fa-angle-left"></i>
+					</a>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="container-fluid mt-3 mb-4">
+		<div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+			<h1 class="h5 mb-0" id="c-name"></h1>
+			<span id="status-badge"></span>
+			<span class="mailing-sub" id="c-dates"></span>
+			<div class="ms-auto d-flex gap-2 flex-wrap">
+				<a class="btn btn-outline-secondary rounded-0" id="btn-settings" href="/mailing/campaigns/<%= data.id %>/"><i class="fa-solid fa-gear"></i> <%= i18n.__('mailing.ui.report.settings') %></a>
+				<% if (canSend) { %>
+					<button class="btn btn-warning rounded-0 d-none js-st js-st-preparing js-st-sending" id="btn-pause"><i class="fa-solid fa-pause"></i> <%= i18n.__('mailing.ui.campaigns.pause') %></button>
+					<button class="btn btn-success rounded-0 d-none js-st js-st-paused" id="btn-resume"><i class="fa-solid fa-play"></i> <%= i18n.__('mailing.ui.campaigns.resume') %></button>
+				<% } %>
+				<% if (canEdit) { %>
+					<div class="dropdown d-none js-st js-st-sent">
+						<button class="btn btn-outline-primary rounded-0 dropdown-toggle" data-bs-toggle="dropdown"><i class="fa-solid fa-repeat"></i> <%= i18n.__('mailing.ui.report.resend') %></button>
+						<ul class="dropdown-menu rounded-0">
+							<li><a class="dropdown-item js-resend" href="#" data-mode="not_opened"><%= i18n.__('mailing.ui.report.resend_not_opened') %></a></li>
+							<li><a class="dropdown-item js-resend" href="#" data-mode="not_clicked"><%= i18n.__('mailing.ui.report.resend_not_clicked') %></a></li>
+						</ul>
+					</div>
+				<% } %>
+			</div>
+		</div>
+		<div class="alert alert-danger rounded-0 d-none" id="last-error"></div>
+
+		<div class="progress rounded-0 mb-3 d-none" id="progress" style="height: 20px"><div class="progress-bar progress-bar-striped progress-bar-animated" id="p-bar"></div></div>
+
+		<div class="row g-2 mb-3" id="tiles">
+			<% ['total','sent','delivered','opened','clicked','unsubscribed','complained','bounced'].forEach(function (k) { %>
+				<div class="col-6 col-md-3 col-xl-3"><div class="p-2 bg-white border stat-tile"><div class="mailing-sub"><%= i18n.__('mailing.ui.report.tile.' + k) %></div><div class="v" id="t-<%= k %>">—</div><div class="mailing-sub" id="r-<%= k %>"></div></div></div>
+			<% }) %>
+		</div>
+		<div class="mailing-sub mb-3" id="machine-note"></div>
+
+		<div class="row g-3">
+			<div class="col-12 col-xl-6">
+				<div class="card rounded-0 mb-3 d-none" id="ab-box">
+					<div class="card-header rounded-0"><%= i18n.__('mailing.ui.report.variants') %></div>
+					<div class="card-body p-0"><table class="table table-sm mb-0" id="ab-table"></table></div>
+				</div>
+				<div class="card rounded-0 mb-3">
+					<div class="card-header rounded-0"><%= i18n.__('mailing.ui.report.links') %></div>
+					<div class="card-body"><div id="links-table"></div></div>
+				</div>
+			</div>
+			<div class="col-12 col-xl-6">
+				<div class="card rounded-0 mb-3">
+					<div class="card-header rounded-0"><%= i18n.__('mailing.ui.report.timeline') %></div>
+					<div class="card-body" style="max-height: 340px; overflow: auto"><table class="table table-sm mb-0" id="timeline"></table></div>
+				</div>
+				<div class="row g-3">
+					<div class="col-md-6"><div class="card rounded-0"><div class="card-header rounded-0"><%= i18n.__('mailing.ui.report.devices') %></div><div class="card-body p-0"><table class="table table-sm mb-0" id="devices"></table></div></div></div>
+					<div class="col-md-6"><div class="card rounded-0"><div class="card-header rounded-0"><%= i18n.__('mailing.ui.report.clients') %></div><div class="card-body p-0"><table class="table table-sm mb-0" id="clients"></table></div></div></div>
+				</div>
+			</div>
+		</div>
+
+		<div class="card rounded-0 mt-3">
+			<div class="card-header rounded-0"><%= i18n.__('mailing.ui.report.recipients') %></div>
+			<div class="card-body">
+				<div class="row g-2 mb-3">
+					<div class="col-12 col-md-4"><input type="search" class="form-control rounded-0" id="f-search" placeholder="Email" maxlength="100" /></div>
+					<div class="col-12 col-md-3">
+						<select class="form-select rounded-0" id="f-filter">
+							<option value=""><%= i18n.__('mailing.ui.all') %></option>
+							<% ['opened','not_opened','clicked','bounced','unsubscribed','complained','failed','skipped','queued'].forEach(function (f) { %><option value="<%= f %>"><%= i18n.__('mailing.ui.report.filter.' + f) %></option><% }) %>
+						</select>
+					</div>
+				</div>
+				<div id="rec-table"></div>
+			</div>
+		</div>
+	</div>
+
+	<%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+	<script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+	<script>
+		var TR_UI_CAMPAIGNS_STATUS = { draft: "<%= i18n.__('mailing.ui.campaigns.status.draft') %>", scheduled: "<%= i18n.__('mailing.ui.campaigns.status.scheduled') %>", preparing: "<%= i18n.__('mailing.ui.campaigns.status.preparing') %>", sending: "<%= i18n.__('mailing.ui.campaigns.status.sending') %>", paused: "<%= i18n.__('mailing.ui.campaigns.status.paused') %>", sent: "<%= i18n.__('mailing.ui.campaigns.status.sent') %>", cancelled: "<%= i18n.__('mailing.ui.campaigns.status.cancelled') %>", failed: "<%= i18n.__('mailing.ui.campaigns.status.failed') %>" };
+		var TR_UI_MESSAGES_SKIP = { suppressed: "<%= i18n.__('mailing.ui.messages.skip.suppressed') %>", unsubscribed: "<%= i18n.__('mailing.ui.messages.skip.unsubscribed') %>", frequency_cap: "<%= i18n.__('mailing.ui.messages.skip.frequency_cap') %>" };
+		var TR_UI_MESSAGES_STATUS = { waiting: "<%= i18n.__('mailing.ui.messages.status.waiting') %>", queued: "<%= i18n.__('mailing.ui.messages.status.queued') %>", sending: "<%= i18n.__('mailing.ui.messages.status.sending') %>", sent: "<%= i18n.__('mailing.ui.messages.status.sent') %>", failed: "<%= i18n.__('mailing.ui.messages.status.failed') %>", bounced: "<%= i18n.__('mailing.ui.messages.status.bounced') %>", skipped: "<%= i18n.__('mailing.ui.messages.status.skipped') %>", cancelled: "<%= i18n.__('mailing.ui.messages.status.cancelled') %>" };
+		var TR_UI_REPORT_DEVICE = { desktop: "<%= i18n.__('mailing.ui.report.device.desktop') %>", mobile: "<%= i18n.__('mailing.ui.report.device.mobile') %>", tablet: "<%= i18n.__('mailing.ui.report.device.tablet') %>", unknown: "<%= i18n.__('mailing.ui.report.device.unknown') %>" };
+		var TR_UI_REPORT_CLIENT = { gmail: "<%= i18n.__('mailing.ui.report.client.gmail') %>", yahoo: "<%= i18n.__('mailing.ui.report.client.yahoo') %>", outlook: "<%= i18n.__('mailing.ui.report.client.outlook') %>", thunderbird: "<%= i18n.__('mailing.ui.report.client.thunderbird') %>", apple_mail: "<%= i18n.__('mailing.ui.report.client.apple_mail') %>", android_app: "<%= i18n.__('mailing.ui.report.client.android_app') %>", browser: "<%= i18n.__('mailing.ui.report.client.browser') %>", unknown: "<%= i18n.__('mailing.ui.report.client.unknown') %>" };
+		var notyf = new Notyf({
+			position: { x: "right", y: "top" },
+			duration: 4000,
+			types: [
+				{ type: "success", dismissible: true, icon: false },
+				{ type: "error", background: "indianred", dismissible: true, icon: false },
+			],
+		});
+
+		// Екранування для форматерів Tabulator
+		function esc(v) {
+			return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) {
+				return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+			});
+		}
+
+		// Дата UTC з БД → локальний час браузера
+		function fmtDate(v) {
+			if (!v) return "";
+			var d = new Date(String(v).replace(" ", "T") + "Z");
+			if (isNaN(d)) return esc(v);
+			var p = function (n) {
+				return String(n).padStart(2, "0");
+			};
+			return p(d.getHours()) + ":" + p(d.getMinutes()) + " " + p(d.getDate()) + "." + p(d.getMonth() + 1) + "." + d.getFullYear();
+		}
+
+		// POST JSON → Promise(data). Помилка: notyf + reject(data)
+		function api(url, payload) {
+			return fetch(url, {
+				method: "POST",
+				credentials: "same-origin",
+				headers: { "Content-Type": "application/json", Accept: "application/json" },
+				body: JSON.stringify(payload || {}),
+			})
+				.then(function (r) {
+					return r
+						.json()
+						.catch(function () {
+							return { ok: false, message: "<%= i18n.__('mailing.errors.server_error') %>" };
+						})
+						.then(function (d) {
+							if (!r.ok || d.ok === false) return Promise.reject(d);
+							return d;
+						});
+				})
+				.catch(function (d) {
+					if (d && d.message) notyf.error(d.message);
+					else notyf.error("<%= i18n.__('mailing.errors.server_error') %>");
+					return Promise.reject(d || {});
+				});
+		}
+
+		// Помилки полів: {errors:[{field,message}]} → .is-invalid + .invalid-feedback (текст, не HTML)
+		function clearErrors($form) {
+			$form.find(".is-invalid").removeClass("is-invalid");
+			$form.find(".invalid-feedback.js-err").remove();
+		}
+
+		function showErrors($form, d) {
+			clearErrors($form);
+			(d && d.errors ? d.errors : []).forEach(function (e) {
+				var $el = $form.find('[name="' + String(e.field).replace(/"/g, "") + '"]').first();
+				if (!$el.length) return;
+				$el.addClass("is-invalid");
+				$('<div class="invalid-feedback js-err"></div>').text(e.message).insertAfter($el);
+			});
+		}
+
+		// Значення форми → об'єкт: data-type="int|bool|json" керує типом
+		function formData($form) {
+			var out = {};
+			$form.find("[name]").each(function () {
+				var $el = $(this);
+				var name = $el.attr("name");
+				var type = $el.data("type");
+				if ($el.is(":disabled") && !$el.data("send-disabled")) return;
+				var val;
+				if ($el.is(":checkbox")) val = $el.is(":checked");
+				else val = $el.val();
+				if (type === "int") val = val === "" || val === null ? null : parseInt(val, 10);
+				if (type === "nullable") val = val === "" ? null : val;
+				out[name] = val;
+			});
+			return out;
+		}
+
+		// Спільні налаштування Tabulator (серверна пагінація/сортування)
+		function gridOptions(url, extra) {
+			return Object.assign(
+				{
+					layout: "fitColumns",
+					ajaxURL: url,
+					ajaxConfig: "POST",
+					ajaxContentType: "json",
+					pagination: true,
+					paginationMode: "remote",
+					sortMode: "remote",
+					paginationSize: 20,
+					paginationSizeSelector: [20, 50, 100],
+					placeholder: "<%= i18n.__('mailing.ui.empty') %>",
+					movableColumns: true,
+				},
+				extra || {}
+			);
+		}
+
+		function badge(text, cls) {
+			return '<span class="badge rounded-0 ' + (cls || "text-bg-secondary") + '">' + esc(text) + "</span>";
+		}
+
+		var STATUS_CLS = {
+			active: "text-bg-success",
+			subscribed: "text-bg-success",
+			unsubscribed: "text-bg-secondary",
+			pending: "text-bg-warning",
+			bounced: "text-bg-danger",
+			complained: "text-bg-danger",
+			cleaned: "text-bg-dark",
+			draft: "text-bg-secondary",
+			scheduled: "text-bg-info",
+			preparing: "text-bg-info",
+			sending: "text-bg-primary",
+			paused: "text-bg-warning",
+			sent: "text-bg-success",
+			cancelled: "text-bg-dark",
+			failed: "text-bg-danger",
+			uploaded: "text-bg-secondary",
+			queued: "text-bg-info",
+			processing: "text-bg-primary",
+			done: "text-bg-success",
+		};
+	</script>
+	<script>
+		var ID = <%- JSON.stringify(data.id).replace(/</g, '\\u003c') %>;
+		var STATUS = null;
+
+		function pct(a, b) { return b ? ((a / b) * 100).toFixed(1) + "%" : ""; }
+		function setTile(k, v, base) { $("#t-" + k).text(v); $("#r-" + k).text(base !== undefined ? pct(v, base) : ""); }
+
+		function simpleTable(sel, rows, labelFn) {
+			var $t = $(sel).empty();
+			if (!rows.length) return $t.append($("<tr>").append($('<td class="mailing-sub p-2">').text("<%= i18n.__('mailing.ui.empty') %>")));
+			var total = rows.reduce(function (s, r) { return s + Number(r.n); }, 0);
+			rows.forEach(function (r) {
+				$t.append($("<tr>").append($("<td>").text(labelFn(r)), $('<td class="text-end">').text(r.n), $('<td class="text-end mailing-sub" style="width:70px">').text(pct(r.n, total))));
+			});
+		}
+
+		var linksTable = new Tabulator("#links-table", {
+			layout: "fitColumns",
+			placeholder: "<%= i18n.__('mailing.ui.empty') %>",
+			pagination: true,
+			paginationSize: 10,
+			columns: [
+				{ title: "URL", field: "url", formatter: function (c) { return '<span class="text-break small">' + esc(c.getValue()) + "</span>"; } },
+				{ title: "<%= i18n.__('mailing.ui.report.unique') %>", field: "cnt_clicks_unique", width: 100, hozAlign: "right" },
+				{ title: "<%= i18n.__('mailing.ui.report.total_clicks') %>", field: "cnt_clicks", width: 100, hozAlign: "right" },
+			],
+		});
+
+		function load() {
+			return api("/api/mailing/campaigns/" + ID + "/stats").then(function (s) {
+				var c = s.campaign;
+				STATUS = c.status;
+				$("#bc-name, #c-name").text(c.name);
+				$("#status-badge").html(badge(TR_UI_CAMPAIGNS_STATUS[c.status], STATUS_CLS[c.status]));
+				$("#c-dates").text((c.date_launched ? fmtDate(c.date_launched) : "") + (c.date_finished ? " — " + fmtDate(c.date_finished) : ""));
+				$(".js-st").addClass("d-none");
+				$(".js-st-" + c.status).removeClass("d-none");
+				// Лист автоматизації: керування — на сторінці автоматизації
+				if (c.type === "automation") {
+					$(".js-st").addClass("d-none");
+					$("#btn-settings").attr("href", "/mailing/automations/" + parseInt(c.id_automation, 10) + "/");
+				}
+				$("#last-error").toggleClass("d-none", !c.last_error).text(c.last_error || "");
+
+				var sent = Number(c.cnt_sent);
+				var delivered = Math.max(0, sent - Number(c.cnt_bounced));
+				setTile("total", c.cnt_total);
+				setTile("sent", sent, c.cnt_total);
+				setTile("delivered", delivered, sent);
+				setTile("opened", c.cnt_opened_human, delivered);
+				setTile("clicked", c.cnt_clicked, delivered);
+				setTile("unsubscribed", c.cnt_unsubscribed, delivered);
+				setTile("complained", c.cnt_complained, delivered);
+				setTile("bounced", c.cnt_bounced, sent);
+
+				var machineOpens = Number(c.cnt_opened) - Number(c.cnt_opened_human);
+				$("#machine-note").text(machineOpens > 0 ? "<%= i18n.__('mailing.ui.report.machine_note') %>" + " " + machineOpens : "");
+
+				var active = ["preparing", "sending"].indexOf(c.status) >= 0;
+				$("#progress").toggleClass("d-none", !active);
+				var done = Number(c.cnt_sent) + Number(c.cnt_failed) + Number(c.cnt_skipped) + Number(c.cnt_bounced);
+				$("#p-bar").css("width", (c.cnt_total ? Math.round((done / c.cnt_total) * 100) : 0) + "%").text(done + " / " + c.cnt_total);
+
+				// A/B
+				var withVariant = s.by_variant.filter(function (v) { return v.code; });
+				$("#ab-box").toggleClass("d-none", withVariant.length < 2);
+				var $ab = $("#ab-table").empty();
+				$ab.append($("<tr>").append($("<th>").text("<%= i18n.__('mailing.ui.campaigns.variant') %>"), $('<th class="text-end">').text("<%= i18n.__('mailing.ui.report.tile.sent') %>"), $('<th class="text-end">').text("<%= i18n.__('mailing.ui.report.tile.opened') %>"), $('<th class="text-end">').text("<%= i18n.__('mailing.ui.report.tile.clicked') %>")));
+				withVariant.forEach(function (v) {
+					var win = c.id_variant_winner && Number(c.id_variant_winner) === Number(v.id_variant);
+					$ab.append($("<tr>").append($("<td>").text(v.code).append(win ? $(" <span> " + badge("<%= i18n.__('mailing.ui.report.winner') %>", "text-bg-success") + "</span>") : ""), $('<td class="text-end">').text(v.sent), $('<td class="text-end">').text(pct(v.opened, v.sent)), $('<td class="text-end">').text(pct(v.clicked, v.sent))));
+				});
+
+				linksTable.setData(s.links);
+				simpleTable("#devices", s.devices, function (r) { return TR_UI_REPORT_DEVICE[r.device] || r.device; });
+				simpleTable("#clients", s.clients, function (r) { return TR_UI_REPORT_CLIENT[r.mail_client] || r.mail_client; });
+
+				// Відкриття/кліки по годинах
+				var hours = {};
+				s.timeline.forEach(function (r) { hours[r.hour] = hours[r.hour] || { open: 0, click: 0 }; hours[r.hour][r.type] = Number(r.n); });
+				var keys = Object.keys(hours).sort();
+				var max = keys.reduce(function (m, k) { return Math.max(m, hours[k].open, hours[k].click); }, 1);
+				var $tl = $("#timeline").empty();
+				if (!keys.length) $tl.append($("<tr>").append($('<td class="mailing-sub">').text("<%= i18n.__('mailing.ui.empty') %>")));
+				keys.forEach(function (k) {
+					var h = hours[k];
+					var $bars = $('<td style="width:60%">').append($('<div class="hbar mb-1">').css("width", (h.open / max) * 100 + "%").attr("title", "<%= i18n.__('mailing.ui.report.tile.opened') %>"), $('<div class="hbar c">').css("width", (h.click / max) * 100 + "%").attr("title", "<%= i18n.__('mailing.ui.report.tile.clicked') %>"));
+					$tl.append($("<tr>").append($('<td class="small text-nowrap">').html(fmtDate(k)), $bars, $('<td class="small text-end text-nowrap">').text(h.open + " / " + h.click)));
+				});
+			});
+		}
+
+		function recFilters() { return { search: $("#f-search").val(), filter: $("#f-filter").val() }; }
+		var rec = new Tabulator(
+			"#rec-table",
+			gridOptions("/api/mailing/campaigns/" + ID + "/recipients", {
+				ajaxParams: recFilters,
+				columns: [
+					{ title: "Email", field: "email", formatter: function (c) { var d = c.getRow().getData(); return '<a href="/mailing/contacts/' + parseInt(d.id_contact, 10) + '/">' + esc(d.email) + "</a>" + (d.variant ? ' <span class="mailing-sub">' + esc(d.variant) + "</span>" : ""); } },
+					{ title: "<%= i18n.__('mailing.ui.status') %>", field: "status", formatter: function (c) { var d = c.getRow().getData(); return badge(TR_UI_MESSAGES_STATUS[d.status], STATUS_CLS[d.status]) + (d.skip_reason ? '<div class="mailing-sub">' + esc(TR_UI_MESSAGES_SKIP[d.skip_reason]) + "</div>" : "") + (d.smtp_response && (d.status === "failed" || d.status === "bounced") ? '<div class="mailing-sub text-break">' + esc(d.smtp_response) + "</div>" : ""); } },
+					{ title: "<%= i18n.__('mailing.ui.messages.sent') %>", field: "date_sent", formatter: function (c) { return fmtDate(c.getValue()); } },
+					{ title: "<%= i18n.__('mailing.ui.messages.opened') %>", field: "date_first_open_human", formatter: function (c) { var d = c.getRow().getData(); return d.date_first_open_human ? fmtDate(d.date_first_open_human) + " <span class='mailing-sub'>×" + esc(d.cnt_opens) + "</span>" : ""; } },
+					{ title: "<%= i18n.__('mailing.ui.messages.clicked') %>", field: "date_first_click", formatter: function (c) { var d = c.getRow().getData(); return d.date_first_click ? fmtDate(d.date_first_click) + " <span class='mailing-sub'>×" + esc(d.cnt_clicks) + "</span>" : ""; } },
+					{ title: "", field: "date_unsubscribed", headerSort: false, formatter: function (c) { var d = c.getRow().getData(); return (d.date_unsubscribed ? badge("<%= i18n.__('mailing.ui.messages.unsubscribed') %>", "text-bg-secondary") + " " : "") + (d.date_complained ? badge("<%= i18n.__('mailing.ui.messages.complained') %>", "text-bg-danger") + " " : "") + (d.bounce_type ? badge("bounce: " + d.bounce_type, "text-bg-danger") : ""); } },
+				],
+			})
+		);
+		var timer;
+		$("#f-search").on("input", function () { clearTimeout(timer); timer = setTimeout(function () { rec.setData(); }, 400); });
+		$("#f-filter").on("change", function () { rec.setData(); });
+
+		function action(name) {
+			api("/api/mailing/campaigns/" + ID + "/" + name).then(function () { notyf.success("<%= i18n.__('mailing.ui.saved') %>"); load(); });
+		}
+		$("#btn-pause").on("click", function () { action("pause"); });
+		$("#btn-resume").on("click", function () { action("resume"); });
+		$(".js-resend").on("click", function (e) {
+			e.preventDefault();
+			api("/api/mailing/campaigns/" + ID + "/resend", { mode: $(this).data("mode") }).then(function (r) { window.location.href = "/mailing/campaigns/" + parseInt(r.id, 10) + "/"; });
+		});
+
+		load();
+		setInterval(function () { if (["scheduled", "preparing", "sending", "paused"].indexOf(STATUS) >= 0) { load(); rec.replaceData(); } }, 15000);
+	</script>
+</body>
+</html>

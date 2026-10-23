@@ -1,0 +1,78 @@
+<footer class="bg-body-tertiary pt-3 pb-3 mt-auto">
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-12 col-lg-6">
+        <p class="m-0">Copyright <%= new Date().getFullYear() %> © Growth contour</p>
+      </div>
+      <div class="col-12 col-lg-6 text-lg-end">
+        <p class="m-0">Version 0.0.0.3 beta</p>
+      </div>
+    </div>
+  </div>
+</footer>
+<!-- END notification -->
+<div class="notification-block offcanvas offcanvas-end" tabindex="-1" id="notification_panel" aria-labelledby="notification_panel_label">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title" id="notification_panel_label"><% if (i18n.__('lang_iso') === 'uk') { %>Сповіщення<% } else { %>Notification<% } %></h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div>
+    <ul class="nav nav-underline ps-3 pe-3" id="myTab" role="tablist">
+      <li class="nav-item" role="notification">
+        <button class="nav-link active" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-tab-pane" type="button" role="tab" aria-controls="chat-tab-pane" aria-selected="true"><% if (i18n.__('lang_iso') === 'uk') { %>Чат<% } else { %>Chat<% } %></button>
+      </li>
+      <li class="nav-item" role="notification">
+        <button class="nav-link" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile-tab-pane" type="button" role="tab" aria-controls="profile-tab-pane" aria-selected="false">Profile</button>
+      </li>
+      <li class="nav-item" role="notification">
+        <button class="nav-link" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal-tab-pane" type="button" role="tab" aria-controls="personal-tab-pane" aria-selected="false"><% if (i18n.__('lang_iso') === 'uk') { %>Особисті<% } else { %>Personal<% } %></button>
+      </li>
+      <li class="nav-item" role="notification">
+        <button class="nav-link" id="system-tab" data-bs-toggle="tab" data-bs-target="#system-tab-pane" type="button" role="tab" aria-controls="system-tab-pane" aria-selected="false"><% if (i18n.__('lang_iso') === 'uk') { %>Система<% } else { %>System<% } %></button>
+      </li>
+    </ul>
+    <div class="tab-content" id="myTabContent">
+      <div class="tab-pane fade show active" id="chat-tab-pane" role="tabpanel" aria-labelledby="chat-tab" tabindex="0">
+        <ul id="notification-chat-list" class="list-unstyled">
+          <li>
+            <a class="d-flex align-items-center" href="#">
+              <span class="me-2"><i class="fa-solid fa-info"></i></span>
+              <div><% if (i18n.__('lang_iso') === 'uk') { %>Немає повідомлень<% } else { %>No messages<% } %></div>
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="tab-pane fade" id="profile-tab-pane" role="tabpanel" aria-labelledby="profile-tab" tabindex="0">
+        <ul id="notification-profile-list" class="list-unstyled">
+          <li>
+            <a class="d-flex align-items-center" href="#">
+              <span class="me-2"><i class="fa-solid fa-info"></i></span>
+              <div><% if (i18n.__('lang_iso') === 'uk') { %>Немає повідомлень<% } else { %>No messages<% } %></div>
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="tab-pane fade" id="personal-tab-pane" role="tabpanel" aria-labelledby="personal-tab" tabindex="0">
+        <ul id="notification-personal-list" class="list-unstyled">
+          <li>
+            <a class="d-flex align-items-center" href="#">
+              <span class="me-2"><i class="fa-solid fa-info"></i></span>
+              <div><% if (i18n.__('lang_iso') === 'uk') { %>Немає повідомлень<% } else { %>No messages<% } %></div>
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="tab-pane fade" id="system-tab-pane" role="tabpanel" aria-labelledby="system-tab" tabindex="0">
+        <ul id="notification-system-list" class="list-unstyled">
+          <li>
+            <a class="d-flex align-items-center" href="#">
+              <span class="me-2"><i class="fa-solid fa-info"></i></span>
+              <div><% if (i18n.__('lang_iso') === 'uk') { %>Немає повідомлень<% } else { %>No messages<% } %></div>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- END notification -->

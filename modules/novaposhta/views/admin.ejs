@@ -1,0 +1,345 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('modules.novaposhta.title') %></title>
+		<%- include('../../../views/partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.np-ac { position: relative; }
+			.np-ac-list { position: absolute; z-index: 1060; left: 0; right: 0; max-height: 260px; overflow: auto; background: var(--bs-body-bg); border: 1px solid var(--bs-border-color); }
+			.np-ac-list button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 4px 8px; }
+			.np-ac-list button:hover { background: var(--bs-tertiary-bg); }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../views/partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('modules.novaposhta.home') %></a></li>
+					<li class="breadcrumb-item"><a href="/modules/"><%= i18n.__('modules.novaposhta.modules') %></a></li>
+					<li class="breadcrumb-item active"><%= i18n.__('modules.novaposhta.title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<h1 class="h4 mb-1"><%= i18n.__('modules.novaposhta.title') %></h1>
+				<div class="form-text mb-3"><%= i18n.__('modules.novaposhta.help') %></div>
+
+				<div class="row g-3">
+					<div class="col-xl-8">
+						<div class="card rounded-0">
+							<div class="card-header fw-semibold d-flex align-items-center">
+								<span class="me-auto"><%= i18n.__('modules.novaposhta.accounts') %></span>
+								<% if (perms.edit) { %><button type="button" class="btn btn-sm btn-primary rounded-0" id="btn-add"><i class="fa-solid fa-plus"></i> <%= i18n.__('modules.novaposhta.add') %></button><% } %>
+							</div>
+							<div class="card-body p-0">
+								<table class="table table-sm align-middle mb-0">
+									<thead><tr><th><%= i18n.__('modules.novaposhta.name') %></th><th><%= i18n.__('modules.novaposhta.api_key') %></th><th><%= i18n.__('modules.novaposhta.sender') %></th><th><%= i18n.__('modules.novaposhta.stores') %></th><th></th></tr></thead>
+									<tbody id="acc-rows"></tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+					<div class="col-xl-4">
+						<div class="card rounded-0">
+							<div class="card-header fw-semibold d-flex align-items-center">
+								<span class="me-auto"><%= i18n.__('modules.novaposhta.directory') %></span>
+								<% if (perms.edit) { %><button type="button" class="btn btn-sm btn-outline-primary rounded-0" id="btn-sync"><i class="fa-solid fa-rotate"></i> <%= i18n.__('modules.novaposhta.sync_now') %></button><% } %>
+							</div>
+							<div class="card-body">
+								<div class="form-text mt-0 mb-2"><%= i18n.__('modules.novaposhta.directory_help') %></div>
+								<div id="dir-state" class="small"></div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</main>
+
+		<!-- Акаунт -->
+		<div class="modal fade" id="acc-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-lg">
+				<form class="modal-content rounded-0" id="acc-form" autocomplete="off">
+					<div class="modal-header"><h5 class="modal-title"><%= i18n.__('modules.novaposhta.edit') %></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+					<div class="modal-body">
+						<input type="hidden" name="id" />
+						<div class="row g-2">
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.novaposhta.name') %></label><input class="form-control rounded-0" name="name" required maxlength="128" /></div>
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.novaposhta.api_key') %></label><input class="form-control rounded-0" name="api_key" maxlength="64" /><div class="form-text"><%= i18n.__('modules.novaposhta.api_key_help') %></div></div>
+							<div class="col-12">
+								<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="status" id="f-status" checked /><label class="form-check-label" for="f-status"><%= i18n.__('modules.novaposhta.status') %></label></div>
+								<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="is_default" id="f-default" /><label class="form-check-label" for="f-default"><%= i18n.__('modules.novaposhta.is_default') %></label></div>
+							</div>
+							<div class="col-12">
+								<label class="form-label"><%= i18n.__('modules.novaposhta.stores') %></label>
+								<div>
+									<% integrations.forEach(function (it) { %>
+									<div class="form-check form-check-inline"><input class="form-check-input f-int" type="checkbox" value="<%= it.id %>" id="f-int-<%= it.id %>" /><label class="form-check-label" for="f-int-<%= it.id %>"><%= it.name %></label></div>
+									<% }); %>
+								</div>
+								<div class="form-text"><%= i18n.__('modules.novaposhta.stores_help') %></div>
+							</div>
+
+							<div class="col-12 mt-3 d-flex align-items-center"><h6 class="mb-0 me-auto"><%= i18n.__('modules.novaposhta.sender') %></h6><button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="btn-senders"><i class="fa-solid fa-download"></i> <%= i18n.__('modules.novaposhta.load_senders') %></button></div>
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.novaposhta.counterparty') %></label><select class="form-select rounded-0" id="f-cp"></select></div>
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.novaposhta.contact') %></label><select class="form-select rounded-0" id="f-contact"></select></div>
+							<div class="col-md-4"><label class="form-label"><%= i18n.__('modules.novaposhta.phone') %></label><input class="form-control rounded-0" id="f-phone" placeholder="380XXXXXXXXX" /></div>
+							<div class="col-md-8 np-ac"><label class="form-label"><%= i18n.__('modules.novaposhta.sender_city') %></label><input class="form-control rounded-0" id="f-city" placeholder="<%= i18n.__('modules.novaposhta.search_city') %>" /><div class="np-ac-list d-none" id="f-city-list"></div></div>
+							<div class="col-12"><label class="form-label"><%= i18n.__('modules.novaposhta.sender_warehouse') %></label><select class="form-select rounded-0" id="f-wh"></select><div class="form-text"><%= i18n.__('modules.novaposhta.sender_warehouse_help') %></div></div>
+
+							<div class="col-12 mt-3"><h6 class="mb-0"><%= i18n.__('modules.novaposhta.defaults') %></h6></div>
+							<div class="col-md-4"><label class="form-label"><%= i18n.__('modules.novaposhta.payer') %></label><select class="form-select rounded-0" id="f-payer"><option value="Recipient"><%= i18n.__('modules.novaposhta.payer_Recipient') %></option><option value="Sender"><%= i18n.__('modules.novaposhta.payer_Sender') %></option></select></div>
+							<div class="col-md-4"><label class="form-label"><%= i18n.__('modules.novaposhta.payment_method') %></label><select class="form-select rounded-0" id="f-pm"><option value="Cash"><%= i18n.__('modules.novaposhta.pm_Cash') %></option><option value="NonCash"><%= i18n.__('modules.novaposhta.pm_NonCash') %></option></select></div>
+							<div class="col-md-4"><label class="form-label"><%= i18n.__('modules.novaposhta.cargo_type') %></label><select class="form-select rounded-0" id="f-cargo"><option value="Parcel"><%= i18n.__('modules.novaposhta.cargo_Parcel') %></option><option value="Cargo"><%= i18n.__('modules.novaposhta.cargo_Cargo') %></option><option value="Documents"><%= i18n.__('modules.novaposhta.cargo_Documents') %></option></select></div>
+							<div class="col-md-8"><label class="form-label"><%= i18n.__('modules.novaposhta.description') %></label><input class="form-control rounded-0" id="f-desc" maxlength="100" /></div>
+							<div class="col-md-4"><label class="form-label"><%= i18n.__('modules.novaposhta.default_weight') %></label><input type="number" step="0.1" min="0.1" class="form-control rounded-0" id="f-weight" /><div class="form-text"><%= i18n.__('modules.novaposhta.default_weight_help') %></div></div>
+							<div class="col-12"><label class="form-label"><%= i18n.__('modules.novaposhta.cod_keywords') %></label><input class="form-control rounded-0" id="f-cod" maxlength="500" /><div class="form-text"><%= i18n.__('modules.novaposhta.cod_keywords_help') %></div></div>
+							<div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" id="f-declared" /><label class="form-check-label" for="f-declared"><%= i18n.__('modules.novaposhta.declared_from_total') %></label></div></div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('modules.novaposhta.cancel') %></button>
+						<% if (perms.edit) { %><button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('modules.novaposhta.save') %></button><% } %>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<%- include('../../../views/partials/footer'); %>
+		<%- include('../../../views/partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const L = <%- JSON.stringify(i18n.__('modules.novaposhta')).replace(/</g, '\\u003c') %>;
+				const INTEGRATIONS = <%- JSON.stringify(integrations).replace(/</g, '\\u003c') %>;
+				const EDIT = <%- perms.edit ? 'true' : 'false' %>;
+				const B = "/api/module/novaposhta";
+				const notyf = new Notyf({ duration: 4000, position: { x: "right", y: "top" } });
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s === null || s === undefined ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const fmt = (s, v) => String(s).replace(/\{\{(\w+)\}\}/g, (m, k) => (v[k] !== undefined ? v[k] : m));
+
+				async function api(path, body) {
+					const res = await fetch(B + path, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					let j = {};
+					try {
+						j = await res.json();
+					} catch (e) {}
+					if (!res.ok || !j.ok) throw new Error(j.error || L.panel.error);
+					return j;
+				}
+
+				/* ─── Список акаунтів ─── */
+				let rows = [];
+				async function load() {
+					try {
+						rows = (await api("/accounts/")).rows;
+					} catch (e) {
+						return notyf.error(e.message);
+					}
+					const intName = (id) => (INTEGRATIONS.find((i) => i.id === id) || {}).name || "#" + id;
+					$("acc-rows").innerHTML =
+						rows
+							.map((a) => {
+								const s = a.settings.sender || {};
+								return `<tr class="${a.status ? "" : "text-secondary"}">
+									<td><b>${esc(a.name)}</b>${a.is_default ? ` <span class="badge text-bg-primary rounded-0">${esc(L.is_default)}</span>` : ""}</td>
+									<td><code>${esc(a.api_key)}</code></td>
+									<td class="small">${esc(s.counterparty || "—")}${s.city ? "<br>" + esc(s.city) : ""}${s.warehouse ? "<br>" + esc(s.warehouse) : ""}</td>
+									<td class="small">${a.integrations.map(intName).map(esc).join(", ") || "—"}</td>
+									<td class="text-end text-nowrap">
+										<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-edit="${a.id}"><i class="fa-solid fa-pen"></i></button>
+										${EDIT ? `<button type="button" class="btn btn-sm btn-outline-danger rounded-0" data-del="${a.id}"><i class="fa-solid fa-trash"></i></button>` : ""}
+									</td></tr>`;
+							})
+							.join("") || `<tr><td colspan="5" class="text-secondary p-3">${esc(L.none)}</td></tr>`;
+				}
+
+				/* ─── Довідники ─── */
+				async function loadDir() {
+					try {
+						const d = await api("/directory/");
+						const s = d.state;
+						const c = d.counts || {};
+						let h = `<div>${esc(L.cnt_areas)}: <b>${c.areas || 0}</b> · ${esc(L.cnt_cities)}: <b>${c.cities || 0}</b></div>
+							<div>${esc(L.cnt_warehouses)}: <b>${c.warehouses || 0}</b> (${esc(L.cnt_postomats)}: ${c.postomats || 0})</div>`;
+						if (d.running) h += `<div class="text-primary mt-1"><i class="fa-solid fa-spinner fa-spin"></i> ${esc(L.sync_running)}</div>`;
+						else if (s && s.finished_at) h += `<div class="mt-1">${esc(L.synced_at)}: ${esc(new Date(s.finished_at).toLocaleString())}</div>`;
+						else h += `<div class="mt-1 text-secondary">${esc(L.never)}</div>`;
+						if (s && s.message) h += `<div class="text-danger mt-1">${esc(L.sync_error)}: ${esc(s.message)}</div>`;
+						$("dir-state").innerHTML = h;
+						if (d.running) setTimeout(loadDir, 5000);
+					} catch (e) {
+						$("dir-state").innerHTML = `<span class="text-danger">${esc(e.message)}</span>`;
+					}
+				}
+				if ($("btn-sync"))
+					$("btn-sync").addEventListener("click", async () => {
+						try {
+							await api("/directory/sync/");
+							notyf.success(L.sync_started);
+							setTimeout(loadDir, 1500);
+						} catch (e) {
+							notyf.error(e.message);
+						}
+					});
+
+				/* ─── Форма акаунта ─── */
+				const modal = new bootstrap.Modal($("acc-modal"));
+				const form = $("acc-form");
+				let senders = [];
+				let sender = {};
+
+				function fillSenders(cur) {
+					const cps = senders.length ? senders : cur.counterparty_ref ? [{ counterparty_ref: cur.counterparty_ref, counterparty: cur.counterparty, contacts: cur.contact_ref ? [{ contact_ref: cur.contact_ref, contact: cur.contact, phone: cur.phone }] : [] }] : [];
+					$("f-cp").innerHTML = `<option value="">${esc(L.choose)}</option>` + cps.map((c) => `<option value="${c.counterparty_ref}"${c.counterparty_ref === cur.counterparty_ref ? " selected" : ""}>${esc(c.counterparty)}</option>`).join("");
+					fillContacts(cur);
+				}
+				function fillContacts(cur) {
+					const cps = senders.length ? senders : [];
+					const cp = cps.find((c) => c.counterparty_ref === $("f-cp").value);
+					const list = cp ? cp.contacts : cur.contact_ref ? [{ contact_ref: cur.contact_ref, contact: cur.contact, phone: cur.phone }] : [];
+					$("f-contact").innerHTML = `<option value="">${esc(L.choose)}</option>` + list.map((p) => `<option value="${p.contact_ref}" data-phone="${esc(p.phone || "")}"${p.contact_ref === cur.contact_ref ? " selected" : ""}>${esc(p.contact)}${p.phone ? " · " + esc(p.phone) : ""}</option>`).join("");
+				}
+				$("f-cp").addEventListener("change", () => fillContacts({}));
+				$("f-contact").addEventListener("change", () => {
+					const o = $("f-contact").selectedOptions[0];
+					if (o && o.dataset.phone) $("f-phone").value = o.dataset.phone;
+				});
+				$("btn-senders").addEventListener("click", async () => {
+					try {
+						senders = (await api("/accounts/senders/", { id: form.id.value || null, api_key: form.api_key.value })).senders;
+						fillSenders(sender);
+						const cp = senders.find((c) => c.counterparty_ref === $("f-cp").value) || senders[0];
+						if (cp && !$("f-cp").value) {
+							$("f-cp").value = cp.counterparty_ref;
+							fillContacts({});
+						}
+					} catch (e) {
+						notyf.error(e.message);
+					}
+				});
+
+				// Місто відправлення: пошук по довіднику
+				let cityTimer = null;
+				$("f-city").addEventListener("input", () => {
+					sender.city_ref = null;
+					clearTimeout(cityTimer);
+					cityTimer = setTimeout(async () => {
+						const q = $("f-city").value.trim();
+						if (q.length < 2) return $("f-city-list").classList.add("d-none");
+						const r = await api("/cities/", { q }).catch(() => ({ rows: [] }));
+						$("f-city-list").innerHTML = r.rows.map((c) => `<button type="button" data-ref="${c.ref}" data-name="${esc(c.name)}">${esc(c.name)} <small class="text-secondary">${esc(c.area || "")}</small></button>`).join("") || `<div class="p-2 text-secondary small">${esc(L.panel.nothing)}</div>`;
+						$("f-city-list").classList.remove("d-none");
+					}, 300);
+				});
+				$("f-city-list").addEventListener("click", (e) => {
+					const b = e.target.closest("button[data-ref]");
+					if (!b) return;
+					sender.city_ref = b.dataset.ref;
+					sender.city = b.dataset.name;
+					$("f-city").value = b.dataset.name;
+					$("f-city-list").classList.add("d-none");
+					loadWarehouses(null);
+				});
+				async function loadWarehouses(cur) {
+					if (!sender.city_ref) return ($("f-wh").innerHTML = `<option value="">${esc(L.choose)}</option>`);
+					const r = await api("/warehouses/", { city_ref: sender.city_ref }).catch(() => ({ rows: [] }));
+					$("f-wh").innerHTML = `<option value="">${esc(L.choose)}</option>` + r.rows.map((w) => `<option value="${w.ref}"${w.ref === cur ? " selected" : ""}>${esc(w.name)}</option>`).join("");
+				}
+
+				function open(a) {
+					form.reset();
+					senders = [];
+					const st = (a && a.settings) || {};
+					sender = { ...(st.sender || {}) };
+					form.id.value = a ? a.id : "";
+					form.name.value = a ? a.name : "";
+					form.api_key.value = a ? a.api_key : "";
+					form.status.checked = a ? !!a.status : true;
+					form.is_default.checked = a ? !!a.is_default : !rows.length;
+					document.querySelectorAll(".f-int").forEach((c) => (c.checked = !!(a && a.integrations.includes(Number(c.value)))));
+					fillSenders(sender);
+					$("f-phone").value = sender.phone || "";
+					$("f-city").value = sender.city || "";
+					loadWarehouses(sender.warehouse_ref);
+					$("f-payer").value = st.payer || "Recipient";
+					$("f-pm").value = st.payment_method || "Cash";
+					$("f-cargo").value = st.cargo_type || "Parcel";
+					$("f-desc").value = st.description || "";
+					$("f-weight").value = st.default_weight || 0.5;
+					$("f-cod").value = st.cod_keywords || "";
+					$("f-declared").checked = st.declared_from_total !== false;
+					modal.show();
+				}
+				if ($("btn-add")) $("btn-add").addEventListener("click", () => open(null));
+				$("acc-rows").addEventListener("click", async (e) => {
+					const ed = e.target.closest("[data-edit]");
+					if (ed) return open(rows.find((r) => r.id === Number(ed.dataset.edit)));
+					const del = e.target.closest("[data-del]");
+					if (del && confirm(L.confirm_delete)) {
+						try {
+							await api(`/accounts/${del.dataset.del}/delete/`);
+							load();
+						} catch (err) {
+							notyf.error(err.message);
+						}
+					}
+				});
+
+				form.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					if (!EDIT) return;
+					const cp = $("f-cp").selectedOptions[0];
+					const ct = $("f-contact").selectedOptions[0];
+					const wh = $("f-wh").selectedOptions[0];
+					const body = {
+						id: form.id.value ? Number(form.id.value) : null,
+						name: form.name.value,
+						api_key: form.api_key.value,
+						status: form.status.checked,
+						is_default: form.is_default.checked,
+						integrations: [...document.querySelectorAll(".f-int:checked")].map((c) => Number(c.value)),
+						settings: {
+							sender: {
+								counterparty_ref: $("f-cp").value || null,
+								counterparty: cp && cp.value ? cp.textContent : null,
+								contact_ref: $("f-contact").value || null,
+								contact: ct && ct.value ? ct.textContent.split(" · ")[0] : null,
+								phone: $("f-phone").value,
+								city_ref: sender.city_ref || null,
+								city: sender.city_ref ? $("f-city").value : null,
+								warehouse_ref: $("f-wh").value || null,
+								warehouse: wh && wh.value ? wh.textContent : null,
+							},
+							payer: $("f-payer").value,
+							payment_method: $("f-pm").value,
+							cargo_type: $("f-cargo").value,
+							description: $("f-desc").value,
+							default_weight: Number($("f-weight").value),
+							cod_keywords: $("f-cod").value,
+							declared_from_total: $("f-declared").checked,
+						},
+					};
+					try {
+						await api("/accounts/save/", body);
+						notyf.success(L.saved);
+						modal.hide();
+						load();
+						loadDir();
+					} catch (err) {
+						notyf.error(err.message);
+					}
+				});
+
+				load();
+				loadDir();
+			})();
+		</script>
+	</body>
+</html>

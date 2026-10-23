@@ -1,0 +1,238 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('users.groups.title') %></title>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+
+		<!-- Breadcrumb -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('users.groups.title') %></span>
+						<ul class="list-inline mb-0">
+							<li class="list-inline-item">
+								<a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('users.groups.home') %></span></a>
+							</li>
+							<li class="list-inline-item">
+								<i class="fas fa-chevron-right"></i>
+								<a href="/users/"><%= i18n.__('users.groups.users') %></a>
+							</li>
+							<li class="list-inline-item">
+								<i class="fas fa-chevron-right"></i>
+								<%= i18n.__('users.groups.title') %>
+							</li>
+						</ul>
+					</div>
+					<div class="col-auto d-flex gap-2">
+						<% if (canAdd) { %>
+						<button type="button" id="btn-group-add" class="btn btn-success rounded-0" title="<%= i18n.__('users.groups.add') %>">
+							<i class="fa-solid fa-plus"></i>
+						</button>
+						<% } %>
+						<a href="/users/" class="btn btn-primary rounded-0" title="<%= i18n.__('users.groups.back') %>">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- END Breadcrumb -->
+
+		<div class="container-fluid mt-2 mb-4">
+			<div class="card border-primary rounded-0">
+				<div class="card-header text-bg-primary rounded-0"><%= i18n.__('users.groups.list') %></div>
+				<div class="table-responsive">
+					<table class="table table-hover align-middle mb-0">
+						<thead class="table-light">
+							<tr>
+								<th style="width: 70px">ID</th>
+								<th><%= i18n.__('users.groups.col_name') %></th>
+								<th><%= i18n.__('users.groups.col_note') %></th>
+								<th class="text-center" style="width: 130px"><%= i18n.__('users.groups.col_users') %></th>
+								<th class="text-center" style="width: 130px"><%= i18n.__('users.groups.col_status') %></th>
+								<th class="text-end" style="width: 170px"></th>
+							</tr>
+						</thead>
+						<tbody>
+							<% groups.forEach(function (g) { %>
+							<tr id="group-row-<%= g.id %>">
+								<td><%= g.id %></td>
+								<td class="fw-semibold">
+									<%= g.name || '—' %> <% if (g.id === 1) { %>
+									<span class="badge text-bg-warning ms-1" title="<%= i18n.__('users.groups.admin_locked') %>"><i class="fa-solid fa-lock"></i></span>
+									<% } %>
+								</td>
+								<td class="text-muted small"><%= g.note || '' %></td>
+								<td class="text-center"><span class="badge text-bg-primary"><%= g.users_count %></span></td>
+								<td class="text-center">
+									<span class="badge text-bg-<%= g.active ? 'success' : 'secondary' %>"><%= g.active ? i18n.__('users.groups.active') : i18n.__('users.groups.inactive') %></span>
+								</td>
+								<td class="text-end text-nowrap">
+									<a href="/users/access?group=<%= g.id %>" class="btn btn-sm btn-outline-primary rounded-0" title="<%= i18n.__('users.groups.permissions') %>">
+										<i class="fa-solid fa-shield-halved"></i>
+									</a>
+									<% if (canEdit) { %>
+									<button type="button" class="btn btn-sm btn-outline-warning rounded-0 btn-group-edit" data-id="<%= g.id %>" title="<%= i18n.__('users.groups.edit') %>">
+										<i class="fa-solid fa-pen-to-square"></i>
+									</button>
+									<% } %>
+									<% if (canDelete && g.id !== 1) { %>
+									<button type="button" class="btn btn-sm btn-outline-danger rounded-0 btn-group-delete" data-id="<%= g.id %>" title="<%= i18n.__('users.groups.delete') %>">
+										<i class="fa-solid fa-trash"></i>
+									</button>
+									<% } %>
+								</td>
+							</tr>
+							<% }); %>
+							<% if (!groups.length) { %>
+							<tr>
+								<td colspan="6" class="text-center text-muted py-4"><%= i18n.__('users.groups.empty') %></td>
+							</tr>
+							<% } %>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+
+		<% if (canAdd || canEdit) { %>
+		<!-- Модалка: створення / редагування групи -->
+		<div class="modal fade" id="modal-group" tabindex="-1" data-bs-backdrop="static">
+			<div class="modal-dialog modal-dialog-centered modal-lg">
+				<div class="modal-content rounded-0">
+					<div class="modal-header text-bg-primary rounded-0">
+						<h5 class="modal-title" id="modal-group-title"></h5>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" id="group-id" value="" />
+						<% languages.forEach(function (lang) { %>
+						<div class="row g-2 mb-3 group-lang" data-lang="<%= lang.id %>">
+							<div class="col-12 col-sm-5">
+								<label class="form-label small text-muted" for="group-name-<%= lang.id %>"><%= i18n.__('users.groups.field_name') %> (<%= lang.name %>)</label>
+								<input type="text" id="group-name-<%= lang.id %>" class="form-control rounded-0 group-name" maxlength="100" />
+							</div>
+							<div class="col-12 col-sm-7">
+								<label class="form-label small text-muted" for="group-note-<%= lang.id %>"><%= i18n.__('users.groups.field_note') %> (<%= lang.name %>)</label>
+								<input type="text" id="group-note-<%= lang.id %>" class="form-control rounded-0 group-note" maxlength="500" />
+							</div>
+						</div>
+						<% }); %>
+						<div class="form-check form-switch">
+							<input class="form-check-input" type="checkbox" role="switch" id="group-active" checked />
+							<label class="form-check-label" for="group-active"><%= i18n.__('users.groups.field_active') %></label>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('users.groups.cancel') %></button>
+						<button type="button" id="btn-group-save" class="btn btn-primary rounded-0">
+							<i class="fa-solid fa-floppy-disk me-1"></i> <%= i18n.__('users.groups.save') %>
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<% } %>
+
+		<%- include('../../partials/footer'); %>
+		<%- include('../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const notyf = new Notyf({
+					position: { x: "right", y: "top" },
+					duration: 4000,
+					types: [
+						{ type: "success", dismissible: true, icon: false },
+						{ type: "error", background: "indianred", dismissible: true, icon: false },
+					],
+				});
+
+				const postJson = (url, data) =>
+					$.ajax({ url, method: "POST", contentType: "application/json", data: JSON.stringify(data || {}) }).catch((xhr) => {
+						throw xhr.responseJSON || { message: "<%= i18n.__('users.groups.error_network') %>" };
+					});
+
+				const modalEl = document.getElementById("modal-group");
+				const modal = modalEl ? new bootstrap.Modal(modalEl) : null;
+
+				// Очистити форму й відкрити модалку
+				const openModal = (title, group) => {
+					$("#modal-group-title").text(title);
+					$("#group-id").val(group ? group.id : "");
+					$(".group-name, .group-note").val("").removeClass("is-invalid");
+					$("#group-active").prop("checked", group ? group.active === 1 : true).prop("disabled", !!group && group.id === 1);
+					(group ? group.names : []).forEach((n) => {
+						$("#group-name-" + n.id_lang).val(n.name || "");
+						$("#group-note-" + n.id_lang).val(n.note || "");
+					});
+					modal.show();
+				};
+
+				// ─── Додати ─────────────────────────────────────────────────────
+				$("#btn-group-add").on("click", () => openModal("<%= i18n.__('users.groups.modal_add') %>", null));
+
+				// ─── Редагувати ─────────────────────────────────────────────────
+				$(".btn-group-edit").on("click", function () {
+					const $btn = $(this).prop("disabled", true);
+					postJson(`/api/users/groups/${$btn.data("id")}/get`)
+						.then((json) => openModal("<%= i18n.__('users.groups.modal_edit') %>", json.data))
+						.catch((err) => notyf.error(err.message || "<%= i18n.__('users.groups.error_network') %>"))
+						.always(() => $btn.prop("disabled", false));
+				});
+
+				// ─── Зберегти ───────────────────────────────────────────────────
+				$("#btn-group-save").on("click", function () {
+					const $btn = $(this);
+					const names = $(".group-lang")
+						.map((i, el) => ({
+							id_lang: Number($(el).data("lang")),
+							name: $(el).find(".group-name").val(),
+							note: $(el).find(".group-note").val(),
+						}))
+						.get();
+
+					if (!names.some((n) => n.name.trim())) {
+						$(".group-name").first().addClass("is-invalid").trigger("focus");
+						return notyf.error("<%= i18n.__('users.groups.name_required') %>");
+					}
+
+					$btn.prop("disabled", true);
+					postJson("/api/users/groups/save", {
+						id: Number($("#group-id").val()) || null,
+						active: $("#group-active").is(":checked"),
+						names,
+					})
+						.then(() => location.reload())
+						.catch((err) => {
+							notyf.error(err.message || "<%= i18n.__('users.groups.error_network') %>");
+							$btn.prop("disabled", false);
+						});
+				});
+
+				// ─── Видалити ───────────────────────────────────────────────────
+				$(".btn-group-delete").on("click", function () {
+					if (!confirm("<%= i18n.__('users.groups.delete_confirm') %>")) return;
+					const $btn = $(this).prop("disabled", true);
+					const id = $btn.data("id");
+					postJson(`/api/users/groups/${id}/delete`)
+						.then((json) => {
+							$("#group-row-" + id).remove();
+							notyf.success(json.message);
+						})
+						.catch((err) => {
+							notyf.error(err.message || "<%= i18n.__('users.groups.error_network') %>");
+							$btn.prop("disabled", false);
+						});
+				});
+			})();
+		</script>
+	</body>
+</html>

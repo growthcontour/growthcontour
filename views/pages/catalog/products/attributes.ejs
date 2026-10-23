@@ -1,0 +1,731 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.attributes.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="/assets/css/tabulator/tabulator_bootstrap5.min.css" />
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.val-handle, .set-handle { cursor: grab; color: var(--bs-secondary-color); }
+			.val-color { width: 42px; padding: 2px; }
+			.values-table td, .values-table th { vertical-align: middle; }
+			.sortable-ghost { background: var(--bs-warning-bg-subtle); }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><%= i18n.__('catalog.menu.catalog') %></li>
+					<li class="breadcrumb-item active"><%= i18n.__('catalog.attributes.title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<h1 class="h4 mb-3"><%= i18n.__('catalog.attributes.title') %></h1>
+
+				<ul class="nav nav-tabs mb-3" role="tablist">
+					<li class="nav-item"><button class="nav-link rounded-0 active" data-bs-toggle="tab" data-bs-target="#tab-attributes" type="button"><%= i18n.__('catalog.attributes.tabs.attributes') %></button></li>
+					<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#tab-groups" type="button"><%= i18n.__('catalog.attributes.tabs.groups') %></button></li>
+					<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#tab-sets" type="button"><%= i18n.__('catalog.attributes.tabs.sets') %></button></li>
+				</ul>
+
+				<div class="tab-content">
+					<div class="tab-pane fade show active" id="tab-attributes">
+						<div class="d-flex gap-2 mb-3">
+							<input type="search" class="form-control rounded-0" id="attr-search" placeholder="<%= i18n.__('catalog.common.search') %>" style="max-width: 320px" />
+							<% if (perms.add) { %>
+							<button class="btn btn-primary rounded-0 ms-auto" id="btn-add-attr"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.attributes.add') %></button>
+							<% } %>
+						</div>
+						<div id="attr-grid"></div>
+					</div>
+					<div class="tab-pane fade" id="tab-groups">
+						<% if (perms.add) { %>
+						<div class="d-flex mb-3"><button class="btn btn-primary rounded-0 ms-auto" id="btn-add-group"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.attributes.groups.add') %></button></div>
+						<% } %>
+						<div id="group-grid"></div>
+					</div>
+					<div class="tab-pane fade" id="tab-sets">
+						<div class="alert alert-light border rounded-0"><%= i18n.__('catalog.attributes.sets.hint') %></div>
+						<% if (perms.add) { %>
+						<div class="d-flex mb-3"><button class="btn btn-primary rounded-0 ms-auto" id="btn-add-set"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.attributes.sets.add') %></button></div>
+						<% } %>
+						<div id="set-grid"></div>
+					</div>
+				</div>
+			</div>
+		</main>
+
+		<!-- Характеристика -->
+		<div class="modal fade" id="attr-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-xl modal-dialog-scrollable">
+				<form class="modal-content rounded-0" id="attr-form" novalidate>
+					<div class="modal-header">
+						<h5 class="modal-title" id="attr-title"></h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= i18n.__('catalog.common.close') %>"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" name="id" />
+						<div class="row g-3 mb-3">
+							<div class="col-md-3" data-field="type">
+								<label class="form-label"><%= i18n.__('catalog.attributes.f.type') %> *</label>
+								<select class="form-select rounded-0" name="type">
+									<option value="select"><%= i18n.__('catalog.attributes.types.select') %></option>
+									<option value="multiselect"><%= i18n.__('catalog.attributes.types.multiselect') %></option>
+									<option value="color"><%= i18n.__('catalog.attributes.types.color') %></option>
+									<option value="text"><%= i18n.__('catalog.attributes.types.text') %></option>
+									<option value="textarea"><%= i18n.__('catalog.attributes.types.textarea') %></option>
+									<option value="integer"><%= i18n.__('catalog.attributes.types.integer') %></option>
+									<option value="decimal"><%= i18n.__('catalog.attributes.types.decimal') %></option>
+									<option value="boolean"><%= i18n.__('catalog.attributes.types.boolean') %></option>
+									<option value="date"><%= i18n.__('catalog.attributes.types.date') %></option>
+								</select>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-3" data-field="id_attribute_group">
+								<label class="form-label"><%= i18n.__('catalog.attributes.f.group') %></label>
+								<select class="form-select rounded-0" name="id_attribute_group" data-type="intnull">
+									<option value=""><%= i18n.__('catalog.common.none') %></option>
+								</select>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-2" data-field="code">
+								<label class="form-label"><%= i18n.__('catalog.attributes.f.code') %></label>
+								<input class="form-control rounded-0" name="code" maxlength="64" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-2" data-field="unit">
+								<label class="form-label"><%= i18n.__('catalog.attributes.f.unit') %></label>
+								<input class="form-control rounded-0" name="unit" maxlength="16" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-2" data-field="sort_order">
+								<label class="form-label"><%= i18n.__('catalog.attributes.f.sort_order') %></label>
+								<input class="form-control rounded-0" type="number" name="sort_order" data-type="int" value="0" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-12 d-flex flex-wrap gap-4">
+								<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="is_filterable" data-type="bool" id="af-filter" /><label class="form-check-label" for="af-filter"><%= i18n.__('catalog.attributes.f.is_filterable') %></label></div>
+								<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="is_comparable" data-type="bool" id="af-compare" /><label class="form-check-label" for="af-compare"><%= i18n.__('catalog.attributes.f.is_comparable') %></label></div>
+								<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="is_visible_on_card" data-type="bool" id="af-visible" checked /><label class="form-check-label" for="af-visible"><%= i18n.__('catalog.attributes.f.is_visible_on_card') %></label></div>
+								<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="is_required" data-type="bool" id="af-required" /><label class="form-check-label" for="af-required"><%= i18n.__('catalog.attributes.f.is_required') %></label></div>
+								<div class="form-check form-switch js-only-text"><input class="form-check-input" type="checkbox" name="is_translatable" data-type="bool" id="af-translatable" checked /><label class="form-check-label" for="af-translatable"><%= i18n.__('catalog.attributes.f.is_translatable') %></label></div>
+								<div class="form-check form-switch js-only-axis" data-field="is_variant_axis"><input class="form-check-input" type="checkbox" name="is_variant_axis" data-type="bool" id="af-axis" /><label class="form-check-label" for="af-axis"><%= i18n.__('catalog.attributes.f.is_variant_axis') %></label><div class="invalid-feedback"></div></div>
+							</div>
+						</div>
+
+						<ul class="nav nav-tabs mb-3" role="tablist">
+							<% languages.forEach((l, i) => { %>
+							<li class="nav-item"><button class="nav-link rounded-0<%= i === 0 ? ' active' : '' %>" type="button" data-bs-toggle="tab" data-bs-target="#attr-lang-<%= l.id %>"><%= String(l.iso).toUpperCase() %><% if (i === 0) { %> *<% } %></button></li>
+							<% }) %>
+						</ul>
+						<div class="tab-content mb-4">
+							<% languages.forEach((l, i) => { %>
+							<div class="tab-pane fade<%= i === 0 ? ' show active' : '' %>" id="attr-lang-<%= l.id %>">
+								<div class="row g-3">
+									<div class="col-md-6" data-field="names.<%= l.id %>.name">
+										<label class="form-label"><%= i18n.__('catalog.attributes.f.name') %><% if (i === 0) { %> *<% } %></label>
+										<input class="form-control rounded-0" data-lang="<%= l.id %>" data-name="name" maxlength="255" />
+										<div class="invalid-feedback"></div>
+									</div>
+									<div class="col-md-6" data-field="names.<%= l.id %>.hint">
+										<label class="form-label"><%= i18n.__('catalog.attributes.f.hint') %></label>
+										<input class="form-control rounded-0" data-lang="<%= l.id %>" data-name="hint" maxlength="512" />
+										<div class="invalid-feedback"></div>
+									</div>
+								</div>
+							</div>
+							<% }) %>
+						</div>
+
+						<div id="values-block" data-field="values">
+							<div class="d-flex align-items-center mb-2">
+								<strong class="me-auto"><%= i18n.__('catalog.attributes.values.title') %></strong>
+								<% if (perms.add || perms.edit) { %>
+								<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="btn-add-value"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.attributes.values.add') %></button>
+								<% } %>
+							</div>
+							<div class="invalid-feedback"></div>
+							<div class="table-responsive">
+								<table class="table table-sm values-table">
+									<thead>
+										<tr>
+											<th style="width: 24px"></th>
+											<th style="width: 160px"><%= i18n.__('catalog.attributes.values.code') %></th>
+											<th class="js-color-col" style="width: 60px"><%= i18n.__('catalog.attributes.values.color') %></th>
+											<% languages.forEach((l) => { %>
+											<th><%= i18n.__('catalog.attributes.values.name') %> (<%= String(l.iso).toUpperCase() %>)</th>
+											<% }) %>
+											<th style="width: 90px" class="text-end"><%= i18n.__('catalog.attributes.values.used') %></th>
+											<th style="width: 40px"></th>
+										</tr>
+									</thead>
+									<tbody id="values-body"></tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<% if (perms.delete) { %>
+						<button type="button" class="btn btn-outline-danger rounded-0 me-auto" id="btn-delete-attr"><i class="fa-solid fa-trash"></i> <%= i18n.__('catalog.common.delete') %></button>
+						<% } %>
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('catalog.common.cancel') %></button>
+						<% if (perms.add || perms.edit) { %>
+						<button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('catalog.common.save') %></button>
+						<% } %>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<!-- Група -->
+		<div class="modal fade" id="group-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog">
+				<form class="modal-content rounded-0" id="group-form" novalidate>
+					<div class="modal-header">
+						<h5 class="modal-title" id="group-title"></h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= i18n.__('catalog.common.close') %>"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" name="id" />
+						<% languages.forEach((l, i) => { %>
+						<div class="mb-3" data-field="names.<%= l.id %>.name">
+							<label class="form-label"><%= i18n.__('catalog.attributes.f.name') %> (<%= String(l.iso).toUpperCase() %>)<% if (i === 0) { %> *<% } %></label>
+							<input class="form-control rounded-0" data-lang="<%= l.id %>" data-name="name" maxlength="255" />
+							<div class="invalid-feedback"></div>
+						</div>
+						<% }) %>
+						<div class="row g-3">
+							<div class="col-6" data-field="code">
+								<label class="form-label"><%= i18n.__('catalog.attributes.f.code') %></label>
+								<input class="form-control rounded-0" name="code" maxlength="64" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-6" data-field="sort_order">
+								<label class="form-label"><%= i18n.__('catalog.attributes.f.sort_order') %></label>
+								<input class="form-control rounded-0" type="number" name="sort_order" data-type="int" value="0" />
+								<div class="invalid-feedback"></div>
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('catalog.common.cancel') %></button>
+						<% if (perms.add || perms.edit) { %>
+						<button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('catalog.common.save') %></button>
+						<% } %>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<!-- Набір -->
+		<div class="modal fade" id="set-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-lg modal-dialog-scrollable">
+				<form class="modal-content rounded-0" id="set-form" novalidate>
+					<div class="modal-header">
+						<h5 class="modal-title" id="set-title"></h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= i18n.__('catalog.common.close') %>"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" name="id" />
+						<div class="row g-3 mb-3">
+							<div class="col-md-6" data-field="name">
+								<label class="form-label"><%= i18n.__('catalog.attributes.sets.name') %> *</label>
+								<input class="form-control rounded-0" name="name" maxlength="255" required />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-3" data-field="code">
+								<label class="form-label"><%= i18n.__('catalog.attributes.f.code') %></label>
+								<input class="form-control rounded-0" name="code" maxlength="64" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-3" data-field="sort_order">
+								<label class="form-label"><%= i18n.__('catalog.attributes.f.sort_order') %></label>
+								<input class="form-control rounded-0" type="number" name="sort_order" data-type="int" value="0" />
+								<div class="invalid-feedback"></div>
+							</div>
+						</div>
+						<div data-field="items">
+							<label class="form-label"><%= i18n.__('catalog.attributes.sets.items') %></label>
+							<div class="d-flex gap-2 mb-2">
+								<select class="form-select rounded-0" id="set-attr-select"></select>
+								<button type="button" class="btn btn-outline-secondary rounded-0 text-nowrap" id="btn-set-add-item"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.attributes.sets.add_item') %></button>
+							</div>
+							<div class="invalid-feedback"></div>
+							<ul class="list-group rounded-0" id="set-items"></ul>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('catalog.common.cancel') %></button>
+						<% if (perms.add || perms.edit) { %>
+						<button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('catalog.common.save') %></button>
+						<% } %>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const PERMS = { add: <%= perms.add %>, edit: <%= perms.edit %>, delete: <%= perms.delete %> };
+				const CAN_SETTINGS = <%= canSettings %>;
+				const LANGS = [<% languages.forEach((l) => { %><%= Number(l.id) %>,<% }) %>];
+				const PRIMARY_LANG = LANGS[0];
+				const VALUE_TYPES = ["select", "multiselect", "color"];
+				const AXIS_TYPES = ["select", "color"];
+				const TEXT_TYPES = ["text", "textarea"];
+				const TYPE_LABELS = {
+					select: "<%= i18n.__('catalog.attributes.types.select') %>",
+					multiselect: "<%= i18n.__('catalog.attributes.types.multiselect') %>",
+					color: "<%= i18n.__('catalog.attributes.types.color') %>",
+					text: "<%= i18n.__('catalog.attributes.types.text') %>",
+					textarea: "<%= i18n.__('catalog.attributes.types.textarea') %>",
+					integer: "<%= i18n.__('catalog.attributes.types.integer') %>",
+					decimal: "<%= i18n.__('catalog.attributes.types.decimal') %>",
+					boolean: "<%= i18n.__('catalog.attributes.types.boolean') %>",
+					date: "<%= i18n.__('catalog.attributes.types.date') %>",
+				};
+
+				const notyf = new Notyf({ duration: 3500, position: { x: "right", y: "top" } });
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+				const yesNo = (cell) => (Number(cell.getValue()) ? `<i class="fa-solid fa-check text-success"></i>` : "");
+				const errMsg = (err) => err.error || "<%= i18n.__('catalog.common.error') %>";
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+
+				function clearErrors(form) {
+					form.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+					form.querySelectorAll(".invalid-feedback").forEach((el) => {
+						el.textContent = "";
+						el.style.display = "";
+					});
+				}
+				function showErrors(form, errors) {
+					let tabShown = false;
+					(errors || []).forEach((e) => {
+						const field = String(e.field || "");
+						const box = form.querySelector(`[data-field="${CSS.escape(field)}"]`) || form.querySelector(`[data-field="${CSS.escape(field.split(".")[0])}"]`);
+						if (!box) return;
+						box.querySelectorAll("input:not([type=hidden]),select,textarea").forEach((el) => el.classList.add("is-invalid"));
+						const fb = box.querySelector(".invalid-feedback");
+						if (fb) {
+							fb.textContent = (fb.textContent ? fb.textContent + "; " : "") + (field.includes(".") && !box.matches(`[data-field="${CSS.escape(field)}"]`) ? field + ": " : "") + e.message;
+							fb.style.display = "block";
+						}
+						const pane = box.closest(".tab-pane");
+						if (pane && !tabShown && form.querySelector(`[data-bs-target="#${pane.id}"]`)) {
+							bootstrap.Tab.getOrCreateInstance(form.querySelector(`[data-bs-target="#${pane.id}"]`)).show();
+							tabShown = true;
+						}
+					});
+				}
+				function readBasic(form) {
+					const out = {};
+					form.querySelectorAll("[name]").forEach((el) => {
+						if (el.name === "id") return;
+						const t = el.dataset.type;
+						if (t === "bool") out[el.name] = el.checked;
+						else if (t === "int") out[el.name] = el.value === "" ? 0 : parseInt(el.value, 10);
+						else if (t === "intnull") out[el.name] = el.value === "" ? null : parseInt(el.value, 10);
+						else out[el.name] = el.value.trim() === "" ? null : el.value.trim();
+					});
+					return out;
+				}
+				function fillBasic(form, row) {
+					form.reset();
+					form.querySelectorAll("[name]").forEach((el) => {
+						const v = row[el.name];
+						if (el.dataset.type === "bool") el.checked = v === undefined ? el.defaultChecked : !!Number(v);
+						else el.value = v == null ? "" : v;
+					});
+				}
+				function readNames(form) {
+					const out = {};
+					form.querySelectorAll("[data-lang][data-name]").forEach((el) => ((out[el.dataset.lang] = out[el.dataset.lang] || {})[el.dataset.name] = el.value));
+					return out;
+				}
+				function fillNames(form, names) {
+					form.querySelectorAll("[data-lang][data-name]").forEach((el) => (el.value = ((names || {})[el.dataset.lang] || {})[el.dataset.name] || ""));
+				}
+				const lockForm = (form, isNew) => form.querySelectorAll("input,select,textarea,#btn-add-value,.js-val-del").forEach((el) => (el.disabled = isNew ? !PERMS.add : !PERMS.edit));
+
+				// ═══ ГРУПИ ═════════════════════════════════════
+				let groups = [];
+				const groupGrid = new Tabulator("#group-grid", {
+					layout: "fitColumns",
+					placeholder: "—",
+					columns: [
+						{ title: "<%= i18n.__('catalog.attributes.f.name') %>", field: "name", formatter: (c) => esc(c.getValue()) },
+						{ title: "<%= i18n.__('catalog.attributes.f.code') %>", field: "code", width: 180, formatter: (c) => esc(c.getValue()) },
+						{ title: "<%= i18n.__('catalog.attributes.groups.attributes') %>", field: "attributes", width: 140, hozAlign: "right" },
+						{ title: "<%= i18n.__('catalog.attributes.f.sort_order') %>", field: "sort_order", width: 120, hozAlign: "right" },
+						{
+							title: "", field: "_a", width: 100, hozAlign: "right", headerSort: false,
+							formatter: () => `<button class="btn btn-sm btn-outline-${PERMS.edit ? "primary" : "secondary"} rounded-0 me-1" data-act="edit"><i class="fa-solid fa-${PERMS.edit ? "pen" : "eye"}"></i></button>` + (PERMS.delete ? `<button class="btn btn-sm btn-outline-danger rounded-0" data-act="delete"><i class="fa-solid fa-trash"></i></button>` : ""),
+							cellClick: async (e, cell) => {
+								const btn = e.target.closest("[data-act]");
+								if (!btn) return;
+								const r = cell.getRow().getData();
+								try {
+									if (btn.dataset.act === "edit") return await openGroup(r.id);
+									if (!confirm("<%= i18n.__('catalog.attributes.groups.confirm_delete') %>".replace("%s", r.name))) return;
+									await api(`/api/catalog/products/attributes/groups/${r.id}/delete/`);
+									notyf.success("<%= i18n.__('catalog.common.deleted') %>");
+									reloadAll();
+								} catch (err) {
+									notyf.error(errMsg(err));
+								}
+							},
+						},
+					],
+				});
+				async function reloadGroups() {
+					groups = (await api("/api/catalog/products/attributes/groups/list/")).rows;
+					groupGrid.replaceData(groups);
+					const sel = document.querySelector('#attr-form [name="id_attribute_group"]');
+					const v = sel.value;
+					sel.querySelectorAll("option:not(:first-child)").forEach((o) => o.remove());
+					groups.forEach((g) => sel.add(new Option(g.name, g.id)));
+					sel.value = v;
+				}
+
+				const groupModal = new bootstrap.Modal("#group-modal");
+				const groupForm = document.getElementById("group-form");
+				async function openGroup(id) {
+					clearErrors(groupForm);
+					let row = { names: {} };
+					if (id) row = (await api(`/api/catalog/products/attributes/groups/${id}/get/`)).row;
+					fillBasic(groupForm, row);
+					fillNames(groupForm, row.names);
+					groupForm.querySelector('[name="id"]').value = id || "";
+					lockForm(groupForm, !id);
+					document.getElementById("group-title").textContent = id ? "<%= i18n.__('catalog.attributes.groups.edit') %>" : "<%= i18n.__('catalog.attributes.groups.add') %>";
+					groupModal.show();
+				}
+				groupForm.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					clearErrors(groupForm);
+					try {
+						const id = groupForm.querySelector('[name="id"]').value;
+						await api("/api/catalog/products/attributes/groups/save/", { id: id ? parseInt(id, 10) : null, data: { ...readBasic(groupForm), names: readNames(groupForm) } });
+						groupModal.hide();
+						notyf.success("<%= i18n.__('catalog.common.saved') %>");
+						reloadAll();
+					} catch (err) {
+						showErrors(groupForm, err.errors);
+						notyf.error(errMsg(err));
+					}
+				});
+				const addGroupBtn = document.getElementById("btn-add-group");
+				if (addGroupBtn) addGroupBtn.addEventListener("click", () => openGroup(null));
+
+				// ═══ ХАРАКТЕРИСТИКИ ════════════════════════════
+				let attributes = [];
+				const attrGrid = new Tabulator("#attr-grid", {
+					layout: "fitColumns",
+					placeholder: "—",
+					groupBy: (row) => row.group_name || "<%= i18n.__('catalog.attributes.groups.none') %>",
+					columns: [
+						{ title: "<%= i18n.__('catalog.attributes.f.name') %>", field: "name", formatter: (c) => esc(c.getValue()) + (c.getRow().getData().unit ? ` <span class="text-muted">(${esc(c.getRow().getData().unit)})</span>` : "") },
+						{ title: "<%= i18n.__('catalog.attributes.f.code') %>", field: "code", width: 180, formatter: (c) => esc(c.getValue()) },
+						{ title: "<%= i18n.__('catalog.attributes.f.type') %>", field: "type", width: 150, formatter: (c) => esc(TYPE_LABELS[c.getValue()] || c.getValue()) },
+						{ title: "<%= i18n.__('catalog.attributes.values.title') %>", field: "values_count", width: 100, hozAlign: "right" },
+						{ title: "<%= i18n.__('catalog.attributes.products') %>", field: "products", width: 100, hozAlign: "right" },
+						{ title: "<%= i18n.__('catalog.attributes.short.filter') %>", field: "is_filterable", width: 90, hozAlign: "center", formatter: yesNo },
+						{ title: "<%= i18n.__('catalog.attributes.short.axis') %>", field: "is_variant_axis", width: 90, hozAlign: "center", formatter: yesNo },
+						{ title: "<%= i18n.__('catalog.attributes.short.required') %>", field: "is_required", width: 90, hozAlign: "center", formatter: yesNo },
+						{ title: "", field: "_a", width: 60, hozAlign: "right", headerSort: false, formatter: () => `<button class="btn btn-sm btn-outline-${PERMS.edit ? "primary" : "secondary"} rounded-0"><i class="fa-solid fa-${PERMS.edit ? "pen" : "eye"}"></i></button>`, cellClick: (e, cell) => openAttribute(cell.getRow().getData().id).catch((err) => notyf.error(errMsg(err))) },
+					],
+				});
+				async function reloadAttributes() {
+					attributes = (await api("/api/catalog/products/attributes/list/")).rows;
+					attrGrid.replaceData(attributes);
+					applyAttrSearch();
+				}
+				function applyAttrSearch() {
+					const q = document.getElementById("attr-search").value.trim().toLowerCase();
+					if (!q) return attrGrid.clearFilter();
+					attrGrid.setFilter((row) => String(row.name).toLowerCase().includes(q) || String(row.code).toLowerCase().includes(q));
+				}
+				document.getElementById("attr-search").addEventListener("input", applyAttrSearch);
+
+				const attrModal = new bootstrap.Modal("#attr-modal");
+				const attrForm = document.getElementById("attr-form");
+				const valuesBody = document.getElementById("values-body");
+
+				function valueRow(v) {
+					const tr = document.createElement("tr");
+					tr.dataset.id = v.id || "";
+					tr.dataset.used = Number(v.products || 0);
+					tr.dataset.variants = Number(v.variants || 0);
+					let html = `<td><i class="fa-solid fa-grip-vertical val-handle"></i></td>`;
+					html += `<td><input class="form-control form-control-sm rounded-0" data-v="code" maxlength="64" value="${esc(v.code || "")}"></td>`;
+					html += `<td class="js-color-col"><input type="color" class="form-control form-control-sm form-control-color rounded-0 val-color" data-v="color_hex" value="${esc(v.color_hex || "#000000")}"></td>`;
+					LANGS.forEach((l) => (html += `<td><input class="form-control form-control-sm rounded-0" data-v="name" data-lang="${l}" maxlength="255" value="${esc(((v.names || {})[l] || {}).name || "")}"></td>`));
+					html += `<td class="text-end text-muted small">${Number(v.products || 0)}${Number(v.variants || 0) ? ` / <i class="fa-solid fa-layer-group" title="<%= i18n.__('catalog.attributes.values.in_variants') %>"></i> ${Number(v.variants)}` : ""}</td>`;
+					html += `<td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-val-del" ${Number(v.variants || 0) ? "disabled" : ""}><i class="fa-solid fa-xmark"></i></button></td>`;
+					tr.innerHTML = html;
+					return tr;
+				}
+				function readValues() {
+					return Array.from(valuesBody.querySelectorAll("tr")).map((tr) => {
+						const names = {};
+						tr.querySelectorAll('[data-v="name"]').forEach((el) => (names[el.dataset.lang] = { name: el.value }));
+						const code = tr.querySelector('[data-v="code"]').value.trim().toLowerCase();
+						return {
+							id: tr.dataset.id ? parseInt(tr.dataset.id, 10) : null,
+							code: code || null,
+							color_hex: attrForm.querySelector('[name="type"]').value === "color" ? tr.querySelector('[data-v="color_hex"]').value : null,
+							names,
+						};
+					});
+				}
+				function applyTypeUi() {
+					const type = attrForm.querySelector('[name="type"]').value;
+					document.getElementById("values-block").style.display = VALUE_TYPES.includes(type) ? "" : "none";
+					attrForm.querySelectorAll(".js-color-col").forEach((el) => (el.style.display = type === "color" ? "" : "none"));
+					attrForm.querySelectorAll(".js-only-axis").forEach((el) => (el.style.display = AXIS_TYPES.includes(type) ? "" : "none"));
+					attrForm.querySelectorAll(".js-only-text").forEach((el) => (el.style.display = TEXT_TYPES.includes(type) ? "" : "none"));
+					if (!AXIS_TYPES.includes(type)) attrForm.querySelector('[name="is_variant_axis"]').checked = false;
+				}
+				attrForm.querySelector('[name="type"]').addEventListener("change", applyTypeUi);
+
+				Sortable.create(valuesBody, { handle: ".val-handle", animation: 150 });
+				valuesBody.addEventListener("click", (e) => {
+					const del = e.target.closest(".js-val-del");
+					if (del) del.closest("tr").remove();
+				});
+				const addValueBtn = document.getElementById("btn-add-value");
+				if (addValueBtn)
+					addValueBtn.addEventListener("click", () => {
+						const tr = valueRow({});
+						valuesBody.appendChild(tr);
+						applyTypeUi();
+						tr.querySelector('[data-v="name"]').focus();
+					});
+
+				let loadedValueIds = new Set();
+				async function openAttribute(id) {
+					clearErrors(attrForm);
+					let row = { names: {}, values: [], type: "select" };
+					if (id) row = (await api(`/api/catalog/products/attributes/${id}/get/`)).row;
+					fillBasic(attrForm, row);
+					fillNames(attrForm, row.names);
+					attrForm.querySelector('[name="id"]').value = id || "";
+					valuesBody.innerHTML = "";
+					(row.values || []).forEach((v) => valuesBody.appendChild(valueRow(v)));
+					loadedValueIds = new Set((row.values || []).map((v) => v.id));
+					applyTypeUi();
+					lockForm(attrForm, !id);
+					const del = document.getElementById("btn-delete-attr");
+					if (del) del.style.display = id ? "" : "none";
+					const first = attrForm.querySelector('[data-bs-toggle="tab"]');
+					if (first) bootstrap.Tab.getOrCreateInstance(first).show();
+					document.getElementById("attr-title").textContent = id ? "<%= i18n.__('catalog.attributes.edit') %>: " + (((row.names || {})[PRIMARY_LANG] || {}).name || row.code) : "<%= i18n.__('catalog.attributes.add') %>";
+					attrModal.show();
+				}
+
+				async function saveAttribute(force) {
+					const id = attrForm.querySelector('[name="id"]').value;
+					return api("/api/catalog/products/attributes/save/", {
+						id: id ? parseInt(id, 10) : null,
+						force: !!force,
+						data: { ...readBasic(attrForm), names: readNames(attrForm), values: readValues() },
+					});
+				}
+				attrForm.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					clearErrors(attrForm);
+					const btn = attrForm.querySelector('[type="submit"]');
+					btn.disabled = true;
+					try {
+						try {
+							await saveAttribute(false);
+						} catch (err) {
+							if (err.code !== "values_in_use") throw err;
+							if (!PERMS.delete) throw { error: "<%= i18n.__('catalog.attributes.values.cannot_delete_used') %>" };
+							if (!confirm("<%= i18n.__('catalog.attributes.values.confirm_delete_used') %>".replace("%d", err.products))) return;
+							await saveAttribute(true);
+						}
+						attrModal.hide();
+						notyf.success("<%= i18n.__('catalog.common.saved') %>");
+						reloadAll();
+					} catch (err) {
+						showErrors(attrForm, err.errors);
+						notyf.error(errMsg(err));
+					} finally {
+						btn.disabled = false;
+					}
+				});
+
+				const delAttrBtn = document.getElementById("btn-delete-attr");
+				if (delAttrBtn)
+					delAttrBtn.addEventListener("click", async () => {
+						const id = parseInt(attrForm.querySelector('[name="id"]').value, 10);
+						const row = attributes.find((a) => a.id === id);
+						if (!row || !confirm("<%= i18n.__('catalog.attributes.confirm_delete') %>".replace("%s", row.name))) return;
+						try {
+							try {
+								await api(`/api/catalog/products/attributes/${id}/delete/`, { force: false });
+							} catch (err) {
+								if (err.code !== "attribute_in_use") throw err;
+								if (!confirm("<%= i18n.__('catalog.attributes.confirm_delete_used') %>".replace("%d", err.products))) return;
+								await api(`/api/catalog/products/attributes/${id}/delete/`, { force: true });
+							}
+							attrModal.hide();
+							notyf.success("<%= i18n.__('catalog.common.deleted') %>");
+							reloadAll();
+						} catch (err) {
+							notyf.error(errMsg(err));
+						}
+					});
+
+				const addAttrBtn = document.getElementById("btn-add-attr");
+				if (addAttrBtn) addAttrBtn.addEventListener("click", () => openAttribute(null).catch((err) => notyf.error(errMsg(err))));
+
+				// ═══ НАБОРИ ════════════════════════════════════
+				const setGrid = new Tabulator("#set-grid", {
+					layout: "fitColumns",
+					placeholder: "—",
+					columns: [
+						{ title: "<%= i18n.__('catalog.attributes.sets.name') %>", field: "name", formatter: (c) => esc(c.getValue()) + (c.getRow().getData().is_default ? ` <span class="badge text-bg-success"><%= i18n.__('catalog.attributes.sets.default') %></span>` : "") },
+						{ title: "<%= i18n.__('catalog.attributes.f.code') %>", field: "code", width: 180, formatter: (c) => esc(c.getValue()) },
+						{ title: "<%= i18n.__('catalog.attributes.tabs.attributes') %>", field: "attributes", width: 140, hozAlign: "right" },
+						{ title: "<%= i18n.__('catalog.attributes.products') %>", field: "products", width: 100, hozAlign: "right" },
+						{
+							title: "", field: "_a", width: 150, hozAlign: "right", headerSort: false,
+							formatter: (c) => {
+								const r = c.getRow().getData();
+								let html = `<button class="btn btn-sm btn-outline-${PERMS.edit ? "primary" : "secondary"} rounded-0 me-1" data-act="edit"><i class="fa-solid fa-${PERMS.edit ? "pen" : "eye"}"></i></button>`;
+								if (PERMS.edit && CAN_SETTINGS && !r.is_default) html += `<button class="btn btn-sm btn-outline-success rounded-0 me-1" data-act="default" title="<%= i18n.__('catalog.attributes.sets.make_default') %>"><i class="fa-solid fa-star"></i></button>`;
+								if (PERMS.delete) html += `<button class="btn btn-sm btn-outline-danger rounded-0" data-act="delete"><i class="fa-solid fa-trash"></i></button>`;
+								return html;
+							},
+							cellClick: async (e, cell) => {
+								const btn = e.target.closest("[data-act]");
+								if (!btn) return;
+								const r = cell.getRow().getData();
+								try {
+									if (btn.dataset.act === "edit") return await openSet(r.id);
+									if (btn.dataset.act === "default") {
+										await api(`/api/catalog/products/attributes/sets/${r.id}/default/`);
+										notyf.success("<%= i18n.__('catalog.common.saved') %>");
+										return reloadSets();
+									}
+									if (!confirm("<%= i18n.__('catalog.attributes.sets.confirm_delete') %>".replace("%s", r.name))) return;
+									await api(`/api/catalog/products/attributes/sets/${r.id}/delete/`);
+									notyf.success("<%= i18n.__('catalog.common.deleted') %>");
+									reloadSets();
+								} catch (err) {
+									notyf.error(errMsg(err));
+								}
+							},
+						},
+					],
+				});
+				async function reloadSets() {
+					setGrid.replaceData((await api("/api/catalog/products/attributes/sets/list/")).rows);
+				}
+
+				const setModal = new bootstrap.Modal("#set-modal");
+				const setForm = document.getElementById("set-form");
+				const setItems = document.getElementById("set-items");
+				const setSelect = document.getElementById("set-attr-select");
+				Sortable.create(setItems, { handle: ".set-handle", animation: 150 });
+
+				function setItemRow(idAttribute, isRequired) {
+					const a = attributes.find((x) => x.id === idAttribute);
+					if (!a) return null;
+					const li = document.createElement("li");
+					li.className = "list-group-item d-flex align-items-center gap-2 rounded-0";
+					li.dataset.id = idAttribute;
+					li.innerHTML =
+						`<i class="fa-solid fa-grip-vertical set-handle"></i>` +
+						`<span class="flex-grow-1">${esc(a.name)} <span class="text-muted small">${esc(a.code)}</span></span>` +
+						`<div class="form-check form-switch mb-0"><input class="form-check-input js-req" type="checkbox" ${isRequired ? "checked" : ""}><label class="form-check-label small"><%= i18n.__('catalog.attributes.f.is_required') %></label></div>` +
+						`<button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-item-del"><i class="fa-solid fa-xmark"></i></button>`;
+					return li;
+				}
+				function refreshSetSelect() {
+					const used = new Set(Array.from(setItems.children).map((li) => parseInt(li.dataset.id, 10)));
+					setSelect.innerHTML = "";
+					attributes.filter((a) => !used.has(a.id)).forEach((a) => setSelect.add(new Option(`${a.group_name ? a.group_name + " → " : ""}${a.name}`, a.id)));
+				}
+				setItems.addEventListener("click", (e) => {
+					if (e.target.closest(".js-item-del")) {
+						e.target.closest("li").remove();
+						refreshSetSelect();
+					}
+				});
+				document.getElementById("btn-set-add-item").addEventListener("click", () => {
+					const id = parseInt(setSelect.value, 10);
+					if (!id) return;
+					const li = setItemRow(id, false);
+					if (li) setItems.appendChild(li);
+					refreshSetSelect();
+				});
+
+				async function openSet(id) {
+					clearErrors(setForm);
+					let row = { items: [] };
+					if (id) row = (await api(`/api/catalog/products/attributes/sets/${id}/get/`)).row;
+					fillBasic(setForm, row);
+					setForm.querySelector('[name="id"]').value = id || "";
+					setItems.innerHTML = "";
+					row.items.forEach((it) => {
+						const li = setItemRow(it.id_attribute, !!Number(it.is_required));
+						if (li) setItems.appendChild(li);
+					});
+					refreshSetSelect();
+					lockForm(setForm, !id);
+					document.getElementById("set-title").textContent = id ? "<%= i18n.__('catalog.attributes.sets.edit') %>: " + row.name : "<%= i18n.__('catalog.attributes.sets.add') %>";
+					setModal.show();
+				}
+				setForm.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					clearErrors(setForm);
+					try {
+						const id = setForm.querySelector('[name="id"]').value;
+						const items = Array.from(setItems.children).map((li) => ({ id_attribute: parseInt(li.dataset.id, 10), is_required: li.querySelector(".js-req").checked }));
+						await api("/api/catalog/products/attributes/sets/save/", { id: id ? parseInt(id, 10) : null, data: { ...readBasic(setForm), items } });
+						setModal.hide();
+						notyf.success("<%= i18n.__('catalog.common.saved') %>");
+						reloadSets();
+					} catch (err) {
+						showErrors(setForm, err.errors);
+						notyf.error(errMsg(err));
+					}
+				});
+				const addSetBtn = document.getElementById("btn-add-set");
+				if (addSetBtn) addSetBtn.addEventListener("click", () => openSet(null).catch((err) => notyf.error(errMsg(err))));
+
+				// ═══ СТАРТ ═════════════════════════════════════
+				function reloadAll() {
+					return Promise.all([reloadGroups(), reloadAttributes(), reloadSets()]).catch((err) => notyf.error(errMsg(err)));
+				}
+				document.querySelectorAll('button[data-bs-toggle="tab"]').forEach((b) =>
+					b.addEventListener("shown.bs.tab", () => [attrGrid, groupGrid, setGrid].forEach((g) => g.redraw(true)))
+				);
+				reloadAll();
+			})();
+		</script>
+	</body>
+</html>

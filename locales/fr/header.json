@@ -1,0 +1,46 @@
+{
+    "header": {
+        "menu": {
+            "profile": "Profile",
+            "security": "Security",
+            "logout": "Logout"
+        },
+        "nav": {
+            "home": "Home",
+            "contact_center": "Contact Center",
+            "contact_center_telegram_settings": "Settings telegram",
+            "orders": "Orders",
+            "orders_status": "Orders status",
+            "clients": "Clients",
+            "settings": "Settings",
+            "integrations": "Інтеграції",
+            "tokens": "Tokens",
+            "abandoned_cart": "Abandoned cart",
+            "events": "Events",
+            "catalog": "Catalog",
+            "localization": "Localization",
+            "currencies": "Currencies",
+            "languages": "Languages",
+            "site_support": "Site Support",
+            "technical_site_audit": "Technical site audit",
+            "site_administration": "Site administration",
+            "site_optimization": "Site optimization",
+            "content_management": "Content Management",
+            "site_content_filling": "Site content filling",
+            "copywriting": "Copywriting",
+            "internet_marketing": "Internet Marketing",
+            "internet_presence": "Internet presence",
+            "email_marketing": "Email marketing",
+            "customers": "Customers",
+            "leads": "Leads",
+            "deals": "Deals",
+            "users": "Users",
+            "groups": "Groups",
+            "permissions": "Permissions",
+            "faq": "FAQ",
+            "integration": "Integration",
+            "email": "Email",
+            "test": "Test"
+        }
+    }
+}

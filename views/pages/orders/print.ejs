@@ -1,0 +1,119 @@
+<%
+  const t = (k) => i18n.__('orders.print.' + k);
+  const S = doc.seller;
+  const isInvoice = doc.type === 'invoice';
+  const money = (v) => Number(v || 0).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const qty = (v) => Number(v || 0).toLocaleString('uk-UA', { maximumFractionDigits: 3 });
+  const day = (d) => d.toLocaleDateString('uk-UA');
+  const title = (isInvoice ? t('invoice') : t('delivery')) + ' № ' + doc.number;
+%>
+<!doctype html>
+<html lang="uk">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title><%= title %></title>
+		<style>
+			* { box-sizing: border-box; }
+			body { font: 13px/1.4 Arial, Helvetica, sans-serif; color: #000; margin: 0; padding: 24px; background: #fff; }
+			.page { max-width: 800px; margin: 0 auto; }
+			h1 { font-size: 18px; margin: 16px 0 4px; }
+			.muted { color: #555; }
+			.req { display: grid; grid-template-columns: 140px 1fr; gap: 2px 12px; margin: 12px 0; }
+			.req b { font-weight: 600; }
+			table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+			th, td { border: 1px solid #000; padding: 4px 6px; vertical-align: top; }
+			th { background: #f0f0f0; font-weight: 600; }
+			.r { text-align: right; white-space: nowrap; }
+			.c { text-align: center; }
+			.totals { margin-top: 8px; margin-left: auto; width: 320px; }
+			.totals div { display: flex; justify-content: space-between; padding: 2px 0; }
+			.totals .big { font-weight: 700; font-size: 15px; border-top: 1px solid #000; margin-top: 4px; padding-top: 4px; }
+			.words { margin-top: 10px; }
+			.sign { display: flex; justify-content: space-between; gap: 32px; margin-top: 40px; }
+			.sign div { flex: 1; border-top: 1px solid #000; padding-top: 4px; }
+			.note { margin-top: 16px; font-size: 12px; }
+			.toolbar { max-width: 800px; margin: 0 auto 12px; display: flex; gap: 8px; }
+			.toolbar button, .toolbar a { font: inherit; padding: 6px 14px; border: 1px solid #333; background: #fff; color: #000; cursor: pointer; text-decoration: none; }
+			@media print { .toolbar { display: none; } body { padding: 0; } }
+		</style>
+	</head>
+	<body>
+		<div class="toolbar">
+			<button type="button" id="do-print"><%= t('print') %></button>
+			<a href="/orders/<%= doc.order.id %>/print/<%= isInvoice ? 'delivery' : 'invoice' %>/"><%= isInvoice ? t('delivery') : t('invoice') %></a>
+			<a href="/orders/<%= doc.order.id %>/"><%= t('back') %></a>
+		</div>
+		<div class="page">
+			<% if (!S.seller_name) { %><p class="muted"><%= t('no_seller') %></p><% } %>
+			<h1><%= title %></h1>
+			<div class="muted"><%= t('from') %> <%= day(doc.date) %><% if (isInvoice && doc.valid) { %> · <%= t('valid_to') %> <%= day(doc.valid) %><% } %></div>
+
+			<div class="req">
+				<b><%= isInvoice ? t('seller') : t('supplier') %>:</b>
+				<div>
+					<%= S.seller_name %><% if (S.seller_code) { %>, <%= t('code') %> <%= S.seller_code %><% } %>
+					<% if (S.seller_address) { %><br /><%= S.seller_address %><% } %>
+					<% if (S.seller_phone) { %><br /><%= t('phone') %> <%= S.seller_phone %><% } %>
+					<% if (isInvoice && S.seller_iban) { %><br /><%= t('iban') %> <%= S.seller_iban %><% if (S.seller_bank) { %>, <%= S.seller_bank %><% } %><% } %>
+					<br /><%= S.vat_payer ? t('vat_payer') : t('no_vat_payer') %>
+				</div>
+				<b><%= isInvoice ? t('buyer') : t('receiver') %>:</b>
+				<div>
+					<%= doc.buyer.name %>
+					<% if (doc.buyer.phone) { %><br /><%= t('phone') %> <%= doc.buyer.phone %><% } %>
+					<% if (doc.buyer.email) { %><br /><%= doc.buyer.email %><% } %>
+					<% if (!isInvoice && doc.buyer.address) { %><br /><%= doc.buyer.address %><% } %>
+				</div>
+				<b><%= t('order') %>:</b>
+				<div><%= doc.order.reference %><% if (doc.order.external_number) { %> (<%= doc.order.external_number %>)<% } %><% if (doc.order.payment_name) { %> · <%= doc.order.payment_name %><% } %><% if (doc.order.delivery_name) { %> · <%= doc.order.delivery_name %><% } %></div>
+			</div>
+
+			<table>
+				<thead>
+					<tr>
+						<th class="c">№</th>
+						<th><%= t('item') %></th>
+						<th><%= t('sku') %></th>
+						<th class="r"><%= t('qty') %></th>
+						<th class="r"><%= t('price') %>, <%= doc.currency %></th>
+						<th class="r"><%= t('sum') %>, <%= doc.currency %></th>
+					</tr>
+				</thead>
+				<tbody>
+					<% doc.lines.forEach((l) => { %>
+					<tr>
+						<td class="c"><%= l.n %></td>
+						<td><%= l.name %></td>
+						<td><%= l.sku || '' %></td>
+						<td class="r"><%= qty(l.qty) %></td>
+						<td class="r"><%= money(l.price) %></td>
+						<td class="r"><%= money(l.total) %></td>
+					</tr>
+					<% }) %>
+				</tbody>
+			</table>
+
+			<div class="totals">
+				<% if (doc.discount > 0) { %><div><span><%= t('discount') %></span><span>−<%= money(doc.discount) %></span></div><% } %>
+				<div class="big"><span><%= t('total') %></span><span><%= money(doc.total) %> <%= doc.currency %></span></div>
+				<div><span><%= S.vat_payer ? t('incl_vat') : t('without_vat') %></span><span><%= S.vat_payer ? money(doc.tax) : '' %></span></div>
+			</div>
+
+			<div class="words">
+				<%= t('lines_total').replace('%n', doc.lines.length).replace('%s', money(doc.total) + ' ' + doc.currency) %>
+				<% if (doc.words) { %><br /><b><%= doc.words %></b><% } %>
+			</div>
+
+			<% if (isInvoice && S.invoice_note) { %><div class="note"><%= S.invoice_note %></div><% } %>
+
+			<div class="sign">
+				<div><%= isInvoice ? t('issued') : t('released') %><% if (S.signer) { %>: <%= S.signer %><% } %></div>
+				<% if (!isInvoice) { %><div><%= t('received') %></div><% } %>
+			</div>
+		</div>
+		<script>
+			document.getElementById("do-print").addEventListener("click", () => window.print());
+		</script>
+	</body>
+</html>

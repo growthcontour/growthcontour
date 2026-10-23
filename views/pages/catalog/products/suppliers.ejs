@@ -1,0 +1,226 @@
+<% const t = (k) => i18n.__('catalog.suppliers.' + k); const c = (k) => i18n.__('catalog.common.' + k); %>
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= t('title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="/assets/css/tabulator/tabulator_bootstrap5.min.css" />
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= c('home') %></a></li>
+					<li class="breadcrumb-item"><%= i18n.__('catalog.menu.catalog') %></li>
+					<li class="breadcrumb-item active"><%= t('title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+					<h1 class="h4 mb-0"><%= t('title') %></h1>
+					<div class="d-flex gap-2">
+						<input type="search" class="form-control rounded-0" id="search" placeholder="<%= c('search') %>" style="width:260px">
+						<select class="form-select rounded-0" id="filter-status" style="width:160px">
+							<option value=""><%= c('all') %></option>
+							<option value="1"><%= c('active') %></option>
+							<option value="0"><%= c('inactive') %></option>
+						</select>
+						<% if (perms.add) { %><button class="btn btn-primary rounded-0 text-nowrap" id="btn-add"><i class="fa-solid fa-plus"></i> <%= t('add') %></button><% } %>
+					</div>
+				</div>
+				<div id="grid"></div>
+			</div>
+		</main>
+
+		<div class="modal fade" id="sup-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-lg modal-dialog-scrollable">
+				<form class="modal-content rounded-0" id="sup-form" novalidate>
+					<div class="modal-header">
+						<h5 class="modal-title" id="sup-title"></h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= c('close') %>"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" name="id">
+						<div class="row g-3">
+							<div class="col-md-8" data-field="name"><label class="form-label"><%= t('f.name') %> *</label><input class="form-control rounded-0" name="name" maxlength="255" required><div class="invalid-feedback"></div></div>
+							<div class="col-md-4" data-field="code"><label class="form-label"><%= t('f.code') %></label><input class="form-control rounded-0 text-uppercase" name="code" maxlength="64"><div class="invalid-feedback"></div></div>
+							<div class="col-md-4" data-field="tax_number"><label class="form-label"><%= t('f.tax_number') %></label><input class="form-control rounded-0" name="tax_number" maxlength="64"><div class="invalid-feedback"></div></div>
+							<div class="col-md-8" data-field="contact_person"><label class="form-label"><%= t('f.contact_person') %></label><input class="form-control rounded-0" name="contact_person" maxlength="255"><div class="invalid-feedback"></div></div>
+							<div class="col-md-4" data-field="email"><label class="form-label"><%= t('f.email') %></label><input class="form-control rounded-0" type="email" name="email" maxlength="255"><div class="invalid-feedback"></div></div>
+							<div class="col-md-4" data-field="phone"><label class="form-label"><%= t('f.phone') %></label><input class="form-control rounded-0" type="tel" name="phone" maxlength="32"><div class="invalid-feedback"></div></div>
+							<div class="col-md-4" data-field="website"><label class="form-label"><%= t('f.website') %></label><input class="form-control rounded-0" type="url" name="website" maxlength="255" placeholder="https://"><div class="invalid-feedback"></div></div>
+							<div class="col-md-12" data-field="address"><label class="form-label"><%= t('f.address') %></label><input class="form-control rounded-0" name="address" maxlength="512"><div class="invalid-feedback"></div></div>
+							<div class="col-md-3" data-field="country"><label class="form-label"><%= t('f.country') %></label><input class="form-control rounded-0 text-uppercase" name="country" maxlength="2" placeholder="UA"><div class="invalid-feedback"></div></div>
+							<div class="col-md-3" data-field="currency"><label class="form-label"><%= t('f.currency') %></label><input class="form-control rounded-0 text-uppercase" name="currency" maxlength="3" placeholder="UAH"><div class="invalid-feedback"></div></div>
+							<div class="col-md-3" data-field="lead_time_days"><label class="form-label"><%= t('f.lead_time_days') %></label><input class="form-control rounded-0" type="number" min="0" name="lead_time_days" data-type="intnull"><div class="invalid-feedback"></div></div>
+							<div class="col-md-3 pt-md-4" data-field="status"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="status" data-type="bool" id="sup-status" checked><label class="form-check-label" for="sup-status"><%= t('f.status') %></label></div></div>
+							<div class="col-md-12" data-field="note"><label class="form-label"><%= t('f.note') %></label><textarea class="form-control rounded-0" name="note" rows="3" maxlength="5000"></textarea><div class="invalid-feedback"></div></div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= c('cancel') %></button>
+						<% if (perms.add || perms.edit) { %><button type="submit" class="btn btn-primary rounded-0"><%= c('save') %></button><% } %>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script type="application/json" id="page-data"><%- JSON.stringify({
+			perms,
+			i18n: {
+				add: t('add'), edit: t('edit'), confirm_delete: t('confirm_delete'),
+				saved: c('saved'), deleted: c('deleted'), error: c('error'),
+				col: { code: t('f.code'), name: t('f.name'), contact: t('f.contact_person'), email: t('f.email'), phone: t('f.phone'),
+				       country: t('f.country'), lead: t('f.lead_time_days'), products: t('products_count'), status: t('f.status') },
+			},
+		}).replace(/</g, '\\u003c') %></script>
+		<script>
+		(function () {
+			"use strict";
+			const D = JSON.parse(document.getElementById("page-data").textContent);
+			const L = D.i18n;
+			const notyf = new Notyf({ duration: 3000, position: { x: "right", y: "top" } });
+			const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+
+			async function api(url, body) {
+				const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+				const json = await res.json().catch(() => ({}));
+				if (!res.ok || json.ok === false) throw json;
+				return json;
+			}
+
+			const yesNo = (cell) => (Number(cell.getValue()) ? `<i class="fa-solid fa-check text-success"></i>` : `<i class="fa-solid fa-xmark text-muted"></i>`);
+			const filters = () => ({ search: document.getElementById("search").value.trim(), status: document.getElementById("filter-status").value });
+
+			const grid = new Tabulator("#grid", {
+				layout: "fitColumns",
+				placeholder: "—",
+				pagination: true,
+				paginationMode: "remote",
+				paginationSize: 50,
+				paginationSizeSelector: [25, 50, 100, 200],
+				sortMode: "remote",
+				ajaxURL: "/api/catalog/products/suppliers/list/",
+				ajaxConfig: { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" } },
+				ajaxContentType: "json",
+				ajaxParams: filters,
+				columns: [
+					{ title: L.col.name, field: "name", formatter: (c) => esc(c.getValue()) },
+					{ title: L.col.code, field: "code", width: 120, formatter: (c) => esc(c.getValue()) },
+					{ title: L.col.contact, field: "contact_person", headerSort: false, formatter: (c) => esc(c.getValue()) },
+					{ title: L.col.email, field: "email", headerSort: false, formatter: (c) => (c.getValue() ? `<a href="mailto:${esc(c.getValue())}">${esc(c.getValue())}</a>` : "") },
+					{ title: L.col.phone, field: "phone", width: 150, headerSort: false, formatter: (c) => (c.getValue() ? `<a href="tel:${esc(c.getValue())}">${esc(c.getValue())}</a>` : "") },
+					{ title: L.col.country, field: "country", width: 90 },
+					{ title: L.col.lead, field: "lead_time_days", width: 110, hozAlign: "right" },
+					{ title: L.col.products, field: "products_count", width: 100, hozAlign: "right", headerSort: false },
+					{ title: L.col.status, field: "status", width: 90, hozAlign: "center", formatter: yesNo },
+					{
+						title: "", field: "_a", width: 100, hozAlign: "right", headerSort: false,
+						formatter: () =>
+							(D.perms.edit ? `<button class="btn btn-sm btn-outline-primary rounded-0 me-1" data-act="edit"><i class="fa-solid fa-pen"></i></button>` : `<button class="btn btn-sm btn-outline-secondary rounded-0 me-1" data-act="edit"><i class="fa-solid fa-eye"></i></button>`) +
+							(D.perms.delete ? `<button class="btn btn-sm btn-outline-danger rounded-0" data-act="delete"><i class="fa-solid fa-trash"></i></button>` : ""),
+						cellClick: (e, cell) => onAction(e, cell.getRow().getData()),
+					},
+				],
+			});
+
+			let searchTimer;
+			document.getElementById("search").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => grid.setData(), 300); });
+			document.getElementById("filter-status").addEventListener("change", () => grid.setData());
+
+			// ── Модалка ────────────────────────────────────────
+			const modal = new bootstrap.Modal("#sup-modal");
+			const form = document.getElementById("sup-form");
+
+			function clearErrors() {
+				form.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+				form.querySelectorAll(".invalid-feedback").forEach((el) => (el.textContent = ""));
+			}
+			function showErrors(errors) {
+				(errors || []).forEach((e) => {
+					const box = form.querySelector(`[data-field="${CSS.escape(e.field || "")}"]`);
+					if (!box) return;
+					const input = box.querySelector("[name]");
+					if (input) input.classList.add("is-invalid");
+					const fb = box.querySelector(".invalid-feedback");
+					if (fb) { fb.textContent = e.message; fb.style.display = "block"; }
+				});
+			}
+			function readForm() {
+				const out = {};
+				form.querySelectorAll("[name]").forEach((el) => {
+					if (el.name === "id") return;
+					if (el.dataset.type === "bool") out[el.name] = el.checked;
+					else if (el.dataset.type === "intnull") out[el.name] = el.value === "" ? null : parseInt(el.value, 10);
+					else out[el.name] = el.value.trim();
+				});
+				return out;
+			}
+
+			async function open(id) {
+				clearErrors();
+				form.reset();
+				let row = {};
+				if (id) row = (await api(`/api/catalog/products/suppliers/${id}/get/`)).row;
+				form.querySelectorAll("[name]").forEach((el) => {
+					const v = row[el.name];
+					if (el.dataset.type === "bool") el.checked = v === undefined ? true : !!Number(v);
+					else el.value = v == null ? "" : v;
+				});
+				form.querySelector('[name="id"]').value = id || "";
+				form.querySelectorAll("input,textarea,select").forEach((el) => (el.disabled = !!id && !D.perms.edit));
+				document.getElementById("sup-title").textContent = id ? `${L.edit}: ${row.name}` : L.add;
+				modal.show();
+			}
+
+			form.addEventListener("submit", async (e) => {
+				e.preventDefault();
+				clearErrors();
+				const btn = form.querySelector('[type="submit"]');
+				btn.disabled = true;
+				try {
+					const id = form.querySelector('[name="id"]').value;
+					await api("/api/catalog/products/suppliers/save/", { id: id ? parseInt(id, 10) : null, data: readForm() });
+					modal.hide();
+					notyf.success(L.saved);
+					grid.setData();
+				} catch (err) {
+					showErrors(err.errors);
+					notyf.error(err.error || L.error);
+				} finally {
+					btn.disabled = false;
+				}
+			});
+
+			const addBtn = document.getElementById("btn-add");
+			if (addBtn) addBtn.addEventListener("click", () => open(null));
+
+			async function onAction(e, row) {
+				const btn = e.target.closest("[data-act]");
+				if (!btn) return;
+				try {
+					if (btn.dataset.act === "edit") return await open(row.id);
+					if (btn.dataset.act === "delete") {
+						if (!confirm(L.confirm_delete.replace("%s", row.name))) return;
+						await api(`/api/catalog/products/suppliers/${row.id}/delete/`);
+						notyf.success(L.deleted);
+						grid.setData();
+					}
+				} catch (err) {
+					notyf.error(err.error || L.error);
+				}
+			}
+		})();
+		</script>
+	</body>
+</html>

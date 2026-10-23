@@ -1,0 +1,1769 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.section-title {
+				font-size: 11px;
+				font-weight: 700;
+				text-transform: uppercase;
+				color: #6c757d;
+				letter-spacing: 0.5px;
+				margin-bottom: 4px;
+			}
+			.cl-list li {
+				padding: 6px 0;
+				border-bottom: 1px dashed #e9ecef;
+			}
+			.cl-list li:last-child {
+				border-bottom: none;
+			}
+			.cl-ico {
+				width: 26px;
+				height: 26px;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				color: #fff;
+				font-size: 12px;
+				flex: none;
+			}
+			.stat-box {
+				border: 1px solid #dee2e6;
+				padding: 12px;
+				height: 100%;
+			}
+			.stat-box .v {
+				font-size: 20px;
+				font-weight: 700;
+			}
+			.tl-item {
+				display: flex;
+				gap: 12px;
+				padding: 10px 0;
+				border-bottom: 1px solid #f1f3f5;
+			}
+			.tl-item:last-child {
+				border-bottom: none;
+			}
+			.tl-icon {
+				width: 34px;
+				height: 34px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: #fff;
+				flex: none;
+			}
+			.tl-body {
+				flex: 1;
+				min-width: 0;
+			}
+			.tl-sub {
+				font-size: 12px;
+				color: #6c757d;
+			}
+			.tl-text {
+				font-size: 13px;
+				color: #495057;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+		</style>
+	</head>
+
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+		<%
+			const d = data;
+			const c = d.client;
+			const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (x) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[x]);
+			const col = (v, def) => (v ? (v[0] === "#" ? v : "#" + v) : def);
+			const badge = (text, ct, cb, icon) =>
+				'<span class="badge rounded-0 me-1" style="color:' + col(ct, "#fff") + ";background:" + col(cb, "#6c757d") + '">' + (icon ? '<i class="' + esc(icon) + ' me-1"></i>' : "") + esc(text || "—") + "</span>";
+			const KIND = { person: ["fa-solid fa-user", "Людина"], organization: ["fa-solid fa-building", "Організація"], group: ["fa-solid fa-users", "Група"] };
+			const STATUS = { active: ["success", "Активний"], blocked: ["danger", "Заблокований"], archived: ["secondary", "Архів"] };
+			const GENDER = { male: "Чоловіча", female: "Жіноча", other: "Інша" };
+			const LABEL = { personal: "особистий", work: "робочий", other: "інший" };
+			const fmtDate = (v) => {
+				if (!v) return "";
+				const x = new Date(v);
+				return String(x.getDate()).padStart(2, "0") + "." + String(x.getMonth() + 1).padStart(2, "0") + "." + x.getFullYear();
+			};
+			const money = (v) => Number(v || 0).toFixed(2) + " " + d.base_currency;
+			const st = d.stats || {};
+		%>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= c.display_name || "Без імені" %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/clients/"><%= i18n.__('header.nav.clients') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> #<%= c.id %></li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto d-flex gap-2">
+						<% if (can('clients.list', 'delete')) { %>
+						<button type="button" class="btn btn-outline-danger rounded-0" id="cl-delete" title="Видалити в кошик"><i class="fa-solid fa-trash"></i></button>
+						<script>
+							document.getElementById("cl-delete").addEventListener("click", async function () {
+								if (!confirm("Видалити клієнта? Його можна буде відновити з кошика протягом 30 днів.")) return;
+								this.disabled = true;
+								const r = await fetch("/api/clients/<%= c.id %>/delete/", { method: "POST" });
+								const j = await r.json().catch(() => ({}));
+								if (r.ok && j.ok !== false) location.href = "/clients/";
+								else {
+									alert(j.error || "Помилка видалення");
+									this.disabled = false;
+								}
+							});
+						</script>
+						<% } %>
+						<a href="/clients/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3">
+			<% if (d.merged_from) { %>
+			<div class="alert alert-info rounded-0"><i class="fa-solid fa-code-merge me-1"></i> Клієнта #<%= d.merged_from %> було злито з цим записом, тому вас переведено сюди.</div>
+			<% } %>
+			<% if (d.just_merged) { %>
+			<div class="alert alert-success rounded-0 d-flex justify-content-between align-items-center">
+				<span><i class="fa-solid fa-circle-check me-1"></i> Клієнтів злито.</span>
+				<button type="button" class="btn btn-sm btn-outline-danger rounded-0" data-revert-merge="<%= d.just_merged %>"><i class="fa-solid fa-rotate-left me-1"></i>Скасувати злиття</button>
+			</div>
+			<% } %>
+
+			<% if (d.duplicates.length) { %>
+			<div class="alert alert-warning rounded-0">
+				<i class="fa-solid fa-triangle-exclamation me-1"></i> <strong>Можливі дублі:</strong>
+				<% d.duplicates.forEach(function (x) { %>
+				<a href="/clients/<%= x.other_id %>/" class="ms-2"><%= x.other_name || ('#' + x.other_id) %></a>
+				<span class="badge text-bg-warning rounded-0"><%= x.score %>%</span>
+				<a href="/clients/merge/?a=<%= c.id %>&b=<%= x.other_id %>" class="btn btn-sm btn-outline-dark rounded-0 py-0 ms-1"><i class="fa-solid fa-code-compare me-1"></i>Порівняти</a>
+				<% }) %>
+			</div>
+			<% } %>
+
+			<div class="row">
+				<!-- ═══ ЛІВА КОЛОНКА ═══ -->
+				<div class="col-lg-4">
+					<!-- Профіль -->
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+							<span>Профіль</span>
+							<button type="button" class="btn btn-sm btn-light rounded-0" data-cl="edit-profile"><i class="fa-solid fa-pen"></i></button>
+						</div>
+						<div class="card-body">
+							<div class="d-flex align-items-center gap-2 mb-2">
+								<span class="cl-ico" style="width: 42px; height: 42px; font-size: 18px; background: <%= col(d.lifecycle && d.lifecycle.color_background, '#6c757d') %>"><i class="<%= (KIND[c.kind] || KIND.person)[0] %>"></i></span>
+								<div>
+									<h5 class="mb-0"><%= c.display_name || "Без імені" %></h5>
+									<div class="tl-sub"><%= (KIND[c.kind] || KIND.person)[1] %> · #<%= c.id %></div>
+								</div>
+							</div>
+
+							<div class="mb-2">
+								<% if (d.lifecycle) { %><%- badge(d.lifecycle.name, d.lifecycle.color_text, d.lifecycle.color_background, d.lifecycle.icon) %><% } %>
+								<% if (d.legal_type) { %><%- badge(d.legal_type.short_name || d.legal_type.name, d.legal_type.color_text, d.legal_type.color_background, d.legal_type.icon) %><% } %>
+								<% if (c.status !== 'active') { %><span class="badge rounded-0 text-bg-<%= (STATUS[c.status] || STATUS.active)[0] %>"><%= (STATUS[c.status] || STATUS.active)[1] %></span><% } %>
+								<% d.roles.forEach(function (r) { %><%- badge(r.name, r.color_text, r.color_background, r.icon) %><% }) %>
+							</div>
+							<% if (d.tags.length) { %>
+							<div class="mb-2"><% d.tags.forEach(function (t) { %><%- badge(t.name, t.color_text, t.color_background, t.icon) %><% }) %></div>
+							<% } %>
+
+							<dl class="row small mb-0">
+								<% if (d.person) { const p = d.person; %>
+									<% if (p.last_name || p.first_name || p.middle_name) { %><dt class="col-5">ПІБ</dt><dd class="col-7"><%= [p.last_name, p.first_name, p.middle_name].filter(Boolean).join(" ") %></dd><% } %>
+									<% if (p.trade_name) { %><dt class="col-5">Торгова назва</dt><dd class="col-7"><%= p.trade_name %></dd><% } %>
+									<% if (p.job_title) { %><dt class="col-5">Посада</dt><dd class="col-7"><%= p.job_title %></dd><% } %>
+									<% if (GENDER[p.gender]) { %><dt class="col-5">Стать</dt><dd class="col-7"><%= GENDER[p.gender] %></dd><% } %>
+									<% if (p.birth_date) { %><dt class="col-5">Дата народження</dt><dd class="col-7"><%= fmtDate(p.birth_date) %></dd><% } %>
+								<% } %>
+								<% if (d.organization) { const o = d.organization; %>
+									<% if (o.legal_name) { %><dt class="col-5">Юр. назва</dt><dd class="col-7"><%= o.legal_name %></dd><% } %>
+									<% if (o.industry) { %><dt class="col-5">Галузь</dt><dd class="col-7"><%= o.industry %></dd><% } %>
+									<% if (o.employees_count) { %><dt class="col-5">Працівників</dt><dd class="col-7"><%= o.employees_count %></dd><% } %>
+									<% if (o.website) { %><dt class="col-5">Сайт</dt><dd class="col-7"><a href="<%= /^https?:/i.test(o.website) ? o.website : 'https://' + o.website %>" target="_blank" rel="noopener"><%= o.website %></a></dd><% } %>
+								<% } %>
+								<% if (c.country) { %><dt class="col-5">Країна</dt><dd class="col-7"><%= c.country %></dd><% } %>
+								<% if (c.timezone) { %><dt class="col-5">Часовий пояс</dt><dd class="col-7"><%= c.timezone %></dd><% } %>
+								<% if (c.lang_name) { %><dt class="col-5">Мова</dt><dd class="col-7"><%= c.lang_name %></dd><% } %>
+								<dt class="col-5">Менеджер</dt><dd class="col-7"><%= c.manager_name || "—" %></dd>
+								<dt class="col-5">Джерело</dt><dd class="col-7"><%= c.source %></dd>
+								<% if (c.date_first_contact_text) { %><dt class="col-5">Перший контакт</dt><dd class="col-7"><%= c.date_first_contact_text %></dd><% } %>
+								<dt class="col-5">Остання активність</dt><dd class="col-7"><%= c.date_last_activity_text || "—" %></dd>
+							</dl>
+
+							<% if (c.note) { %>
+							<hr class="my-2" />
+							<div class="section-title">Нотатка</div>
+							<div class="small" style="white-space: pre-wrap"><%= c.note %></div>
+							<% } %>
+						</div>
+					</div>
+
+					<!-- Контакти -->
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+							<span>Контакти</span>
+							<button type="button" class="btn btn-sm btn-light rounded-0" data-cl="add-contact"><i class="fa-solid fa-plus"></i></button>
+						</div>
+						<div class="card-body py-2">
+							<% if (!d.contacts.length) { %><div class="text-muted small py-2">Контактів немає</div><% } %>
+							<ul class="list-unstyled cl-list mb-0">
+								<% d.contacts.forEach(function (x) { %>
+								<li class="d-flex align-items-center gap-2" data-cp="<%= x.id %>" data-type="<%= x.id_contact_type %>" data-value="<%= x.value %>" data-label="<%= x.label %>" data-consent="<%= x.marketing_consent ? 1 : 0 %>">
+									<span class="cl-ico" style="background: <%= col(x.type.color_background, '#6c757d') %>"><i class="<%= x.type.icon || 'fa-solid fa-address-book' %>"></i></span>
+									<div class="flex-grow-1" style="min-width: 0">
+										<% if (x.url) { %><a href="<%= x.url %>" target="_blank" rel="noopener"><%= x.value_normalized %></a><% } else { %><%= x.value_normalized %><% } %>
+										<% if (x.is_primary) { %><i class="fa-solid fa-star text-warning ms-1" title="Основний"></i><% } %>
+										<% if (!x.is_valid) { %><i class="fa-solid fa-circle-exclamation text-danger ms-1" title="Не пройшов перевірку формату"></i><% } %>
+										<% if (x.marketing_consent) { %><i class="fa-solid fa-bullhorn text-success ms-1" title="Згода на розсилки"></i><% } %>
+										<div class="tl-sub"><%= x.type.name || x.type.code %> · <%= LABEL[x.label] || x.label %><% if (x.country) { %> · <%= x.country %><% } %></div>
+									</div>
+									<div class="btn-group btn-group-sm">
+										<% if (!x.is_primary) { %><button type="button" class="btn btn-link text-warning p-1" data-cl="primary-contact" title="Зробити основним"><i class="fa-regular fa-star"></i></button><% } %>
+										<button type="button" class="btn btn-link text-primary p-1" data-cl="edit-contact" title="Змінити"><i class="fa-solid fa-pen"></i></button>
+										<button type="button" class="btn btn-link text-danger p-1" data-cl="delete-contact" title="Видалити"><i class="fa-regular fa-trash-can"></i></button>
+									</div>
+								</li>
+								<% }) %>
+							</ul>
+						</div>
+					</div>
+
+										<!-- Адреси -->
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+							<span>Адреси</span>
+							<button type="button" class="btn btn-sm btn-light rounded-0" data-cl2="add-address"><i class="fa-solid fa-plus"></i></button>
+						</div>
+						<div class="card-body py-2">
+							<% if (!d.addresses.length) { %><div class="text-muted small py-2">Адрес немає</div><% } %>
+							<ul class="list-unstyled cl-list mb-0">
+								<% d.addresses.forEach(function (a) {
+									const street = [a.street, a.building].filter(Boolean).join(", ") + (a.apartment ? ", кв. " + a.apartment : "");
+									const line = [a.postcode, a.country, a.region, a.city, street, a.address_line].filter(Boolean).join(", ");
+								%>
+								<li class="d-flex gap-2" data-addr="<%= a.id %>">
+									<div class="flex-grow-1" style="min-width: 0">
+										<div class="small fw-semibold"><i class="<%= a.type.icon || 'fa-solid fa-location-dot' %> me-1 text-muted"></i><%= a.type.name || a.type.code %><% if (a.is_default) { %> <span class="badge text-bg-light border rounded-0">основна</span><% } %></div>
+										<% if (line) { %><div class="small"><%= line %></div><% } %>
+										<% if (a.carrier_point_name || a.carrier_point_ref) { %><div class="small"><i class="fa-solid fa-box me-1 text-muted"></i><%= a.carrier_code ? a.carrier_code + ': ' : '' %><%= a.carrier_point_name || a.carrier_point_ref %></div><% } %>
+										<% if (a.recipient_name || a.recipient_phone) { %><div class="tl-sub">Отримувач: <%= [a.recipient_name, a.recipient_phone].filter(Boolean).join(", ") %></div><% } %>
+										<% if (a.comment) { %><div class="tl-sub fst-italic"><%= a.comment %></div><% } %>
+									</div>
+									<div class="btn-group btn-group-sm align-self-start">
+										<% if (!a.is_default) { %><button type="button" class="btn btn-link text-warning p-1" data-cl2="default-address" title="Зробити основною"><i class="fa-regular fa-star"></i></button><% } %>
+										<button type="button" class="btn btn-link text-primary p-1" data-cl2="edit-address" title="Змінити"><i class="fa-solid fa-pen"></i></button>
+										<button type="button" class="btn btn-link text-danger p-1" data-cl2="delete-address" title="Видалити"><i class="fa-regular fa-trash-can"></i></button>
+									</div>
+								</li>
+								<% }) %>
+							</ul>
+						</div>
+					</div>
+
+					<!-- Реквізити -->
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+							<span>Реквізити</span>
+							<button type="button" class="btn btn-sm btn-light rounded-0" data-cl2="add-identifier"><i class="fa-solid fa-plus"></i></button>
+						</div>
+						<div class="card-body py-2">
+							<% if (!d.identifiers.length) { %><div class="text-muted small py-2">Реквізитів немає</div><% } %>
+							<ul class="list-unstyled cl-list mb-0">
+								<% d.identifiers.forEach(function (x) { %>
+								<li class="d-flex align-items-center gap-2" data-ident="<%= x.id %>">
+									<div class="flex-grow-1">
+										<div class="tl-sub"><%= x.type.name || x.type.code %><% if (x.country) { %> · <%= x.country %><% } %></div>
+										<code><%= x.value %></code><% if (x.is_verified) { %> <i class="fa-solid fa-circle-check text-success" title="Перевірено"></i><% } %>
+									</div>
+									<div class="btn-group btn-group-sm">
+										<button type="button" class="btn btn-link text-primary p-1" data-cl2="edit-identifier" title="Змінити"><i class="fa-solid fa-pen"></i></button>
+										<button type="button" class="btn btn-link text-danger p-1" data-cl2="delete-identifier" title="Видалити"><i class="fa-regular fa-trash-can"></i></button>
+									</div>
+								</li>
+								<% }) %>
+							</ul>
+						</div>
+					</div>
+
+					<!-- Зв'язки -->
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+							<span>Зв'язки</span>
+							<button type="button" class="btn btn-sm btn-light rounded-0" data-cl2="add-relationship"><i class="fa-solid fa-plus"></i></button>
+						</div>
+						<div class="card-body py-2">
+							<% if (!d.relationships.length) { %><div class="text-muted small py-2">Зв'язків немає</div><% } %>
+							<ul class="list-unstyled cl-list mb-0">
+								<% d.relationships.forEach(function (r) { %>
+								<li class="d-flex gap-2 <%= r.active ? '' : 'opacity-50' %>" data-rel="<%= r.id %>">
+									<div class="flex-grow-1" style="min-width: 0">
+										<div class="tl-sub"><%= r.label %><% if (r.title) { %> · <%= r.title %><% } %><% if (!r.active) { %> · до <%= r.valid_to %><% } %></div>
+										<i class="<%= (KIND[r.other_kind] || KIND.person)[0] %> text-muted me-1"></i><a href="/clients/<%= r.other_id %>/"><%= r.other_name || ('#' + r.other_id) %></a>
+										<% if (r.is_primary) { %><i class="fa-solid fa-star text-warning ms-1" title="Головна контактна особа"></i><% } %>
+										<% if (r.note) { %><div class="tl-sub fst-italic"><%= r.note %></div><% } %>
+									</div>
+									<div class="btn-group btn-group-sm align-self-start">
+										<button type="button" class="btn btn-link text-primary p-1" data-cl2="edit-relationship" title="Змінити"><i class="fa-solid fa-pen"></i></button>
+										<% if (r.active) { %><button type="button" class="btn btn-link text-secondary p-1" data-cl2="end-relationship" title="Завершити (лишиться в історії)"><i class="fa-solid fa-flag-checkered"></i></button><% } %>
+										<button type="button" class="btn btn-link text-danger p-1" data-cl2="delete-relationship" title="Видалити"><i class="fa-regular fa-trash-can"></i></button>
+									</div>
+								</li>
+								<% }) %>
+							</ul>
+						</div>
+					</div>
+
+					<!-- Комерційні умови -->
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+							<span>Комерційні умови</span>
+							<button type="button" class="btn btn-sm btn-light rounded-0" data-cl2="edit-commercial"><i class="fa-solid fa-pen"></i></button>
+						</div>
+						<div class="card-body py-2">
+							<% if (d.commercial) { const m = d.commercial; %>
+							<dl class="row small mb-0">
+								<% if (m.price_group) { %><dt class="col-6">Цінова група</dt><dd class="col-6"><%= m.price_group %></dd><% } %>
+								<% if (Number(m.discount_percent)) { %><dt class="col-6">Знижка</dt><dd class="col-6"><%= Number(m.discount_percent) %>%</dd><% } %>
+								<% if (m.credit_limit != null) { %><dt class="col-6">Кредитний ліміт</dt><dd class="col-6"><%= Number(m.credit_limit).toFixed(2) %> <%= m.currency || d.base_currency %></dd><% } %>
+								<% if (m.payment_terms_days) { %><dt class="col-6">Відстрочка</dt><dd class="col-6"><%= m.payment_terms_days %> дн.</dd><% } %>
+								<% if (m.currency) { %><dt class="col-6">Валюта</dt><dd class="col-6"><%= m.currency %></dd><% } %>
+								<% if (m.default_payment_method) { %><dt class="col-6">Спосіб оплати</dt><dd class="col-6"><%= m.default_payment_method %></dd><% } %>
+								<dt class="col-6">Платник ПДВ</dt><dd class="col-6"><%= m.vat_payer ? "так" : "ні" %></dd>
+							</dl>
+							<% } else { %>
+							<div class="text-muted small py-2">Не задано</div>
+							<% } %>
+						</div>
+					</div>
+					<!-- Власні поля -->
+					<div class="card border-primary rounded-0 mb-3 d-none" id="cf-card">
+						<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+							<span>Додаткові поля</span>
+							<button type="button" class="btn btn-sm btn-light rounded-0" id="cf-edit"><i class="fa-solid fa-pen"></i></button>
+						</div>
+						<div class="card-body py-2" id="cf-body"></div>
+					</div>
+					<!-- Історія злиттів -->
+					<% if (d.merges.length) { %>
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0">Історія злиттів</div>
+						<div class="card-body py-2">
+							<ul class="list-unstyled cl-list mb-0">
+								<% d.merges.forEach(function (m) { %>
+								<li class="d-flex justify-content-between align-items-center gap-2 <%= m.reverted_at ? 'opacity-50' : '' %>">
+									<div class="small">
+										<i class="fa-solid fa-code-merge text-muted me-1"></i><%= m.loser_name || ('#' + m.id_client_loser) %> <span class="text-muted">#<%= m.id_client_loser %></span>
+										<div class="tl-sub"><%= m.date_add %><% if (m.user_name) { %> · <%= m.user_name %><% } %><% if (m.reverted_at) { %> · скасовано <%= m.reverted_at %><% } %></div>
+									</div>
+									<% if (!m.reverted_at) { %><button type="button" class="btn btn-sm btn-link text-danger p-1" data-revert-merge="<%= m.id %>" title="Скасувати злиття"><i class="fa-solid fa-rotate-left"></i></button><% } %>
+								</li>
+								<% }) %>
+							</ul>
+						</div>
+					</div>
+					<% } %>
+
+					<!-- Зовнішні ідентифікатори -->
+					<% if (d.externals.length) { %>
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0" role="button" data-bs-toggle="collapse" data-bs-target="#cl-ext">Зовнішні ID <i class="fa-solid fa-chevron-down float-end mt-1"></i></div>
+						<div class="collapse" id="cl-ext">
+							<div class="card-body py-2">
+								<dl class="row small mb-0">
+									<% d.externals.forEach(function (e) { %>
+									<dt class="col-5"><%= e.integration_name || e.system %></dt>
+									<dd class="col-7 text-break"><code><%= e.external_id %></code></dd>
+									<% }) %>
+								</dl>
+							</div>
+						</div>
+					</div>
+					<% } %>
+				</div>
+
+				<!-- ═══ ПРАВА КОЛОНКА ═══ -->
+				<div class="col-lg-8">
+					<div class="row g-2 mb-3">
+						<div class="col-6 col-md-3">
+							<div class="stat-box">
+								<div class="section-title">Замовлень</div>
+								<div class="v"><%= st.orders_valid_count || 0 %><% if ((st.orders_count || 0) !== (st.orders_valid_count || 0)) { %><small class="text-muted fs-6"> / <%= st.orders_count %></small><% } %></div>
+							</div>
+						</div>
+						<div class="col-6 col-md-3">
+							<div class="stat-box">
+								<div class="section-title">Виручка</div>
+								<div class="v"><%= money(st.revenue_base) %></div>
+							</div>
+						</div>
+						<div class="col-6 col-md-3">
+							<div class="stat-box">
+								<div class="section-title">Середній чек</div>
+								<div class="v"><%= money(st.avg_order_base) %></div>
+							</div>
+						</div>
+						<div class="col-6 col-md-3">
+							<div class="stat-box">
+								<div class="section-title">Лідів</div>
+								<div class="v"><%= st.leads_count || 0 %></div>
+							</div>
+						</div>
+						<% if (d.rfm) { %>
+						<div class="col-12">
+							<div class="stat-box d-flex justify-content-between align-items-center">
+								<div>
+									<div class="section-title">Сегмент RFM</div>
+									<span class="badge rounded-0 fs-6" style="background:<%= d.rfm.color %>"><i class="<%= d.rfm.icon %> me-1"></i><%= d.rfm.name %></span>
+								</div>
+								<div class="text-end small text-muted" title="Давність · Частота · Сума, 1–5">R <b><%= st.rfm_r %></b> · F <b><%= st.rfm_f %></b> · M <b><%= st.rfm_m %></b></div>
+							</div>
+						</div>
+						<% } %>
+					</div>
+
+					<div class="card border-primary rounded-0 mb-3" id="cal-card">
+						<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+							<span><i class="fa-solid fa-calendar-check me-2"></i>Заплановано</span>
+							<div class="d-flex gap-1">
+								<button type="button" class="btn btn-sm btn-light rounded-0" id="cal-done-toggle">Виконані</button>
+								<button type="button" class="btn btn-sm btn-light rounded-0" id="cal-add"><i class="fa-solid fa-plus me-1"></i>Запланувати</button>
+							</div>
+						</div>
+						<div class="card-body" id="cal-body">
+							<div class="text-center text-muted py-2"><span class="spinner-border spinner-border-sm"></span></div>
+						</div>
+					</div>
+
+					<!-- Нотатки -->
+					<div class="card border-primary rounded-0 mb-3" id="notes">
+						<div class="card-header text-bg-primary rounded-0"><i class="fa-solid fa-note-sticky me-2"></i>Нотатки</div>
+						<div class="card-body">
+							<div class="position-relative mb-2">
+								<textarea class="form-control rounded-0" id="nt-text" rows="2" maxlength="10000" placeholder="Нотатка… @ — згадати колегу"></textarea>
+								<div class="list-group position-absolute shadow-sm d-none" id="nt-suggest" style="z-index: 1080; min-width: 240px; max-height: 200px; overflow-y: auto"></div>
+							</div>
+							<div class="d-flex justify-content-end mb-3">
+								<button type="button" class="btn btn-sm btn-primary rounded-0" id="nt-add"><i class="fa-solid fa-paper-plane me-1"></i>Додати</button>
+							</div>
+							<div id="nt-list"><div class="text-center text-muted small"><span class="spinner-border spinner-border-sm"></span></div></div>
+							<div class="text-center d-none" id="nt-more-box"><button type="button" class="btn btn-sm btn-outline-primary rounded-0" id="nt-more">Показати ще</button></div>
+						</div>
+					</div>
+
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0 p-0">
+							<ul class="nav nav-tabs card-header-tabs m-0" id="tl-tabs">
+								<li class="nav-item"><button class="nav-link active rounded-0" data-filter="all">Уся історія</button></li>
+								<li class="nav-item"><button class="nav-link rounded-0" data-filter="order">Замовлення <span class="badge text-bg-light rounded-0" id="cnt-order">0</span></button></li>
+								<li class="nav-item"><button class="nav-link rounded-0" data-filter="lead">Ліди <span class="badge text-bg-light rounded-0" id="cnt-lead">0</span></button></li>
+								<li class="nav-item"><button class="nav-link rounded-0" data-filter="changes"><i class="fa-solid fa-clock-rotate-left me-1"></i>Зміни</button></li>
+							</ul>
+						</div>
+						<div class="card-body" id="tl-body">
+							<div class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm me-2"></span>Завантаження історії…</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+				<!-- Модалка: запланувати -->
+		<div class="modal fade" id="modal-cal" tabindex="-1">
+			<div class="modal-dialog">
+				<div class="modal-content rounded-0">
+					<div class="modal-header text-bg-primary rounded-0">
+						<h5 class="modal-title"><i class="fa-solid fa-calendar-plus me-2"></i>Запланувати</h5>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<div class="mb-2">
+							<label class="form-label">Що зробити</label>
+							<input type="text" class="form-control rounded-0" id="cal-title" maxlength="255" placeholder="Передзвонити, надіслати КП, зустріч…" />
+						</div>
+						<div class="mb-2">
+							<label class="form-label">Тип</label>
+							<select class="form-select rounded-0" id="cal-type"><option value="">—</option></select>
+						</div>
+						<div class="row g-2 mb-2">
+							<div class="col-6">
+								<label class="form-label">Дата</label>
+								<input type="date" class="form-control rounded-0" id="cal-date" />
+							</div>
+							<div class="col-3">
+								<label class="form-label">Час</label>
+								<input type="time" class="form-control rounded-0" id="cal-time" />
+							</div>
+							<div class="col-3">
+								<label class="form-label">Хв.</label>
+								<select class="form-select rounded-0" id="cal-dur">
+									<option value="15">15</option>
+									<option value="30" selected>30</option>
+									<option value="60">60</option>
+									<option value="120">120</option>
+								</select>
+							</div>
+						</div>
+						<div class="mb-2">
+							<label class="form-label">Нагадати</label>
+							<select class="form-select rounded-0" id="cal-remind">
+								<option value="">Лише в момент початку</option>
+								<option value="15" selected>За 15 хв</option>
+								<option value="60">За 1 год</option>
+								<option value="1440">За 1 день</option>
+							</select>
+						</div>
+						<div class="mb-2">
+							<label class="form-label">Опис</label>
+							<textarea class="form-control rounded-0" id="cal-desc" rows="2"></textarea>
+						</div>
+						<div class="form-check">
+							<input class="form-check-input" type="checkbox" id="cal-manager" checked />
+							<label class="form-check-label" for="cal-manager">Додати менеджера клієнта учасником</label>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal">Скасувати</button>
+						<button type="button" class="btn btn-primary rounded-0" id="cal-save">Зберегти</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+				<!-- Модалка: власні поля -->
+		<div class="modal fade" id="cf-modal" tabindex="-1">
+			<div class="modal-dialog modal-lg">
+				<div class="modal-content rounded-0">
+					<div class="modal-header text-bg-primary rounded-0">
+						<h5 class="modal-title">Додаткові поля</h5>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body"><div class="row g-2" id="cf-form"></div></div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal">Скасувати</button>
+						<button type="button" class="btn btn-primary rounded-0" id="cf-save">Зберегти</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+				<!-- Модалка: профіль -->
+		<div class="modal fade" id="modal-profile" tabindex="-1">
+			<div class="modal-dialog modal-lg">
+				<div class="modal-content rounded-0">
+					<div class="modal-header text-bg-primary rounded-0">
+						<h5 class="modal-title">Редагування профілю</h5>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<% if (c.kind === 'person') { %>
+						<div class="row g-2 mb-2">
+							<div class="col-md-4"><label class="section-title">Прізвище</label><input class="form-control form-control-sm rounded-0" id="pf-last_name" /></div>
+							<div class="col-md-4"><label class="section-title">Імʼя</label><input class="form-control form-control-sm rounded-0" id="pf-first_name" /></div>
+							<div class="col-md-4"><label class="section-title">По батькові</label><input class="form-control form-control-sm rounded-0" id="pf-middle_name" /></div>
+							<div class="col-md-4">
+								<label class="section-title">Стать</label>
+								<select class="form-select form-select-sm rounded-0" id="pf-gender">
+									<option value="unknown">—</option><option value="male">Чоловіча</option><option value="female">Жіноча</option><option value="other">Інша</option>
+								</select>
+							</div>
+							<div class="col-md-4"><label class="section-title">Дата народження</label><input type="date" class="form-control form-control-sm rounded-0" id="pf-birth_date" /></div>
+							<div class="col-md-4"><label class="section-title">Посада</label><input class="form-control form-control-sm rounded-0" id="pf-job_title" /></div>
+							<div class="col-md-12"><label class="section-title">Торгова назва (для ФОП)</label><input class="form-control form-control-sm rounded-0" id="pf-trade_name" /></div>
+						</div>
+						<% } else if (c.kind === 'organization') { %>
+						<div class="row g-2 mb-2">
+							<div class="col-md-8"><label class="section-title">Юридична назва</label><input class="form-control form-control-sm rounded-0" id="of-legal_name" /></div>
+							<div class="col-md-4"><label class="section-title">Коротка назва</label><input class="form-control form-control-sm rounded-0" id="of-short_name" /></div>
+							<div class="col-md-4"><label class="section-title">Галузь</label><input class="form-control form-control-sm rounded-0" id="of-industry" /></div>
+							<div class="col-md-4"><label class="section-title">Сайт</label><input class="form-control form-control-sm rounded-0" id="of-website" /></div>
+							<div class="col-md-2"><label class="section-title">Працівників</label><input type="number" min="0" class="form-control form-control-sm rounded-0" id="of-employees_count" /></div>
+							<div class="col-md-2"><label class="section-title">Дата реєстрації</label><input type="date" class="form-control form-control-sm rounded-0" id="of-registration_date" /></div>
+						</div>
+						<% } %>
+
+						<div class="row g-2 mb-2">
+							<div class="col-md-4">
+								<label class="section-title">Правова форма</label>
+								<select class="form-select form-select-sm rounded-0" id="f-id_legal_type">
+									<option value="">—</option>
+									<% d.options.legal_types.forEach(function (x) { %><option value="<%= x.id %>"><%= x.short_name ? x.short_name + ' — ' + x.name : x.name %></option><% }) %>
+								</select>
+							</div>
+							<div class="col-md-4">
+								<label class="section-title">Стадія</label>
+								<select class="form-select form-select-sm rounded-0" id="f-id_lifecycle">
+									<option value="">—</option>
+									<% d.options.lifecycle.forEach(function (x) { %><option value="<%= x.id %>"><%= x.name %></option><% }) %>
+								</select>
+							</div>
+							<div class="col-md-4">
+								<label class="section-title">Статус</label>
+								<select class="form-select form-select-sm rounded-0" id="f-status">
+									<option value="active">Активний</option><option value="blocked">Заблокований</option><option value="archived">Архів</option>
+								</select>
+							</div>
+							<div class="col-md-4">
+								<label class="section-title">Менеджер</label>
+								<select class="form-select form-select-sm rounded-0" id="f-id_manager">
+									<option value="">—</option>
+									<% d.options.managers.forEach(function (x) { %><option value="<%= x.id %>"><%= x.name || ('#' + x.id) %></option><% }) %>
+								</select>
+							</div>
+							<div class="col-md-2">
+								<label class="section-title">Країна</label>
+								<input class="form-control form-control-sm rounded-0 text-uppercase" id="f-country" maxlength="2" placeholder="US" />
+							</div>
+							<div class="col-md-3">
+								<label class="section-title">Часовий пояс</label>
+								<input class="form-control form-control-sm rounded-0" id="f-timezone" list="tz-list" placeholder="Europe/Kyiv" />
+								<datalist id="tz-list"></datalist>
+							</div>
+							<div class="col-md-3">
+								<label class="section-title">Мова</label>
+								<select class="form-select form-select-sm rounded-0" id="f-id_lang">
+									<option value="">—</option>
+									<% d.options.languages.forEach(function (x) { %><option value="<%= x.id %>"><%= x.name %></option><% }) %>
+								</select>
+							</div>
+						</div>
+
+						<label class="section-title">Теги</label>
+						<div class="d-flex flex-wrap gap-2 mb-2" id="f-tags">
+							<% if (!d.options.tags.length) { %><span class="text-muted small">Тегів поки немає</span><% } %>
+							<% d.options.tags.forEach(function (x) { %>
+							<label class="d-inline-flex align-items-center gap-1 small">
+								<input type="checkbox" class="form-check-input" value="<%= x.id %>" /> <%- badge(x.name, x.color_text, x.color_background, x.icon) %>
+							</label>
+							<% }) %>
+						</div>
+
+						<label class="section-title">Нотатка</label>
+						<textarea class="form-control form-control-sm rounded-0" id="f-note" rows="3"></textarea>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal">Скасувати</button>
+						<button type="button" class="btn btn-primary rounded-0" data-cl="save-profile">Зберегти</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Модалка: контакт -->
+		<div class="modal fade" id="modal-contact" tabindex="-1">
+			<div class="modal-dialog">
+				<div class="modal-content rounded-0">
+					<div class="modal-header text-bg-primary rounded-0">
+						<h5 class="modal-title" id="ct-title">Контакт</h5>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" id="ct-id" />
+						<label class="section-title">Тип</label>
+						<select class="form-select form-select-sm rounded-0 mb-2" id="ct-type">
+							<% d.options.contact_types.forEach(function (x) { %><option value="<%= x.id %>"><%= x.name %></option><% }) %>
+						</select>
+						<label class="section-title">Значення</label>
+						<input class="form-control form-control-sm rounded-0 mb-2" id="ct-value" placeholder="+1 555 123 4567, name@example.com, @username" />
+						<label class="section-title">Мітка</label>
+						<select class="form-select form-select-sm rounded-0 mb-2" id="ct-label">
+							<option value="personal">Особистий</option><option value="work">Робочий</option><option value="other">Інший</option>
+						</select>
+						<div class="form-check"><input class="form-check-input" type="checkbox" id="ct-consent" /><label class="form-check-label small" for="ct-consent">Згода на розсилки</label></div>
+						<div class="form-check" id="ct-primary-wrap"><input class="form-check-input" type="checkbox" id="ct-primary" /><label class="form-check-label small" for="ct-primary">Зробити основним</label></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal">Скасувати</button>
+						<button type="button" class="btn btn-primary rounded-0" data-cl="save-contact">Зберегти</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+				<!-- Модалка: адреса -->
+		<div class="modal fade" id="modal-address" tabindex="-1">
+			<div class="modal-dialog modal-lg">
+				<div class="modal-content rounded-0">
+					<div class="modal-header text-bg-primary rounded-0">
+						<h5 class="modal-title" id="ad-title">Адреса</h5>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" id="ad-id" />
+						<div class="row g-2">
+							<div class="col-md-4">
+								<label class="section-title">Тип</label>
+								<select class="form-select form-select-sm rounded-0" id="ad-id_address_type">
+									<% d.options.address_types.forEach(function (x) { %><option value="<%= x.id %>"><%= x.name %></option><% }) %>
+								</select>
+							</div>
+							<div class="col-md-2"><label class="section-title">Країна</label><input class="form-control form-control-sm rounded-0 text-uppercase" id="ad-country" maxlength="2" /></div>
+							<div class="col-md-3"><label class="section-title">Область / штат</label><input class="form-control form-control-sm rounded-0" id="ad-region" /></div>
+							<div class="col-md-3"><label class="section-title">Індекс</label><input class="form-control form-control-sm rounded-0" id="ad-postcode" /></div>
+							<div class="col-md-4"><label class="section-title">Місто</label><input class="form-control form-control-sm rounded-0" id="ad-city" /></div>
+							<div class="col-md-4"><label class="section-title">Вулиця</label><input class="form-control form-control-sm rounded-0" id="ad-street" /></div>
+							<div class="col-md-2"><label class="section-title">Будинок</label><input class="form-control form-control-sm rounded-0" id="ad-building" /></div>
+							<div class="col-md-2"><label class="section-title">Кв. / офіс</label><input class="form-control form-control-sm rounded-0" id="ad-apartment" /></div>
+							<div class="col-12"><label class="section-title">Адреса одним рядком (для країн з іншою структурою)</label><input class="form-control form-control-sm rounded-0" id="ad-address_line" /></div>
+							<div class="col-md-3"><label class="section-title">Служба доставки</label><input class="form-control form-control-sm rounded-0" id="ad-carrier_code" list="carrier-list" placeholder="novaposhta" /></div>
+							<datalist id="carrier-list"><option value="novaposhta"><option value="ukrposhta"><option value="meest"><option value="inpost"><option value="dhl"><option value="ups"><option value="fedex"></datalist>
+							<div class="col-md-6"><label class="section-title">Відділення / поштомат</label><input class="form-control form-control-sm rounded-0" id="ad-carrier_point_name" /></div>
+							<div class="col-md-3"><label class="section-title">Код відділення</label><input class="form-control form-control-sm rounded-0" id="ad-carrier_point_ref" /></div>
+							<div class="col-md-6"><label class="section-title">Отримувач</label><input class="form-control form-control-sm rounded-0" id="ad-recipient_name" /></div>
+							<div class="col-md-6"><label class="section-title">Телефон отримувача</label><input class="form-control form-control-sm rounded-0" id="ad-recipient_phone" /></div>
+							<div class="col-12"><label class="section-title">Коментар</label><input class="form-control form-control-sm rounded-0" id="ad-comment" /></div>
+						</div>
+						<div class="form-check mt-2"><input class="form-check-input" type="checkbox" id="ad-is_default" /><label class="form-check-label small" for="ad-is_default">Основна адреса цього типу</label></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal">Скасувати</button>
+						<button type="button" class="btn btn-primary rounded-0" data-cl2="save-address">Зберегти</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Модалка: реквізит -->
+		<div class="modal fade" id="modal-identifier" tabindex="-1">
+			<div class="modal-dialog">
+				<div class="modal-content rounded-0">
+					<div class="modal-header text-bg-primary rounded-0">
+						<h5 class="modal-title" id="id-title">Реквізит</h5>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" id="id-id" />
+						<label class="section-title">Тип</label>
+						<select class="form-select form-select-sm rounded-0 mb-2" id="id-type">
+							<% d.options.identifier_types.forEach(function (x) { %><option value="<%= x.id %>" data-country="<%= x.country || '' %>"><%= x.name %><%= x.country ? ' (' + x.country + ')' : '' %></option><% }) %>
+						</select>
+						<label class="section-title">Номер</label>
+						<input class="form-control form-control-sm rounded-0 mb-2" id="id-value" />
+						<label class="section-title">Країна</label>
+						<input class="form-control form-control-sm rounded-0 mb-2 text-uppercase" id="id-country" maxlength="2" />
+						<div class="form-check"><input class="form-check-input" type="checkbox" id="id-verified" /><label class="form-check-label small" for="id-verified">Перевірено</label></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal">Скасувати</button>
+						<button type="button" class="btn btn-primary rounded-0" data-cl2="save-identifier">Зберегти</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Модалка: зв'язок -->
+		<div class="modal fade" id="modal-relationship" tabindex="-1">
+			<div class="modal-dialog">
+				<div class="modal-content rounded-0">
+					<div class="modal-header text-bg-primary rounded-0">
+						<h5 class="modal-title" id="rl-title">Зв'язок</h5>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" id="rl-id" />
+						<div id="rl-new-block">
+							<label class="section-title"><%= c.display_name %> —</label>
+							<select class="form-select form-select-sm rounded-0 mb-2" id="rl-rel">
+								<% d.options.relationships.forEach(function (x) { %><option value="<%= x.value %>" data-target="<%= x.target_kind %>"><%= x.name %></option><% }) %>
+							</select>
+							<label class="section-title">Кому / з ким</label>
+							<input type="hidden" id="rl-other" />
+							<input class="form-control form-control-sm rounded-0" id="rl-search" placeholder="Пошук: імʼя, телефон, email, ЄДРПОУ" autocomplete="off" />
+							<div id="rl-results" class="border border-top-0 mb-2" style="max-height: 200px; overflow-y: auto"></div>
+							<div id="rl-picked" class="small mb-2"></div>
+						</div>
+						<label class="section-title">Посада / уточнення</label>
+						<input class="form-control form-control-sm rounded-0 mb-2" id="rl-title-input" placeholder="Комерційний директор" />
+						<div class="row g-2 mb-2">
+							<div class="col-6"><label class="section-title">З</label><input type="date" class="form-control form-control-sm rounded-0" id="rl-from" /></div>
+							<div class="col-6" id="rl-to-wrap"><label class="section-title">По</label><input type="date" class="form-control form-control-sm rounded-0" id="rl-to" /></div>
+						</div>
+						<label class="section-title">Нотатка</label>
+						<input class="form-control form-control-sm rounded-0 mb-2" id="rl-note" />
+						<div class="form-check"><input class="form-check-input" type="checkbox" id="rl-primary" /><label class="form-check-label small" for="rl-primary">Головна контактна особа</label></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal">Скасувати</button>
+						<button type="button" class="btn btn-primary rounded-0" data-cl2="save-relationship">Зберегти</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Модалка: комерційні умови -->
+		<div class="modal fade" id="modal-commercial" tabindex="-1">
+			<div class="modal-dialog">
+				<div class="modal-content rounded-0">
+					<div class="modal-header text-bg-primary rounded-0">
+						<h5 class="modal-title">Комерційні умови</h5>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<div class="row g-2">
+							<div class="col-6"><label class="section-title">Цінова група</label><input class="form-control form-control-sm rounded-0" id="cm-price_group" placeholder="wholesale" /></div>
+							<div class="col-6"><label class="section-title">Знижка, %</label><input type="number" min="0" max="100" step="0.01" class="form-control form-control-sm rounded-0" id="cm-discount_percent" /></div>
+							<div class="col-6"><label class="section-title">Кредитний ліміт</label><input type="number" min="0" step="0.01" class="form-control form-control-sm rounded-0" id="cm-credit_limit" placeholder="без ліміту" /></div>
+							<div class="col-6"><label class="section-title">Відстрочка, днів</label><input type="number" min="0" class="form-control form-control-sm rounded-0" id="cm-payment_terms_days" /></div>
+							<div class="col-6"><label class="section-title">Валюта</label><input class="form-control form-control-sm rounded-0 text-uppercase" id="cm-currency" maxlength="3" placeholder="<%= d.base_currency %>" /></div>
+							<div class="col-6"><label class="section-title">Спосіб оплати</label><input class="form-control form-control-sm rounded-0" id="cm-default_payment_method" placeholder="invoice" /></div>
+						</div>
+						<div class="form-check mt-2"><input class="form-check-input" type="checkbox" id="cm-vat_payer" /><label class="form-check-label small" for="cm-vat_payer">Платник ПДВ</label></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal">Скасувати</button>
+						<button type="button" class="btn btn-primary rounded-0" data-cl2="save-commercial">Зберегти</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+				<script>
+			(function () {
+				const CLIENT_ID = <%= c.id %>;
+				const API = "/api/clients/" + CLIENT_ID + "/notes/";
+				const text = document.getElementById("nt-text");
+				const sug = document.getElementById("nt-suggest");
+				const list = document.getElementById("nt-list");
+				const moreBox = document.getElementById("nt-more-box");
+				let NEXT = null;
+				let MENTIONS = {}; // id → імʼя, обрані через @
+				let EDIT_MENTIONS = {};
+				let sugTimer = null;
+				let sugTarget = null;
+
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const fail = (m) => (window.Notyf ? new Notyf().error(m) : alert(m));
+
+				async function post(url, data) {
+					const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data || {}) });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok || j.ok === false) throw new Error(j.error || "Помилка сервера");
+					return j;
+				}
+
+				// Текст: екранування, переноси, виділення @згадок
+				function fmt(body) {
+					return esc(body)
+						.replace(/(^|\s)(@[^\s@,.;:!?]+(?: [^\s@,.;:!?]+)?)/g, '$1<span class="text-primary fw-semibold">$2</span>')
+						.replace(/\n/g, "<br>");
+				}
+
+				function item(n) {
+					const when = new Date(n.date_add).toLocaleString([], { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+					return (
+						'<div class="border-start border-3 ps-2 mb-3 ' + (n.is_pinned ? "border-warning" : "border-primary") + '" data-note="' + n.id + '">' +
+						'<div class="d-flex justify-content-between align-items-start gap-2">' +
+						'<div class="small text-muted">' + (n.is_pinned ? '<i class="fa-solid fa-thumbtack text-warning me-1"></i>' : "") + "<b>" + esc(n.author) + "</b> · " + esc(when) + (n.edited ? " · змінено" : "") + "</div>" +
+						'<div class="btn-group btn-group-sm flex-shrink-0">' +
+						'<button class="btn btn-link btn-sm p-0 px-1 text-muted" data-nt="pin" data-v="' + (n.is_pinned ? 0 : 1) + '" title="' + (n.is_pinned ? "Відкріпити" : "Закріпити") + '"><i class="fa-solid fa-thumbtack"></i></button>' +
+						(n.is_mine ? '<button class="btn btn-link btn-sm p-0 px-1 text-muted" data-nt="edit" title="Редагувати"><i class="fa-solid fa-pen"></i></button>' : "") +
+						'<button class="btn btn-link btn-sm p-0 px-1 text-muted" data-nt="del" title="Видалити"><i class="fa-solid fa-trash"></i></button>' +
+						"</div></div>" +
+						'<div class="nt-body">' + fmt(n.body) + "</div>" +
+						"</div>"
+					);
+				}
+
+				let CACHE = {};
+				async function load(reset) {
+					try {
+						const d = await post(API, { before_id: reset ? null : NEXT, limit: 20 });
+						[...d.pinned, ...d.rows].forEach((n) => (CACHE[n.id] = n));
+						const html = (reset ? d.pinned : []).concat(d.rows).map(item).join("");
+						if (reset) list.innerHTML = html || '<div class="text-muted small text-center">Нотаток ще немає</div>';
+						else list.insertAdjacentHTML("beforeend", html);
+						NEXT = d.next_before_id;
+						moreBox.classList.toggle("d-none", !d.has_more);
+					} catch (e) {
+						list.innerHTML = '<div class="text-danger small">' + esc(e.message) + "</div>";
+					}
+				}
+
+				// ─── @згадки: пошук колеги за текстом після @ ───
+				function mentionQuery(el) {
+					const upto = el.value.slice(0, el.selectionStart);
+					const m = upto.match(/(^|\s)@([^\s@]{1,30}(?: [^\s@]{0,30})?)$/);
+					return m ? m[2] : null;
+				}
+				function onType(el, store) {
+					clearTimeout(sugTimer);
+					const q = mentionQuery(el);
+					if (!q || q.length < 2) return sug.classList.add("d-none");
+					sugTimer = setTimeout(async () => {
+						try {
+							const r = await fetch("/api/calendar/users/search", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ q }) });
+							const users = await r.json();
+							if (!Array.isArray(users) || !users.length) return sug.classList.add("d-none");
+							sugTarget = { el, store };
+							sug.innerHTML = users.slice(0, 8).map((u) => '<button type="button" class="list-group-item list-group-item-action small py-1" data-uid="' + u.id + '" data-name="' + esc(u.user_name) + '">' + esc(u.user_name) + "</button>").join("");
+							el.parentNode.appendChild(sug);
+							sug.style.top = el.offsetHeight + "px";
+							sug.classList.remove("d-none");
+						} catch (e) {
+							sug.classList.add("d-none");
+						}
+					}, 250);
+				}
+				sug.addEventListener("mousedown", (ev) => {
+					const b = ev.target.closest("[data-uid]");
+					if (!b || !sugTarget) return;
+					ev.preventDefault();
+					const el = sugTarget.el;
+					const pos = el.selectionStart;
+					const before = el.value.slice(0, pos).replace(/@([^\s@]{1,30}(?: [^\s@]{0,30})?)$/, "@" + b.dataset.name + " ");
+					el.value = before + el.value.slice(pos);
+					el.selectionStart = el.selectionEnd = before.length;
+					sugTarget.store[b.dataset.uid] = b.dataset.name;
+					sug.classList.add("d-none");
+					el.focus();
+				});
+				text.addEventListener("input", () => onType(text, MENTIONS));
+				document.addEventListener("click", (ev) => {
+					if (!ev.target.closest("#nt-suggest")) sug.classList.add("d-none");
+				});
+
+				const mentionIds = (body, store) => Object.keys(store).filter((id) => body.includes("@" + store[id])).map(Number);
+
+				document.getElementById("nt-add").addEventListener("click", async function () {
+					const body = text.value.trim();
+					if (!body) return;
+					this.disabled = true;
+					try {
+						await post(API + "add/", { body, mentions: mentionIds(body, MENTIONS) });
+						text.value = "";
+						MENTIONS = {};
+						load(true);
+					} catch (e) {
+						fail(e.message);
+					} finally {
+						this.disabled = false;
+					}
+				});
+				text.addEventListener("keydown", (ev) => {
+					if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) document.getElementById("nt-add").click();
+				});
+
+				document.getElementById("nt-more").addEventListener("click", () => load(false));
+
+				list.addEventListener("click", async (ev) => {
+					const b = ev.target.closest("[data-nt]");
+					if (!b) return;
+					const box = b.closest("[data-note]");
+					const id = Number(box.dataset.note);
+					const act = b.dataset.nt;
+					try {
+						if (act === "pin") {
+							await post(API + id + "/pin/", { pinned: b.dataset.v === "1" });
+							return load(true);
+						}
+						if (act === "del") {
+							if (!confirm("Видалити нотатку?")) return;
+							await post(API + id + "/delete/");
+							return load(true);
+						}
+						if (act === "edit") {
+							const n = CACHE[id];
+							EDIT_MENTIONS = {};
+							const bodyEl = box.querySelector(".nt-body");
+							bodyEl.innerHTML =
+								'<div class="position-relative"><textarea class="form-control form-control-sm rounded-0 mb-1" rows="3">' + esc(n.body) + "</textarea></div>" +
+								'<div class="d-flex gap-1 justify-content-end"><button class="btn btn-sm btn-secondary rounded-0" data-nt="cancel">Скасувати</button><button class="btn btn-sm btn-primary rounded-0" data-nt="save">Зберегти</button></div>';
+							const ta = bodyEl.querySelector("textarea");
+							ta.addEventListener("input", () => onType(ta, EDIT_MENTIONS));
+							ta.focus();
+							return;
+						}
+						if (act === "cancel") return load(true);
+						if (act === "save") {
+							const body = box.querySelector("textarea").value.trim();
+							await post(API + id + "/edit/", { body, mentions: mentionIds(body, EDIT_MENTIONS) });
+							return load(true);
+						}
+					} catch (e) {
+						fail(e.message);
+					}
+				});
+
+				load(true);
+			})();
+		</script>
+		<script>
+			(function () {
+				const CLIENT_ID = <%= c.id %>;
+				const card = document.getElementById("cf-card");
+				const body = document.getElementById("cf-body");
+				const form = document.getElementById("cf-form");
+				let FIELDS = [];
+
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const fail = (m) => (window.Notyf ? new Notyf().error(m) : alert(m));
+
+				async function post(url, data) {
+					const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data || {}) });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok || j.ok === false) throw new Error(j.error || "Помилка сервера");
+					return j;
+				}
+
+				function show(f) {
+					if (f.text === null || f.text === undefined) return '<span class="text-muted">—</span>';
+					if (f.type === "url") return '<a href="' + esc(f.text) + '" target="_blank" rel="noopener">' + esc(f.text) + "</a>";
+					if (f.type === "email") return '<a href="mailto:' + esc(f.text) + '">' + esc(f.text) + "</a>";
+					if (f.type === "phone") return '<a href="tel:' + esc(f.text) + '">' + esc(f.text) + "</a>";
+					if (f.type === "textarea") return '<span style="white-space:pre-line">' + esc(f.text) + "</span>";
+					return esc(f.text);
+				}
+
+				function render() {
+					card.classList.toggle("d-none", !FIELDS.length);
+					body.innerHTML = '<dl class="row small mb-0">' + FIELDS.map((f) => '<dt class="col-6">' + esc(f.name) + '</dt><dd class="col-6">' + show(f) + "</dd>").join("") + "</dl>";
+				}
+
+				function input(f) {
+					const id = "cf-" + f.id;
+					const req = f.required ? " *" : "";
+					const ph = esc(f.placeholder);
+					const opts = (sel) => f.options.filter((o) => o.active || sel(o.id)).map((o) => '<option value="' + o.id + '"' + (sel(o.id) ? " selected" : "") + ">" + esc(o.name) + "</option>").join("");
+					let el;
+					switch (f.type) {
+						case "textarea":
+							el = '<textarea class="form-control rounded-0" id="' + id + '" rows="3" placeholder="' + ph + '">' + esc(f.value) + "</textarea>";
+							break;
+						case "number":
+							el = '<input type="number" step="any" class="form-control rounded-0" id="' + id + '" placeholder="' + ph + '" value="' + esc(f.value) + '" />';
+							break;
+						case "date":
+							el = '<input type="date" class="form-control rounded-0" id="' + id + '" value="' + esc(f.value) + '" />';
+							break;
+						case "boolean":
+							el = '<select class="form-select rounded-0" id="' + id + '"><option value="">—</option><option value="1"' + (f.value === true ? " selected" : "") + '>Так</option><option value="0"' + (f.value === false ? " selected" : "") + ">Ні</option></select>";
+							break;
+						case "select":
+							el = '<select class="form-select rounded-0" id="' + id + '"><option value="">—</option>' + opts((oid) => oid === f.value) + "</select>";
+							break;
+						case "multiselect":
+							el = '<select class="form-select rounded-0" id="' + id + '" multiple size="' + Math.min(6, Math.max(3, f.options.length)) + '">' + opts((oid) => (f.value || []).includes(oid)) + "</select>";
+							break;
+						default:
+							el = '<input type="' + (f.type === "email" ? "email" : f.type === "url" ? "url" : f.type === "phone" ? "tel" : "text") + '" class="form-control rounded-0" id="' + id + '" placeholder="' + ph + '" value="' + esc(f.value) + '" />';
+					}
+					return '<div class="' + (f.type === "textarea" || f.type === "multiselect" ? "col-12" : "col-md-6") + '"><label class="form-label" for="' + id + '">' + esc(f.name) + req + "</label>" + el + "</div>";
+				}
+
+				async function load() {
+					try {
+						FIELDS = (await post("/api/clients/" + CLIENT_ID + "/fields/")).fields || [];
+						render();
+					} catch (e) {
+						card.classList.remove("d-none");
+						body.innerHTML = '<div class="text-danger small">' + esc(e.message) + "</div>";
+					}
+				}
+
+				document.getElementById("cf-edit").addEventListener("click", () => {
+					form.innerHTML = FIELDS.map(input).join("");
+					bootstrap.Modal.getOrCreateInstance(document.getElementById("cf-modal")).show();
+				});
+
+				document.getElementById("cf-save").addEventListener("click", async function () {
+					const values = {};
+					FIELDS.forEach((f) => {
+						const el = document.getElementById("cf-" + f.id);
+						values[f.id] = f.type === "multiselect" ? [...el.selectedOptions].map((o) => Number(o.value)) : el.value;
+					});
+					this.disabled = true;
+					try {
+						await post("/api/clients/" + CLIENT_ID + "/fields/save/", { values });
+						bootstrap.Modal.getOrCreateInstance(document.getElementById("cf-modal")).hide();
+						load();
+					} catch (e) {
+						fail(e.message);
+					} finally {
+						this.disabled = false;
+					}
+				});
+
+				load();
+			})();
+		</script>
+		<script>
+			(function () {
+				const CLIENT_ID = <%= c.id %>;
+				const MANAGER_ID = <%= c.id_manager || 0 %>;
+				const body = document.getElementById("cal-body");
+				const toggle = document.getElementById("cal-done-toggle");
+				let SCOPE = "upcoming";
+				let TYPES_LOADED = false;
+
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const pad = (n) => String(n).padStart(2, "0");
+				const local = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":00";
+
+				async function post(url, data) {
+					const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data || {}) });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok) throw new Error(j.error || "Помилка сервера");
+					return j;
+				}
+
+				function item(e) {
+					const start = new Date(e.date_start);
+					const overdue = e.status === 1 && start < new Date();
+					const when = e.all_day ? start.toLocaleDateString() : start.toLocaleString([], { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+					const st = e.status === 2 ? '<span class="badge text-bg-success rounded-0">виконано</span>' : e.status === 3 ? '<span class="badge text-bg-secondary rounded-0">скасовано</span>' : overdue ? '<span class="badge text-bg-danger rounded-0">прострочено</span>' : "";
+					const btns =
+						e.status === 1
+							? '<button class="btn btn-sm btn-outline-success rounded-0" data-cal-status="2" data-id="' + e.id + '" title="Виконано"><i class="fa-solid fa-check"></i></button>' +
+							  '<button class="btn btn-sm btn-outline-secondary rounded-0" data-cal-status="3" data-id="' + e.id + '" title="Скасувати"><i class="fa-solid fa-xmark"></i></button>'
+							: '<button class="btn btn-sm btn-outline-primary rounded-0" data-cal-status="1" data-id="' + e.id + '" title="Повернути"><i class="fa-solid fa-rotate-left"></i></button>';
+					return (
+						'<div class="tl-item"><div class="tl-icon" style="background:' + esc(e.type_color || "#6c757d") + '"><i class="' + esc(e.type_icon || "fa-solid fa-calendar") + '"></i></div><div class="tl-body">' +
+						'<div class="d-flex justify-content-between gap-2"><div><a href="/?event=' + e.id + '" class="fw-semibold">' + esc(e.title) + "</a> " + st + "</div>" +
+						(e.is_mine ? '<div class="btn-group align-self-start">' + btns + "</div>" : "") + "</div>" +
+						(e.description ? '<div class="tl-text">' + esc(e.description) + "</div>" : "") +
+						'<div class="tl-sub' + (overdue ? " text-danger" : "") + '">' + esc(when) + (e.type_name ? " · " + esc(e.type_name) : "") + (e.creator_name ? " · " + esc(e.creator_name) : "") + "</div></div></div>"
+					);
+				}
+
+				async function load() {
+					try {
+						const d = await post("/api/calendar/links/list", { type: "client", id: CLIENT_ID, scope: SCOPE, limit: 50 });
+						body.innerHTML = d.rows.length ? d.rows.map(item).join("") : '<div class="text-center text-muted py-2">' + (SCOPE === "done" ? "Виконаних немає" : "Нічого не заплановано") + "</div>";
+					} catch (e) {
+						body.innerHTML = '<div class="text-danger">' + esc(e.message) + "</div>";
+					}
+				}
+
+				toggle.addEventListener("click", function () {
+					SCOPE = SCOPE === "upcoming" ? "done" : "upcoming";
+					toggle.textContent = SCOPE === "done" ? "Заплановані" : "Виконані";
+					load();
+				});
+
+				body.addEventListener("click", async function (ev) {
+					const b = ev.target.closest("[data-cal-status]");
+					if (!b) return;
+					b.disabled = true;
+					try {
+						await post("/api/calendar/events/" + b.dataset.id + "/status", { status: parseInt(b.dataset.calStatus, 10) });
+						load();
+					} catch (e) {
+						b.disabled = false;
+						new Notyf().error(e.message);
+					}
+				});
+
+				const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modal-cal"));
+
+				document.getElementById("cal-add").addEventListener("click", async function () {
+					const d = new Date(Date.now() + 3600000);
+					d.setMinutes(0, 0, 0);
+					document.getElementById("cal-title").value = "";
+					document.getElementById("cal-desc").value = "";
+					document.getElementById("cal-date").value = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+					document.getElementById("cal-time").value = pad(d.getHours()) + ":00";
+					document.getElementById("cal-manager").closest(".form-check").classList.toggle("d-none", !MANAGER_ID);
+					if (!TYPES_LOADED) {
+						try {
+							const types = await post("/api/calendar/event-types");
+							document.getElementById("cal-type").insertAdjacentHTML("beforeend", types.filter((t) => !t.is_absence).map((t) => '<option value="' + t.id + '">' + esc(t.name || t.code) + "</option>").join(""));
+							TYPES_LOADED = true;
+						} catch (e) {}
+					}
+					modal.show();
+					setTimeout(() => document.getElementById("cal-title").focus(), 300);
+				});
+
+				document.getElementById("cal-save").addEventListener("click", async function () {
+					const btn = this;
+					const title = document.getElementById("cal-title").value.trim();
+					const date = document.getElementById("cal-date").value;
+					const time = document.getElementById("cal-time").value || "09:00";
+					if (!title || !date) return new Notyf().error("Вкажіть що зробити і дату");
+
+					const start = new Date(date + "T" + time + ":00");
+					const end = new Date(start.getTime() + parseInt(document.getElementById("cal-dur").value, 10) * 60000);
+					const remind = document.getElementById("cal-remind").value;
+					const type = document.getElementById("cal-type").value;
+
+					btn.disabled = true;
+					try {
+						await post("/api/calendar/events/add", {
+							title,
+							description: document.getElementById("cal-desc").value.trim() || null,
+							date_start: local(start),
+							date_end: local(end),
+							all_day: 0,
+							tz_offset: -new Date().getTimezoneOffset(),
+							priority: 2,
+							status: 1,
+							visibility: 1,
+							notify_scope: 2,
+							is_busy: 1,
+							id_event_type: type ? parseInt(type, 10) : null,
+							reminder_minutes: remind === "" ? null : parseInt(remind, 10),
+							participant_ids: MANAGER_ID && document.getElementById("cal-manager").checked ? [MANAGER_ID] : [],
+							links: [{ type: "client", id: CLIENT_ID }],
+						});
+						modal.hide();
+						SCOPE = "upcoming";
+						toggle.textContent = "Виконані";
+						load();
+					} catch (e) {
+						new Notyf().error(e.message);
+					} finally {
+						btn.disabled = false;
+					}
+				});
+
+				load();
+			})();
+		</script>
+
+		<script>
+			(function () {
+				const CLIENT_ID = <%= c.id %>;
+				const body = document.getElementById("tl-body");
+				let ITEMS = [];
+				let FILTER = "all";
+
+				const CH_ICON = { telegram: ["fa-brands fa-telegram", "#229ED9"], instagram: ["fa-brands fa-instagram", "#E1306C"], webchat: ["fa-solid fa-comments", "#16a085"] };
+				const ROLE = { buyer: "покупець", recipient: "отримувач", company: "компанія-покупець" };
+				const CONV_STATUS = { open: "відкритий", pending: "очікує", resolved: "завершений", archived: "архів" };
+
+				function esc(s) {
+					return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				}
+				function col(v, def) {
+					return v ? (v[0] === "#" ? v : "#" + v) : def;
+				}
+				function badge(text, ct, cb, icon) {
+					if (!text) return "";
+					return '<span class="badge rounded-0 me-1" style="color:' + col(ct, "#fff") + ";background:" + col(cb, "#6c757d") + '">' + (icon ? '<i class="' + esc(icon) + ' me-1"></i>' : "") + esc(text) + "</span>";
+				}
+
+				function renderItem(x) {
+					if (x.type === "order") {
+						return (
+							'<div class="tl-item"><div class="tl-icon" style="background:#8e44ad"><i class="fa-solid fa-cart-shopping"></i></div><div class="tl-body">' +
+							'<div class="d-flex justify-content-between gap-2"><div><a href="/orders/' + x.id + '/" class="fw-semibold">Замовлення ' + esc(x.title) + "</a> " +
+							badge(x.status.name, x.status.color_text, x.status.color_background, x.status.icon) + "</div>" +
+							'<span class="badge text-bg-primary rounded-0 align-self-start">' + esc(x.amount) + " " + esc(x.currency || "") + "</span></div>" +
+							'<div class="tl-sub">' + esc(x.dt_text) + " · " + esc(ROLE[x.role] || x.role) + (x.source ? " · " + esc(x.source) : "") + "</div></div></div>"
+						);
+					}
+					if (x.type === "lead") {
+						return (
+							'<div class="tl-item"><div class="tl-icon" style="background:#f39c12"><i class="fa-solid fa-bullseye"></i></div><div class="tl-body">' +
+							'<div class="d-flex justify-content-between gap-2"><div><a href="/leads/' + x.id + '/" class="fw-semibold">' + esc(x.title || "Лід #" + x.id) + "</a> " +
+							badge(x.status.name, x.status.color_text, x.status.color_background) +
+							(x.stage ? '<span class="badge rounded-0 me-1" style="color:#fff;background:' + col(x.stage.color, "#6c757d") + '">' + esc(x.stage.name) + "</span>" : "") +
+							(x.converted ? '<span class="badge text-bg-success rounded-0">конвертовано</span>' : "") + "</div>" +
+							(x.amount ? '<span class="badge text-bg-light border rounded-0 align-self-start">' + esc(x.amount) + "</span>" : "") + "</div>" +
+							'<div class="tl-sub">' + esc(x.dt_text) + "</div></div></div>"
+						);
+					}
+					const ic = CH_ICON[x.channel_type] || ["fa-solid fa-comment", "#6c757d"];
+					return (
+						'<div class="tl-item"><div class="tl-icon" style="background:' + ic[1] + '"><i class="' + ic[0] + '"></i></div><div class="tl-body">' +
+						'<div><a href="/contact-center/chat/' + esc(x.url_token) + '/" class="fw-semibold">Діалог · ' + esc(x.title) + "</a> " +
+						'<span class="badge text-bg-light border rounded-0">' + esc(CONV_STATUS[x.conv_status] || x.conv_status) + "</span></div>" +
+						(x.last_text ? '<div class="tl-text">' + (x.last_dir === "out" ? '<i class="fa-solid fa-reply me-1 text-muted"></i>' : "") + esc(x.last_text) + "</div>" : "") +
+						'<div class="tl-sub">' + esc(x.dt_text) + " · повідомлень: " + (x.messages_count || 0) + "</div></div></div>"
+					);
+				}
+
+				function render() {
+					if (FILTER === "changes") return;
+					const list = FILTER === "all" ? ITEMS : ITEMS.filter((x) => x.type === FILTER);
+					body.innerHTML = list.length ? list.map(renderItem).join("") : '<div class="text-center text-muted py-4">Історії поки немає</div>';
+				}
+
+				document.querySelectorAll("#tl-tabs [data-filter]").forEach(function (btn) {
+					btn.addEventListener("click", function () {
+						document.querySelectorAll("#tl-tabs .nav-link").forEach((b) => b.classList.remove("active"));
+						btn.classList.add("active");
+						FILTER = btn.getAttribute("data-filter");
+						if (FILTER === "changes") loadChanges(true);
+						else render();
+					});
+				});
+
+								// ─── Вкладка «Зміни» ───────────────────────────
+				const H_SOURCE = { manual: ["Вручну", "fa-solid fa-user-pen", "#0d6efd"], order: ["Замовлення", "fa-solid fa-cart-shopping", "#8e44ad"], "contact-center": ["Контакт-центр", "fa-solid fa-headset", "#16a085"], chat: ["Чат", "fa-solid fa-comments", "#16a085"], lead: ["Лід", "fa-solid fa-bullseye", "#f39c12"], import: ["Імпорт", "fa-solid fa-file-import", "#6c757d"], merge: ["Злиття", "fa-solid fa-code-merge", "#d35400"], api: ["API", "fa-solid fa-plug", "#6c757d"], site_sync: ["Синк із сайтом", "fa-solid fa-rotate", "#2980b9"], system: ["Система", "fa-solid fa-gear", "#7f8c8d"] };
+				const H_ENTITY = { client: "Клієнт", person: "Особа", organization: "Організація", contact: "Контакт", address: "Адреса", identifier: "Реквізит", relationship: "Звʼязок", commercial: "Комерційні умови", tag: "Тег", role: "Роль", external_id: "Зовнішній ID", order: "Замовлення", lead: "Лід", chat_contact: "Контакт чату", duplicate: "Дубль", links: "Звʼязки", event: "Подія", field: "Додаткове поле", note: "Нотатка" };
+				const H_ACTION = { created: "створено", updated: "змінено", added: "додано", removed: "видалено", linked: "привʼязано", unlinked: "відвʼязано", merged: "злиття", merge_reverted: "злиття скасовано", dismissed: "не дубль" };
+				const H = { rows: [], next: null, more: false, source: "", entity: "", busy: false };
+
+				function hRef(x) {
+					const r = x.source_ref;
+					if (!r) return "";
+					if ((x.source === "order" || x.source === "contact-center") && /^\d+$/.test(r)) return ' · <a href="/orders/' + r + '/">замовлення #' + esc(r) + "</a>";
+					if (x.source === "lead" && /^\d+$/.test(r)) return ' · <a href="/leads/' + r + '/">лід #' + esc(r) + "</a>";
+					if (x.source === "merge") return " · злиття #" + esc(r);
+					return " · " + esc(r);
+				}
+				function hLine(x) {
+					const act = H_ACTION[x.action] || x.action;
+					const what = H_ENTITY[x.entity] || x.entity;
+					let link = "";
+					if (x.entity === "order" && x.id_entity) link = ' <a href="/orders/' + x.id_entity + '/">' + esc(x.new_text || x.old_text || "#" + x.id_entity) + "</a>";
+					else if (x.entity === "event" && x.id_entity && x.action !== "updated") link = ' <a href="/?event=' + x.id_entity + '">' + esc(x.new_text || x.old_text || "#" + x.id_entity) + "</a>";
+					else if (x.entity === "lead" && x.id_entity) link = ' <a href="/leads/' + x.id_entity + '/">' + esc(x.new_text || x.old_text || "#" + x.id_entity) + "</a>";
+					else if ((x.action === "merged" || x.action === "merge_reverted") && (x.value_new || x.value_old)) {
+						const other = x.value_new || x.value_old;
+						link = ' <a href="/clients/' + esc(other) + '/">#' + esc(other) + (x.old_text && x.action === "merged" ? " " + esc(x.old_text) : "") + "</a>";
+					}
+					const field = x.field_text ? ' <span class="text-muted">' + esc(x.field_text) + "</span>" : "";
+					let val = "";
+					if (!link) {
+						if (x.action === "updated") val = ': <s class="text-muted">' + esc(x.old_text ?? "—") + '</s> <i class="fa-solid fa-arrow-right-long mx-1 text-muted"></i> <b>' + esc(x.new_text ?? "—") + "</b>";
+						else if (x.new_text != null || x.old_text != null) val = ": <b>" + esc(x.new_text ?? x.old_text) + "</b>";
+					}
+					return '<div class="small">' + esc(what) + " " + esc(act) + field + val + link + "</div>";
+				}
+				function renderChanges() {
+					const groups = [];
+					for (const x of H.rows) {
+						const g = groups[groups.length - 1];
+						if (g && g.batch === x.batch) g.items.push(x);
+						else groups.push({ batch: x.batch, items: [x] });
+					}
+					const src = Object.entries(H_SOURCE).map(([k, v]) => '<option value="' + k + '"' + (H.source === k ? " selected" : "") + ">" + v[0] + "</option>").join("");
+					const ent = Object.entries(H_ENTITY).map(([k, v]) => '<option value="' + k + '"' + (H.entity === k ? " selected" : "") + ">" + v + "</option>").join("");
+					let html =
+						'<div class="d-flex gap-2 mb-3"><select class="form-select form-select-sm rounded-0" id="h-source"><option value="">Усі джерела</option>' + src + "</select>" +
+						'<select class="form-select form-select-sm rounded-0" id="h-entity"><option value="">Усі розділи</option>' + ent + "</select></div>";
+					if (!groups.length) html += '<div class="text-center text-muted py-4">Змін поки немає</div>';
+					for (const g of groups) {
+						const f = g.items[0];
+						const s = H_SOURCE[f.source] || [f.source, "fa-solid fa-circle", "#6c757d"];
+						html +=
+							'<div class="tl-item"><div class="tl-icon" style="background:' + s[2] + '"><i class="' + s[1] + '"></i></div><div class="tl-body">' +
+							g.items.map(hLine).join("") +
+							'<div class="tl-sub">' + esc(new Date(f.date_add).toLocaleString()) + " · " + esc(f.user_name || (f.id_user ? "#" + f.id_user : s[0])) + (f.user_name || f.id_user ? " · " + esc(s[0]) : "") + hRef(f) + (f.ip ? ' · <span class="text-muted">' + esc(f.ip) + "</span>" : "") + "</div></div></div>";
+					}
+					if (H.more) html += '<div class="text-center"><button class="btn btn-sm btn-outline-primary rounded-0" id="h-more">Показати ще</button></div>';
+					body.innerHTML = html;
+					document.getElementById("h-source").addEventListener("change", (e) => { H.source = e.target.value; loadChanges(true); });
+					document.getElementById("h-entity").addEventListener("change", (e) => { H.entity = e.target.value; loadChanges(true); });
+					const more = document.getElementById("h-more");
+					if (more) more.addEventListener("click", () => loadChanges(false));
+				}
+				function loadChanges(reset) {
+					if (H.busy) return;
+					H.busy = true;
+					if (reset) { H.rows = []; H.next = null; }
+					fetch("/api/clients/" + CLIENT_ID + "/history/", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ before_id: H.next, source: H.source, entity: H.entity, limit: 100 }) })
+						.then((r) => r.json())
+						.then(function (d) {
+							H.rows = H.rows.concat(d.rows || []);
+							H.next = d.next_before_id;
+							H.more = !!d.has_more;
+							if (FILTER === "changes") renderChanges();
+						})
+						.catch(function () { body.innerHTML = '<div class="text-danger py-3">Не вдалося завантажити зміни.</div>'; })
+						.finally(() => (H.busy = false));
+				}
+
+				fetch("/api/clients/" + CLIENT_ID + "/timeline/", { method: "POST" })
+					.then((r) => r.json())
+					.then(function (d) {
+						ITEMS = d.items || [];
+						["order", "lead", "chat"].forEach((k) => (document.getElementById("cnt-" + k).textContent = (d.counts && d.counts[k]) || 0));
+						render();
+					})
+					.catch(function () {
+						body.innerHTML = '<div class="text-danger py-3">Не вдалося завантажити історію.</div>';
+					});
+			})();
+		</script>
+				<script>
+			(function () {
+				const CID = <%= c.id %>;
+				const FORM = <%- JSON.stringify(d.form).replace(/</g, '\\u003c') %>;
+				const notyf = new Notyf({
+					position: { x: "right", y: "top" },
+					duration: 5000,
+					types: [
+						{ type: "success", dismissible: true, icon: false },
+						{ type: "error", background: "indianred", dismissible: true, icon: false },
+						{ type: "warning", background: "#e67e22", dismissible: true, icon: false },
+					],
+				});
+				const $ = (id) => document.getElementById(id);
+				const modalProfile = new bootstrap.Modal($("modal-profile"));
+				const modalContact = new bootstrap.Modal($("modal-contact"));
+
+				async function post(url, body) {
+					const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok || j.ok === false) throw new Error(j.error || "Помилка");
+					return j;
+				}
+				const val = (id) => ($(id) ? $(id).value.trim() : undefined);
+				const set = (id, v) => {
+					if ($(id)) $(id).value = v == null ? "" : v;
+				};
+				function warnDuplicates(r) {
+					if (r && r.duplicates && r.duplicates.length) {
+						notyf.open({ type: "warning", message: "Цей контакт є ще в: " + r.duplicates.map((x) => x.display_name || "#" + x.id_client).join(", ") + ". Пару додано в можливі дублі." });
+					}
+				}
+				const reloadSoon = (ms) => setTimeout(() => location.reload(), ms || 600);
+
+				// Часові пояси з браузера (усі IANA-зони)
+				try {
+					const tzs = Intl.supportedValuesOf ? Intl.supportedValuesOf("timeZone") : [];
+					$("tz-list").innerHTML = tzs.map((z) => '<option value="' + z + '">').join("");
+				} catch (e) {}
+
+				// ── Профіль ──
+				function openProfile() {
+					const p = FORM.person || {};
+					["last_name", "first_name", "middle_name", "gender", "birth_date", "job_title", "trade_name"].forEach((k) => set("pf-" + k, p[k]));
+					const o = FORM.organization || {};
+					["legal_name", "short_name", "industry", "website", "employees_count", "registration_date"].forEach((k) => set("of-" + k, o[k]));
+					["id_legal_type", "id_lifecycle", "status", "id_manager", "country", "timezone", "id_lang", "note"].forEach((k) => set("f-" + k, FORM[k]));
+					document.querySelectorAll("#f-tags input").forEach((cb) => (cb.checked = (FORM.tags || []).includes(Number(cb.value))));
+					modalProfile.show();
+				}
+
+				async function saveProfile(btn) {
+					btn.disabled = true;
+					try {
+						const body = {
+							id_legal_type: val("f-id_legal_type"),
+							id_lifecycle: val("f-id_lifecycle"),
+							status: val("f-status"),
+							id_manager: val("f-id_manager"),
+							country: (val("f-country") || "").toUpperCase(),
+							timezone: val("f-timezone"),
+							id_lang: val("f-id_lang"),
+							note: val("f-note"),
+						};
+						if (FORM.kind === "person") {
+							body.person = {};
+							["last_name", "first_name", "middle_name", "gender", "birth_date", "job_title", "trade_name"].forEach((k) => (body.person[k] = val("pf-" + k)));
+						} else if (FORM.kind === "organization") {
+							body.organization = {};
+							["legal_name", "short_name", "industry", "website", "employees_count", "registration_date"].forEach((k) => (body.organization[k] = val("of-" + k)));
+						}
+						await post("/api/clients/" + CID + "/profile/", body);
+						const tags = [...document.querySelectorAll("#f-tags input:checked")].map((cb) => Number(cb.value));
+						await post("/api/clients/" + CID + "/tags/", { tags });
+						notyf.success("Збережено");
+						modalProfile.hide();
+						reloadSoon();
+					} catch (e) {
+						notyf.error(e.message);
+					} finally {
+						btn.disabled = false;
+					}
+				}
+
+				// ── Контакти ──
+				function openContact(li) {
+					set("ct-id", li ? li.dataset.cp : "");
+					$("ct-title").textContent = li ? "Змінити контакт" : "Новий контакт";
+					$("ct-type").disabled = !!li; // тип контакту після створення не змінюється
+					if (li) set("ct-type", li.dataset.type);
+					set("ct-value", li ? li.dataset.value : "");
+					set("ct-label", li ? li.dataset.label : "personal");
+					$("ct-consent").checked = li ? li.dataset.consent === "1" : false;
+					$("ct-primary").checked = false;
+					$("ct-primary-wrap").style.display = li ? "none" : "";
+					modalContact.show();
+					setTimeout(() => $("ct-value").focus(), 300);
+				}
+
+				async function saveContact(btn) {
+					btn.disabled = true;
+					try {
+						const idCp = val("ct-id");
+						const body = { value: val("ct-value"), label: val("ct-label"), marketing_consent: $("ct-consent").checked ? 1 : 0 };
+						let r;
+						if (idCp) {
+							r = await post("/api/clients/" + CID + "/contacts/" + idCp + "/update/", body);
+						} else {
+							body.id_contact_type = val("ct-type");
+							body.is_primary = $("ct-primary").checked ? 1 : 0;
+							r = await post("/api/clients/" + CID + "/contacts/add/", body);
+						}
+						if (r.valid === false) notyf.open({ type: "warning", message: "Номер збережено, але він не пройшов перевірку формату. Перевірте код країни." });
+						warnDuplicates(r);
+						notyf.success("Збережено");
+						modalContact.hide();
+						reloadSoon(r.duplicates && r.duplicates.length ? 2500 : 600);
+					} catch (e) {
+						notyf.error(e.message);
+					} finally {
+						btn.disabled = false;
+					}
+				}
+
+				// ── Делегування кліків ──
+				document.addEventListener("click", async function (e) {
+					const el = e.target.closest("[data-cl]");
+					if (!el) return;
+					const li = el.closest("[data-cp]");
+					switch (el.dataset.cl) {
+						case "edit-profile":
+							return openProfile();
+						case "save-profile":
+							return saveProfile(el);
+						case "add-contact":
+							return openContact(null);
+						case "edit-contact":
+							return openContact(li);
+						case "save-contact":
+							return saveContact(el);
+						case "primary-contact":
+							try {
+								await post("/api/clients/" + CID + "/contacts/" + li.dataset.cp + "/primary/");
+								reloadSoon(200);
+							} catch (err) {
+								notyf.error(err.message);
+							}
+							return;
+						case "delete-contact":
+							if (!confirm("Видалити контакт " + li.dataset.value + "?")) return;
+							try {
+								await post("/api/clients/" + CID + "/contacts/" + li.dataset.cp + "/delete/");
+								reloadSoon(200);
+							} catch (err) {
+								notyf.error(err.message);
+							}
+							return;
+					}
+				});
+
+				$("ct-value").addEventListener("keydown", (e) => {
+					if (e.key === "Enter") document.querySelector('[data-cl="save-contact"]').click();
+				});
+			})();
+		</script>
+		<script>
+			(function () {
+				const CID = <%= c.id %>;
+				const EDIT = <%- JSON.stringify({ addresses: d.addresses, identifiers: d.identifiers, relationships: d.relationships, commercial: d.commercial }).replace(/</g, '\\u003c') %>;
+				const notyf = new Notyf({
+					position: { x: "right", y: "top" },
+					duration: 5000,
+					types: [
+						{ type: "success", dismissible: true, icon: false },
+						{ type: "error", background: "indianred", dismissible: true, icon: false },
+						{ type: "warning", background: "#e67e22", dismissible: true, icon: false },
+					],
+				});
+				const $ = (id) => document.getElementById(id);
+				const M = (id) => bootstrap.Modal.getOrCreateInstance($(id));
+				const val = (id) => ($(id) ? $(id).value.trim() : "");
+				const set = (id, v) => {
+					if ($(id)) $(id).value = v == null ? "" : v;
+				};
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const reloadSoon = (ms) => setTimeout(() => location.reload(), ms || 600);
+				const byId = (list, id) => (list || []).find((x) => String(x.id) === String(id));
+
+				async function post(url, body) {
+					const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok || j.ok === false) throw new Error(j.error || "Помилка");
+					return j;
+				}
+				async function run(fn, btn) {
+					if (btn) btn.disabled = true;
+					try {
+						const r = await fn();
+						if (r && r.duplicates && r.duplicates.length) {
+							notyf.open({ type: "warning", message: "Такий самий реквізит є в: " + r.duplicates.map((x) => x.display_name || "#" + x.id_client).join(", ") + ". Пару додано в можливі дублі." });
+							reloadSoon(2500);
+						} else {
+							notyf.success("Збережено");
+							reloadSoon();
+						}
+						return r;
+					} catch (e) {
+						notyf.error(e.message);
+					} finally {
+						if (btn) btn.disabled = false;
+					}
+				}
+
+				// ── Адреси ──
+				const AD_FIELDS = ["id_address_type", "country", "region", "postcode", "city", "street", "building", "apartment", "address_line", "carrier_code", "carrier_point_name", "carrier_point_ref", "recipient_name", "recipient_phone", "comment"];
+				function openAddress(id) {
+					const a = id ? byId(EDIT.addresses, id) : {};
+					set("ad-id", id || "");
+					$("ad-title").textContent = id ? "Змінити адресу" : "Нова адреса";
+					AD_FIELDS.forEach((k) => set("ad-" + k, a[k]));
+					if (!id) set("ad-id_address_type", $("ad-id_address_type").options[0] && $("ad-id_address_type").options[0].value);
+					$("ad-is_default").checked = !!a.is_default;
+					M("modal-address").show();
+				}
+				function saveAddress(btn) {
+					const id = val("ad-id");
+					const body = { is_default: $("ad-is_default").checked ? 1 : 0 };
+					AD_FIELDS.forEach((k) => (body[k] = val("ad-" + k)));
+					body.country = body.country.toUpperCase();
+					return run(() => post("/api/clients/" + CID + "/addresses/" + (id ? id + "/update/" : "add/"), body), btn);
+				}
+
+				// ── Реквізити ──
+				function openIdentifier(id) {
+					const x = id ? byId(EDIT.identifiers, id) : null;
+					set("id-id", id || "");
+					$("id-title").textContent = id ? "Змінити реквізит" : "Новий реквізит";
+					$("id-type").disabled = !!id;
+					if (x) set("id-type", x.id_identifier_type);
+					set("id-value", x ? x.value : "");
+					set("id-country", x ? x.country : ($("id-type").selectedOptions[0] || {}).dataset?.country || "");
+					$("id-verified").checked = x ? !!x.is_verified : false;
+					M("modal-identifier").show();
+				}
+				$("id-type").addEventListener("change", function () {
+					const c = this.selectedOptions[0] && this.selectedOptions[0].dataset.country;
+					if (c) set("id-country", c);
+				});
+				function saveIdentifier(btn) {
+					const id = val("id-id");
+					const body = { id_identifier_type: val("id-type"), value: val("id-value"), country: val("id-country").toUpperCase(), is_verified: $("id-verified").checked ? 1 : 0 };
+					return run(() => post("/api/clients/" + CID + "/identifiers/" + (id ? id + "/update/" : "add/"), body), btn);
+				}
+
+				// ── Зв'язки ──
+				const KIND_ICON = { person: "fa-solid fa-user", organization: "fa-solid fa-building", group: "fa-solid fa-users" };
+				function openRelationship(id) {
+					const r = id ? byId(EDIT.relationships, id) : null;
+					set("rl-id", id || "");
+					$("rl-title").textContent = id ? "Змінити зв'язок" : "Новий зв'язок";
+					$("rl-new-block").style.display = id ? "none" : "";
+					$("rl-to-wrap").style.display = id ? "" : "none";
+					set("rl-other", "");
+					set("rl-search", "");
+					$("rl-results").innerHTML = "";
+					$("rl-picked").innerHTML = id ? "" : '<span class="text-muted">Клієнта не обрано</span>';
+					set("rl-title-input", r ? r.title : "");
+					set("rl-from", r ? r.valid_from : "");
+					set("rl-to", r ? r.valid_to : "");
+					set("rl-note", r ? r.note : "");
+					$("rl-primary").checked = r ? !!r.is_primary : false;
+					M("modal-relationship").show();
+				}
+				let rlTimer = null;
+				$("rl-search").addEventListener("input", function () {
+					clearTimeout(rlTimer);
+					const q = this.value.trim();
+					if (q.length < 2) {
+						$("rl-results").innerHTML = "";
+						return;
+					}
+					rlTimer = setTimeout(async () => {
+						try {
+							const rows = (await post("/api/clients/search/", { q })).filter((x) => x.id !== CID);
+							$("rl-results").innerHTML = rows.length
+								? rows.map((x) => '<button type="button" class="list-group-item list-group-item-action small py-1 px-2 w-100 text-start border-0 border-bottom" data-pick="' + x.id + '" data-name="' + esc(x.display_name) + '"><i class="' + (KIND_ICON[x.kind] || KIND_ICON.person) + ' text-muted me-1"></i>' + esc(x.display_name || "#" + x.id) + ' <span class="text-muted">' + esc(x.phone || x.email || "") + "</span></button>").join("")
+								: '<div class="small text-muted p-2">Нічого не знайдено</div>';
+						} catch (e) {
+							$("rl-results").innerHTML = '<div class="small text-danger p-2">' + esc(e.message) + "</div>";
+						}
+					}, 300);
+				});
+				$("rl-results").addEventListener("click", function (e) {
+					const b = e.target.closest("[data-pick]");
+					if (!b) return;
+					set("rl-other", b.dataset.pick);
+					$("rl-picked").innerHTML = '<i class="fa-solid fa-check text-success me-1"></i>' + esc(b.dataset.name);
+					$("rl-results").innerHTML = "";
+					set("rl-search", "");
+				});
+				function saveRelationship(btn) {
+					const id = val("rl-id");
+					const common = { title: val("rl-title-input"), valid_from: val("rl-from"), note: val("rl-note"), is_primary: $("rl-primary").checked ? 1 : 0 };
+					if (id) return run(() => post("/api/clients/" + CID + "/relationships/" + id + "/update/", { ...common, valid_to: val("rl-to") }), btn);
+					if (!val("rl-other")) {
+						notyf.error("Оберіть клієнта");
+						return;
+					}
+					return run(() => post("/api/clients/" + CID + "/relationships/add/", { ...common, rel: val("rl-rel"), id_other: val("rl-other") }), btn);
+				}
+
+				// ── Комерційні умови ──
+				const CM_FIELDS = ["price_group", "discount_percent", "credit_limit", "payment_terms_days", "currency", "default_payment_method"];
+				function openCommercial() {
+					const m = EDIT.commercial || {};
+					CM_FIELDS.forEach((k) => set("cm-" + k, m[k]));
+					$("cm-vat_payer").checked = !!m.vat_payer;
+					M("modal-commercial").show();
+				}
+				function saveCommercial(btn) {
+					const body = { vat_payer: $("cm-vat_payer").checked ? 1 : 0 };
+					CM_FIELDS.forEach((k) => (body[k] = val("cm-" + k)));
+					return run(() => post("/api/clients/" + CID + "/commercial/", body), btn);
+				}
+
+				// ── Делегування ──
+				document.addEventListener("click", function (e) {
+					const el = e.target.closest("[data-cl2]");
+					if (!el) return;
+					const addr = el.closest("[data-addr]"),
+						ident = el.closest("[data-ident]"),
+						rel = el.closest("[data-rel]");
+					const confirmRun = (msg, url) => confirm(msg) && run(() => post(url));
+					switch (el.dataset.cl2) {
+						case "add-address": return openAddress(null);
+						case "edit-address": return openAddress(addr.dataset.addr);
+						case "save-address": return saveAddress(el);
+						case "default-address": return run(() => post("/api/clients/" + CID + "/addresses/" + addr.dataset.addr + "/default/"));
+						case "delete-address": return confirmRun("Видалити адресу?", "/api/clients/" + CID + "/addresses/" + addr.dataset.addr + "/delete/");
+						case "add-identifier": return openIdentifier(null);
+						case "edit-identifier": return openIdentifier(ident.dataset.ident);
+						case "save-identifier": return saveIdentifier(el);
+						case "delete-identifier": return confirmRun("Видалити реквізит?", "/api/clients/" + CID + "/identifiers/" + ident.dataset.ident + "/delete/");
+						case "add-relationship": return openRelationship(null);
+						case "edit-relationship": return openRelationship(rel.dataset.rel);
+						case "save-relationship": return saveRelationship(el);
+						case "end-relationship": return confirmRun("Завершити зв'язок сьогоднішньою датою? Він лишиться в історії.", "/api/clients/" + CID + "/relationships/" + rel.dataset.rel + "/end/");
+						case "delete-relationship": return confirmRun("Видалити зв'язок повністю?", "/api/clients/" + CID + "/relationships/" + rel.dataset.rel + "/delete/");
+						case "edit-commercial": return openCommercial();
+						case "save-commercial": return saveCommercial(el);
+					}
+				});
+			})();
+		</script>
+		<script>
+			document.addEventListener("click", async function (e) {
+				const b = e.target.closest("[data-revert-merge]");
+				if (!b) return;
+				if (!confirm("Скасувати злиття? Дані повернуться до злитого клієнта, і обидва записи знову стануть окремими.")) return;
+				b.disabled = true;
+				try {
+					const r = await fetch("/api/clients/merges/" + b.dataset.revertMerge + "/revert/", { method: "POST" });
+					const j = await r.json();
+					if (!r.ok || j.ok === false) throw new Error(j.error || "Помилка");
+					location.href = location.pathname;
+				} catch (err) {
+					alert(err.message);
+					b.disabled = false;
+				}
+			});
+		</script>
+	</body>
+</html>

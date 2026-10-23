@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="<%= i18n.__('lang_iso') %>">
+<head>
+	<%- include('../../partials/head'); %>
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/css/tabulator_bootstrap5.min.css" />
+	<style>
+		.tabulator { font-size: 0.9rem; }
+		.mailing-sub { font-size: 0.8rem; color: #6c757d; }
+		.step-card { border-left: 4px solid #6c757d; }
+		.step-card.step-email { border-left-color: #0d6efd; }
+		.step-card.step-wait { border-left-color: #ffc107; }
+		.step-card.step-condition { border-left-color: #6f42c1; }
+		.step-arrow { text-align: center; color: #adb5bd; line-height: 1; margin: 4px 0; }
+		.stat-tile .v { font-size: 1.4rem; font-weight: 600; }
+	</style>
+	<title><%= i18n.__('mailing.ui.automations.edit_title') %></title>
+</head>
+<body>
+	<%- include('../../partials/header'); %>
+	<%
+		const canEdit = can('mailing.campaigns', 'edit');
+		const canSend = can('mailing.send', 'edit');
+		const canDel = can('mailing.campaigns', 'delete');
+	%>
+
+	<div class="breadcrumbs pt-3 pb-3">
+		<div class="container-fluid">
+			<nav aria-label="breadcrumb">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><i class="fa-solid fa-house"></i></a></li>
+					<li class="breadcrumb-item"><a href="/mailing/automations/"><%= i18n.__('mailing.ui.automations.title') %></a></li>
+					<li class="breadcrumb-item active" id="bc-name">#<%= data.id %></li>
+				</ol>
+			</nav>
+		</div>
+	</div>
+
+	<div class="container-fluid mt-3 mb-4">
+		<!-- Панель дій -->
+		<div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+			<span id="status-badge"></span>
+			<div class="ms-auto d-flex flex-wrap gap-2">
+				<% if (canEdit) { %>
+					<button class="btn btn-primary rounded-0 d-none js-st js-st-draft js-st-paused" id="btn-save"><i class="fa-solid fa-floppy-disk"></i> <%= i18n.__('mailing.ui.save') %></button>
+					<button class="btn btn-outline-secondary rounded-0" id="btn-copy"><i class="fa-solid fa-copy"></i> <%= i18n.__('mailing.ui.campaigns.copy') %></button>
+				<% } %>
+				<% if (canSend) { %>
+					<button class="btn btn-success rounded-0 d-none js-st js-st-draft js-st-paused" id="btn-activate"><i class="fa-solid fa-play"></i> <%= i18n.__('mailing.ui.automations.activate') %></button>
+					<button class="btn btn-warning rounded-0 d-none js-st js-st-active" id="btn-pause"><i class="fa-solid fa-pause"></i> <%= i18n.__('mailing.ui.campaigns.pause') %></button>
+					<button class="btn btn-outline-primary rounded-0 d-none" id="btn-enroll"><i class="fa-solid fa-user-plus"></i> <%= i18n.__('mailing.ui.automations.enroll_now') %></button>
+				<% } %>
+				<% if (canDel) { %><button class="btn btn-outline-danger rounded-0 d-none js-st js-st-draft js-st-paused" id="btn-delete"><i class="fa-solid fa-trash"></i></button><% } %>
+			</div>
+		</div>
+		<div class="alert alert-info rounded-0 d-none" id="active-note"><%= i18n.__('mailing.ui.automations.active_note') %></div>
+
+		<!-- Статистика -->
+		<div class="row g-2 mb-3">
+			<% ['entered','active','completed','goal','exited'].forEach(function (k) { %>
+				<div class="col-6 col-md"><div class="p-2 bg-white border stat-tile"><div class="mailing-sub"><%= i18n.__('mailing.ui.automations.tile.' + k) %></div><div class="v" id="t-<%= k %>">—</div></div></div>
+			<% }) %>
+		</div>
+
+		<form id="form-auto" class="row g-3" autocomplete="off">
+			<div class="col-12 col-xl-5">
+				<!-- ОСНОВНЕ -->
+				<div class="card border-primary rounded-0 mb-3">
+					<div class="card-header text-bg-primary rounded-0"><%= i18n.__('mailing.ui.campaigns.main') %></div>
+					<div class="card-body row g-3">
+						<div class="col-12"><label class="form-label"><%= i18n.__('mailing.ui.automations.name') %> *</label><input class="form-control rounded-0 js-lock" name="name" maxlength="255" required /></div>
+						<div class="col-12"><label class="form-label"><%= i18n.__('mailing.ui.campaigns.sender') %> *</label><select class="form-select rounded-0 js-lock" name="id_sender" data-type="int"></select></div>
+						<div class="col-12 d-flex flex-wrap gap-3">
+							<div class="form-check"><input class="form-check-input js-lock" type="checkbox" name="track_opens" id="f-to" /><label class="form-check-label" for="f-to"><%= i18n.__('mailing.ui.campaigns.track_opens') %></label></div>
+							<div class="form-check"><input class="form-check-input js-lock" type="checkbox" name="track_clicks" id="f-tc" /><label class="form-check-label" for="f-tc"><%= i18n.__('mailing.ui.campaigns.track_clicks') %></label></div>
+						</div>
+					</div>
+				</div>
+
+				<!-- ТРИГЕР -->
+				<div class="card border-primary rounded-0 mb-3">
+					<div class="card-header text-bg-primary rounded-0"><%= i18n.__('mailing.ui.automations.trigger') %></div>
+					<div class="card-body row g-3">
+						<div class="col-12">
+							<select class="form-select rounded-0 js-lock" name="trigger_type">
+								<% ['list_subscribe','date_field','inactive','manual'].forEach(function (t) { %><option value="<%= t %>"><%= i18n.__('mailing.ui.automations.trigger_type.' + t) %></option><% }) %>
+							</select>
+						</div>
+						<div class="col-12 js-trg js-trg-list_subscribe">
+							<label class="form-label"><%= i18n.__('mailing.ui.automations.trigger_list') %> *</label>
+							<select class="form-select rounded-0 js-lock" id="trg-list"></select>
+							<div class="form-check mt-2"><input class="form-check-input js-lock" type="checkbox" id="trg-existing" /><label class="form-check-label" for="trg-existing"><%= i18n.__('mailing.ui.automations.include_existing') %></label></div>
+							<div class="form-text"><%= i18n.__('mailing.ui.automations.hint_list_subscribe') %></div>
+						</div>
+						<div class="col-12 js-trg js-trg-date_field">
+							<div class="row g-2">
+								<div class="col-md-6"><label class="form-label"><%= i18n.__('mailing.ui.automations.trigger_field') %> *</label><select class="form-select rounded-0 js-lock" id="trg-field"></select></div>
+								<div class="col-md-3"><label class="form-label"><%= i18n.__('mailing.ui.automations.offset_days') %></label><input type="number" class="form-control rounded-0 js-lock" id="trg-offset" min="-60" max="60" value="0" /></div>
+								<div class="col-md-3"><label class="form-label"><%= i18n.__('mailing.ui.automations.hour') %></label><input type="number" class="form-control rounded-0 js-lock js-hour" min="0" max="23" value="10" /></div>
+							</div>
+							<div class="form-text"><%= i18n.__('mailing.ui.automations.hint_date_field') %></div>
+						</div>
+						<div class="col-12 js-trg js-trg-inactive">
+							<div class="row g-2">
+								<div class="col-md-6"><label class="form-label"><%= i18n.__('mailing.ui.automations.inactive_days') %></label><input type="number" class="form-control rounded-0 js-lock" id="trg-days" min="7" max="3650" value="90" /></div>
+								<div class="col-md-6"><label class="form-label"><%= i18n.__('mailing.ui.automations.hour') %></label><input type="number" class="form-control rounded-0 js-lock js-hour" min="0" max="23" value="10" /></div>
+							</div>
+							<div class="form-text"><%= i18n.__('mailing.ui.automations.hint_inactive') %></div>
+						</div>
+						<div class="col-12 js-trg js-trg-manual"><div class="form-text"><%= i18n.__('mailing.ui.automations.hint_manual') %></div></div>
+						<div class="col-12 js-reentry">
+							<div class="form-check"><input class="form-check-input js-lock" type="checkbox" name="allow_reentry" id="f-re" /><label class="form-check-label" for="f-re"><%= i18n.__('mailing.ui.automations.allow_reentry') %></label></div>
+							<div class="input-group input-group-sm mt-1" style="max-width:320px">
+								<span class="input-group-text rounded-0"><%= i18n.__('mailing.ui.automations.reentry_days') %></span>
+								<input type="number" class="form-control rounded-0 js-lock" name="reentry_days" min="0" max="3650" value="0" data-type="int" />
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- АУДИТОРІЯ -->
+				<div class="card border-primary rounded-0 mb-3">
+					<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between">
+						<span><%= i18n.__('mailing.ui.automations.audience') %></span>
+						<span><%= i18n.__('mailing.ui.campaigns.recipients') %>: <b id="aud-count">—</b></span>
+					</div>
+					<div class="card-body">
+						<div class="mailing-sub mb-2"><%= i18n.__('mailing.ui.automations.audience_hint') %></div>
+						<label class="form-label"><%= i18n.__('mailing.ui.automations.lists') %></label>
+						<div id="aud-lists" class="d-flex flex-wrap gap-3 border p-2 mb-3"></div>
+						<label class="form-label"><%= i18n.__('mailing.ui.campaigns.exclude_lists') %></label>
+						<div id="aud-exclude" class="d-flex flex-wrap gap-3 border p-2 mb-3"></div>
+						<div class="form-check mb-3"><input class="form-check-input js-lock" type="checkbox" id="aud-role" /><label class="form-check-label" for="aud-role"><%= i18n.__('mailing.ui.campaigns.exclude_role') %></label></div>
+						<div id="seg-aud"></div>
+						<button type="button" class="btn btn-sm btn-outline-secondary rounded-0 mt-2" id="btn-count"><i class="fa-solid fa-calculator"></i> <%= i18n.__('mailing.ui.campaigns.count') %></button>
+					</div>
+				</div>
+
+				<!-- МЕТА -->
+				<div class="card border-primary rounded-0 mb-3">
+					<div class="card-header text-bg-primary rounded-0"><%= i18n.__('mailing.ui.automations.goal') %></div>
+					<div class="card-body">
+						<div class="mailing-sub mb-2"><%= i18n.__('mailing.ui.automations.goal_hint') %></div>
+						<div id="seg-goal"></div>
+					</div>
+				</div>
+			</div>
+
+			<div class="col-12 col-xl-7">
+				<!-- КРОКИ -->
+				<div class="card border-primary rounded-0 mb-3">
+					<div class="card-header text-bg-primary rounded-0"><%= i18n.__('mailing.ui.automations.steps') %></div>
+					<div class="card-body">
+						<div class="border p-2 mb-1 bg-light small"><i class="fa-solid fa-bolt"></i> <span id="trigger-label"></span></div>
+						<div id="steps"></div>
+						<div class="d-flex flex-wrap gap-2 mt-3 js-edit-only">
+							<button type="button" class="btn btn-sm btn-outline-primary rounded-0 js-add" data-type="email"><i class="fa-solid fa-envelope"></i> <%= i18n.__('mailing.ui.automations.step_type.email') %></button>
+							<button type="button" class="btn btn-sm btn-outline-warning rounded-0 js-add" data-type="wait"><i class="fa-solid fa-hourglass-half"></i> <%= i18n.__('mailing.ui.automations.step_type.wait') %></button>
+							<button type="button" class="btn btn-sm btn-outline-secondary rounded-0 js-add" data-type="condition"><i class="fa-solid fa-code-branch"></i> <%= i18n.__('mailing.ui.automations.step_type.condition') %></button>
+						</div>
+						<div class="mailing-sub mt-2"><%= i18n.__('mailing.ui.automations.steps_hint') %></div>
+					</div>
+				</div>
+
+				<!-- ПРОХОДЖЕННЯ -->
+				<div class="card rounded-0 mb-3">
+					<div class="card-header rounded-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+						<span><%= i18n.__('mailing.ui.automations.runs') %></span>
+						<div class="d-flex gap-2">
+							<input type="search" class="form-control form-control-sm rounded-0" id="r-search" placeholder="<%= i18n.__('mailing.ui.search') %>" maxlength="100" />
+							<select class="form-select form-select-sm rounded-0" id="r-status">
+								<option value=""><%= i18n.__('mailing.ui.all') %></option>
+								<% ['active','completed','exited'].forEach(function (s) { %><option value="<%= s %>"><%= i18n.__('mailing.ui.automations.run_status.' + s) %></option><% }) %>
+							</select>
+						</div>
+					</div>
+					<div class="card-body p-0"><div id="runs-table"></div></div>
+				</div>
+			</div>
+		</form>
+	</div>
+
+	<!-- ═══ МОДАЛКА: ПЕРЕВІРКА ═══ -->
+	<div class="modal fade" id="modal-check" tabindex="-1">
+		<div class="modal-dialog">
+			<div class="modal-content rounded-0">
+				<div class="modal-header"><h5 class="modal-title"><%= i18n.__('mailing.ui.campaigns.check') %></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+				<div class="modal-body" id="check-body"></div>
+				<div class="modal-footer"><button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('mailing.ui.cancel') %></button></div>
+			</div>
+		</div>
+	</div>
+
+	<!-- ═══ МОДАЛКА: ТЕСТОВИЙ ЛИСТ ═══ -->
+	<div class="modal fade" id="modal-test" tabindex="-1">
+		<div class="modal-dialog">
+			<form class="modal-content rounded-0" id="form-test">
+				<div class="modal-header"><h5 class="modal-title"><%= i18n.__('mailing.ui.campaigns.test') %></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+				<div class="modal-body row g-3">
+					<input type="hidden" name="id_campaign" data-type="int" />
+					<div class="col-12"><label class="form-label"><%= i18n.__('mailing.ui.campaigns.test_emails') %></label><input class="form-control rounded-0" name="emails" maxlength="1300" required /><div class="form-text"><%= i18n.__('mailing.ui.campaigns.test_emails_hint') %></div></div>
+					<div class="col-6">
+						<label class="form-label"><%= i18n.__('mailing.ui.contacts.lang') %></label>
+						<select class="form-select rounded-0" name="id_lang" data-type="int"><% languages.forEach(function (l) { %><option value="<%= l.id %>"><%= l.name %></option><% }) %></select>
+					</div>
+					<div class="col-6"><label class="form-label"><%= i18n.__('mailing.ui.campaigns.test_contact') %></label><input type="number" class="form-control rounded-0" name="id_contact" min="1" data-type="int" /></div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('mailing.ui.cancel') %></button>
+					<button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('mailing.ui.campaigns.send_test') %></button>
+				</div>
+			</form>
+		</div>
+	</div>
+
+	<%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+	<script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+	<script>
+		var TR_STATUS = { draft: "<%= i18n.__('mailing.ui.automations.status.draft') %>", active: "<%= i18n.__('mailing.ui.automations.status.active') %>", paused: "<%= i18n.__('mailing.ui.automations.status.paused') %>" };
+		var TR_TRIGGER = { list_subscribe: "<%= i18n.__('mailing.ui.automations.trigger_type.list_subscribe') %>", date_field: "<%= i18n.__('mailing.ui.automations.trigger_type.date_field') %>", inactive: "<%= i18n.__('mailing.ui.automations.trigger_type.inactive') %>", manual: "<%= i18n.__('mailing.ui.automations.trigger_type.manual') %>" };
+		var TR_STEP = { email: "<%= i18n.__('mailing.ui.automations.step_type.email') %>", wait: "<%= i18n.__('mailing.ui.automations.step_type.wait') %>", condition: "<%= i18n.__('mailing.ui.automations.step_type.condition') %>" };
+		var TR_UNIT = { minutes: "<%= i18n.__('mailing.ui.automations.unit.minutes') %>", hours: "<%= i18n.__('mailing.ui.automations.unit.hours') %>", days: "<%= i18n.__('mailing.ui.automations.unit.days') %>" };
+		var TR_CHECK = { opened: "<%= i18n.__('mailing.ui.automations.check.opened') %>", clicked: "<%= i18n.__('mailing.ui.automations.check.clicked') %>", segment: "<%= i18n.__('mailing.ui.automations.check.segment') %>" };
+		var TR_BRANCH = { continue: "<%= i18n.__('mailing.ui.automations.branch.continue') %>", exit: "<%= i18n.__('mailing.ui.automations.branch.exit') %>" };
+		var TR_RUN_STATUS = { active: "<%= i18n.__('mailing.ui.automations.run_status.active') %>", completed: "<%= i18n.__('mailing.ui.automations.run_status.completed') %>", exited: "<%= i18n.__('mailing.ui.automations.run_status.exited') %>" };
+		var TR_EXIT = { audience: "<%= i18n.__('mailing.ui.automations.exit_reason.audience') %>", goal: "<%= i18n.__('mailing.ui.automations.exit_reason.goal') %>", condition: "<%= i18n.__('mailing.ui.automations.exit_reason.condition') %>", manual: "<%= i18n.__('mailing.ui.automations.exit_reason.manual') %>", deleted: "<%= i18n.__('mailing.ui.automations.exit_reason.deleted') %>" };
+		var TR_PROBLEMS = { no_sender: "<%= i18n.__('mailing.problems.no_sender', { code: '%CODE%' }) %>", sender_inactive: "<%= i18n.__('mailing.problems.sender_inactive', { code: '%CODE%' }) %>", no_lists: "<%= i18n.__('mailing.problems.no_lists', { code: '%CODE%' }) %>", no_content: "<%= i18n.__('mailing.problems.no_content', { code: '%CODE%' }) %>", trigger_no_list: "<%= i18n.__('mailing.problems.trigger_no_list', { code: '%CODE%' }) %>", trigger_no_field: "<%= i18n.__('mailing.problems.trigger_no_field', { code: '%CODE%' }) %>", no_email_steps: "<%= i18n.__('mailing.problems.no_email_steps', { code: '%CODE%' }) %>" };
+		var TR_UI_SEGMENT_FIELD = { email_domain: "<%= i18n.__('mailing.ui.segment.field.email_domain') %>", country: "<%= i18n.__('mailing.ui.segment.field.country') %>", id_lang: "<%= i18n.__('mailing.ui.segment.field.id_lang') %>", source: "<%= i18n.__('mailing.ui.segment.field.source') %>", is_role: "<%= i18n.__('mailing.ui.segment.field.is_role') %>", date_add: "<%= i18n.__('mailing.ui.segment.field.date_add') %>", last_open: "<%= i18n.__('mailing.ui.segment.field.last_open') %>", last_click: "<%= i18n.__('mailing.ui.segment.field.last_click') %>", last_sent: "<%= i18n.__('mailing.ui.segment.field.last_sent') %>", has_client: "<%= i18n.__('mailing.ui.segment.field.has_client') %>", rfm_segment: "<%= i18n.__('mailing.ui.segment.field.rfm_segment') %>", id_lifecycle: "<%= i18n.__('mailing.ui.segment.field.id_lifecycle') %>", id_manager: "<%= i18n.__('mailing.ui.segment.field.id_manager') %>", client_kind: "<%= i18n.__('mailing.ui.segment.field.client_kind') %>", tag: "<%= i18n.__('mailing.ui.segment.field.tag') %>", campaign_received: "<%= i18n.__('mailing.ui.segment.field.campaign_received') %>", campaign_opened: "<%= i18n.__('mailing.ui.segment.field.campaign_opened') %>", campaign_clicked: "<%= i18n.__('mailing.ui.segment.field.campaign_clicked') %>" };
+		var TR_UI_SEGMENT_OP = { eq: "<%= i18n.__('mailing.ui.segment.op.eq') %>", neq: "<%= i18n.__('mailing.ui.segment.op.neq') %>", in: "<%= i18n.__('mailing.ui.segment.op.in') %>", nin: "<%= i18n.__('mailing.ui.segment.op.nin') %>", contains: "<%= i18n.__('mailing.ui.segment.op.contains') %>", starts: "<%= i18n.__('mailing.ui.segment.op.starts') %>", empty: "<%= i18n.__('mailing.ui.segment.op.empty') %>", not_empty: "<%= i18n.__('mailing.ui.segment.op.not_empty') %>", gt: "<%= i18n.__('mailing.ui.segment.op.gt') %>", gte: "<%= i18n.__('mailing.ui.segment.op.gte') %>", lt: "<%= i18n.__('mailing.ui.segment.op.lt') %>", lte: "<%= i18n.__('mailing.ui.segment.op.lte') %>", between: "<%= i18n.__('mailing.ui.segment.op.between') %>", before: "<%= i18n.__('mailing.ui.segment.op.before') %>", after: "<%= i18n.__('mailing.ui.segment.op.after') %>", days_ago_gt: "<%= i18n.__('mailing.ui.segment.op.days_ago_gt') %>", days_ago_lt: "<%= i18n.__('mailing.ui.segment.op.days_ago_lt') %>", is_true: "<%= i18n.__('mailing.ui.segment.op.is_true') %>", is_false: "<%= i18n.__('mailing.ui.segment.op.is_false') %>", has: "<%= i18n.__('mailing.ui.segment.op.has') %>", not_has: "<%= i18n.__('mailing.ui.segment.op.not_has') %>", yes: "<%= i18n.__('mailing.ui.segment.op.yes') %>", no: "<%= i18n.__('mailing.ui.segment.op.no') %>" };
+		var notyf = new Notyf({
+			position: { x: "right", y: "top" },
+			duration: 4000,
+			types: [
+				{ type: "success", dismissible: true, icon: false },
+				{ type: "error", background: "indianred", dismissible: true, icon: false },
+			],
+		});
+
+		// Екранування для форматерів Tabulator
+		function esc(v) {
+			return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) {
+				return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+			});
+		}
+
+		// Дата UTC з БД → локальний час браузера
+		function fmtDate(v) {
+			if (!v) return "";
+			var d = new Date(String(v).replace(" ", "T") + "Z");
+			if (isNaN(d)) return esc(v);
+			var p = function (n) {
+				return String(n).padStart(2, "0");
+			};
+			return p(d.getHours()) + ":" + p(d.getMinutes()) + " " + p(d.getDate()) + "." + p(d.getMonth() + 1) + "." + d.getFullYear();
+		}
+
+		// POST JSON → Promise(data). Помилка: notyf + reject(data)
+		function api(url, payload) {
+			return fetch(url, {
+				method: "POST",
+				credentials: "same-origin",
+				headers: { "Content-Type": "application/json", Accept: "application/json" },
+				body: JSON.stringify(payload || {}),
+			})
+				.then(function (r) {
+					return r
+						.json()
+						.catch(function () {
+							return { ok: false, message: "<%= i18n.__('mailing.errors.server_error') %>" };
+						})
+						.then(function (d) {
+							if (!r.ok || d.ok === false) return Promise.reject(d);
+							return d;
+						});
+				})
+				.catch(function (d) {
+					if (d && d.message) notyf.error(d.message);
+					else notyf.error("<%= i18n.__('mailing.errors.server_error') %>");
+					return Promise.reject(d || {});
+				});
+		}
+
+		// Помилки полів: {errors:[{field,message}]} → .is-invalid + .invalid-feedback (текст, не HTML)
+		function clearErrors($form) {
+			$form.find(".is-invalid").removeClass("is-invalid");
+			$form.find(".invalid-feedback.js-err").remove();
+		}
+
+		function showErrors($form, d) {
+			clearErrors($form);
+			(d && d.errors ? d.errors : []).forEach(function (e) {
+				var $el = $form.find('[name="' + String(e.field).replace(/"/g, "") + '"]').first();
+				if (!$el.length) return;
+				$el.addClass("is-invalid");
+				$('<div class="invalid-feedback js-err"></div>').text(e.message).insertAfter($el);
+			});
+		}
+
+		// Значення форми → об'єкт: data-type="int|bool|json" керує типом
+		function formData($form) {
+			var out = {};
+			$form.find("[name]").each(function () {
+				var $el = $(this);
+				var name = $el.attr("name");
+				var type = $el.data("type");
+				if ($el.is(":disabled") && !$el.data("send-disabled")) return;
+				var val;
+				if ($el.is(":checkbox")) val = $el.is(":checked");
+				else val = $el.val();
+				if (type === "int") val = val === "" || val === null ? null : parseInt(val, 10);
+				if (type === "nullable") val = val === "" ? null : val;
+				out[name] = val;
+			});
+			return out;
+		}
+
+		// Спільні налаштування Tabulator (серверна пагінація/сортування)
+		function gridOptions(url, extra) {
+			return Object.assign(
+				{
+					layout: "fitColumns",
+					ajaxURL: url,
+					ajaxConfig: "POST",
+					ajaxContentType: "json",
+					pagination: true,
+					paginationMode: "remote",
+					sortMode: "remote",
+					paginationSize: 20,
+					paginationSizeSelector: [20, 50, 100],
+					placeholder: "<%= i18n.__('mailing.ui.empty') %>",
+					movableColumns: true,
+				},
+				extra || {}
+			);
+		}
+
+		function badge(text, cls) {
+			return '<span class="badge rounded-0 ' + (cls || "text-bg-secondary") + '">' + esc(text) + "</span>";
+		}
+
+		var STATUS_CLS = {
+			active: "text-bg-success",
+			subscribed: "text-bg-success",
+			unsubscribed: "text-bg-secondary",
+			pending: "text-bg-warning",
+			bounced: "text-bg-danger",
+			complained: "text-bg-danger",
+			cleaned: "text-bg-dark",
+			draft: "text-bg-secondary",
+			scheduled: "text-bg-info",
+			preparing: "text-bg-info",
+			sending: "text-bg-primary",
+			paused: "text-bg-warning",
+			sent: "text-bg-success",
+			cancelled: "text-bg-dark",
+			failed: "text-bg-danger",
+			uploaded: "text-bg-secondary",
+			queued: "text-bg-info",
+			processing: "text-bg-primary",
+			done: "text-bg-success",
+		};
+	</script>
+	<script>
+		var ID = <%- JSON.stringify(data.id).replace(/</g, '\\u003c') %>;
+		var LANGS = <%- JSON.stringify(languages.map(function (l) { return { id: l.id, name: l.name }; })).replace(/</g, '\\u003c') %>;
+		var CAN_EDIT = <%- JSON.stringify(canEdit).replace(/</g, '\\u003c') %>;
+		var AUTO_CLS = { draft: "text-bg-secondary", active: "text-bg-success", paused: "text-bg-warning", completed: "text-bg-success", exited: "text-bg-dark" };
+		var A = null; // автоматизація
+		var STEPS = []; // [{id, type, config, id_campaign, id_variant, langs, subject, copy_from}]
+		var STATS = null;
+		var SEG = { fields: [], ops: {}, custom: [] };
+		var $f = $("#form-auto");
+		var DIRTY = false;
+
+		function locked() { return !CAN_EDIT || !A || A.status === "active"; }
+
+		// ═══ КОНСТРУКТОР УМОВ (один для аудиторії, мети і кроків-умов) ═══
+		var DAY_OPS = ["days_ago_gt", "days_ago_lt"];
+		var NO_VALUE_OPS = ["empty", "not_empty", "is_true", "is_false"];
+
+		function fieldLabel(code) {
+			if (code.indexOf("field.") === 0) {
+				var f = SEG.custom.filter(function (x) { return "field." + x.code === code; })[0];
+				return f ? f.name : code;
+			}
+			return TR_UI_SEGMENT_FIELD[code];
+		}
+		function fieldType(code) {
+			if (code.indexOf("field.") === 0) {
+				var f = SEG.custom.filter(function (x) { return "field." + x.code === code; })[0];
+				return f ? f.type : "text";
+			}
+			var x = SEG.fields.filter(function (f) { return f.code === code; })[0];
+			return x ? x.type : "text";
+		}
+
+		function ruleRow(r) {
+			r = r || {};
+			var $row = $('<div class="d-flex gap-1 mb-1 js-rule align-items-start"></div>');
+			var $field = $('<select class="form-select form-select-sm rounded-0 js-field js-lock" style="max-width:220px"></select>');
+			SEG.fields.forEach(function (f) { $field.append($("<option>").val(f.code).text(fieldLabel(f.code))); });
+			SEG.custom.forEach(function (f) { $field.append($("<option>").val("field." + f.code).text(f.name)); });
+			if (r.field) $field.val(r.field);
+			var $op = $('<select class="form-select form-select-sm rounded-0 js-op js-lock" style="max-width:200px"></select>');
+			var $val = $('<input class="form-control form-control-sm rounded-0 js-val js-lock" maxlength="500">');
+			var $val2 = $('<input class="form-control form-control-sm rounded-0 js-val2 js-lock d-none" maxlength="50">');
+			var $del = $('<button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-edit-only"><i class="fa-solid fa-xmark"></i></button>');
+
+			function fillOps() {
+				var type = fieldType($field.val());
+				var keep = $op.val() || r.op;
+				$op.empty();
+				(SEG.ops[type === "custom" ? "text" : type] || []).forEach(function (o) { $op.append($("<option>").val(o).text(TR_UI_SEGMENT_OP[o])); });
+				if (keep && $op.find('option[value="' + keep + '"]').length) $op.val(keep);
+				fillVal();
+			}
+			function fillVal() {
+				var op = $op.val();
+				var type = fieldType($field.val());
+				$val.toggleClass("d-none", NO_VALUE_OPS.indexOf(op) >= 0);
+				$val2.toggleClass("d-none", op !== "between");
+				$val.attr("type", DAY_OPS.indexOf(op) >= 0 || type === "number" ? "number" : type === "date" ? "date" : "text");
+				$val2.attr("type", type === "date" ? "date" : "number");
+				$val.attr("placeholder", type === "tag" || type === "campaign" || op === "in" || op === "nin" ? "<%= i18n.__('mailing.ui.segment.ids_hint') %>" : DAY_OPS.indexOf(op) >= 0 ? "<%= i18n.__('mailing.ui.segment.days') %>" : "");
+			}
+			$field.on("change", fillOps);
+			$op.on("change", fillVal);
+			$del.on("click", function () { $row.remove(); DIRTY = true; });
+
+			fillOps();
+			if (r.op) $op.val(r.op), fillVal();
+			if (Array.isArray(r.value)) {
+				if (r.op === "between") { $val.val(r.value[0]); $val2.val(r.value[1]); }
+				else $val.val(r.value.join(","));
+			} else if (r.value != null) $val.val(r.value);
+			return $row.append($field, $op, $val, $val2, $del);
+		}
+
+		/** Блок умов у контейнері: {match, rules} ↔ DOM */
+		function segBuilder($box, seg) {
+			$box.empty();
+			var $head = $('<div class="d-flex align-items-center gap-2 mb-2"></div>');
+			var $match = $('<select class="form-select form-select-sm rounded-0 w-auto js-match js-lock"></select>')
+				.append($("<option>").val("all").text("<%= i18n.__('mailing.ui.campaigns.match.all') %>"))
+				.append($("<option>").val("any").text("<%= i18n.__('mailing.ui.campaigns.match.any') %>"))
+				.val(seg && seg.match === "any" ? "any" : "all");
+			$head.append($('<span class="fw-semibold small"></span>').text("<%= i18n.__('mailing.ui.campaigns.segment') %>"), $match);
+			var $rules = $('<div class="js-rules"></div>');
+			((seg && seg.rules) || []).forEach(function (r) { if (!r.rules) $rules.append(ruleRow(r)); });
+			var $add = $('<button type="button" class="btn btn-sm btn-outline-primary rounded-0 mt-1 js-edit-only"></button>')
+				.html('<i class="fa-solid fa-plus"></i> ')
+				.append(document.createTextNode("<%= i18n.__('mailing.ui.campaigns.add_rule') %>"))
+				.on("click", function () { $rules.append(ruleRow()); DIRTY = true; });
+			$box.append($head, $rules, $add);
+		}
+
+		function readSeg($box) {
+			var rules = [];
+			$box.find(".js-rule").each(function () {
+				var $r = $(this);
+				var field = $r.find(".js-field").val();
+				var op = $r.find(".js-op").val();
+				var type = fieldType(field);
+				var raw = $.trim($r.find(".js-val").val());
+				var value = raw;
+				if (NO_VALUE_OPS.indexOf(op) >= 0) value = null;
+				else if (op === "between") value = [raw, $.trim($r.find(".js-val2").val())];
+				else if (type === "tag" || type === "campaign") value = raw.split(/[,\s]+/).map(function (x) { return parseInt(x, 10); }).filter(Boolean);
+				else if (op === "in" || op === "nin") value = raw.split(",").map(function (x) { return $.trim(x); }).filter(Boolean);
+				rules.push({ field: field, op: op, value: value });
+			});
+			return rules.length ? { match: $box.find(".js-match").first().val(), rules: rules } : null;
+		}
+
+		// ═══ ТРИГЕР ═══
+		function toggleTrigger() {
+			var t = $f.find('[name="trigger_type"]').val();
+			$(".js-trg").addClass("d-none");
+			$(".js-trg-" + t).removeClass("d-none");
+			// День народження — раз на рік автоматично
+			$(".js-reentry").toggleClass("d-none", t === "date_field");
+			var label = TR_TRIGGER[t];
+			if (t === "list_subscribe") label += ": " + ($("#trg-list option:selected").text() || "—");
+			if (t === "date_field") label += ": " + ($("#trg-field option:selected").text() || "—");
+			if (t === "inactive") label += ": " + ($("#trg-days").val() || "—");
+			$("#trigger-label").text(label);
+		}
+		$f.on("change input", '[name="trigger_type"], #trg-list, #trg-field, #trg-days', toggleTrigger);
+
+		function readTrigger() {
+			var t = $f.find('[name="trigger_type"]').val();
+			var $box = $(".js-trg-" + t);
+			if (t === "list_subscribe") return { id_list: parseInt($("#trg-list").val(), 10) || null };
+			if (t === "date_field") return { field: $("#trg-field").val() || null, offset_days: parseInt($("#trg-offset").val(), 10) || 0, hour: parseInt($box.find(".js-hour").val(), 10) || 0 };
+			if (t === "inactive") return { days: parseInt($("#trg-days").val(), 10) || 90, hour: parseInt($box.find(".js-hour").val(), 10) || 0 };
+			return {};
+		}
+
+		// ═══ КРОКИ ═══
+		function stepStats(s) {
+			if (!STATS || !s.id) return null;
+			return STATS.steps.filter(function (x) { return x.id === s.id; })[0] || null;
+		}
+		function pct(a, b) { return b ? ((a / b) * 100).toFixed(1) + "%" : "—"; }
+
+		function emailStepsAbove(i) {
+			var out = [];
+			for (var k = 0; k < i; k++) if (STEPS[k].type === "email") out.push(k);
+			return out;
+		}
+
+		function renderSteps() {
+			var $box = $("#steps").empty();
+			STEPS.forEach(function (s, i) {
+				$box.append('<div class="step-arrow"><i class="fa-solid fa-arrow-down"></i></div>');
+				var $card = $('<div class="card rounded-0 step-card"></div>').addClass("step-" + s.type);
+				var $head = $('<div class="card-header rounded-0 d-flex align-items-center gap-2 py-1"></div>');
+				$head.append($('<span class="badge text-bg-light border rounded-0"></span>').text(i + 1));
+				$head.append($('<span class="fw-semibold"></span>').text(TR_STEP[s.type]));
+				var st = stepStats(s);
+				if (st && st.waiting) $head.append($('<span class="mailing-sub"></span>').text("<%= i18n.__('mailing.ui.automations.waiting_here') %>" + ": " + st.waiting));
+				var $tools = $('<div class="ms-auto d-flex gap-1 js-edit-only"></div>');
+				$tools.append($('<button type="button" class="btn btn-sm btn-light border rounded-0"><i class="fa-solid fa-arrow-up"></i></button>').prop("disabled", i === 0).on("click", function () { move(i, -1); }));
+				$tools.append($('<button type="button" class="btn btn-sm btn-light border rounded-0"><i class="fa-solid fa-arrow-down"></i></button>').prop("disabled", i === STEPS.length - 1).on("click", function () { move(i, 1); }));
+				if (s.type === "email" && s.id_variant) $tools.append($('<button type="button" class="btn btn-sm btn-light border rounded-0"><i class="fa-solid fa-clone"></i></button>').attr("title", "<%= i18n.__('mailing.ui.automations.duplicate') %>").on("click", function () { duplicate(i); }));
+				$tools.append($('<button type="button" class="btn btn-sm btn-outline-danger rounded-0"><i class="fa-solid fa-trash"></i></button>').on("click", function () { removeStep(i); }));
+				$head.append($tools);
+				var $body = $('<div class="card-body py-2"></div>');
+
+				if (s.type === "email") renderEmail($body, s, st);
+				if (s.type === "wait") renderWait($body, s);
+				if (s.type === "condition") renderCondition($body, s, i);
+
+				$box.append($card.append($head, $body));
+			});
+			$box.append('<div class="step-arrow"><i class="fa-solid fa-flag-checkered"></i></div>');
+			applyLock();
+		}
+
+		function renderEmail($body, s, st) {
+			if (!s.id_variant) {
+				$body.append($('<div class="mailing-sub"></div>').text("<%= i18n.__('mailing.ui.automations.save_to_edit') %>"));
+				return;
+			}
+			var langs = LANGS.filter(function (l) { return (s.langs || []).indexOf(l.id) >= 0; }).map(function (l) { return l.name; });
+			$body.append($('<div class="fw-semibold"></div>').text(s.subject || "<%= i18n.__('mailing.ui.campaigns.no_content') %>"));
+			$body.append($('<div class="mailing-sub mb-2"></div>').text(langs.length ? langs.join(", ") : "—"));
+			var $btns = $('<div class="d-flex flex-wrap gap-2"></div>');
+			// Вміст листа редагується завжди, навіть коли автоматизація активна
+			$btns.append($('<a class="btn btn-sm btn-outline-primary rounded-0"></a>').attr("href", "/mailing/campaigns/" + parseInt(s.id_campaign, 10) + "/variants/" + parseInt(s.id_variant, 10) + "/").html('<i class="fa-solid fa-pen"></i> ').append(document.createTextNode("<%= i18n.__('mailing.ui.campaigns.edit_content') %>")));
+			if (CAN_EDIT) $btns.append($('<button type="button" class="btn btn-sm btn-outline-secondary rounded-0"></button>').html('<i class="fa-solid fa-paper-plane"></i> ').append(document.createTextNode("<%= i18n.__('mailing.ui.campaigns.test') %>")).on("click", function () { openTest(s); }));
+			$btns.append($('<a class="btn btn-sm btn-outline-secondary rounded-0"></a>').attr("href", "/mailing/campaigns/" + parseInt(s.id_campaign, 10) + "/report/").html('<i class="fa-solid fa-chart-column"></i> ').append(document.createTextNode("<%= i18n.__('mailing.ui.campaigns.report') %>")));
+			$body.append($btns);
+			var c = st && st.campaign;
+			if (c) {
+				$body.append(
+					$('<div class="mailing-sub mt-2"></div>').text(
+						"<%= i18n.__('mailing.ui.report.tile.sent') %>" + ": " + c.cnt_sent +
+						" · " + "<%= i18n.__('mailing.ui.report.tile.opened') %>" + ": " + pct(c.cnt_opened_human, c.cnt_sent) +
+						" · " + "<%= i18n.__('mailing.ui.report.tile.clicked') %>" + ": " + pct(c.cnt_clicked, c.cnt_sent) +
+						" · " + "<%= i18n.__('mailing.ui.report.tile.unsubscribed') %>" + ": " + pct(c.cnt_unsubscribed, c.cnt_sent)
+					)
+				);
+			}
+		}
+
+		function renderWait($body, s) {
+			var c = s.config || {};
+			var $g = $('<div class="input-group input-group-sm" style="max-width:320px"></div>');
+			$g.append($('<span class="input-group-text rounded-0"></span>').text("<%= i18n.__('mailing.ui.automations.wait_for') %>"));
+			$g.append($('<input type="number" class="form-control rounded-0 js-lock" min="1" max="10080">').val(c.amount || 1).on("input", function () { s.config.amount = parseInt(this.value, 10) || 1; DIRTY = true; }));
+			var $u = $('<select class="form-select rounded-0 js-lock"></select>');
+			["minutes", "hours", "days"].forEach(function (u) { $u.append($("<option>").val(u).text(TR_UNIT[u])); });
+			$u.val(c.unit || "days").on("change", function () { s.config.unit = this.value; DIRTY = true; });
+			$body.append($g.append($u));
+		}
+
+		function renderCondition($body, s, i) {
+			var c = s.config;
+			var $row = $('<div class="row g-2"></div>');
+			var $check = $('<select class="form-select form-select-sm rounded-0 js-lock"></select>');
+			["opened", "clicked", "segment"].forEach(function (k) { $check.append($("<option>").val(k).text(TR_CHECK[k])); });
+			$check.val(c.check || "opened");
+			$row.append($('<div class="col-md-6"></div>').append($('<label class="form-label small mb-0"></label>').text("<%= i18n.__('mailing.ui.automations.condition_if') %>"), $check));
+
+			var $ref = $('<select class="form-select form-select-sm rounded-0 js-lock"></select>');
+			emailStepsAbove(i).forEach(function (k) { $ref.append($("<option>").val(k).text("#" + (k + 1) + " " + (STEPS[k].subject || TR_STEP.email))); });
+			if (c.ref_index != null && $ref.find('option[value="' + c.ref_index + '"]').length) $ref.val(String(c.ref_index));
+			else c.ref_index = $ref.val() != null ? parseInt($ref.val(), 10) : null;
+			var $refBox = $('<div class="col-md-6"></div>').append($('<label class="form-label small mb-0"></label>').text("<%= i18n.__('mailing.ui.automations.condition_email') %>"), $ref);
+			$row.append($refBox);
+
+			var $seg = $('<div class="col-12"></div>');
+			segBuilder($seg, c.segment);
+			$row.append($seg);
+
+			function branch(key, label) {
+				var $s = $('<select class="form-select form-select-sm rounded-0 js-lock"></select>');
+				["continue", "exit"].forEach(function (b) { $s.append($("<option>").val(b).text(TR_BRANCH[b])); });
+				$s.val(c[key] || (key === "if_true" ? "continue" : "exit")).on("change", function () { c[key] = this.value; DIRTY = true; });
+				return $('<div class="col-md-6"></div>').append($('<label class="form-label small mb-0"></label>').text(label), $s);
+			}
+			$row.append(branch("if_true", "<%= i18n.__('mailing.ui.automations.if_true') %>"), branch("if_false", "<%= i18n.__('mailing.ui.automations.if_false') %>"));
+
+			function sync() {
+				c.check = $check.val();
+				$refBox.toggleClass("d-none", c.check === "segment");
+				$seg.toggleClass("d-none", c.check !== "segment");
+				if (c.check === "segment" && !$seg.find(".js-rule").length && !locked()) $seg.find(".js-rules").append(ruleRow());
+			}
+			$check.on("change", function () { sync(); DIRTY = true; });
+			$ref.on("change", function () { c.ref_index = parseInt(this.value, 10); DIRTY = true; });
+			s._seg = $seg;
+			sync();
+			$body.append($row);
+		}
+
+		/** Перед збереженням/перемальовуванням забрати сегменти умов з DOM */
+		function collectStepSegments() {
+			STEPS.forEach(function (s) { if (s.type === "condition" && s._seg) s.config.segment = s.config.check === "segment" ? readSeg(s._seg) : null; });
+		}
+
+		/** Індекси email-кроків в умовах — при переміщенні/видаленні переписуються */
+		function remap(fn) {
+			collectStepSegments();
+			var refs = STEPS.map(function (s) { return s.type === "condition" && s.config.ref_index != null ? STEPS[s.config.ref_index] : null; });
+			fn();
+			STEPS.forEach(function (s, i) {
+				if (s.type !== "condition") return;
+				var target = refs[STEPS_BEFORE.indexOf(s)];
+				var k = target ? STEPS.indexOf(target) : -1;
+				s.config.ref_index = k >= 0 && k < i ? k : null;
+			});
+			DIRTY = true;
+			renderSteps();
+		}
+		var STEPS_BEFORE = [];
+		function move(i, d) {
+			STEPS_BEFORE = STEPS.slice();
+			remap(function () { var x = STEPS.splice(i, 1)[0]; STEPS.splice(i + d, 0, x); });
+		}
+		function removeStep(i) {
+			if (!confirm("<%= i18n.__('mailing.ui.automations.step_delete_confirm') %>")) return;
+			STEPS_BEFORE = STEPS.slice();
+			remap(function () { STEPS.splice(i, 1); });
+		}
+		function duplicate(i) {
+			STEPS_BEFORE = STEPS.slice();
+			remap(function () { STEPS.splice(i + 1, 0, { type: "email", config: {}, copy_from: STEPS[i].id_variant }); });
+		}
+		$(".js-add").on("click", function () {
+			var type = $(this).data("type");
+			var cfg = type === "wait" ? { amount: 1, unit: "days" } : type === "condition" ? { check: "opened", if_true: "continue", if_false: "exit" } : {};
+			collectStepSegments();
+			STEPS.push({ type: type, config: cfg });
+			DIRTY = true;
+			renderSteps();
+		});
+
+		// ═══ ФОРМА ═══
+		function checkedIds(sel) {
+			return $(sel + " input:checked").map(function () { return parseInt(this.value, 10); }).get();
+		}
+		function readAudience() {
+			return { lists: checkedIds("#aud-lists"), exclude_lists: checkedIds("#aud-exclude"), exclude_role: $("#aud-role").is(":checked"), segment: readSeg($("#seg-aud")) };
+		}
+
+		function payload() {
+			collectStepSegments();
+			var d = formData($f.find(".card").first());
+			return {
+				id: ID,
+				name: d.name,
+				id_sender: d.id_sender,
+				track_opens: d.track_opens,
+				track_clicks: d.track_clicks,
+				trigger_type: $f.find('[name="trigger_type"]').val(),
+				trigger_config: readTrigger(),
+				include_existing: $("#trg-existing").is(":checked"),
+				allow_reentry: $f.find('[name="allow_reentry"]').is(":checked"),
+				reentry_days: parseInt($f.find('[name="reentry_days"]').val(), 10) || 0,
+				audience: readAudience(),
+				goal: readSeg($("#seg-goal")),
+				steps: STEPS.map(function (s) { return { id: s.id || null, type: s.type, config: s.config, copy_from: s.copy_from || null }; }),
+			};
+		}
+
+		function save(silent) {
+			if (locked()) return Promise.resolve();
+			clearErrors($f);
+			return api("/api/mailing/automations/save", payload())
+				.then(function () {
+					DIRTY = false;
+					if (!silent) notyf.success("<%= i18n.__('mailing.ui.saved') %>");
+					return load();
+				})
+				.catch(function (err) {
+					showErrors($f, err);
+					return Promise.reject(err);
+				});
+		}
+		$("#btn-save").on("click", function () { save(false); });
+		$f.on("change input", ".js-lock", function () { DIRTY = true; });
+
+		function fillLists(rows) {
+			var $tl = $("#trg-list").empty().append($("<option>").val("").text("—"));
+			rows.forEach(function (l) { $tl.append($("<option>").val(l.id).text(l.name)); });
+			$tl.val((A.trigger_config && A.trigger_config.id_list) || "");
+			[["#aud-lists", "lists"], ["#aud-exclude", "exclude_lists"]].forEach(function (p) {
+				var $b = $(p[0]).empty();
+				var sel = (A.audience && A.audience[p[1]]) || [];
+				rows.forEach(function (l) {
+					var id = p[1] + l.id;
+					var $c = $('<div class="form-check"></div>');
+					$c.append($('<input class="form-check-input js-lock" type="checkbox">').attr("id", id).val(l.id).prop("checked", sel.indexOf(l.id) >= 0));
+					$c.append($('<label class="form-check-label"></label>').attr("for", id).text(l.name + " (" + (l.cnt_subscribed || 0) + ")"));
+					$b.append($c);
+				});
+			});
+		}
+
+		function applyLock() {
+			var lock = locked();
+			$f.find(".js-lock").prop("disabled", lock);
+			$f.find(".js-edit-only").toggleClass("d-none", lock);
+		}
+
+		function render() {
+			$("#bc-name").text(A.name);
+			$("#status-badge").html(badge(TR_STATUS[A.status] || A.status, AUTO_CLS[A.status]));
+			$(".js-st").addClass("d-none");
+			$(".js-st-" + A.status).removeClass("d-none");
+			$("#btn-enroll").toggleClass("d-none", !(A.status === "active" && A.trigger_type === "manual"));
+			$("#active-note").toggleClass("d-none", A.status !== "active");
+
+			$f.find('[name="name"]').val(A.name);
+			$f.find('[name="id_sender"]').val(A.id_sender || "");
+			$f.find('[name="track_opens"]').prop("checked", !!A.track_opens);
+			$f.find('[name="track_clicks"]').prop("checked", !!A.track_clicks);
+			$f.find('[name="trigger_type"]').val(A.trigger_type);
+			var t = A.trigger_config || {};
+			$("#trg-existing").prop("checked", !!A.include_existing);
+			$("#trg-field").val(t.field || "");
+			$("#trg-offset").val(t.offset_days || 0);
+			$("#trg-days").val(t.days || 90);
+			$(".js-hour").val(t.hour != null ? t.hour : 10);
+			$f.find('[name="allow_reentry"]').prop("checked", !!A.allow_reentry);
+			$f.find('[name="reentry_days"]').val(A.reentry_days || 0);
+			$("#aud-role").prop("checked", !!(A.audience && A.audience.exclude_role));
+			segBuilder($("#seg-aud"), A.audience && A.audience.segment);
+			segBuilder($("#seg-goal"), A.goal);
+
+			STEPS = A.steps.map(function (s) {
+				var cfg = $.extend({}, s.config);
+				if (s.type === "condition" && cfg.ref_step) cfg.ref_index = A.steps.map(function (x) { return x.id; }).indexOf(cfg.ref_step);
+				return { id: s.id, type: s.type, config: cfg, id_campaign: s.id_campaign, id_variant: s.id_variant, langs: s.langs, subject: s.subject };
+			});
+			toggleTrigger();
+			renderSteps();
+		}
+
+		function renderStats() {
+			if (!STATS) return;
+			Object.keys(STATS.runs).forEach(function (k) { $("#t-" + k).text(STATS.runs[k]); });
+		}
+
+		function load() {
+			return Promise.all([api("/api/mailing/automations/" + ID), api("/api/mailing/lists/list"), api("/api/mailing/senders/list"), api("/api/mailing/audience/fields"), api("/api/mailing/automations/" + ID + "/stats").catch(function () { return null; })]).then(function (r) {
+				A = r[0];
+				SEG = r[3];
+				STATS = r[4];
+				var $s = $f.find('[name="id_sender"]').empty().append($("<option>").val("").text("—"));
+				r[2].forEach(function (s) { $s.append($("<option>").val(s.id).text(s.name + " <" + s.from_email + ">" + (s.active ? "" : " ✕"))); });
+				var $tf = $("#trg-field").empty().append($("<option>").val("").text("—"));
+				(SEG.custom || []).filter(function (x) { return x.type === "date"; }).forEach(function (x) { $tf.append($("<option>").val(x.code).text(x.name)); });
+				fillLists(r[1]);
+				render();
+				renderStats();
+				DIRTY = false;
+			});
+		}
+
+		$("#btn-count").on("click", function () {
+			var a = readAudience();
+			var t = readTrigger();
+			if (t.id_list && a.lists.indexOf(t.id_list) < 0) a.lists.push(t.id_list);
+			if (!a.lists.length) return notyf.error("<%= i18n.__('mailing.errors.audience_no_lists') %>");
+			a.ignore_sunset = true;
+			var $b = $(this).prop("disabled", true);
+			api("/api/mailing/audience/count", { audience: a })
+				.then(function (r) { $("#aud-count").text(r.count); })
+				.finally(function () { $b.prop("disabled", false); });
+		});
+
+		// ═══ ДІЇ ═══
+		var checkModal = new bootstrap.Modal("#modal-check");
+		function showProblems(problems) {
+			var $ul = $('<ul class="mb-0"></ul>');
+			(problems || []).forEach(function (p) { $ul.append($("<li></li>").text((TR_PROBLEMS[p] || p).replace("%CODE%", ""))); });
+			$("#check-body").empty().append($('<div class="alert alert-warning rounded-0"></div>').append($ul));
+			checkModal.show();
+		}
+		$("#btn-activate").on("click", function () {
+			var $b = $(this).prop("disabled", true);
+			save(true)
+				.then(function () {
+					if (!confirm("<%= i18n.__('mailing.ui.automations.activate_confirm') %>")) return;
+					return api("/api/mailing/automations/" + ID + "/activate").then(function () {
+						notyf.success("<%= i18n.__('mailing.ui.automations.activated_ok') %>");
+						return load();
+					});
+				})
+				.catch(function (err) { if (err && err.problems) showProblems(err.problems); })
+				.finally(function () { $b.prop("disabled", false); });
+		});
+		$("#btn-pause").on("click", function () {
+			api("/api/mailing/automations/" + ID + "/pause").then(function () { notyf.success("<%= i18n.__('mailing.ui.saved') %>"); load(); });
+		});
+		$("#btn-enroll").on("click", function () {
+			if (!confirm("<%= i18n.__('mailing.ui.automations.enroll_confirm') %>")) return;
+			var $b = $(this).prop("disabled", true);
+			api("/api/mailing/automations/" + ID + "/enroll")
+				.then(function (r) { notyf.success("<%= i18n.__('mailing.ui.automations.enrolled') %>" + ": " + r.count); load(); runs.replaceData(); })
+				.finally(function () { $b.prop("disabled", false); });
+		});
+		$("#btn-delete").on("click", function () {
+			if (!confirm("<%= i18n.__('mailing.ui.confirm_delete') %>")) return;
+			api("/api/mailing/automations/" + ID + "/delete").then(function () { window.location.href = "/mailing/automations/"; });
+		});
+		$("#btn-copy").on("click", function () {
+			api("/api/mailing/automations/" + ID + "/copy").then(function (r) { window.location.href = "/mailing/automations/" + parseInt(r.id, 10) + "/"; });
+		});
+
+		// ─── Тестовий лист кроку ───
+		var $ft = $("#form-test");
+		var testModal = new bootstrap.Modal("#modal-test");
+		function openTest(s) {
+			clearErrors($ft);
+			$ft.find('[name="id_campaign"]').val(s.id_campaign);
+			testModal.show();
+		}
+		$ft.on("submit", function (e) {
+			e.preventDefault();
+			var d = formData($ft);
+			var cid = parseInt(d.id_campaign, 10);
+			delete d.id_campaign;
+			d.emails = String(d.emails || "").split(/[,;\s]+/).filter(Boolean).slice(0, 5);
+			var $b = $ft.find('[type="submit"]').prop("disabled", true);
+			api("/api/mailing/campaigns/" + cid + "/test", d)
+				.then(function (r) {
+					notyf.success("<%= i18n.__('mailing.ui.campaigns.test_sent') %>" + " " + r.sent.join(", "));
+					testModal.hide();
+				})
+				.catch(function (err) { showErrors($ft, err); })
+				.finally(function () { $b.prop("disabled", false); });
+		});
+
+		// ─── Проходження ───
+		var runs = new Tabulator(
+			"#runs-table",
+			gridOptions("/api/mailing/automations/" + ID + "/runs", {
+				ajaxParams: function () { return { search: $("#r-search").val(), status: $("#r-status").val() }; },
+				sortMode: "local",
+				columns: [
+					{ title: "<%= i18n.__('mailing.ui.automations.contact') %>", field: "email", formatter: function (c) { var d = c.getRow().getData(); return '<a href="/mailing/contacts/' + parseInt(d.id_contact, 10) + '/">' + esc(d.email) + "</a>"; } },
+					{
+						title: "<%= i18n.__('mailing.ui.status') %>",
+						field: "status",
+						width: 170,
+						formatter: function (c) {
+							var d = c.getRow().getData();
+							return badge(TR_RUN_STATUS[d.status] || d.status, AUTO_CLS[d.status] || "text-bg-primary") + (d.exit_reason ? '<div class="mailing-sub">' + esc(TR_EXIT[d.exit_reason] || d.exit_reason) + "</div>" : "");
+						},
+					},
+					{
+						title: "<%= i18n.__('mailing.ui.automations.next_step') %>",
+						field: "id_step",
+						formatter: function (c) {
+							var d = c.getRow().getData();
+							if (d.status !== "active") return "";
+							var i = STEPS.map(function (s) { return s.id; }).indexOf(Number(d.id_step));
+							return i >= 0 ? esc("#" + (i + 1) + " " + TR_STEP[STEPS[i].type]) + '<div class="mailing-sub">' + fmtDate(d.date_next) + "</div>" : "";
+						},
+					},
+					{ title: "<%= i18n.__('mailing.ui.automations.started') %>", field: "date_start", formatter: function (c) { return fmtDate(c.getValue()); } },
+					{
+						title: "",
+						field: "id",
+						headerSort: false,
+						width: 60,
+						hozAlign: "right",
+						formatter: function (c) { return CAN_EDIT && c.getRow().getData().status === "active" ? '<button class="btn btn-sm btn-outline-danger rounded-0 js-exit" title="<%= i18n.__('mailing.ui.automations.stop_run') %>"><i class="fa-solid fa-user-xmark"></i></button>' : ""; },
+						cellClick: function (e, cell) {
+							if (!e.target.closest(".js-exit") || !confirm("<%= i18n.__('mailing.ui.automations.stop_run_confirm') %>")) return;
+							api("/api/mailing/automations/" + ID + "/runs/" + parseInt(cell.getValue(), 10) + "/exit").then(function () { runs.replaceData(); });
+						},
+					},
+				],
+			})
+		);
+		var rTimer;
+		$("#r-search").on("input", function () { clearTimeout(rTimer); rTimer = setTimeout(function () { runs.setData(); }, 400); });
+		$("#r-status").on("change", function () { runs.setData(); });
+
+		window.addEventListener("beforeunload", function (e) { if (DIRTY && !locked()) { e.preventDefault(); e.returnValue = ""; } });
+
+		load();
+		// Активна автоматизація — оновлюємо лічильники
+		setInterval(function () {
+			if (A && A.status === "active") api("/api/mailing/automations/" + ID + "/stats").then(function (s) { STATS = s; renderStats(); });
+		}, 30000);
+	</script>
+</body>
+</html>

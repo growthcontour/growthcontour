@@ -1,0 +1,958 @@
+<%
+  const t = (k) => i18n.__('catalog.products.settings.' + k);
+  const opt = (v) => i18n.__('catalog.products.settings.options.' + v);
+  const val = (block, name) => name.split('.').reduce((o, k) => (o == null ? o : o[k]), current[block]);
+
+  const BLOCKS = [
+    { key: 'sku', fields: [
+      { name: 'auto', type: 'bool' },
+      { name: 'pattern', type: 'text', hint: true },
+      { name: 'prefix', type: 'text' },
+      { name: 'variant_pattern', type: 'text', hint: true },
+      { name: 'regenerate_on_change', type: 'bool' } ] },
+    { key: 'ean', fields: [
+      { name: 'auto', type: 'bool' },
+      { name: 'internal_prefix', type: 'text', hint: true } ] },
+    { key: 'slug', fields: [
+      { name: 'auto', type: 'bool' },
+      { name: 'transliteration', type: 'select', options: ['uk', 'ru', 'none'] },
+      { name: 'max_length', type: 'int' } ] },
+    { key: 'images', fields: [
+      { name: 'format', type: 'select', options: ['webp', 'avif', 'jpeg', 'original'], hint: true },
+      { name: 'quality', type: 'int' },
+      { name: 'max_width', type: 'int' },
+      { name: 'max_height', type: 'int' },
+      { name: 'max_file_mb', type: 'int' },
+      { name: 'allowed_mime', type: 'multiselect', options: ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif', 'image/heif', 'image/tiff'], raw: true },
+      { name: 'strip_metadata', type: 'bool' },
+      { name: 'keep_original', type: 'bool' },
+      { name: 'thumbnails', type: 'thumbnails' },
+      { name: 'watermark.enabled', type: 'bool' },
+      { name: 'watermark.file', type: 'watermark' },
+      { name: 'watermark.position', type: 'select', options: ['center', 'north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest'] },
+      { name: 'watermark.opacity', type: 'number', step: '0.05' },
+      { name: 'watermark.scale', type: 'number', step: '0.05' } ] },
+    { key: 'stock', fields: [
+      { name: 'multi_warehouse', type: 'bool' },
+      { name: 'id_default_warehouse', type: 'select', int: true, options: warehouses.map(w => ({ value: w.id, label: w.code + ' — ' + w.name })) },
+      { name: 'write_off_strategy', type: 'select', options: ['priority', 'fifo', 'fefo'] },
+      { name: 'cost_method', type: 'select', options: ['manual', 'last', 'average'], hint: true },
+      { name: 'reserve_on', type: 'select', options: ['order_create', 'order_paid', 'never'] },
+      { name: 'reservation_ttl_minutes', type: 'int' },
+      { name: 'default_out_of_stock_action', type: 'select', options: ['deny', 'backorder', 'preorder'] },
+      { name: 'allow_negative', type: 'bool' },
+      { name: 'track_batches', type: 'bool' },
+      { name: 'track_serials', type: 'bool' },
+      { name: 'auto_digital_links', type: 'bool' } ] },
+    { key: 'prices', fields: [
+      { name: 'prices_include_tax', type: 'bool' },
+      { name: 'rounding', type: 'int' },
+      { name: 'show_compare_at', type: 'bool' } ] },
+    { key: 'rewards', fields: [
+      { name: 'enabled', type: 'bool' },
+      { name: 'point_value', type: 'number', step: '0.01', hint: true },
+      { name: 'auto_mode', type: 'select', options: ['none', 'percent'] },
+      { name: 'auto_percent', type: 'number', step: '0.01' },
+      { name: 'accrue_on_status', type: 'intnull', hint: true } ] },
+    { key: 'units', fields: [
+      { name: 'weight', type: 'select', options: ['kg', 'g', 'lb', 'oz'], raw: true },
+      { name: 'length', type: 'select', options: ['cm', 'mm', 'm', 'in'], raw: true } ] },
+    { key: 'card', fields: [
+      { name: 'default_status', type: 'select', options: ['draft', 'active'] },
+      { name: 'required_fields', type: 'multiselect', options: ['name', 'sku', 'price', 'category', 'brand', 'image', 'description'] },
+      { name: 'per_page', type: 'int' } ] },
+    { key: 'publishing', fields: [
+      { name: 'enabled', type: 'bool', hint: true },
+      { name: 'live_price', type: 'bool' },
+      { name: 'live_status', type: 'bool' } ] },
+    { key: 'documents', fields: [
+      { name: 'seller_name', type: 'text' },
+      { name: 'seller_code', type: 'text', hint: true },
+      { name: 'seller_address', type: 'text' },
+      { name: 'seller_phone', type: 'text' },
+      { name: 'seller_iban', type: 'text' },
+      { name: 'seller_bank', type: 'text' },
+      { name: 'vat_payer', type: 'bool', hint: true },
+      { name: 'signer', type: 'text' },
+      { name: 'invoice_days', type: 'int', hint: true },
+      { name: 'invoice_note', type: 'text', hint: true } ] },
+    { key: 'edit_lock', fields: [
+      { name: 'ttl_seconds', type: 'int' },
+      { name: 'heartbeat_seconds', type: 'int', hint: true } ] },
+  ];
+
+  const norm = (f, o) => (typeof o === 'object' ? o : { value: o, label: f.raw ? o : opt(o) });
+  const dis = canEdit ? '' : 'disabled';
+%>
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= t('title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+<!-- ─── ХЛІБНІ КРИХТИ ─────────────────────────────────────────── -->
+<div class="breadcrumbs pt-3 pb-3">
+  <div class="container-fluid">
+    <div class="row align-items-center">
+      <div class="col">
+        <span><%= t('title') %></span>
+        <div>
+          <ul class="list-inline mb-0">
+            <li class="list-inline-item">
+              <a href="/">
+                <i class="fas fa-home"></i>
+                <span><%= t('home') %></span>
+              </a>
+            </li>
+            <li class="list-inline-item">
+              <i class="fas fa-chevron-right"></i>
+              <a href="/catalog"><%= i18n.__('catalog.menu.catalog') %></a>
+            </li>
+            <li class="list-inline-item">
+              <i class="fas fa-chevron-right"></i>
+              <%= t('title') %>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="col-auto">
+        <a href="/catalog" class="btn btn-primary rounded-0">
+          <i class="fa-solid fa-angle-left"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<h1 class="h4 mb-3"><%= t('title') %></h1>
+				<% if (!canEdit) { %><div class="alert alert-info rounded-0"><%= t('read_only') %></div><% } %>
+
+				<div class="row">
+					<div class="col-lg-3 mb-3">
+						<div class="list-group rounded-0" id="settings-tabs" role="tablist">
+							<% BLOCKS.forEach((b, i) => { %>
+							<button type="button" class="list-group-item list-group-item-action<%= i === 0 ? ' active' : '' %>" data-bs-toggle="list" data-bs-target="#block-<%= b.key %>" role="tab"><%= t('blocks.' + b.key) %></button>
+							<% }) %>
+							<button type="button" class="list-group-item list-group-item-action" data-bs-toggle="list" data-bs-target="#block-currencies" role="tab"><%= t('blocks.currencies') %></button>
+							<button type="button" class="list-group-item list-group-item-action" data-bs-toggle="list" data-bs-target="#block-price_formula" role="tab"><%= t('blocks.price_formula') %></button>
+						</div>
+					</div>
+
+					<div class="col-lg-9">
+						<div class="tab-content">
+						<% BLOCKS.forEach((b, i) => { %>
+							<div class="tab-pane fade<%= i === 0 ? ' show active' : '' %>" id="block-<%= b.key %>" role="tabpanel">
+								<form class="card rounded-0 js-settings-form" data-key="<%= b.key %>" novalidate>
+									<div class="card-header"><strong><%= t('blocks.' + b.key) %></strong></div>
+									<div class="card-body">
+									<% b.fields.forEach((f) => {
+									     const id = b.key + '__' + f.name.replace(/\./g, '_');
+									     const label = t('fields.' + b.key + '.' + f.name);
+									     const hint = f.hint ? t('hints.' + b.key + '.' + f.name) : '';
+									     const v = val(b.key, f.name); %>
+										<div class="mb-3" data-field="<%= f.name %>">
+										<% if (f.type === 'bool') { %>
+											<div class="form-check form-switch">
+												<input class="form-check-input" type="checkbox" id="<%= id %>" name="<%= f.name %>" data-type="bool" <%= v ? 'checked' : '' %> <%= dis %>>
+												<label class="form-check-label" for="<%= id %>"><%= label %></label>
+											</div>
+										<% } else if (f.type === 'select' || f.type === 'multiselect') { %>
+											<label class="form-label" for="<%= id %>"><%= label %></label>
+											<select class="form-select rounded-0" id="<%= id %>" name="<%= f.name %>" data-type="<%= f.type === 'multiselect' ? (f.int ? 'intarray' : 'array') : (f.int ? 'int' : 'text') %>" <%= f.type === 'multiselect' ? 'multiple size=' + Math.min(f.options.length, 7) : '' %> <%= dis %>>
+												<% f.options.map(o => norm(f, o)).forEach((o) => {
+												     const sel = Array.isArray(v) ? v.map(String).includes(String(o.value)) : String(v) === String(o.value); %>
+												<option value="<%= o.value %>" <%= sel ? 'selected' : '' %>><%= o.label %></option>
+												<% }) %>
+											</select>
+										<% } else if (f.type === 'thumbnails') { %>
+											<label class="form-label"><%= label %></label>
+											<table class="table table-sm align-middle mb-2">
+												<thead><tr><th><%= t('thumb.code') %></th><th><%= t('thumb.width') %></th><th><%= t('thumb.height') %></th><th><%= t('thumb.fit') %></th><th></th></tr></thead>
+												<tbody class="js-thumbs">
+												<% (v || []).forEach((th) => { %>
+													<tr>
+														<td><input class="form-control form-control-sm rounded-0" data-thumb="code" value="<%= th.code %>" <%= dis %>></td>
+														<td><input class="form-control form-control-sm rounded-0" type="number" min="16" max="4000" data-thumb="width" value="<%= th.width %>" <%= dis %>></td>
+														<td><input class="form-control form-control-sm rounded-0" type="number" min="16" max="4000" data-thumb="height" value="<%= th.height %>" <%= dis %>></td>
+														<td><select class="form-select form-select-sm rounded-0" data-thumb="fit" <%= dis %>>
+															<% ['contain', 'cover', 'inside'].forEach((fit) => { %><option value="<%= fit %>" <%= th.fit === fit ? 'selected' : '' %>><%= opt(fit) %></option><% }) %>
+														</select></td>
+														<td class="text-end"><% if (canEdit) { %><button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-thumb-del" aria-label="<%= t('delete') %>"><i class="fa-solid fa-xmark"></i></button><% } %></td>
+													</tr>
+												<% }) %>
+												</tbody>
+											</table>
+											<% if (canEdit) { %><button type="button" class="btn btn-sm btn-outline-secondary rounded-0 js-thumb-add"><i class="fa-solid fa-plus"></i> <%= t('thumb.add') %></button><% } %>
+											<div class="form-text"><%= t('hints.images.thumbnails') %></div>
+										<% } else if (f.type === 'watermark') { %>
+											<label class="form-label"><%= label %></label>
+											<div class="d-flex align-items-center gap-3">
+												<img class="js-watermark-preview border p-1" style="max-height:60px;max-width:200px;background:repeating-conic-gradient(#ddd 0 25%,#fff 0 50%) 50%/16px 16px;<%= v ? '' : 'display:none' %>" src="<%= v ? '/assets/images/products/' + v : '' %>" alt="">
+												<% if (canEdit) { %><input class="form-control rounded-0 js-watermark-file" type="file" accept="image/png,image/webp" style="max-width:320px"><% } %>
+											</div>
+											<div class="form-text"><%= t('hints.images.watermark.file') %></div>
+										<% } else { %>
+											<label class="form-label" for="<%= id %>"><%= label %></label>
+											<input class="form-control rounded-0" id="<%= id %>" name="<%= f.name %>"
+												type="<%= ['int', 'intnull', 'number'].includes(f.type) ? 'number' : 'text' %>"
+												<%= f.step ? 'step=' + f.step : '' %>
+												data-type="<%= f.type %>" value="<%= v == null ? '' : v %>" <%= dis %>>
+										<% } %>
+										<% if (hint && f.type !== 'thumbnails' && f.type !== 'watermark') { %><div class="form-text"><%= hint %></div><% } %>
+											<div class="invalid-feedback d-block js-error"></div>
+										</div>
+									<% }) %>
+									</div>
+									<% if (canEdit) { %>
+									<div class="card-footer text-end">
+										<button type="submit" class="btn btn-primary rounded-0"><%= t('save') %></button>
+									</div>
+									<% } %>
+								</form>
+							</div>
+						<% }) %>
+							<!-- ═══ ЦІНА ЗА ФОРМУЛОЮ: собівартість × (1 + націнка) ═══ -->
+							<div class="tab-pane fade" id="block-price_formula" role="tabpanel">
+								<div class="card rounded-0">
+									<div class="card-header"><strong><%= t('blocks.price_formula') %></strong></div>
+									<div class="card-body">
+										<p class="small text-muted mb-2"><%= t('pf.hint') %></p>
+										<div class="row g-2 mb-3">
+											<div class="col-md-3"><label class="form-label small mb-1"><%= t('pf.default_markup') %></label><input type="number" step="0.01" class="form-control form-control-sm rounded-0" id="pf-default" <%= canEdit ? '' : 'disabled' %>></div>
+											<div class="col-md-3"><label class="form-label small mb-1" title="<%= t('pf.compare_markup_tip') %>"><%= t('pf.compare_markup') %></label><input type="number" min="0" step="0.01" class="form-control form-control-sm rounded-0" id="pf-compare" <%= canEdit ? '' : 'disabled' %>></div>
+											<div class="col-md-2"><label class="form-label small mb-1"><%= t('cur.round') %></label><select class="form-select form-select-sm rounded-0" id="pf-round" <%= canEdit ? '' : 'disabled' %>>
+												<% ['none', 'up', 'nearest', 'down'].forEach((v) => { %><option value="<%= v %>"><%= t('cur.round_' + v) %></option><% }) %></select></div>
+											<div class="col-md-2"><label class="form-label small mb-1" title="<%= t('cur.step_tip') %>"><%= t('cur.step') %></label><input type="number" min="0.01" step="0.01" class="form-control form-control-sm rounded-0" id="pf-step" <%= canEdit ? '' : 'disabled' %>></div>
+											<div class="col-md-2"><label class="form-label small mb-1" title="<%= t('cur.minus_tip') %>"><%= t('cur.minus') %></label><input type="number" min="0" step="0.01" class="form-control form-control-sm rounded-0" id="pf-minus" <%= canEdit ? '' : 'disabled' %>></div>
+										</div>
+										<div class="fw-semibold small"><%= t('pf.rules') %></div>
+										<small class="text-muted d-block mb-1"><%= t('pf.rules_hint') %></small>
+										<div class="table-responsive">
+											<table class="table table-sm table-bordered align-middle small mb-1">
+												<thead><tr><th><%= t('pf.brands') %></th><th><%= t('pf.categories') %></th><th><%= t('pf.suppliers') %></th><th style="width:110px"><%= t('pf.markup') %></th><th style="width:70px"></th></tr></thead>
+												<tbody id="pf-rules"></tbody>
+											</table>
+										</div>
+										<% if (canEdit) { %><button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="pf-add"><i class="fa-solid fa-plus"></i> <%= t('pf.add') %></button><% } %>
+									</div>
+									<% if (canEdit) { %>
+									<div class="card-footer d-flex flex-wrap gap-2">
+										<button type="button" class="btn btn-outline-primary rounded-0" id="pf-preview"><i class="fa-regular fa-eye"></i> <%= t('cur.preview') %></button>
+										<button type="button" class="btn btn-outline-danger rounded-0" id="pf-apply"><i class="fa-solid fa-calculator"></i> <%= t('pf.recalc') %></button>
+										<button type="button" class="btn btn-primary rounded-0 ms-auto" id="pf-save"><%= t('save') %></button>
+									</div>
+									<% } %>
+								</div>
+								<div class="card rounded-0 mt-3 d-none" id="pf-preview-card">
+									<div class="card-header"><strong><%= t('pf.preview_title') %></strong></div>
+									<div class="card-body small" id="pf-preview-box"></div>
+								</div>
+							</div>
+
+							<!-- ═══ ВАЛЮТИ: довідник, курси, перерахунок цін, журнал ═══ -->
+							<div class="tab-pane fade" id="block-currencies" role="tabpanel">
+								<div class="card rounded-0">
+									<div class="card-header"><strong><%= t('blocks.currencies') %></strong> <small class="text-muted"><%= t('cur.base') %>: <b><%= current.prices.base_currency %></b></small></div>
+									<div class="card-body">
+										<p class="small text-muted mb-2"><%= t('cur.hint') %></p>
+										<div class="table-responsive">
+											<table class="table table-sm table-bordered align-middle small mb-2">
+												<thead><tr>
+													<th title="<%= t('cur.active_tip') %>"><%= t('cur.active') %></th><th><%= t('cur.code') %></th><th><%= t('cur.name') %></th><th><%= t('cur.symbol') %></th>
+													<th title="<%= t('cur.rate_tip') %>"><%= t('cur.rate') %></th><th><%= t('cur.effective') %></th>
+													<th title="<%= t('cur.provider_tip') %>"><%= t('cur.provider') %></th><th><%= t('cur.state') %></th><th style="width:80px"></th>
+												</tr></thead>
+												<tbody id="cur-rows"></tbody>
+											</table>
+										</div>
+										<% if (canCur) { %><button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="cur-add"><i class="fa-solid fa-plus"></i> <%= t('cur.add') %></button><% } %>
+									</div>
+									<% if (canCur) { %>
+									<div class="card-footer d-flex flex-wrap gap-2">
+										<button type="button" class="btn btn-outline-secondary rounded-0" id="cur-pull"><i class="fa-solid fa-cloud-arrow-down"></i> <%= t('cur.pull') %></button>
+										<button type="button" class="btn btn-outline-primary rounded-0" id="cur-preview"><i class="fa-regular fa-eye"></i> <%= t('cur.preview') %></button>
+										<button type="button" class="btn btn-outline-danger rounded-0" id="cur-apply"><i class="fa-solid fa-calculator"></i> <%= t('cur.recalc') %></button>
+										<button type="button" class="btn btn-primary rounded-0 ms-auto" id="cur-save"><%= t('save') %></button>
+									</div>
+									<% } %>
+								</div>
+								<!-- Зміна основної валюти: огляд і перехід з перерахунком усіх цін -->
+								<% if (canCur) { %>
+								<div class="card rounded-0 mt-3 d-none" id="cur-base-card">
+									<div class="card-header"><strong><%= t('cur.base_change') %></strong></div>
+									<div class="card-body small">
+										<p class="text-muted"><%= t('cur.base_change_hint') %></p>
+										<div class="row g-2 align-items-end">
+											<div class="col-md-2"><label class="form-label mb-1"><%= t('cur.base_new') %></label><select class="form-select form-select-sm rounded-0" id="cb-code"></select></div>
+											<div class="col-md-3"><label class="form-label mb-1" id="cb-rate-label"><%= t('cur.base_rate') %></label><input class="form-control form-control-sm rounded-0" type="number" min="0" step="0.000001" id="cb-rate"></div>
+											<div class="col-md-3"><label class="form-label mb-1"><%= t('cur.base_old_name') %></label><input class="form-control form-control-sm rounded-0" maxlength="64" id="cb-name"></div>
+											<div class="col-md-1"><label class="form-label mb-1"><%= t('cur.symbol') %></label><input class="form-control form-control-sm rounded-0" maxlength="8" id="cb-symbol"></div>
+										</div>
+										<div class="mt-3">
+											<div class="form-check"><input class="form-check-input" type="radio" name="cb-mode" value="keep" id="cb-keep" checked><label class="form-check-label" for="cb-keep"><b><%= t('cur.base_keep') %></b> — <%= t('cur.base_keep_hint') %></label></div>
+											<div class="form-check"><input class="form-check-input" type="radio" name="cb-mode" value="convert" id="cb-convert"><label class="form-check-label" for="cb-convert"><b><%= t('cur.base_convert') %></b> — <%= t('cur.base_convert_hint') %></label></div>
+										</div>
+										<div class="row g-2 align-items-end mt-1">
+											<div class="col-md-3"><label class="form-label mb-1"><%= t('cur.base_round') %></label><select class="form-select form-select-sm rounded-0" id="cb-round">
+												<% ['none', 'up', 'nearest', 'down'].forEach((v) => { %><option value="<%= v %>"><%= t('cur.round_' + v) %></option><% }) %>
+											</select></div>
+											<div class="col-md-2"><label class="form-label mb-1"><%= t('cur.step') %></label><input class="form-control form-control-sm rounded-0" type="number" min="0.01" step="0.01" value="1" id="cb-step"></div>
+											<div class="col-md-2"><label class="form-label mb-1"><%= t('cur.minus') %></label><input class="form-control form-control-sm rounded-0" type="number" min="0" step="0.01" value="0" id="cb-minus"></div>
+										</div>
+										<div id="cb-info" class="mt-3"></div>
+										<div class="d-flex gap-2 mt-2">
+											<button type="button" class="btn btn-outline-primary btn-sm rounded-0" id="cb-preview"><i class="fa-regular fa-eye"></i> <%= t('cur.preview') %></button>
+											<button type="button" class="btn btn-danger btn-sm rounded-0" id="cb-apply"><%= t('cur.base_apply') %></button>
+											<button type="button" class="btn btn-outline-secondary btn-sm rounded-0 ms-auto" id="cb-close"><%= t('cancel') %></button>
+										</div>
+									</div>
+								</div>
+								<% } %>
+								<!-- Джерела курсів (модулі): стан, перевірка -->
+								<div class="card rounded-0 mt-3">
+									<div class="card-header"><strong><%= t('cur.sources') %></strong></div>
+									<div class="card-body small">
+										<p class="text-muted mb-2"><%= t('cur.sources_hint') %></p>
+										<div id="cur-sources"></div>
+										<div id="cur-test" class="mt-2"></div>
+									</div>
+								</div>
+								<div class="card rounded-0 mt-3 d-none" id="cur-preview-card">
+									<div class="card-header"><strong><%= t('cur.preview_title') %></strong></div>
+									<div class="card-body small" id="cur-preview-box"></div>
+								</div>
+								<div class="card rounded-0 mt-3">
+									<div class="card-header"><strong><%= t('cur.log') %></strong></div>
+									<div class="card-body small" id="cur-log"></div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</main>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js"></script>
+		<script type="application/json" id="settings-data"><%- JSON.stringify({
+			current,
+			i18n: {
+				saved: t('saved'),
+				save_error: t('save_error'),
+				uploaded: t('watermark_uploaded'),
+				fits: { contain: opt('contain'), cover: opt('cover'), inside: opt('inside') },
+				del: t('delete'),
+				cur: i18n.__('catalog.products.settings.cur'),
+				pf: i18n.__('catalog.products.settings.pf'),
+			},
+			canEdit,
+			canCur,
+			formulaDict,
+		}).replace(/</g, '\\u003c') %></script>
+		<script>
+            (function () {
+	"use strict";
+
+	const data = JSON.parse(document.getElementById("settings-data").textContent);
+	const current = data.current;
+	const L = data.i18n;
+	const notyf = new Notyf({ duration: 3000, position: { x: "right", y: "top" } });
+
+	function setPath(obj, path, value) {
+		const keys = path.split(".");
+		let o = obj;
+		keys.slice(0, -1).forEach((k) => {
+			if (typeof o[k] !== "object" || o[k] === null) o[k] = {};
+			o = o[k];
+		});
+		o[keys[keys.length - 1]] = value;
+	}
+
+	function readValue(el) {
+		const type = el.dataset.type;
+		if (type === "bool") return el.checked;
+		if (type === "array") return Array.from(el.selectedOptions).map((o) => o.value);
+		if (type === "intarray") return Array.from(el.selectedOptions).map((o) => parseInt(o.value, 10));
+		if (type === "int") return el.value === "" ? null : parseInt(el.value, 10);
+		if (type === "intnull") return el.value === "" ? null : parseInt(el.value, 10);
+		if (type === "number") return el.value === "" ? null : parseFloat(el.value);
+		return el.value.trim();
+	}
+
+	function collect(form) {
+		// Беремо поточне значення блоку як основу, щоб не скинути поля, яких немає у формі
+		const value = JSON.parse(JSON.stringify(current[form.dataset.key] || {}));
+		form.querySelectorAll("[name][data-type]").forEach((el) => setPath(value, el.name, readValue(el)));
+		const thumbs = form.querySelector(".js-thumbs");
+		if (thumbs) {
+			value.thumbnails = Array.from(thumbs.querySelectorAll("tr")).map((tr) => ({
+				code: tr.querySelector('[data-thumb="code"]').value.trim(),
+				width: parseInt(tr.querySelector('[data-thumb="width"]').value, 10),
+				height: parseInt(tr.querySelector('[data-thumb="height"]').value, 10),
+				fit: tr.querySelector('[data-thumb="fit"]').value,
+			}));
+		}
+		return value;
+	}
+
+	function clearErrors(form) {
+		form.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+		form.querySelectorAll(".js-error").forEach((el) => (el.textContent = ""));
+	}
+
+	function showErrors(form, errors) {
+		(errors || []).forEach((err) => {
+			// "thumbnails.0.width" → поле "thumbnails"; "watermark.opacity" → поле "watermark.opacity"
+			const field = String(err.field || "");
+			const box = form.querySelector(`[data-field="${CSS.escape(field)}"]`) || form.querySelector(`[data-field="${CSS.escape(field.split(".")[0])}"]`);
+			if (!box) return;
+			box.querySelectorAll("input,select").forEach((el) => el.classList.add("is-invalid"));
+			const out = box.querySelector(".js-error");
+			if (out) out.textContent = err.message;
+		});
+	}
+
+	async function post(url, body, isForm) {
+		const res = await fetch(url, {
+			method: "POST",
+			credentials: "same-origin",
+			headers: isForm ? { Accept: "application/json" } : { "Content-Type": "application/json", Accept: "application/json" },
+			body: isForm ? body : JSON.stringify(body),
+		});
+		const json = await res.json().catch(() => ({}));
+		if (!res.ok || json.ok === false) throw json;
+		return json;
+	}
+
+	document.querySelectorAll(".js-settings-form").forEach((form) => {
+		form.addEventListener("submit", async (e) => {
+			e.preventDefault();
+			const key = form.dataset.key;
+			const btn = form.querySelector('button[type="submit"]');
+			clearErrors(form);
+			btn.disabled = true;
+			try {
+				const r = await post(`/api/catalog/products/settings/${encodeURIComponent(key)}/save/`, { value: collect(form) });
+				current[key] = r.value;
+				notyf.success(L.saved);
+			} catch (err) {
+				showErrors(form, err.errors);
+				notyf.error(err.error || L.save_error);
+			} finally {
+				btn.disabled = false;
+			}
+		});
+	});
+
+	// ── Мініатюри: додати / видалити рядок ──────────────────
+	document.addEventListener("click", (e) => {
+		const add = e.target.closest(".js-thumb-add");
+		if (add) {
+			const tbody = add.closest("[data-field]").querySelector(".js-thumbs");
+			const tr = document.createElement("tr");
+			const fits = Object.entries(L.fits)
+				.map(([v, label]) => `<option value="${v}">${label}</option>`)
+				.join("");
+			tr.innerHTML = `
+				<td><input class="form-control form-control-sm rounded-0" data-thumb="code" value=""></td>
+				<td><input class="form-control form-control-sm rounded-0" type="number" min="16" max="4000" data-thumb="width" value="300"></td>
+				<td><input class="form-control form-control-sm rounded-0" type="number" min="16" max="4000" data-thumb="height" value="300"></td>
+				<td><select class="form-select form-select-sm rounded-0" data-thumb="fit">${fits}</select></td>
+				<td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-thumb-del"><i class="fa-solid fa-xmark"></i></button></td>`;
+			tr.querySelector(".js-thumb-del").setAttribute("aria-label", L.del);
+			tbody.appendChild(tr);
+			tr.querySelector("input").focus();
+			return;
+		}
+		const del = e.target.closest(".js-thumb-del");
+		if (del) del.closest("tr").remove();
+	});
+
+	// ── Валюти: довідник, курси, перерахунок цін, журнал ──────
+	const C = L.cur;
+	const curRows = document.getElementById("cur-rows");
+	let curData = null;
+	const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+	const num = (v, d = 4) => (v === null || v === undefined || v === "" ? "—" : Number(v).toLocaleString("uk-UA", { maximumFractionDigits: d }));
+	const opts = (list, val) => list.map(([v, label]) => `<option value="${esc(v)}"${String(v) === String(val) ? " selected" : ""}>${esc(label)}</option>`).join("");
+
+	// Основна валюта — завжди перший рядок: курс 1, не видаляється, не вимикається
+	function curBaseRow() {
+		const tr = document.createElement("tr");
+		tr.className = "table-light";
+		const bf = curData.currencies.base_format || {};
+		const dis = data.canCur ? "" : " disabled";
+		tr.innerHTML = `<td class="text-center"><i class="fa-solid fa-check text-success"></i></td><td><b>${esc(curData.base)}</b></td><td><span class="badge text-bg-primary rounded-0">${esc(C.base_badge)}</span></td>
+			<td><input class="form-control form-control-sm rounded-0" maxlength="8" style="width:50px" data-b="symbol" value="${esc(bf.symbol || "")}"${dis}></td>
+			<td>1</td><td>1</td><td colspan="2" class="text-muted small">${esc(C.base_note)}<div class="js-base-fmt"></div></td>
+			<td class="text-nowrap"><button type="button" class="btn btn-sm btn-outline-secondary rounded-0 js-base-more" title="${esc(C.format)}"><i class="fa-solid fa-sliders"></i></button>
+				${data.canCur && curData.currencies.list.length ? `<button type="button" class="btn btn-sm btn-outline-primary rounded-0 js-base-open" title="${esc(C.base_change)}"><i class="fa-solid fa-right-left"></i></button>` : ""}</td>`;
+		const more = document.createElement("tr");
+		more.className = "js-base-more-row d-none";
+		more.innerHTML = `<td colspan="9" class="bg-light"><div class="row g-2 align-items-end">${fmtFields(bf, "b", dis)}</div></td>`;
+		curRows.appendChild(tr);
+		curRows.appendChild(more);
+		baseFmtPreview();
+	}
+	// Формат суми: символ перед / після, знаків після коми
+	const fmtMoney = (v, f, sym) => {
+		const d = Number.isInteger(Number(f.decimals)) ? Number(f.decimals) : 2;
+		const n = Number(v).toLocaleString("uk-UA", { minimumFractionDigits: d, maximumFractionDigits: d });
+		return sym ? (f.symbol_pos === "before" ? sym + n : n + " " + sym) : n;
+	};
+	const fmtFields = (f, attr, dis) => `
+		<div class="col-md-2"><label class="form-label small mb-1">${esc(C.symbol_pos)}</label><select class="form-select form-select-sm rounded-0" data-${attr}="symbol_pos"${dis}>${opts([["after", C.symbol_after], ["before", C.symbol_before]], f.symbol_pos || "after")}</select></div>
+		<div class="col-md-2"><label class="form-label small mb-1">${esc(C.decimals)}</label><select class="form-select form-select-sm rounded-0" data-${attr}="decimals"${dis}>${opts([0, 1, 2, 3, 4].map((v) => [v, v]), f.decimals ?? 2)}</select></div>`;
+	const baseField = (k) => curRows.querySelector(`[data-b="${k}"]`);
+	const baseFmtRead = () => ({ symbol: baseField("symbol").value.trim(), symbol_pos: baseField("symbol_pos").value, decimals: Number(baseField("decimals").value) });
+	function baseFmtPreview() {
+		const f = baseFmtRead();
+		curRows.querySelector(".js-base-fmt").textContent = C.format_example + ": " + fmtMoney(1234.5, f, f.symbol || curData.base);
+	}
+	// Курс давно не оновлювався
+	const isStale = (c) => Number(c.stale_hours) > 0 && (!c.updated_at || Date.now() - new Date(c.updated_at).getTime() > Number(c.stale_hours) * 3600000);
+	const providerOptions = (sel, withNone) =>
+		opts(
+			[
+				...(withNone ? [["", C.fallback_none]] : []),
+				...curData.providers.filter((p) => !withNone || p.key !== "manual").map((p) => [p.key, p.key === "manual" ? C.provider_manual : p.name]),
+				// Джерело, модуль якого вимкнено, — лишається вибраним (курс не оновлюється, доки модуль не ввімкнуть)
+				...(sel && sel !== "manual" && !curData.providers.some((p) => p.key === sel) ? [[sel, sel + " — " + C.provider_off]] : []),
+			],
+			sel || ""
+		);
+	function curRow(c) {
+		c = c || { code: "", name: "", symbol: "", rate: 1, correction: 0, threshold: 0, only_up: false, round: "none", step: 1, minus: 0, apply: "auto", provider: "manual", fallback: "", max_jump: 0, active: true, units: 1, stale_hours: 0, symbol_pos: "after", decimals: 2 };
+		const units = Number(c.units) || 1;
+		const dis = data.canCur ? "" : " disabled";
+		const state = [
+			c.suggested_rate
+				? `<div class="text-danger">${esc(C.held)}: <b>${num(c.suggested_rate, 6)}</b> (${esc(c.suggested_source || "")}, ${c.rate ? ((c.suggested_rate - c.rate) / c.rate * 100 > 0 ? "+" : "") + (((c.suggested_rate - c.rate) / c.rate) * 100).toFixed(1) + "%" : ""})${data.canCur ? ` <button type="button" class="btn btn-sm btn-outline-success rounded-0 py-0 js-cur-accept" data-code="${esc(c.code)}">${esc(C.accept)}</button> <button type="button" class="btn btn-sm btn-outline-secondary rounded-0 py-0 js-cur-reject" data-code="${esc(c.code)}">${esc(C.reject)}</button>` : ""}</div>`
+				: "",
+			c.pending ? `<span class="badge text-bg-warning rounded-0">${esc(C.pending)}</span>` : "",
+			c.code && isStale(c) ? `<div><span class="badge text-bg-danger rounded-0" title="${esc(C.stale_tip.replace("%s", c.stale_hours))}">${esc(C.stale)}</span></div>` : "",
+			c.applied_rate ? `<div class="text-muted" title="${esc(c.applied_at || "")}">${esc(C.applied)} ${num(c.applied_rate)}</div>` : "",
+			c.updated_at ? `<div class="text-muted">${esc(C.updated)} ${esc(new Date(c.updated_at).toLocaleString())}</div>` : "",
+		].join("");
+		const tr = document.createElement("tr");
+		tr.className = "js-cur";
+		tr.innerHTML = `
+			<td class="text-center"><input class="form-check-input" type="checkbox" data-c="active"${c.active !== false ? " checked" : ""}${dis}></td>
+			<td><input class="form-control form-control-sm rounded-0 text-uppercase" maxlength="3" style="width:64px" data-c="code" value="${esc(c.code)}"${c.code ? " readonly" : ""}${dis}></td>
+			<td><input class="form-control form-control-sm rounded-0" maxlength="64" style="width:130px" data-c="name" value="${esc(c.name)}"${dis}></td>
+			<td><input class="form-control form-control-sm rounded-0" maxlength="8" style="width:50px" data-c="symbol" value="${esc(c.symbol)}"${dis}></td>
+			<td class="text-nowrap"><input class="form-control form-control-sm rounded-0 d-inline-block" type="number" min="0" step="0.000001" style="width:105px" data-c="rate" value="${Math.round(Number(c.rate) * units * 1e8) / 1e8}"${dis}>
+				<select class="form-select form-select-sm rounded-0 d-inline-block" style="width:80px" data-c="units" title="${esc(C.units_tip)}"${dis}>${opts([1, 10, 100, 1000].map((v) => [v, C.units_per.replace("%s", v)]), units)}</select></td>
+			<td class="text-nowrap js-eff"></td>
+			<td><select class="form-select form-select-sm rounded-0 mb-1" style="width:150px" data-c="provider"${dis}>${providerOptions(c.provider, false)}</select>
+				<select class="form-select form-select-sm rounded-0" style="width:150px" data-c="fallback" title="${esc(C.fallback_tip)}"${dis}>${providerOptions(c.fallback, true)}</select></td>
+			<td class="small">${state}</td>
+			<td class="text-nowrap"><button type="button" class="btn btn-sm btn-outline-secondary rounded-0 js-cur-more" title="${esc(C.more)}"><i class="fa-solid fa-sliders"></i></button>
+				${data.canCur ? `<button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-cur-del"><i class="fa-solid fa-xmark"></i></button>` : ""}</td>`;
+		// Додаткові правила валюти — у рядку, що розгортається
+		const more = document.createElement("tr");
+		more.className = "js-cur-more-row d-none";
+		more.innerHTML = `<td colspan="9" class="bg-light"><div class="row g-2 align-items-end">
+			<div class="col-md-2"><label class="form-label small mb-1" title="${esc(C.correction_tip)}">${esc(C.correction)}</label><input class="form-control form-control-sm rounded-0" type="number" min="-50" max="100" step="0.01" data-c="correction" value="${c.correction}"${dis}></div>
+			<div class="col-md-2"><label class="form-label small mb-1" title="${esc(C.threshold_tip)}">${esc(C.threshold)}</label><input class="form-control form-control-sm rounded-0" type="number" min="0" max="50" step="0.01" data-c="threshold" value="${c.threshold}"${dis}></div>
+			<div class="col-md-2"><label class="form-label small mb-1" title="${esc(C.max_jump_tip)}">${esc(C.max_jump)}</label><input class="form-control form-control-sm rounded-0" type="number" min="0" max="100" step="0.1" data-c="max_jump" value="${c.max_jump || 0}"${dis}></div>
+			<div class="col-md-2"><label class="form-label small mb-1">${esc(C.round)}</label><select class="form-select form-select-sm rounded-0" data-c="round"${dis}>${opts(["none", "up", "nearest", "down"].map((v) => [v, C["round_" + v]]), c.round)}</select></div>
+			<div class="col-md-1"><label class="form-label small mb-1" title="${esc(C.step_tip)}">${esc(C.step)}</label><input class="form-control form-control-sm rounded-0" type="number" min="0.01" step="0.01" data-c="step" value="${c.step}"${dis}></div>
+			<div class="col-md-1"><label class="form-label small mb-1" title="${esc(C.minus_tip)}">${esc(C.minus)}</label><input class="form-control form-control-sm rounded-0" type="number" min="0" step="0.01" data-c="minus" value="${c.minus}"${dis}></div>
+			<div class="col-md-2"><label class="form-label small mb-1" title="${esc(C.apply_tip)}">${esc(C.apply)}</label><select class="form-select form-select-sm rounded-0" data-c="apply"${dis}>${opts([["auto", C.apply_auto], ["confirm", C.apply_confirm]], c.apply)}</select></div>
+			<div class="col-md-2"><div class="form-check" title="${esc(C.only_up_tip)}"><input class="form-check-input" type="checkbox" data-c="only_up"${c.only_up ? " checked" : ""}${dis}><label class="form-check-label small">${esc(C.only_up)}</label></div></div>
+			<div class="col-md-2"><label class="form-label small mb-1" title="${esc(C.stale_hours_tip)}">${esc(C.stale_hours)}</label><input class="form-control form-control-sm rounded-0" type="number" min="0" max="2160" step="1" data-c="stale_hours" value="${c.stale_hours || 0}"${dis}></div>
+			${fmtFields(c, "c", dis)}
+		</div></td>`;
+		curRows.appendChild(tr);
+		curRows.appendChild(more);
+		curEff(tr);
+	}
+	// Поле валюти: у рядку або в розгорнутих правилах під ним
+	const curField = (tr, k) => tr.querySelector(`[data-c="${k}"]`) || tr.nextElementSibling.querySelector(`[data-c="${k}"]`);
+	// Комерційний курс і приклад округлення: 100 одиниць валюти → базова
+	function curEff(tr) {
+		const g = (k) => curField(tr, k);
+		const units = Number(g("units").value) || 1;
+		const eff = (Number(g("rate").value || 0) / units) * (1 + Number(g("correction").value || 0) / 100);
+		const step = Number(g("step").value) || 1;
+		const mode = g("round").value;
+		let ex = eff * 100;
+		if (mode !== "none") {
+			const f = mode === "up" ? Math.ceil : mode === "down" ? Math.floor : Math.round;
+			ex = f(Math.round((ex / step) * 10000) / 10000) * step;
+			const minus = Number(g("minus").value) || 0;
+			if (minus > 0 && ex - minus > 0) ex -= minus;
+		}
+		const f = { symbol_pos: g("symbol_pos").value, decimals: Number(g("decimals").value) };
+		tr.querySelector(".js-eff").innerHTML = `<b>${num(eff, 6)}</b><div class="text-muted">${esc(C.format_example)}: ${esc(fmtMoney(1234.5, f, g("symbol").value.trim() || g("code").value.trim().toUpperCase()))}</div><div class="text-muted">100 → ${num(ex, 2)} ${esc(curData.base)}</div><div class="text-muted">1 ${esc(curData.base)} = ${eff > 0 ? num(1 / eff, 6) : "—"}</div>`;
+	}
+	function curRead() {
+		return Array.from(curRows.querySelectorAll("tr.js-cur")).map((tr) => {
+			const g = (k) => curField(tr, k);
+			return {
+				code: g("code").value.trim().toUpperCase(),
+				name: g("name").value.trim(),
+				symbol: g("symbol").value.trim(),
+				active: g("active").checked,
+				units: Number(g("units").value) || 1,
+				rate: Math.round((Number(g("rate").value) / (Number(g("units").value) || 1)) * 1e10) / 1e10,
+				stale_hours: Number(g("stale_hours").value || 0),
+				symbol_pos: g("symbol_pos").value,
+				decimals: Number(g("decimals").value),
+				correction: Number(g("correction").value || 0),
+				threshold: Number(g("threshold").value || 0),
+				max_jump: Number(g("max_jump").value || 0),
+				only_up: g("only_up").checked,
+				round: g("round").value,
+				step: Number(g("step").value || 1),
+				minus: Number(g("minus").value || 0),
+				apply: g("apply").value,
+				provider: g("provider").value,
+				fallback: g("fallback").value,
+			};
+		});
+	}
+	// Джерела курсів: стан останнього звернення, перевірка без застосування
+	function curSources() {
+		const box = document.getElementById("cur-sources");
+		const list = curData.sources || [];
+		if (!list.length) return (box.innerHTML = `<span class="text-muted">${esc(C.sources_none)}</span>`);
+		const used = (k) => curData.currencies.list.filter((c) => c.provider === k || c.fallback === k).map((c) => c.code + (c.fallback === k ? " (" + C.fallback_short + ")" : ""));
+		box.innerHTML = `<table class="table table-sm mb-0"><thead><tr><th>${esc(C.source)}</th><th>${esc(C.source_used)}</th><th>${esc(C.source_last)}</th><th></th></tr></thead><tbody>${list
+			.map((p) => {
+				const st = p.status;
+				const last = !st ? `<span class="text-muted">${esc(C.source_never)}</span>` : st.ok ? `<span class="text-success">${esc(new Date(st.at).toLocaleString())}</span>` : `<span class="text-danger" title="${esc(st.error)}">${esc(new Date(st.at).toLocaleString())}: ${esc(st.error)}</span>`;
+				return `<tr><td>${esc(p.name)} <small class="text-muted">${esc(p.key)}</small></td><td>${esc(used(p.key).join(", ") || "—")}</td><td>${last}</td><td class="text-end">${data.canCur ? `<button type="button" class="btn btn-sm btn-outline-secondary rounded-0 py-0 js-src-test" data-key="${esc(p.key)}">${esc(C.source_test)}</button>` : ""}</td></tr>`;
+			})
+			.join("")}</tbody></table>`;
+	}
+	// Графік курсу валюти з журналу — ECharts (ступінчастий: курс діє до наступної зміни; затримані стрибки не входять)
+	let curChartCode = null;
+	let curChartSteps = [];
+	let curEchart = null;
+	function curChart(log) {
+		const codes = curData.currencies.list.map((c) => c.code);
+		curChartSteps = [];
+		if (!codes.length) return "";
+		if (!codes.includes(curChartCode)) curChartCode = codes[0];
+		const c = curData.currencies.list.find((x) => x.code === curChartCode);
+		const pts = log.filter((x) => x.code === curChartCode && !x.held && x.source !== "base").reverse();
+		const steps = pts.map((x) => ({ t: Date.parse(x.at), v: Number(x.rate), src: x.source }));
+		if (steps.length && pts[0].prev) steps.unshift({ t: steps[0].t - 1, v: Number(pts[0].prev) });
+		steps.push({ t: Date.now(), v: Number(c.rate) });
+		const sel = `<select class="form-select form-select-sm rounded-0 w-auto d-inline-block js-chart-code">${opts(codes.map((x) => [x, x]), curChartCode)}</select>`;
+		if (steps.length < 2) return `<div class="mb-2">${sel} <span class="text-muted">${esc(C.log_empty)}</span></div>`;
+		curChartSteps = steps;
+		const vals = steps.map((p) => p.v);
+		return `<div class="mb-2">${sel} <span class="text-muted">${esc(C.chart_range)}: ${num(Math.min(...vals), 6)} – ${num(Math.max(...vals), 6)}</span></div><div id="cur-echart" style="width:100%;height:220px" class="mb-2"></div>`;
+	}
+	function curChartDraw() {
+		if (curEchart) (curEchart.dispose(), (curEchart = null));
+		const el = document.getElementById("cur-echart");
+		if (!el || !window.echarts || !curChartSteps.length) return;
+		curEchart = echarts.init(el);
+		curEchart.setOption({
+			tooltip: { trigger: "axis", valueFormatter: (v) => num(v, 6) },
+			grid: { left: 70, right: 20, top: 16, bottom: 50 },
+			xAxis: { type: "time" },
+			yAxis: { type: "value", scale: true, axisLabel: { formatter: (v) => num(v, 4) } },
+			dataZoom: [{ type: "inside" }, { type: "slider", height: 18, bottom: 5 }],
+			series: [{ name: curChartCode, type: "line", step: "end", symbolSize: 5, areaStyle: { opacity: 0.06 }, data: curChartSteps.map((p) => [p.t, p.v]) }],
+		});
+	}
+	window.addEventListener("resize", () => curEchart && curEchart.resize());
+	// Вкладка «Валюти» була прихована — після показу графік потребує розміру
+	document.querySelectorAll('[data-bs-target="#block-currencies"]').forEach((b) => b.addEventListener("shown.bs.tab", () => curEchart && curEchart.resize()));
+	function curLog() {
+		const all = curData.currencies.log || [];
+		const log = all.slice(0, 100);
+		document.getElementById("cur-log").innerHTML =
+			curChart(all) +
+			(log.length
+				? `<table class="table table-sm mb-0"><thead><tr><th>${esc(C.log_at)}</th><th>${esc(C.code)}</th><th>${esc(C.log_prev)}</th><th>${esc(C.rate)}</th><th>${esc(C.log_change)}</th><th>${esc(C.provider)}</th></tr></thead><tbody>${log
+						.map((x) => {
+							const ch = x.prev ? ((x.rate - x.prev) / x.prev) * 100 : null;
+							return `<tr${x.held ? ' class="text-muted"' : ""}><td>${esc(new Date(x.at).toLocaleString())}</td><td>${esc(x.code)}</td><td>${num(x.prev, 6)}</td><td><b>${num(x.rate, 6)}</b>${x.held ? ` <span class="badge text-bg-warning rounded-0">${esc(C.held)}</span>` : ""}</td><td class="${ch > 0 ? "text-danger" : ch < 0 ? "text-success" : ""}">${ch === null ? "—" : (ch > 0 ? "+" : "") + ch.toFixed(2) + "%"}</td><td>${esc(x.source === "manual" ? C.provider_manual : x.source === "base" ? C.base_change : x.source)}</td></tr>`;
+						})
+						.join("")}</tbody></table>`
+				: `<span class="text-muted">${esc(C.log_empty)}</span>`);
+		curChartDraw();
+	}
+	document.getElementById("cur-log").addEventListener("change", (e) => {
+		if (!e.target.classList.contains("js-chart-code")) return;
+		curChartCode = e.target.value;
+		curLog();
+	});
+	function curRender() {
+		curRows.innerHTML = "";
+		curBaseRow();
+		curData.currencies.list.forEach(curRow);
+		curLog();
+		curSources();
+	}
+	async function curLoad() {
+		curData = await post("/api/catalog/products/currencies/get/", {});
+		curRender();
+	}
+	curRows.addEventListener("input", (e) => {
+		const tr = e.target.closest("tr");
+		if (!tr) return;
+		if (e.target.dataset.b) return baseFmtPreview();
+		curEff(tr.classList.contains("js-cur") ? tr : tr.previousElementSibling);
+	});
+	curRows.addEventListener("click", async (e) => {
+		const tr = e.target.closest("tr");
+		if (e.target.closest(".js-cur-del")) {
+			tr.nextElementSibling.remove();
+			return tr.remove();
+		}
+		if (e.target.closest(".js-base-open")) return baseOpen();
+		if (e.target.closest(".js-base-more")) return tr.nextElementSibling.classList.toggle("d-none");
+		if (e.target.closest(".js-cur-more")) return tr.nextElementSibling.classList.toggle("d-none");
+		const acc = e.target.closest(".js-cur-accept, .js-cur-reject");
+		if (acc) {
+			acc.disabled = true;
+			try {
+				const r = await post("/api/catalog/products/currencies/accept/", { code: acc.dataset.code, accept: acc.classList.contains("js-cur-accept") });
+				curData.currencies = r.currencies;
+				curRender();
+				notyf.success(L.saved);
+			} catch (err) {
+				notyf.error(err.error || L.save_error);
+				acc.disabled = false;
+			}
+		}
+	});
+	document.getElementById("cur-sources").addEventListener("click", async (e) => {
+		const b = e.target.closest(".js-src-test");
+		if (!b) return;
+		b.disabled = true;
+		const out = document.getElementById("cur-test");
+		try {
+			const r = await post("/api/catalog/products/currencies/provider/test/", { key: b.dataset.key });
+			curData.sources = r.sources;
+			curSources();
+			out.innerHTML = r.rows
+				? `<div class="fw-semibold mb-1">${esc(C.source_test_title)}: ${esc(b.dataset.key)}</div><table class="table table-sm mb-0"><thead><tr><th>${esc(C.code)}</th><th>${esc(C.source_current)}</th><th>${esc(C.source_rate)}</th><th>${esc(C.log_change)}</th></tr></thead><tbody>${r.rows
+						.map((x) => {
+							const ch = x.rate && x.current ? ((x.rate - x.current) / x.current) * 100 : null;
+							return `<tr><td>${esc(x.code)}</td><td>${num(x.current, 6)}</td><td><b>${x.rate ? num(x.rate, 6) : esc(C.source_no_rate)}</b></td><td>${ch === null ? "—" : (ch > 0 ? "+" : "") + ch.toFixed(2) + "%"}</td></tr>`;
+						})
+						.join("")}</tbody></table>`
+				: `<span class="text-danger">${esc(r.error || "")}</span>`;
+		} catch (err) {
+			out.innerHTML = `<span class="text-danger">${esc(err.error || L.save_error)}</span>`;
+		} finally {
+			b.disabled = false;
+		}
+	});
+	const curBtn = (id, fn) => {
+		const b = document.getElementById(id);
+		if (!b) return;
+		b.addEventListener("click", async () => {
+			b.disabled = true;
+			try {
+				await fn();
+			} catch (err) {
+				notyf.error(err.error || (err.errors && err.errors.map((x) => x.message).join("; ")) || L.save_error);
+			} finally {
+				b.disabled = false;
+			}
+		});
+	};
+	curBtn("cur-add", async () => curRow());
+
+	// ── Зміна основної валюти ──
+	const cb = (id) => document.getElementById(id);
+	function baseOpen() {
+		const card = cb("cur-base-card");
+		if (!card) return;
+		cb("cb-code").innerHTML = opts(curData.currencies.list.map((c) => [c.code, c.code + (c.name ? " — " + c.name : "")]), "");
+		cb("cb-name").value = curData.base;
+		cb("cb-symbol").value = "";
+		cb("cb-info").innerHTML = "";
+		baseRate();
+		card.classList.remove("d-none");
+		card.scrollIntoView({ behavior: "smooth", block: "start" });
+	}
+	function baseRate() {
+		const c = curData.currencies.list.find((x) => x.code === cb("cb-code").value);
+		cb("cb-rate").value = c ? c.rate : "";
+		cb("cb-rate-label").textContent = C.base_rate.replace("%from", curData.base).replace("%to", cb("cb-code").value);
+	}
+	const baseBody = (apply) => ({
+		code: cb("cb-code").value,
+		rate: Number(cb("cb-rate").value),
+		mode: document.querySelector('input[name="cb-mode"]:checked').value,
+		round: cb("cb-round").value,
+		step: Number(cb("cb-step").value || 1),
+		minus: Number(cb("cb-minus").value || 0),
+		name: cb("cb-name").value.trim(),
+		symbol: cb("cb-symbol").value.trim(),
+		apply,
+	});
+	function baseInfo(i) {
+		const rows = (i.sample || [])
+			.map((x) => `<tr><td><a href="/catalog/products/${x.id}/" target="_blank">#${x.id}</a></td><td>${num(x.old, 2)} ${esc(curData.base)}${x.currency !== curData.base ? ` (${esc(x.currency)})` : ""}</td><td>${x.new === null ? "—" : `<b>${num(x.new, 2)}</b> ${esc(i.to)}`}</td></tr>`)
+			.join("");
+		cb("cb-info").innerHTML = `<div>${C.base_info.replace("%base", "<b>" + i.products_base + "</b>").replace("%new", "<b>" + i.products_new + "</b>").replace("%other", "<b>" + i.products_other + "</b>").replace("%sched", "<b>" + i.schedule + "</b>")}</div>
+			${rows ? `<table class="table table-sm mt-2 mb-0"><thead><tr><th>#</th><th>${esc(C.base_now)}</th><th>${esc(C.base_after)}</th></tr></thead><tbody>${rows}</tbody></table>` : ""}
+			<div class="text-danger mt-2">${esc(C.base_warn)}</div>`;
+	}
+	if (cb("cur-base-card")) {
+		cb("cb-code").addEventListener("change", baseRate);
+		cb("cb-close").addEventListener("click", () => cb("cur-base-card").classList.add("d-none"));
+		curBtn("cb-preview", async () => baseInfo((await post("/api/catalog/products/currencies/base/", baseBody(false))).info));
+		curBtn("cb-apply", async () => {
+			const body = baseBody(true);
+			if (!confirm(C.base_q.replace("%from", curData.base).replace("%to", body.code))) return;
+			const r = await post("/api/catalog/products/currencies/base/", body);
+			curData.currencies = r.currencies;
+			curData.base = r.base;
+			cb("cur-base-card").classList.add("d-none");
+			curRender();
+			const h = document.querySelector("#block-currencies .card-header b");
+			if (h) h.textContent = r.base;
+			notyf.success(C.base_done.replace("%s", r.base));
+		});
+	}
+	curBtn("cur-save", async () => {
+		const r = await post("/api/catalog/products/currencies/save/", { list: curRead(), base_format: baseFmtRead() });
+		curData.currencies = r.currencies;
+		curRender();
+		notyf.success(L.saved + (r.recalculated && r.recalculated.length ? ". " + C.recalculated.replace("%s", r.recalculated.join(", ")) : "") + (r.pending && r.pending.length ? ". " + C.pending_note.replace("%s", r.pending.join(", ")) : ""));
+	});
+	function curPreview(r, applied) {
+		const card = document.getElementById("cur-preview-card");
+		card.classList.remove("d-none");
+		const head = `<div class="mb-2">${esc(applied ? C.done : C.will)}: <b>${r.products}</b> ${esc(C.products)}, <b>${r.variants || 0}</b> ${esc(C.variants)}, <b>${r.price_rules || 0}</b> ${esc(C.price_rules)}, <b>${r.options}</b> ${esc(C.options)} · ↑ ${r.up} · ↓ ${r.down}${r.kept ? ` · ${esc(C.kept)} ${r.kept}` : ""}${r.below_cost ? ` · <span class="text-danger">${esc(C.below_cost)} ${r.below_cost}</span>` : ""}</div>`;
+		const rows = r.sample
+			.map((x) => `<tr><td><a href="/catalog/products/${x.id}/" target="_blank">#${x.id}</a></td><td>${x.changes.map((c) => `${esc(C.fields[c.field] || c.field)}: ${num(c.old, 2)} → <b>${num(c.new, 2)}</b>`).join("<br>")}</td></tr>`)
+			.join("");
+		document.getElementById("cur-preview-box").innerHTML = head + (rows ? `<table class="table table-sm mb-0"><tbody>${rows}</tbody></table>` : "");
+	}
+	// Курси від модулів (НБУ, банки) зараз
+	curBtn("cur-pull", async () => {
+		const r = await post("/api/catalog/products/currencies/pull/", {});
+		curData.currencies = r.currencies;
+		curData.sources = r.sources;
+		curRender();
+		const res = r.result || {};
+		if (res.none) return notyf.error(C.pull_none);
+		const errs = Object.entries(res.providers || {}).filter(([, v]) => v && !v.ok).map(([k, v]) => k + ": " + v.error);
+		if (errs.length) notyf.error(errs.join("; "));
+		if (res.held && res.held.length) notyf.error(C.held_note.replace("%s", res.held.join(", ")));
+		if (res.fallback && res.fallback.length) notyf.success(C.fallback_note.replace("%s", res.fallback.join(", ")));
+		notyf.success(res.changed && res.changed.length ? C.pull_done.replace("%s", res.changed.join(", ")) : C.pull_same);
+	});
+	curBtn("cur-preview", async () => curPreview(await post("/api/catalog/products/currencies/recalc/", { codes: [], apply: false }), false));
+	curBtn("cur-apply", async () => {
+		if (!confirm(C.recalc_q)) return;
+		curPreview(await post("/api/catalog/products/currencies/recalc/", { codes: [], apply: true }), true);
+		await curLoad();
+	});
+	curLoad().catch(() => {});
+
+	// ── Ціна за формулою: собівартість × (1 + націнка), правила за брендом / категорією / постачальником ──
+	const PF = L.pf;
+	const pfRules = document.getElementById("pf-rules");
+	const pfOpts = (list, sel) => list.map((o) => `<option value="${o.id}"${sel.includes(Number(o.id)) ? " selected" : ""}>${esc(o.name)}</option>`).join("");
+	function pfRow(r) {
+		r = r || { brands: [], categories: [], suppliers: [], markup: 0 };
+		const dis = data.canEdit ? "" : " disabled";
+		const ms = (k, list) => `<select multiple size="3" class="form-select form-select-sm rounded-0" data-r="${k}"${dis}>${pfOpts(list, (r[k] || []).map(Number))}</select>`;
+		const tr = document.createElement("tr");
+		tr.innerHTML =
+			`<td>${ms("brands", data.formulaDict.brands)}</td><td>${ms("categories", data.formulaDict.categories)}</td><td>${ms("suppliers", data.formulaDict.suppliers)}</td>` +
+			`<td><input type="number" step="0.01" class="form-control form-control-sm rounded-0" data-r="markup" value="${r.markup}"${dis}></td>` +
+			`<td class="text-nowrap">${data.canEdit ? `<button type="button" class="btn btn-sm btn-link p-0 js-pf-up"><i class="fa-solid fa-arrow-up"></i></button> <button type="button" class="btn btn-sm btn-link p-0 text-danger js-pf-del"><i class="fa-solid fa-xmark"></i></button>` : ""}</td>`;
+		pfRules.appendChild(tr);
+	}
+	function pfLoad() {
+		const f = current.price_formula || {};
+		document.getElementById("pf-default").value = f.default_markup ?? "";
+		document.getElementById("pf-compare").value = f.compare_markup ?? "";
+		document.getElementById("pf-round").value = f.round || "none";
+		document.getElementById("pf-step").value = f.step || 1;
+		document.getElementById("pf-minus").value = f.minus || 0;
+		pfRules.innerHTML = "";
+		(f.rules || []).forEach(pfRow);
+	}
+	function pfRead() {
+		const n = (id) => (document.getElementById(id).value === "" ? null : Number(document.getElementById(id).value));
+		return {
+			default_markup: n("pf-default"),
+			compare_markup: n("pf-compare"),
+			round: document.getElementById("pf-round").value,
+			step: n("pf-step") || 1,
+			minus: n("pf-minus") || 0,
+			rules: Array.from(pfRules.querySelectorAll("tr")).map((tr) => {
+				const ids = (k) => Array.from(tr.querySelector(`[data-r="${k}"]`).selectedOptions).map((o) => Number(o.value));
+				return { brands: ids("brands"), categories: ids("categories"), suppliers: ids("suppliers"), markup: Number(tr.querySelector('[data-r="markup"]').value || 0) };
+			}),
+		};
+	}
+	pfRules.addEventListener("click", (e) => {
+		const tr = e.target.closest("tr");
+		if (e.target.closest(".js-pf-del")) tr.remove();
+		else if (e.target.closest(".js-pf-up") && tr.previousElementSibling) tr.parentNode.insertBefore(tr, tr.previousElementSibling);
+	});
+	function pfPreview(r, applied) {
+		document.getElementById("pf-preview-card").classList.remove("d-none");
+		const head = `<div class="mb-2">${esc(applied ? C.done : C.will)}: <b>${r.products}</b> ${esc(C.products)}, <b>${r.variants || 0}</b> ${esc(C.variants)} · ↑ ${r.up} · ↓ ${r.down}${r.no_cost ? ` · ${esc(PF.no_cost)} ${r.no_cost}` : ""}${r.no_markup ? ` · <span class="text-danger">${esc(PF.no_markup)} ${r.no_markup}</span>` : ""}</div>`;
+		const rows = r.sample
+			.map((x) => `<tr><td><a href="/catalog/products/${x.id}/" target="_blank">#${x.id}</a></td><td>${x.changes.map((c) => `${esc(C.fields[c.field] || c.field)}: ${num(c.old, 2)} → <b>${num(c.new, 2)}</b>`).join("<br>")}</td></tr>`)
+			.join("");
+		document.getElementById("pf-preview-box").innerHTML = head + (rows ? `<table class="table table-sm mb-0"><tbody>${rows}</tbody></table>` : "");
+	}
+	curBtn("pf-add", async () => pfRow());
+	curBtn("pf-save", async () => {
+		const r = await post("/api/catalog/products/settings/price_formula/save/", { value: pfRead() });
+		current.price_formula = r.value;
+		pfLoad();
+		notyf.success(L.saved + ". " + PF.saved_note);
+	});
+	curBtn("pf-preview", async () => pfPreview(await post("/api/catalog/products/formula/recalc/", { apply: false }), false));
+	curBtn("pf-apply", async () => {
+		if (!confirm(PF.recalc_q)) return;
+		pfPreview(await post("/api/catalog/products/formula/recalc/", { apply: true }), true);
+	});
+	pfLoad();
+
+	// ── Водяний знак: завантаження ──────────────────────────
+	const wmInput = document.querySelector(".js-watermark-file");
+	if (wmInput) {
+		wmInput.addEventListener("change", async () => {
+			const file = wmInput.files[0];
+			if (!file) return;
+			const fd = new FormData();
+			fd.append("file", file);
+			wmInput.disabled = true;
+			try {
+				const r = await post("/api/catalog/products/settings/watermark/upload/", fd, true);
+				current.images = r.value;
+				const img = document.querySelector(".js-watermark-preview");
+				img.src = r.url;
+				img.style.display = "";
+				notyf.success(L.uploaded);
+			} catch (err) {
+				notyf.error(err.error || L.save_error);
+			} finally {
+				wmInput.disabled = false;
+				wmInput.value = "";
+			}
+		});
+	}
+})();
+</script>
+	</body>
+</html>

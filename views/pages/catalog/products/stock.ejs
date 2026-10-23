@@ -1,0 +1,152 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.overview.stock_title') %></title>
+		<%- include('../../../partials/head'); %>
+		<style>
+			.ov-tile { border: 1px solid var(--bs-border-color); padding: 1rem; height: 100%; display: block; color: inherit; text-decoration: none; }
+			a.ov-tile:hover { border-color: var(--bs-primary); }
+			.ov-num { font-size: 1.75rem; font-weight: 600; line-height: 1.1; }
+			.ov-sub { font-size: .8rem; color: var(--bs-secondary-color); }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><a href="/catalog/"><%= i18n.__('catalog.menu.catalog') %></a></li>
+					<li class="breadcrumb-item active"><%= i18n.__('catalog.menu.group_stock') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+					<h1 class="h4 mb-0 me-auto"><%= i18n.__('catalog.overview.stock_title') %></h1>
+					<% if (perms.stockAdd) { %>
+					<a href="/catalog/stock/documents/" class="btn btn-primary rounded-0"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.overview.new_document') %></a>
+					<% } %>
+					<% if (perms.warehouses) { %><a href="/catalog/stock/warehouses/" class="btn btn-outline-secondary rounded-0"><%= i18n.__('catalog.menu.warehouses') %></a><% } %>
+					<% if (perms.suppliers) { %><a href="/catalog/stock/suppliers/" class="btn btn-outline-secondary rounded-0"><%= i18n.__('catalog.menu.suppliers') %></a><% } %>
+				</div>
+
+				<div class="row g-3 mb-4">
+					<div class="col-6 col-lg-3">
+						<div class="ov-tile">
+							<div class="ov-sub"><%= i18n.__('catalog.overview.stock_low') %></div>
+							<div class="ov-num<% if (data.low) { %> text-danger<% } %>"><%= data.low %></div>
+							<div class="ov-sub"><%= i18n.__('catalog.overview.stock_low_hint') %></div>
+						</div>
+					</div>
+					<% if (perms.stock) { %>
+					<div class="col-6 col-lg-3">
+						<a class="ov-tile" href="/catalog/stock/reservations/">
+							<div class="ov-sub"><%= i18n.__('catalog.menu.stock_reservations') %></div>
+							<div class="ov-num"><%= data.reserved.qty %></div>
+							<div class="ov-sub"><%= i18n.__('catalog.overview.reserved_refs') %>: <%= data.reserved.refs %></div>
+						</a>
+					</div>
+					<div class="col-6 col-lg-3">
+						<a class="ov-tile" href="/catalog/stock/documents/">
+							<div class="ov-sub"><%= i18n.__('catalog.overview.drafts') %></div>
+							<div class="ov-num<% if (data.drafts) { %> text-warning<% } %>"><%= data.drafts %></div>
+							<div class="ov-sub"><%= i18n.__('catalog.menu.stock_documents') %></div>
+						</a>
+					</div>
+					<div class="col-6 col-lg-3">
+						<a class="ov-tile" href="/catalog/stock/movements/">
+							<div class="ov-sub"><%= i18n.__('catalog.menu.stock_movements') %></div>
+							<div class="ov-num"><i class="fa-solid fa-right-left fs-4"></i></div>
+							<div class="ov-sub"><%= i18n.__('catalog.overview.movements_hint') %></div>
+						</a>
+					</div>
+					<% } %>
+				</div>
+
+				<h2 class="h6 text-uppercase text-body-secondary mb-2"><%= i18n.__('catalog.menu.warehouses') %></h2>
+				<% if (!data.warehouses.length) { %>
+				<div class="text-body-secondary mb-4"><%= i18n.__('catalog.overview.no_warehouses') %></div>
+				<% } else { %>
+				<div class="table-responsive mb-4">
+					<table class="table table-sm table-hover align-middle">
+						<thead>
+							<tr>
+								<th><%= i18n.__('catalog.overview.col_warehouse') %></th>
+								<th class="text-end"><%= i18n.__('catalog.overview.col_products') %></th>
+								<th class="text-end"><%= i18n.__('catalog.overview.col_on_hand') %></th>
+								<th class="text-end"><%= i18n.__('catalog.overview.col_reserved') %></th>
+								<th class="text-end"><%= i18n.__('catalog.overview.col_available') %></th>
+							</tr>
+						</thead>
+						<tbody>
+							<% data.warehouses.forEach(function (w) { %>
+							<tr<% if (!w.status) { %> class="text-body-secondary"<% } %>>
+								<td>
+									<% if (perms.warehouses) { %><a href="/catalog/stock/warehouses/"><%= w.name %></a><% } else { %><%= w.name %><% } %>
+									<% if (w.code) { %><span class="ov-sub ms-1"><%= w.code %></span><% } %>
+									<% if (!w.status) { %><span class="badge text-bg-secondary rounded-0 ms-1"><%= i18n.__('catalog.overview.inactive') %></span><% } %>
+									<% if (!w.is_sellable) { %><span class="badge text-bg-light border rounded-0 ms-1"><%= i18n.__('catalog.overview.not_sellable') %></span><% } %>
+								</td>
+								<td class="text-end"><%= w.products %></td>
+								<td class="text-end"><%= w.on_hand %></td>
+								<td class="text-end"><%= w.reserved %></td>
+								<td class="text-end fw-semibold"><%= w.available %></td>
+							</tr>
+							<% }) %>
+						</tbody>
+					</table>
+				</div>
+				<% } %>
+
+				<% if (perms.stock) { %>
+				<div class="d-flex align-items-center mb-2">
+					<h2 class="h6 text-uppercase text-body-secondary mb-0 me-auto"><%= i18n.__('catalog.overview.recent_movements') %></h2>
+					<a href="/catalog/stock/movements/" class="small"><%= i18n.__('catalog.overview.all') %></a>
+				</div>
+				<% if (!data.movements.length) { %>
+				<div class="text-body-secondary"><%= i18n.__('catalog.overview.empty') %></div>
+				<% } else { %>
+				<div class="table-responsive">
+					<table class="table table-sm table-hover align-middle">
+						<thead>
+							<tr>
+								<th><%= i18n.__('catalog.overview.col_date') %></th>
+								<th><%= i18n.__('catalog.overview.col_name') %></th>
+								<th><%= i18n.__('catalog.overview.col_warehouse') %></th>
+								<th><%= i18n.__('catalog.overview.col_type') %></th>
+								<th class="text-end"><%= i18n.__('catalog.overview.col_qty') %></th>
+							</tr>
+						</thead>
+						<tbody>
+							<% data.movements.forEach(function (m) { const q = Number(m.qty); %>
+							<tr>
+								<td class="text-body-secondary"><time data-dt="<%= m.date_add ? new Date(m.date_add).toISOString() : '' %>"></time></td>
+								<td><a href="/catalog/products/<%= m.id_product %>/"><%= m.name %></a></td>
+								<td><%= m.warehouse || '—' %></td>
+								<td><%= i18n.__('catalog.stock.move_types.' + m.type) %></td>
+								<td class="text-end <%= q > 0 ? 'text-success' : q < 0 ? 'text-danger' : '' %>"><%= q > 0 ? '+' + q : q %></td>
+							</tr>
+							<% }) %>
+						</tbody>
+					</table>
+				</div>
+				<% } %>
+				<% } %>
+			</div>
+		</main>
+
+		<%- include('../../../partials/footer'); %>
+		<script>
+			(function () {
+				const fmt = new Intl.DateTimeFormat("<%= i18n.__('lang_iso') %>", { dateStyle: "short", timeStyle: "short" });
+				document.querySelectorAll("time[data-dt]").forEach(function (el) {
+					if (el.dataset.dt) el.textContent = fmt.format(new Date(el.dataset.dt));
+				});
+			})();
+		</script>
+	</body>
+</html>

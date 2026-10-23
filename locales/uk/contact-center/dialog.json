@@ -1,0 +1,53 @@
+{
+  "contact_center": {
+    "dialog": {
+      "title": "Діалог",
+      "breadcrumb": {
+        "home": "Головна",
+        "contact_center": "Контакт-центр",
+        "current": "Діалог"
+      },
+      "contact": "Співрозмовник",
+      "contact_name": "Ім'я",
+      "contact_username": "Username",
+      "contact_phone": "Телефон",
+      "contact_email": "Email",
+      "emoji": "Емодзі",
+      "emoji_error": "Не вдалося завантажити емодзі",
+      "attach": "Прикріпити файл",
+      "send": "Відправити",
+      "commands": "Команди",
+      "cmd_request_contact": "Запитати номер телефону",
+      "cmd_request_location": "Запитати геолокацію",
+      "file_too_big": "Файл завеликий (максимум 50 МБ)",
+      "channel": "Канал",
+      "date_add": "Створено",
+      "actions": "Дії",
+      "take": "Взяти в роботу",
+      "release": "Звільнити",
+      "taken_by_other": "Веде інший менеджер",
+      "resolve": "Завершити",
+      "locked_free": "Візьміть діалог у роботу, щоб відповідати",
+      "locked_other": "Діалог веде інший менеджер",
+      "archive": "В архів",
+      "reopen": "Відкрити знову",
+      "placeholder": "Введіть повідомлення…",
+      "send_hint": "Enter — надіслати, Shift+Enter — новий рядок",
+      "empty": "Повідомлень ще немає",
+      "load_error": "Не вдалося завантажити повідомлення",
+      "send_error": "Помилка відправки",
+      "failed": "Не доставлено",
+      "pending": "Надсилається",
+      "attach_loading": "Завантаження файлу…",
+      "attach_failed": "Файл недоступний",
+      "channel_inactive": "Канал вимкнено — відправка недоступна",
+      "today": "Сьогодні",
+      "yesterday": "Вчора",
+      "location": "Показати на карті",
+      "status_sent": "Надіслано",
+      "status_delivered": "Доставлено",
+      "status_read": "Прочитано",
+      "saved": "Збережено"
+    }
+  }
+}

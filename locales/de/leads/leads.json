@@ -1,0 +1,101 @@
+{
+    "leads": {
+        "fields": {
+            "title": "Title",
+            "note": "Note",
+            "value": "Amount",
+            "id_status": "Status",
+            "id_pipeline": "Pipeline",
+            "id_stage": "Stage",
+            "temperature": "Temperature",
+            "qualification": "Qualification",
+            "priority": "Priority",
+            "id_manager": "Manager",
+            "id_team": "Team",
+            "id_source": "Source",
+            "lead_source": "Lead source",
+            "website": "Website",
+            "capture_type": "Capture type",
+            "capture_ref": "Capture ref",
+            "contact_info": "Contact info",
+            "contact_info.name": "Contact name",
+            "contact_info.phone": "Phone",
+            "contact_info.email": "Email",
+            "contact_info.company": "Company",
+            "contact_info.position": "Position",
+            "utm": "UTM",
+            "fingerprint": "Fingerprint",
+            "custom_fields": "Custom fields",
+            "score_fit": "Fit score",
+            "score_activity": "Activity score",
+            "score": "Score",
+            "grade": "Grade",
+            "expected_close_date": "Expected close date",
+            "response_deadline": "Response deadline",
+            "first_response_at": "First response",
+            "id_loss_reason": "Loss reason",
+            "loss_note": "Loss note",
+            "is_converted": "Converted",
+            "is_duplicate": "Duplicate"
+        },
+        "history": {
+            "actions": {
+                "field_change": "Field changed",
+                "status_change": "Status changed",
+                "stage_change": "Stage changed",
+                "pipeline_change": "Pipeline changed",
+                "assigned": "Assigned",
+                "unassigned": "Unassigned",
+                "score_change": "Score changed",
+                "converted": "Converted",
+                "comment": "Comment",
+                "comment_pin": "Comment pinned",
+                "file_attached": "File attached",
+                "file_deleted": "File deleted",
+                "task_created": "Task created",
+                "email_sent": "Email sent",
+                "call_logged": "Call logged",
+                "meeting_logged": "Meeting logged",
+                "sla_breach": "SLA breached",
+                "automation_fired": "Automation triggered",
+                "duplicate_marked": "Marked as duplicate",
+                "deleted": "Deleted",
+                "restored": "Restored"
+            },
+            "sources": {
+                "web": "Web",
+                "api": "API",
+                "automation": "Automation",
+                "import": "Import",
+                "system": "System"
+            },
+            "system": "System",
+            "no_data": "History is empty"
+        },
+        "temperature": {
+            "cold": "Cold",
+            "warm": "Warm",
+            "hot": "Hot"
+        },
+        "qualification": {
+            "unqualified": "Unqualified",
+            "mql": "MQL",
+            "sql": "SQL",
+            "pql": "PQL"
+        },
+        "priority": {
+            "0": "Low",
+            "1": "Normal",
+            "2": "High",
+            "3": "Urgent"
+        },
+        "capture_type": {
+            "api": "API",
+            "form": "Form",
+            "manual": "Manual",
+            "import": "Import",
+            "chat": "Chat",
+            "webhook": "Webhook"
+        }
+    }
+}
