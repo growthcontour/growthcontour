@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="<%= i18n.__('lang_iso') %>">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= i18n.__('users.invite.invalid_title') %></title>
+    <%- include('../partials/head'); %>
+  </head>
+  <body class="d-flex flex-column h-100">
+    <div class="container py-5 text-center">
+      <div class="card border-danger rounded-0 mx-auto" style="max-width: 480px;">
+        <div class="card-header text-bg-danger rounded-0">
+          <%= i18n.__('users.invite.invalid_title') %>
+        </div>
+        <div class="card-body">
+          <p class="mb-3"><%= i18n.__('users.invite.invalid_text') %></p>
+          <a href="/login" class="btn btn-primary rounded-0"><%= i18n.__('users.invite.to_login') %></a>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

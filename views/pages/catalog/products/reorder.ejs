@@ -1,0 +1,137 @@
+<% const t = (k) => i18n.__('catalog.stock.reorder.' + k); %>
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= t('title') %></title>
+		<%- include('../../../partials/head'); %>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><a href="/catalog/stock/documents/"><%= i18n.__('catalog.stock.documents.title') %></a></li>
+					<li class="breadcrumb-item active"><%= t('title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<h1 class="h4 mb-2"><%= t('title') %></h1>
+				<p class="small text-muted"><%= t('hint') %></p>
+				<div class="row g-2 mb-3">
+					<div class="col-md-3">
+						<select class="form-select rounded-0" id="f-warehouse">
+							<option value=""><%= i18n.__('catalog.stock.documents.all_warehouses') %></option>
+							<% warehouses.filter((w) => Number(w.status)).forEach((w) => { %><option value="<%= w.id %>"><%= w.code %> — <%= w.name %></option><% }) %>
+						</select>
+					</div>
+				</div>
+				<div id="box"><div class="text-muted"><%= t('loading') %></div></div>
+			</div>
+		</main>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script>
+			(function () {
+				"use strict";
+
+				const T = <%- JSON.stringify(i18n.__('catalog.stock.reorder')).replace(/</g, '\\u003c') %>;
+				const CAN_ADD = <%= !!perms.add %>;
+				const box = document.getElementById("box");
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+				const num = (v, d = 2) => (v === null || v === undefined ? "—" : Number(v).toLocaleString("uk-UA", { maximumFractionDigits: d }));
+				let rows = [];
+
+				async function post(url, body) {
+					const r = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const d = await r.json().catch(() => ({}));
+					if (!r.ok || !d.ok) throw d;
+					return d;
+				}
+
+				// Групи за постачальником (без постачальника — окремо)
+				function render() {
+					if (!rows.length) return (box.innerHTML = `<div class="alert alert-success rounded-0">${esc(T.empty)}</div>`);
+					const groups = new Map();
+					rows.forEach((r, i) => {
+						const k = r.supplier ? r.supplier.id : 0;
+						(groups.get(k) || groups.set(k, { name: r.supplier ? r.supplier.name : T.no_supplier, list: [] }).get(k)).list.push(i);
+					});
+					box.innerHTML = [...groups.entries()]
+						.map(([k, g]) => {
+							const body = g.list
+								.map((i) => {
+									const r = rows[i];
+									const s = r.supplier || {};
+									return `<tr>
+										<td><input class="form-check-input js-sel" type="checkbox" data-i="${i}" ${r.qty > 0 ? "checked" : ""}></td>
+										<td><a href="/catalog/products/${r.id_product}/" target="_blank">${esc(r.name)}</a><div class="small text-muted">${esc(r.sku || "")}${s.sku ? " · " + esc(T.supplier_sku) + " " + esc(s.sku) : ""}</div></td>
+										<td>${esc(r.warehouse)}</td>
+										<td class="text-end ${r.available <= 0 ? "text-danger fw-semibold" : ""}">${num(r.available, 3)}</td>
+										<td class="text-end">${num(r.incoming, 3)}</td>
+										<td class="text-end">${num(r.reorder_point, 3)}</td>
+										<td class="text-end">${num(r.daily)}</td>
+										<td class="text-end">${r.days_left === null ? "—" : r.days_left}</td>
+										<td class="small">${esc(r.reason === "point" ? T.reason_point : T.reason_run_out.replace("%s", r.lead))}</td>
+										<td class="text-end">${s.price === null || s.price === undefined ? "—" : num(s.price) + " " + esc(s.currency || "")}</td>
+										<td style="width:110px"><input type="number" min="0" step="1" class="form-control form-control-sm rounded-0 js-qty" data-i="${i}" value="${r.qty}"></td>
+									</tr>`;
+								})
+								.join("");
+							return `<div class="card rounded-0 mb-3">
+								<div class="card-header d-flex align-items-center gap-2"><strong>${esc(g.name)}</strong>
+									${CAN_ADD ? `<button type="button" class="btn btn-sm btn-primary rounded-0 ms-auto js-create" data-sup="${k}">${esc(T.create)}</button>` : ""}</div>
+								<div class="table-responsive"><table class="table table-sm align-middle mb-0">
+									<thead><tr><th></th><th>${esc(T.product)}</th><th>${esc(T.warehouse)}</th><th class="text-end">${esc(T.available)}</th><th class="text-end">${esc(T.incoming)}</th><th class="text-end">${esc(T.point)}</th><th class="text-end">${esc(T.daily)}</th><th class="text-end">${esc(T.days_left)}</th><th>${esc(T.reason)}</th><th class="text-end">${esc(T.price)}</th><th>${esc(T.qty)}</th></tr></thead>
+									<tbody>${body}</tbody>
+								</table></div>
+							</div>`;
+						})
+						.join("");
+				}
+
+				async function load() {
+					box.innerHTML = `<div class="text-muted">${esc(T.loading)}</div>`;
+					try {
+						rows = (await post("/api/catalog/products/stock/reorder/list/", { id_warehouse: document.getElementById("f-warehouse").value || null })).rows;
+						render();
+					} catch (e) {
+						box.innerHTML = `<div class="text-danger">${esc(e.error || T.error)}</div>`;
+					}
+				}
+
+				box.addEventListener("input", (e) => {
+					if (e.target.classList.contains("js-qty")) rows[e.target.dataset.i].qty = Number(e.target.value) || 0;
+				});
+				box.addEventListener("click", async (e) => {
+					const b = e.target.closest(".js-create");
+					if (!b) return;
+					const card = b.closest(".card");
+					const lines = [...card.querySelectorAll(".js-sel:checked")]
+						.map((el) => rows[el.dataset.i])
+						.filter((r) => r.qty > 0)
+						.map((r) => ({ id_product: r.id_product, id_variant: r.id_variant, id_warehouse: r.id_warehouse, qty: r.qty, id_supplier: r.supplier ? r.supplier.id : null, price: r.supplier ? r.supplier.price : null, currency: r.supplier ? r.supplier.currency : null }));
+					if (!lines.length) return alert(T.nothing);
+					b.disabled = true;
+					try {
+						const d = await post("/api/catalog/products/stock/reorder/create/", { lines });
+						card.querySelector(".card-header").insertAdjacentHTML(
+							"beforeend",
+							`<span class="small">${esc(T.created)}: ${d.created.map((id) => `<a href="/catalog/stock/documents/${id}/" target="_blank">#${id}</a>`).join(", ")}</span>`
+						);
+					} catch (err) {
+						alert(err.error || T.error);
+						b.disabled = false;
+					}
+				});
+				document.getElementById("f-warehouse").addEventListener("change", load);
+				load();
+			})();
+		</script>
+	</body>
+</html>

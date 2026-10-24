@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+  <head>
+    <%- include('../../../../partials/head'); %>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+    <link href="/assets/css/scheduler/scheduler.css" rel="stylesheet" />
+  </head>
+
+  <body class="d-flex flex-column h-100">
+    <%- include('../../../../partials/header'); %>
+
+    <div class="breadcrumbs pt-3 pb-3">
+      <div class="container-fluid">
+        <div class="row align-items-center">
+          <div class="col">
+            <span>Редагування сайту</span>
+            <div>
+              <ul class="list-inline mb-0">
+                <li class="list-inline-item">
+                  <a href="/"><i class="fas fa-home"></i> <span>Головна</span></a>
+                </li>
+                <li class="list-inline-item">
+                  <a href="/contact-center/webchat/settings/"><i class="fas fa-chevron-right"></i> <span>Веб-чат</span></a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <%= data.site.site_id %>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-auto">
+            <a href="/contact-center/webchat/settings/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container-fluid mt-3">
+      <div class="row">
+        <div class="col-12 col-lg-6 mb-3">
+          <div class="card border-primary rounded-0 h-100">
+            <div class="card-header text-bg-primary rounded-0">Основне</div>
+            <div class="card-body">
+              <div class="mb-3">
+                <label for="wcs-site-id" class="form-label">Site ID</label>
+                <input type="text" class="form-control rounded-0" id="wcs-site-id" readonly />
+              </div>
+              <div class="mb-3">
+                <label for="wcs-domains" class="form-label">Домени (через кому)</label>
+                <input type="text" class="form-control rounded-0" id="wcs-domains" placeholder="example.com, shop.example.com" />
+              </div>
+              <div class="row">
+                <div class="col-md-4 mb-3">
+                  <label for="wcs-brand" class="form-label">Колір</label>
+                  <input type="color" class="form-control form-control-color rounded-0" id="wcs-brand" value="#007fff" />
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="wcs-lead-timeout" class="form-label">Таймаут ліда (сек)</label>
+                  <input type="number" class="form-control rounded-0" id="wcs-lead-timeout" value="120" min="0" />
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="wcs-offline-delay" class="form-label">Затримка офлайн-ліда (сек)</label>
+                  <input type="number" class="form-control rounded-0" id="wcs-offline-delay" value="30" min="0" />
+                </div>
+              </div>
+              <div class="form-check mb-2">
+                <input class="form-check-input rounded-0" type="checkbox" id="wcs-active" />
+                <label class="form-check-label" for="wcs-active">Активний</label>
+              </div>
+              <div class="form-check mb-2">
+                <input class="form-check-input rounded-0" type="checkbox" id="wcs-product-card" />
+                <label class="form-check-label" for="wcs-product-card">Картка товару</label>
+              </div>
+              <div class="form-check mb-2">
+                <input class="form-check-input rounded-0" type="checkbox" id="wcs-offline-lead" />
+                <label class="form-check-label" for="wcs-offline-lead">Офлайн-лід</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-6 mb-3">
+          <div class="card border-primary rounded-0 h-100">
+            <div class="card-header text-bg-primary rounded-0">Вигляд</div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Позиція віджета</label>
+                  <select class="form-select rounded-0" id="cfg-position">
+                    <option value="right">Праворуч</option>
+                    <option value="left">Ліворуч</option>
+                  </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Колір бренду</label>
+                  <input type="color" class="form-control form-control-color rounded-0" id="cfg-appearance-color" value="#007fff" />
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Мова за замовчуванням (fallback)</label>
+                <select class="form-select rounded-0" id="cfg-locale-primary"></select>
+                <div class="form-text">Показується, якщо мови браузера немає серед увімкнених.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-6 mb-3">
+          <div class="card border-primary rounded-0 h-100">
+            <div class="card-header text-bg-primary rounded-0">Робочі години</div>
+            <div class="card-body">
+              <div class="mb-3">
+                <label class="form-label">Часовий пояс</label>
+                <select class="form-select rounded-0" id="cfg-hours-tz">
+                  <option value="Europe/Kyiv">Europe/Kyiv</option>
+                  <option value="Europe/Warsaw">Europe/Warsaw</option>
+                  <option value="Europe/London">Europe/London</option>
+                  <option value="Europe/Berlin">Europe/Berlin</option>
+                  <option value="UTC">UTC</option>
+                </select>
+              </div>
+              <div class="mb-2">
+                <label class="form-label">Робочі години</label>
+                <table id="wcs-scheduler"></table>
+              </div>
+              <div class="alert alert-info rounded-0 mt-2 small mb-0">Перетягніть, щоб вибрати робочі години. Поза цими годинами чат вважається офлайн.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-6 mb-3">
+          <div class="card border-primary rounded-0 h-100">
+            <div class="card-header text-bg-primary rounded-0">Привітання</div>
+            <div class="card-body">
+              <div class="form-check mb-2">
+                <input class="form-check-input rounded-0" type="checkbox" id="cfg-greeting-enabled" />
+                <label class="form-check-label" for="cfg-greeting-enabled">Увімкнено</label>
+              </div>
+              <div class="form-check mb-2">
+                <input class="form-check-input rounded-0" type="checkbox" id="cfg-greeting-autoopen" />
+                <label class="form-check-label" for="cfg-greeting-autoopen">Автовідкриття</label>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Затримка автовідкриття (сек)</label>
+                <input type="number" class="form-control rounded-0" id="cfg-greeting-delay" value="0" min="0" />
+              </div>
+              <hr />
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="fw-bold mb-2"><i class="fa-solid fa-desktop"></i> Десктоп</div>
+                  <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" id="cfg-greeting-desktop-autoopen" />
+                    <label class="form-check-label" for="cfg-greeting-desktop-autoopen">Відкривати форму</label>
+                  </div>
+                  <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" id="cfg-greeting-desktop-sound" />
+                    <label class="form-check-label" for="cfg-greeting-desktop-sound">Звук сповіщення</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="fw-bold mb-2"><i class="fa-solid fa-mobile-screen"></i> Мобільний</div>
+                  <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" id="cfg-greeting-mobile-autoopen" />
+                    <label class="form-check-label" for="cfg-greeting-mobile-autoopen">Відкривати форму</label>
+                  </div>
+                  <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" id="cfg-greeting-mobile-sound" />
+                    <label class="form-check-label" for="cfg-greeting-mobile-sound">Звук сповіщення</label>
+                  </div>
+                </div>
+              </div>
+              <div class="form-text mt-1">Якщо «Відкривати форму» вимкнено — показується лише значок сповіщення з лічильником, без розкриття чату.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-6 mb-3">
+          <div class="card border-primary rounded-0 h-100">
+            <div class="card-header text-bg-primary rounded-0">Режим доступності</div>
+            <div class="card-body">
+              <div class="mb-3">
+                <label class="form-label">Примусовий режим (force)</label>
+                <select class="form-select rounded-0" id="cfg-hours-force">
+                  <option value="auto">Авто (за розкладом)</option>
+                  <option value="online">Завжди онлайн</option>
+                  <option value="offline">Завжди офлайн</option>
+                </select>
+              </div>
+              <div class="form-check mb-2">
+                <input class="form-check-input rounded-0" type="checkbox" id="cfg-productcard" />
+                <label class="form-check-label" for="cfg-productcard">Картка товару (productCard)</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-6 mb-3">
+          <div class="card border-primary rounded-0 h-100">
+            <div class="card-header text-bg-primary rounded-0">Отримувачі сповіщень</div>
+            <div class="card-body">
+              <div class="mb-3">
+                <label class="form-label">Користувачі CRM</label>
+                <div class="position-relative">
+                  <input type="text" class="form-control rounded-0" id="rec_user_search" autocomplete="off" placeholder="Пошук користувача..." />
+                  <div class="list-group position-absolute w-100 shadow-sm" id="rec_user_results" style="display: none; z-index: 1080; max-height: 200px; overflow-y: auto"></div>
+                </div>
+                <div class="d-flex flex-wrap gap-2 mt-2" id="rec_users"></div>
+              </div>
+              <div class="mb-0">
+                <label class="form-label">Групи CRM</label>
+                <select class="form-select rounded-0" id="rec_group_select">
+                  <option value="">— оберіть групу —</option>
+                </select>
+                <div class="d-flex flex-wrap gap-2 mt-2" id="rec_groups"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-6 mb-3">
+          <div class="card border-primary rounded-0 h-100">
+            <div class="card-header text-bg-primary rounded-0">Вихідні дні</div>
+            <div class="card-body">
+              <label class="form-label">Дати (YYYY-MM-DD, по одній у рядку)</label>
+              <textarea class="form-control rounded-0" id="cfg-holidays" rows="4" placeholder="2026-01-01&#10;2026-12-25"></textarea>
+              <div class="form-text">У ці дні чат вважається офлайн.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 mb-3">
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0">Системні повідомлення (strings)</div>
+            <div class="card-body">
+              <div id="cfg-strings" class="row"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 mb-3">
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0">Тексти інтерфейсу (ui)</div>
+            <div class="card-body">
+              <div id="cfg-ui" class="row"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 mb-3">
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0">Тригери форм</div>
+            <div class="card-body">
+              <div class="alert alert-info rounded-0 small">Тригер — коли показати форму відвідувачу. Оберіть форму, увімкніть і задайте текст перед формою.</div>
+              <div id="cfg-triggers"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 mb-3">
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+              <span>Форми</span>
+              <button type="button" class="btn btn-light btn-sm rounded-0" id="cfg-form-add"><i class="fa-solid fa-plus"></i> Додати форму</button>
+            </div>
+            <div class="card-body">
+              <div id="cfg-forms-list" class="row"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 mb-3">
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0">Увімкнені мови</div>
+            <div class="card-body">
+              <div id="cfg-locale-list" class="row"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 mb-3">
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0">Заголовок віджета (по мовах)</div>
+            <div class="card-body">
+              <div id="cfg-header-langs" class="row"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 mb-3">
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0">Тексти привітань (по мовах)</div>
+            <div class="card-body">
+              <div id="cfg-greeting-langs" class="row"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 mb-4">
+          <button type="button" class="btn btn-primary rounded-0" id="wcs-save-btn">Зберегти</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="form-modal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content rounded-0">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="form-modal-title">Форма</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="form-orig-id" />
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">ID форми</label>
+                <input type="text" class="form-control rounded-0" id="form-id" placeholder="contact" />
+                <div class="form-text">Латиниця/цифри/підкреслення.</div>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Куди зберігати (target)</label>
+                <select class="form-select rounded-0" id="form-target">
+                  <option value="lead">Лід (lead)</option>
+                </select>
+              </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="mb-0">Поля форми</h6>
+              <button type="button" class="btn btn-outline-primary btn-sm rounded-0" id="form-field-add"><i class="fa-solid fa-plus"></i> Додати поле</button>
+            </div>
+            <div id="form-fields"></div>
+            <hr />
+            <div class="mb-2">
+              <label class="form-label">Обовʼязкове хоча б одне з полів (requireAnyOf)</label>
+              <div id="form-requireany" class="border rounded-0 p-2"></div>
+              <div class="form-text">Напр. відмітьте email і phone — клієнт має заповнити хоча б одне.</div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal">Закрити</button>
+            <button type="button" class="btn btn-primary rounded-0" id="form-save">Зберегти форму</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%- include('../../../../partials/footer'); %> <%- include('../../../../partials/script'); %>
+    <script src="/assets/js/notyf/notyf.min.js"></script>
+    <script src="/assets/js/scheduler/scheduler.js"></script>
+    <script>
+          		$.fn.scheduler.locales["uk-UA"] = {
+          			AM: "ДП", PM: "ПП", TIME_TITLE: "ЧАС", WEEK_TITLE: "ДЕНЬ",
+          			WEEK_DAYS: ["ПОНЕДІЛОК", "ВІВТОРОК", "СЕРЕДА", "ЧЕТВЕР", "П'ЯТНИЦЯ", "СУБОТА", "НЕДІЛЯ"],
+          			DRAG_TIP: "Перетягніть, щоб вибрати години", RESET: "Скинути вибране",
+          		};
+
+          		const notyf = new Notyf({ position: { x: "right", y: "top" } });
+          		const WCS_SITE = <%- JSON.stringify(data.site) %>;
+          		let wcsConfig = {};
+          		try { wcsConfig = WCS_SITE.config ? (typeof WCS_SITE.config === "string" ? JSON.parse(WCS_SITE.config) : WCS_SITE.config) : {}; }
+          		catch (e) { wcsConfig = {}; }
+
+          		let wcsSchedulerReady = false;
+          		let formModal, editingFieldsState = [], editingRequireAny = [];
+
+          		const WC_LANGS = [
+          			{ code: "uk", name: "Українська" }, { code: "en", name: "English" }, { code: "pl", name: "Polski" },
+          			{ code: "de", name: "Deutsch" }, { code: "fr", name: "Français" }, { code: "es", name: "Español" },
+          			{ code: "it", name: "Italiano" }, { code: "pt", name: "Português" }, { code: "nl", name: "Nederlands" },
+          			{ code: "cs", name: "Čeština" }, { code: "sk", name: "Slovenčina" }, { code: "ro", name: "Română" },
+          			{ code: "bg", name: "Български" }, { code: "hu", name: "Magyar" }, { code: "el", name: "Ελληνικά" },
+          			{ code: "tr", name: "Türkçe" }, { code: "sv", name: "Svenska" }, { code: "da", name: "Dansk" },
+          			{ code: "fi", name: "Suomi" }, { code: "no", name: "Norsk" }, { code: "lt", name: "Lietuvių" },
+          			{ code: "lv", name: "Latviešu" }, { code: "et", name: "Eesti" }, { code: "sl", name: "Slovenščina" },
+          			{ code: "hr", name: "Hrvatski" }, { code: "sr", name: "Srpski" }, { code: "ka", name: "ქართული" },
+          			{ code: "az", name: "Azərbaycan" }, { code: "kk", name: "Қазақ" }, { code: "ar", name: "العربية" },
+          			{ code: "he", name: "עברית" }, { code: "zh", name: "中文" }, { code: "ja", name: "日本語" },
+          			{ code: "ko", name: "한국어" }, { code: "hi", name: "हिन्दी" }, { code: "th", name: "ไทย" },
+          			{ code: "vi", name: "Tiếng Việt" }, { code: "id", name: "Indonesia" },
+          		];
+          		const langName = function (code) { const l = WC_LANGS.find(function (x) { return x.code === code; }); return l ? l.name : code; };
+          		const escAttr = function (s) { return (s + "").replace(/"/g, "&quot;"); };
+
+          		function cfgGet(obj, path, def) {
+          			return path.split(".").reduce((o, k) => (o && o[k] != null ? o[k] : undefined), obj) ?? def;
+          		}
+          		function cfgSet(obj, path, val) {
+          			const keys = path.split("."); let o = obj;
+          			for (let i = 0; i < keys.length - 1; i++) { if (typeof o[keys[i]] !== "object" || o[keys[i]] == null) o[keys[i]] = {}; o = o[keys[i]]; }
+          			o[keys[keys.length - 1]] = val;
+          		}
+
+          		// ── scheduler ──
+          		function scheduleToScheduler(sched) {
+          			const out = {}; sched = sched || {};
+          			Object.keys(sched).forEach(function (day) {
+          				const hours = [];
+          				(sched[day] || []).forEach(function (r) { for (let h = r[0]; h < r[1]; h++) hours.push(h); });
+          				if (hours.length) out[day] = hours;
+          			});
+          			return out;
+          		}
+          		function schedulerToSchedule(val) {
+          			const out = {}; val = val || {};
+          			Object.keys(val).forEach(function (day) {
+          				const hours = (val[day] || []).slice().sort(function (a, b) { return a - b; });
+          				if (!hours.length) return;
+          				const ranges = []; let start = hours[0], prev = hours[0];
+          				for (let i = 1; i < hours.length; i++) {
+          					if (hours[i] === prev + 1) prev = hours[i];
+          					else { ranges.push([start, prev + 1]); start = hours[i]; prev = hours[i]; }
+          				}
+          				ranges.push([start, prev + 1]);
+          				out[day] = ranges;
+          			});
+          			return out;
+          		}
+          		function initSchedulerOnce() {
+          			if (wcsSchedulerReady) return;
+          			$("#wcs-scheduler").scheduler({ locale: "uk-UA" });
+          			wcsSchedulerReady = true;
+          		}
+
+          		// ── локалі ──
+          		function getEnabledLangs() {
+          			return Array.from(document.querySelectorAll(".cfg-lang:checked")).map(function (c) { return c.value; });
+          		}
+          		function syncPrimarySelect(preferred) {
+          			const sel = document.getElementById("cfg-locale-primary");
+          			const prev = preferred || sel.value;
+          			const en = getEnabledLangs();
+          			sel.innerHTML = en.map(function (code) { return `<option value="${code}">${langName(code)} (${code})</option>`; }).join("");
+          			if (en.includes(prev)) sel.value = prev;
+          			else if (en.length) sel.value = en[0];
+          		}
+          		function onLangsChanged() {
+          			syncPrimarySelect();
+          			renderHeaderLangs();
+          			renderGreetingLangs();
+          			renderTriggers();
+          			renderStringsUi();
+          		}
+          		function renderLocaleUI(enabled, primary) {
+          			enabled = enabled || [];
+          			const listEl = document.getElementById("cfg-locale-list");
+          			listEl.innerHTML = WC_LANGS.map(function (l) {
+          				const checked = enabled.includes(l.code) ? "checked" : "";
+          				return `<div class="col-6 col-md-3 col-lg-2"><div class="form-check">
+          		<input class="form-check-input rounded-0 cfg-lang" type="checkbox" id="cfg-lang-${l.code}" value="${l.code}" ${checked}>
+          		<label class="form-check-label" for="cfg-lang-${l.code}">${l.name} <span class="text-muted">(${l.code})</span></label>
+          	</div></div>`;
+          			}).join("");
+          			listEl.querySelectorAll(".cfg-lang").forEach(function (cb) {
+          				cb.addEventListener("change", function () {
+          					if (getEnabledLangs().length === 0) { this.checked = true; notyf.error("Має бути хоча б одна мова"); return; }
+          					onLangsChanged();
+          				});
+          			});
+          			syncPrimarySelect(primary);
+          		}
+
+          		// ── мультимовні поля (спільний генератор) ──
+          		// повертає HTML набору input/textarea по всіх увімкнених мовах для заданого data-атрибута
+          		function multiLangInputs(dataAttr, basePath, textarea) {
+          			return getEnabledLangs().map(function (code) {
+          				const v = escAttr(cfgGet(wcsConfig, basePath + "." + code, ""));
+          				const field = textarea
+          					? `<textarea class="form-control rounded-0" rows="2" ${dataAttr}="${basePath}.${code}">${cfgGet(wcsConfig, basePath + "." + code, "")}</textarea>`
+          					: `<input type="text" class="form-control rounded-0" ${dataAttr}="${basePath}.${code}" value="${v}">`;
+          				return `<div class="input-group input-group-sm mb-1"><span class="input-group-text rounded-0">${code}</span>${field}</div>`;
+          			}).join("");
+          		}
+          		// зберегти значення з DOM у wcsConfig перед перемалюванням (щоб не втратити незбережене)
+          		function saveDomInto(selector, attr) {
+          			document.querySelectorAll(selector).forEach(function (t) { cfgSet(wcsConfig, t.getAttribute(attr), t.value); });
+          		}
+
+          		function renderHeaderLangs() {
+          			const box = document.getElementById("cfg-header-langs");
+          			saveDomInto("#cfg-header-langs input[data-hkey]", "data-hkey");
+          			box.innerHTML = getEnabledLangs().map(function (code) {
+          				return `<div class="col-md-6 col-lg-4 mb-2">
+          		<label class="form-label mb-1">${langName(code)} <span class="text-muted">(${code})</span></label>
+          		<input type="text" class="form-control rounded-0" data-hkey="appearance.headerTitle.${code}" value="${escAttr(cfgGet(wcsConfig, "appearance.headerTitle." + code, ""))}">
+          	</div>`;
+          			}).join("");
+          		}
+          		function renderGreetingLangs() {
+          			const box = document.getElementById("cfg-greeting-langs");
+          			saveDomInto("#cfg-greeting-langs textarea[data-gkey]", "data-gkey");
+          			box.innerHTML = getEnabledLangs().map(function (code) {
+          				return `<div class="col-md-6 col-lg-4 mb-3"><div class="border rounded-0 p-2 h-100">
+          		<div class="fw-bold mb-2">${langName(code)} <span class="text-muted">(${code})</span></div>
+          		<div class="mb-2"><label class="form-label mb-1">Робоче</label>
+          			<textarea class="form-control rounded-0" rows="2" data-gkey="greeting.working.${code}">${cfgGet(wcsConfig, "greeting.working." + code, "")}</textarea></div>
+          		<div class="mb-2"><label class="form-label mb-1">Офлайн</label>
+          			<textarea class="form-control rounded-0" rows="2" data-gkey="greeting.offline.${code}">${cfgGet(wcsConfig, "greeting.offline." + code, "")}</textarea></div>
+          		<div class="mb-0"><label class="form-label mb-1">Офлайн-підтвердження</label>
+          			<textarea class="form-control rounded-0" rows="2" data-gkey="greeting.offlineAck.${code}">${cfgGet(wcsConfig, "greeting.offlineAck." + code, "")}</textarea></div>
+          	</div></div>`;
+          			}).join("");
+          		}
+
+          		// ── strings / ui ──
+          		const TEXT_GROUPS = [
+          			{
+          				box: "cfg-strings", defs: [
+          					{ key: "strings.sendFailed", label: "Помилка надсилання" },
+          					{ key: "strings.rateLimited", label: "Забагато повідомлень" },
+          					{ key: "strings.leadNeedContact", label: "Потрібен контакт" },
+          				]
+          			},
+          			{
+          				box: "cfg-ui", defs: [
+          					{ key: "ui.leadDone", label: "Контакт залишено" },
+          					{ key: "ui.leadDismissed", label: "Форму згорнуто" },
+          					{ key: "ui.inputPlaceholder", label: "Плейсхолдер вводу" },
+          				]
+          			},
+          		];
+          		function renderStringsUi() {
+          			TEXT_GROUPS.forEach(function (g) {
+          				const box = document.getElementById(g.box);
+          				saveDomInto("#" + g.box + " input[data-tkey]", "data-tkey");
+          				box.innerHTML = g.defs.map(function (d) {
+          					return `<div class="col-md-6 col-lg-4 mb-3">
+          			<label class="form-label mb-1 fw-bold">${d.label}</label>
+          			${multiLangInputs("data-tkey", d.key, false)}
+          		</div>`;
+          				}).join("");
+          			});
+          		}
+          		function collectTextGroups(cfg) {
+          			document.querySelectorAll("#cfg-strings input[data-tkey], #cfg-ui input[data-tkey]").forEach(function (t) {
+          				cfgSet(cfg, t.getAttribute("data-tkey"), t.value);
+          			});
+          		}
+
+          		// ── тригери ──
+          		const TRIGGERS = [
+          			{ path: "triggers.autoForm.working", title: "Авто-форма (робочий час)", hasForm: true, hasAfter: true },
+          			{ path: "triggers.autoForm.offline", title: "Авто-форма (офлайн)", hasForm: true, hasAfter: true },
+          			{ path: "triggers.onFirstMessage.working", title: "Після першого повідомлення (робочий час)", hasForm: true, hasAfter: true },
+          			{ path: "triggers.onFirstMessage.offline", title: "Після першого повідомлення (офлайн)", hasForm: true, hasAfter: true },
+          			{ path: "triggers.onOperatorTimeout", title: "Оператор не відповів", hasForm: true, hasAfter: true },
+          			{ path: "triggers.afterClose.review", title: "Оцінка після закриття", hasForm: false, hasAfter: false },
+          		];
+          		function formIdOptions(selected) {
+          			return '<option value="">— оберіть форму —</option>' + Object.keys(getForms()).map(function (id) {
+          				return `<option value="${id}" ${selected === id ? "selected" : ""}>${id}</option>`;
+          			}).join("");
+          		}
+          		function renderTriggers() {
+          			const box = document.getElementById("cfg-triggers");
+          			// зберегти незбережене
+          			document.querySelectorAll(".trg-msg").forEach(function (t) { cfgSet(wcsConfig, t.getAttribute("data-path") + ".message." + t.getAttribute("data-lang"), t.value); });
+          			box.innerHTML = TRIGGERS.map(function (tr, ti) {
+          				const enabled = !!cfgGet(wcsConfig, tr.path + ".enabled", false);
+          				const formId = cfgGet(wcsConfig, tr.path + ".formId", "");
+          				const afterSec = cfgGet(wcsConfig, tr.path + ".afterSec", 0);
+          				const msgInputs = getEnabledLangs().map(function (code) {
+          					const v = (cfgGet(wcsConfig, tr.path + ".message." + code, "") + "").replace(/</g, "&lt;");
+          					return `<div class="col-md-6 mb-2"><div class="input-group input-group-sm">
+          			<span class="input-group-text rounded-0">${code}</span>
+          			<textarea class="form-control rounded-0 trg-msg" data-path="${tr.path}" data-lang="${code}" rows="2">${v}</textarea>
+          		</div></div>`;
+          				}).join("");
+          				const formSelect = tr.hasForm ? `<div class="col-md-6 mb-2">
+          		<label class="form-label mb-1 small">Форма</label>
+          		<select class="form-select form-select-sm rounded-0 trg-form" data-path="${tr.path}">${formIdOptions(formId)}</select></div>` : "";
+          				const afterInput = tr.hasAfter ? `<div class="col-md-6 mb-2">
+          		<label class="form-label mb-1 small">Затримка (сек)</label>
+          		<input type="number" min="0" class="form-control form-control-sm rounded-0 trg-after" data-path="${tr.path}" value="${afterSec}"></div>` : "";
+          				return `<div class="border rounded-0 p-3 mb-3">
+          		<div class="form-check form-switch mb-2">
+          			<input class="form-check-input trg-enabled" type="checkbox" data-path="${tr.path}" id="trg-en-${ti}" ${enabled ? "checked" : ""}>
+          			<label class="form-check-label fw-bold" for="trg-en-${ti}">${tr.title}</label>
+          		</div>
+          		<div class="row">${formSelect}${afterInput}</div>
+          		<label class="form-label mb-1 small">Текст перед формою (по мовах)</label>
+          		<div class="row">${msgInputs}</div>
+          	</div>`;
+          			}).join("");
+          		}
+          		function collectTriggers(cfg) {
+          			TRIGGERS.forEach(function (tr) {
+          				const enCb = document.querySelector('.trg-enabled[data-path="' + tr.path + '"]');
+          				if (enCb) cfgSet(cfg, tr.path + ".enabled", enCb.checked);
+          				if (tr.hasForm) { const fs = document.querySelector('.trg-form[data-path="' + tr.path + '"]'); if (fs) cfgSet(cfg, tr.path + ".formId", fs.value); }
+          				if (tr.hasAfter) { const af = document.querySelector('.trg-after[data-path="' + tr.path + '"]'); if (af) cfgSet(cfg, tr.path + ".afterSec", parseInt(af.value, 10) || 0); }
+          				document.querySelectorAll('.trg-msg[data-path="' + tr.path + '"]').forEach(function (t) {
+          					cfgSet(cfg, tr.path + ".message." + t.getAttribute("data-lang"), t.value);
+          				});
+          			});
+          		}
+
+          		// ── форми ──
+          		const FIELD_TYPES = [
+          			{ v: "text", n: "Текст" }, { v: "email", n: "Email" }, { v: "tel", n: "Телефон" },
+          			{ v: "textarea", n: "Багаторядковий" }, { v: "select", n: "Список (select)" }, { v: "checkbox", n: "Чекбокс" },
+          		];
+          		function getForms() { return cfgGet(wcsConfig, "forms", {}) || {}; }
+
+          		function renderFormsList() {
+          			const forms = getForms();
+          			const box = document.getElementById("cfg-forms-list");
+          			const ids = Object.keys(forms);
+          			box.innerHTML = ids.length ? ids.map(function (fid) {
+          				const f = forms[fid] || {};
+          				const names = (f.fields || []).map(function (x) { return x.name; }).join(", ");
+          				return `<div class="col-md-6 col-lg-4 mb-3"><div class="border rounded-0 p-3 h-100">
+          		<div class="d-flex justify-content-between align-items-start">
+          			<div><div class="fw-bold">${fid}</div><div class="small text-muted">${(f.fields || []).length} пол. · ${names || "—"}</div></div>
+          			<div class="text-nowrap">
+          				<button type="button" class="btn btn-sm btn-primary rounded-0" data-form-edit="${fid}"><i class="fa-regular fa-pen-to-square"></i></button>
+          				<button type="button" class="btn btn-sm btn-outline-danger rounded-0" data-form-del="${fid}"><i class="fa-regular fa-trash-can"></i></button>
+          			</div>
+          		</div></div></div>`;
+          			}).join("") : '<div class="col-12 text-muted">Форм ще немає. Натисніть «Додати форму».</div>';
+
+          			box.querySelectorAll("[data-form-edit]").forEach(function (b) { b.onclick = function () { openFormEditor(this.getAttribute("data-form-edit")); }; });
+          			box.querySelectorAll("[data-form-del]").forEach(function (b) {
+          				b.onclick = function () {
+          					const fid = this.getAttribute("data-form-del");
+          					if (!confirm("Видалити форму «" + fid + "»?")) return;
+          					const forms = getForms(); delete forms[fid]; cfgSet(wcsConfig, "forms", forms);
+          					renderFormsList(); renderTriggers();
+          				};
+          			});
+          		}
+
+          		function optionsToText(opts) {
+          			if (!Array.isArray(opts)) return "";
+          			const primary = getEnabledLangs()[0] || "uk";
+          			return opts.map(function (o) {
+          				const lbl = (o.label && (o.label[primary] || Object.values(o.label)[0])) || o.value || "";
+          				return o.value + "|" + lbl;
+          			}).join("\n");
+          		}
+          		function textToOptions(text) {
+          			const langs = getEnabledLangs();
+          			return String(text || "").split("\n").map(function (line) {
+          				const t = line.trim(); if (!t) return null;
+          				const parts = t.split("|"); const value = parts[0].trim(); const lbl = (parts[1] || parts[0]).trim();
+          				if (!value) return null;
+          				const label = {}; langs.forEach(function (c) { label[c] = lbl; });
+          				return { value: value, label: label };
+          			}).filter(Boolean);
+          		}
+
+          		function fieldRowHtml(idx, fld) {
+          			const typeOpts = FIELD_TYPES.map(function (t) { return `<option value="${t.v}" ${fld.type === t.v ? "selected" : ""}>${t.n}</option>`; }).join("");
+          			const labelInputs = getEnabledLangs().map(function (code) {
+          				const val = (fld.label && fld.label[code]) ? escAttr(fld.label[code]) : "";
+          				return `<div class="col-md-6 mb-1"><div class="input-group input-group-sm">
+          		<span class="input-group-text rounded-0">${code}</span>
+          		<input type="text" class="form-control rounded-0 fld-label" data-lang="${code}" value="${val}" placeholder="Підпис">
+          	</div></div>`;
+          			}).join("");
+          			const isSelect = fld.type === "select";
+          			const optionsBlock = `<div class="fld-options mt-2" style="${isSelect ? "" : "display:none"}">
+          	<label class="form-label mb-1 small">Варіанти (value|підпис, по одному в рядку)</label>
+          	<textarea class="form-control rounded-0 fld-options-text" rows="3" placeholder="new|Новий">${optionsToText(fld.options)}</textarea></div>`;
+          			return `<div class="border rounded-0 p-2 mb-2 fld-row" data-idx="${idx}">
+          	<div class="row g-2 align-items-end">
+          		<div class="col-md-3"><label class="form-label mb-1 small">Ключ (name)</label>
+          			<input type="text" class="form-control form-control-sm rounded-0 fld-name" value="${escAttr(fld.name || "")}" placeholder="email"></div>
+          		<div class="col-md-3"><label class="form-label mb-1 small">Тип</label>
+          			<select class="form-select form-select-sm rounded-0 fld-type">${typeOpts}</select></div>
+          		<div class="col-md-3"><div class="form-check mt-4">
+          			<input class="form-check-input rounded-0 fld-required" type="checkbox" ${fld.required ? "checked" : ""} id="fld-req-${idx}">
+          			<label class="form-check-label small" for="fld-req-${idx}">Обовʼязкове</label></div></div>
+          		<div class="col-md-3 text-end"><button type="button" class="btn btn-sm btn-outline-danger rounded-0 fld-del"><i class="fa-regular fa-trash-can"></i></button></div>
+          	</div>
+          	<div class="row mt-2"><div class="col-12"><label class="form-label mb-1 small">Підпис (по мовах)</label></div>${labelInputs}</div>
+          	${optionsBlock}
+          </div>`;
+          		}
+
+          		function syncEditingFromDom() {
+          			const arr = [];
+          			document.querySelectorAll("#form-fields .fld-row").forEach(function (row) {
+          				const type = row.querySelector(".fld-type").value;
+          				const name = row.querySelector(".fld-name").value.trim();
+          				const label = {};
+          				row.querySelectorAll(".fld-label").forEach(function (inp) { const v = inp.value.trim(); if (v) label[inp.getAttribute("data-lang")] = v; });
+          				const fld = { name: name, type: type, label: label };
+          				if (row.querySelector(".fld-required").checked) fld.required = true;
+          				if (type === "select") {
+          					const ta = row.querySelector(".fld-options-text");
+          					const opts = textToOptions(ta ? ta.value : "");
+          					if (opts.length) fld.options = opts;
+          				}
+          				arr.push(fld);
+          			});
+          			editingFieldsState = arr;
+          		}
+          		function renderEditingFields() {
+          			const box = document.getElementById("form-fields");
+          			box.innerHTML = editingFieldsState.map(function (fld, i) { return fieldRowHtml(i, fld); }).join("");
+          			box.querySelectorAll(".fld-row").forEach(function (row) {
+          				const idx = parseInt(row.getAttribute("data-idx"), 10);
+          				row.querySelector(".fld-type").addEventListener("change", function () { syncEditingFromDom(); editingFieldsState[idx].type = this.value; renderEditingFields(); renderRequireAny(); });
+          				row.querySelector(".fld-del").addEventListener("click", function () { syncEditingFromDom(); editingFieldsState.splice(idx, 1); renderEditingFields(); renderRequireAny(); });
+          				row.querySelector(".fld-name").addEventListener("input", function () { renderRequireAny(); });
+          			});
+          		}
+          		function renderRequireAny() {
+          			syncEditingFromDom();
+          			const box = document.getElementById("form-requireany");
+          			const names = editingFieldsState.map(function (f) { return f.name; }).filter(Boolean);
+          			if (!names.length) { box.innerHTML = '<span class="text-muted small">Спершу додайте поля.</span>'; return; }
+          			box.innerHTML = names.map(function (n) {
+          				return `<div class="form-check form-check-inline"><input class="form-check-input rounded-0 req-any" type="checkbox" value="${n}" id="reqany-${n}"><label class="form-check-label" for="reqany-${n}">${n}</label></div>`;
+          			}).join("");
+          			(editingRequireAny || []).forEach(function (n) { const cb = box.querySelector('.req-any[value="' + n + '"]'); if (cb) cb.checked = true; });
+          		}
+          		function openFormEditor(formId) {
+          			const f = formId ? (getForms()[formId] || {}) : {};
+          			document.getElementById("form-orig-id").value = formId || "";
+          			document.getElementById("form-modal-title").textContent = formId ? ("Форма: " + formId) : "Нова форма";
+          			document.getElementById("form-id").value = formId || "";
+          			document.getElementById("form-target").value = f.target || "lead";
+          			editingFieldsState = JSON.parse(JSON.stringify(f.fields || []));
+          			editingRequireAny = Array.isArray(f.requireAnyOf) ? f.requireAnyOf.slice() : [];
+          			renderEditingFields(); renderRequireAny();
+          			formModal.show();
+          		}
+
+          		// ── fill / collect ──
+          		function fillAll() {
+          			document.getElementById("wcs-site-id").value = WCS_SITE.site_id || "";
+          			document.getElementById("wcs-domains").value = WCS_SITE.domains || "";
+          			document.getElementById("wcs-brand").value = WCS_SITE.brand_color || "#007fff";
+          			document.getElementById("wcs-lead-timeout").value = WCS_SITE.lead_timeout_sec != null ? WCS_SITE.lead_timeout_sec : 120;
+          			document.getElementById("wcs-offline-delay").value = WCS_SITE.offline_lead_delay_sec != null ? WCS_SITE.offline_lead_delay_sec : 30;
+          			document.getElementById("wcs-active").checked = WCS_SITE.active == 1;
+          			document.getElementById("wcs-product-card").checked = WCS_SITE.product_card_enabled == 1;
+          			document.getElementById("wcs-offline-lead").checked = WCS_SITE.offline_lead_enabled == 1;
+
+          			let en = (cfgGet(wcsConfig, "locales.enabled", []) || []);
+          			if (!en.length) en = ["uk"];
+          			renderLocaleUI(en, cfgGet(wcsConfig, "locales.primary", "uk"));
+
+          			document.getElementById("cfg-position").value = cfgGet(wcsConfig, "appearance.position", "right");
+          			document.getElementById("cfg-appearance-color").value = cfgGet(wcsConfig, "appearance.brandColor", "#007fff");
+          			document.getElementById("cfg-greeting-enabled").checked = !!cfgGet(wcsConfig, "greeting.enabled", false);
+          			document.getElementById("cfg-greeting-autoopen").checked = !!cfgGet(wcsConfig, "greeting.autoOpen", false);
+          			document.getElementById("cfg-greeting-delay").value = cfgGet(wcsConfig, "greeting.autoOpenDelaySec", 0);
+
+          			// дефолт desktop/mobile = загальний greeting.autoOpen (для сумісності)
+          			const gAuto = !!cfgGet(wcsConfig, "greeting.autoOpen", false);
+          			document.getElementById("cfg-greeting-desktop-autoopen").checked = !!cfgGet(wcsConfig, "greeting.desktop.autoOpen", gAuto);
+          			document.getElementById("cfg-greeting-desktop-sound").checked = !!cfgGet(wcsConfig, "greeting.desktop.sound", true);
+          			document.getElementById("cfg-greeting-mobile-autoopen").checked = !!cfgGet(wcsConfig, "greeting.mobile.autoOpen", gAuto);
+          			document.getElementById("cfg-greeting-mobile-sound").checked = !!cfgGet(wcsConfig, "greeting.mobile.sound", false);
+          			document.getElementById("cfg-hours-tz").value = cfgGet(wcsConfig, "hours.timezone", "Europe/Kyiv");
+          			document.getElementById("cfg-hours-force").value = cfgGet(wcsConfig, "hours.force", "auto");
+          			document.getElementById("cfg-productcard").checked = !!cfgGet(wcsConfig, "productCard.enabled", false);
+          			document.getElementById("cfg-holidays").value = (cfgGet(wcsConfig, "hours.holidays", []) || []).join("\n");
+
+          			initSchedulerOnce();
+          			$("#wcs-scheduler").scheduler("val", scheduleToScheduler(cfgGet(wcsConfig, "hours.schedule", {})));
+
+          			renderHeaderLangs();
+          			renderGreetingLangs();
+          			renderStringsUi();
+          			renderFormsList();
+          			renderTriggers();
+          		}
+
+          		function collectConfig() {
+          			const cfg = wcsConfig || {};
+          			cfgSet(cfg, "locales.primary", document.getElementById("cfg-locale-primary").value);
+          			cfgSet(cfg, "locales.enabled", getEnabledLangs());
+          			cfgSet(cfg, "appearance.position", document.getElementById("cfg-position").value);
+          			cfgSet(cfg, "appearance.brandColor", document.getElementById("cfg-appearance-color").value);
+          			document.querySelectorAll("#cfg-header-langs input[data-hkey]").forEach(function (t) { cfgSet(cfg, t.getAttribute("data-hkey"), t.value); });
+          			cfgSet(cfg, "greeting.enabled", document.getElementById("cfg-greeting-enabled").checked);
+          			cfgSet(cfg, "greeting.autoOpen", document.getElementById("cfg-greeting-autoopen").checked);
+          			cfgSet(cfg, "greeting.autoOpenDelaySec", parseInt(document.getElementById("cfg-greeting-delay").value, 10) || 0);
+          			cfgSet(cfg, "greeting.desktop.autoOpen", document.getElementById("cfg-greeting-desktop-autoopen").checked);
+          			cfgSet(cfg, "greeting.desktop.sound", document.getElementById("cfg-greeting-desktop-sound").checked);
+          			cfgSet(cfg, "greeting.mobile.autoOpen", document.getElementById("cfg-greeting-mobile-autoopen").checked);
+          			cfgSet(cfg, "greeting.mobile.sound", document.getElementById("cfg-greeting-mobile-sound").checked);
+          			document.querySelectorAll("#cfg-greeting-langs textarea[data-gkey]").forEach(function (t) { cfgSet(cfg, t.getAttribute("data-gkey"), t.value); });
+          			cfgSet(cfg, "hours.timezone", document.getElementById("cfg-hours-tz").value);
+          			cfgSet(cfg, "hours.force", document.getElementById("cfg-hours-force").value);
+          			if (wcsSchedulerReady) cfgSet(cfg, "hours.schedule", schedulerToSchedule($("#wcs-scheduler").scheduler("val")));
+          			cfgSet(cfg, "hours.holidays", document.getElementById("cfg-holidays").value.split("\n").map(function (s) { return s.trim(); }).filter(function (s) { return /^\d{4}-\d{2}-\d{2}$/.test(s); }));
+          			cfgSet(cfg, "productCard.enabled", document.getElementById("cfg-productcard").checked);
+      				collectTextGroups(cfg);
+      				collectTriggers(cfg);
+      				if (window.collectRecipients) cfgSet(cfg, "notifyRecipients", window.collectRecipients());
+      				return cfg;
+          		}
+
+          		// ── події ──
+          		document.getElementById("cfg-form-add").onclick = function () { openFormEditor(null); };
+          		document.getElementById("form-field-add").onclick = function () { syncEditingFromDom(); editingFieldsState.push({ name: "", type: "text", label: {} }); renderEditingFields(); renderRequireAny(); };
+          		document.getElementById("form-save").onclick = function () {
+          			syncEditingFromDom();
+          			const origId = document.getElementById("form-orig-id").value;
+          			const newId = document.getElementById("form-id").value.trim();
+          			if (!/^[a-zA-Z0-9_]+$/.test(newId)) { notyf.error("ID форми: лише латиниця, цифри, _"); return; }
+          			if (!editingFieldsState.length) { notyf.error("Додайте хоча б одне поле"); return; }
+          			for (const f of editingFieldsState) { if (!/^[a-zA-Z0-9_]+$/.test(f.name)) { notyf.error("Ключ поля: лише латиниця, цифри, _"); return; } }
+          			const reqAny = Array.from(document.querySelectorAll("#form-requireany .req-any:checked")).map(function (c) { return c.value; });
+          			const forms = getForms();
+          			if (origId && origId !== newId) delete forms[origId];
+          			forms[newId] = { fields: editingFieldsState, target: document.getElementById("form-target").value || "lead", requireAnyOf: reqAny };
+          			cfgSet(wcsConfig, "forms", forms);
+          			renderFormsList(); renderTriggers();
+          			formModal.hide();
+          			notyf.success("Форму збережено (не забудьте «Зберегти» внизу)");
+          		};
+
+          		document.getElementById("wcs-save-btn").onclick = function () {
+          			const payload = {
+          				site_id: document.getElementById("wcs-site-id").value.trim(),
+          				domains: document.getElementById("wcs-domains").value.trim(),
+          				brand_color: document.getElementById("wcs-brand").value,
+          				lead_timeout_sec: parseInt(document.getElementById("wcs-lead-timeout").value, 10) || 0,
+          				offline_lead_delay_sec: parseInt(document.getElementById("wcs-offline-delay").value, 10) || 0,
+          				active: document.getElementById("wcs-active").checked ? 1 : 0,
+          				product_card_enabled: document.getElementById("wcs-product-card").checked ? 1 : 0,
+          				offline_lead_enabled: document.getElementById("wcs-offline-lead").checked ? 1 : 0,
+          				config: JSON.stringify(collectConfig()),
+          			};
+          			$.ajax({
+          				url: "/api/contact-center/webchat/settings/update/",
+          				method: "POST", contentType: "application/json", data: JSON.stringify(payload),
+          				success: function () { notyf.success("Збережено"); },
+          				error: function (x) { notyf.error((x.responseJSON && x.responseJSON.error) || "Помилка"); },
+          			});
+          		};
+
+          		// ── ініціалізація ──
+      // ── ОТРИМУВАЧІ СПОВІЩЕНЬ (зберігаються в config.notifyRecipients) ──
+         var recUsers = {};   // id → name
+         var recGroups = {};  // id → name
+
+         function renderRecUsers() {
+         	var $box = $("#rec_users").empty();
+         	Object.keys(recUsers).forEach(function (id) {
+         		$box.append($('<span class="badge text-bg-light border rounded-0 d-inline-flex align-items-center gap-1 py-2">')
+         			.append($("<span>").text(recUsers[id]))
+         			.append($('<button type="button" class="btn-close ms-1" style="font-size:.6rem">').attr("data-id", id)));
+         	});
+         }
+         function renderRecGroups() {
+         	var $box = $("#rec_groups").empty();
+         	Object.keys(recGroups).forEach(function (id) {
+         		$box.append($('<span class="badge text-bg-light border rounded-0 d-inline-flex align-items-center gap-1 py-2">')
+         			.append($("<span>").text(recGroups[id]))
+         			.append($('<button type="button" class="btn-close ms-1" style="font-size:.6rem">').attr("data-id", id)));
+         	});
+         }
+
+         var recSearchTimer = null;
+         $("#rec_user_search").on("input", function () {
+         	clearTimeout(recSearchTimer);
+         	var q = $.trim($(this).val());
+         	var $res = $("#rec_user_results");
+         	if (q.length < 2) { $res.hide(); return; }
+         	recSearchTimer = setTimeout(function () {
+         		$.post("/api/calendar/users/search", { q: q }).done(function (users) {
+         			$res.empty();
+         			(users || []).forEach(function (u) {
+         				$res.append($('<button type="button" class="list-group-item list-group-item-action small py-1">')
+         					.attr("data-id", u.id).attr("data-name", u.user_name).text(u.user_name));
+         			});
+         			$res.toggle(!!(users && users.length));
+         		});
+         	}, 300);
+         });
+         $("#rec_user_results").on("click", "button", function () {
+         	recUsers[$(this).data("id")] = $(this).data("name");
+         	renderRecUsers();
+         	$("#rec_user_search").val("");
+         	$("#rec_user_results").hide();
+         });
+         $("#rec_users").on("click", ".btn-close", function () { delete recUsers[$(this).data("id")]; renderRecUsers(); });
+         $(document).on("click", function (e) {
+         	if (!$(e.target).closest("#rec_user_search, #rec_user_results").length) $("#rec_user_results").hide();
+         });
+
+         // групи
+         $.post("/api/users/groups/list").done(function (resp) {
+         	var list = (resp && resp.data) || [];
+         	var $sel = $("#rec_group_select");
+         	list.forEach(function (g) { $sel.append($("<option>").val(g.id).text(g.name)); });
+         	// підтягнути назви вже збережених груп
+         	Object.keys(recGroups).forEach(function (id) {
+         		var opt = $sel.find('option[value="' + id + '"]');
+         		if (opt.length) recGroups[id] = opt.text();
+         	});
+         	renderRecGroups();
+         });
+         $("#rec_group_select").on("change", function () {
+         	var id = $(this).val();
+         	if (!id) return;
+         	recGroups[id] = $(this).find("option:selected").text();
+         	this.value = "";
+         	renderRecGroups();
+         });
+         $("#rec_groups").on("click", ".btn-close", function () { delete recGroups[$(this).data("id")]; renderRecGroups(); });
+
+         // заповнити з config при завантаженні
+         (function loadRecipients() {
+         	var rec = cfgGet(wcsConfig, "notifyRecipients", {}) || {};
+         	(rec.users || []).forEach(function (u) { recUsers[u.id] = u.name || ("User #" + u.id); });
+         	(rec.groups || []).forEach(function (g) { recGroups[g.id] = g.name || ("Група #" + g.id); });
+         	renderRecUsers();
+         	renderRecGroups();
+         })();
+
+         window.collectRecipients = function () {
+         	return {
+         		users: Object.keys(recUsers).map(function (id) { return { id: id, name: recUsers[id] }; }),
+         		groups: Object.keys(recGroups).map(function (id) { return { id: id, name: recGroups[id] }; }),
+         	};
+         };
+
+         // ── ініціалізація ──
+         formModal = new bootstrap.Modal(document.getElementById("form-modal"));
+         fillAll();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,220 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.quality.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.q-thumb {
+				width: 48px;
+				height: 48px;
+				object-fit: cover;
+				border: 1px solid var(--bs-border-color);
+			}
+			.q-bar {
+				height: 8px;
+			}
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<!-- ─── ХЛІБНІ КРИХТИ ─────────────────────────────────────────── -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('catalog.quality.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('catalog.common.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/catalog"><%= i18n.__('catalog.menu.catalog') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('catalog.quality.title') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/catalog" class="btn btn-primary rounded-0">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<div class="d-flex align-items-center mb-3">
+					<h1 class="h4 mb-0 me-auto"><%= i18n.__('catalog.quality.title') %></h1>
+					<% if (perms.settings) { %>
+					<button class="btn btn-outline-secondary rounded-0" id="btn-recalc"><i class="fa-solid fa-rotate"></i> <%= i18n.__('catalog.quality.recalc') %></button>
+					<% } %>
+				</div>
+
+				<ul class="nav nav-tabs mb-3">
+					<li class="nav-item"><button class="nav-link rounded-0 active" data-bs-toggle="tab" data-bs-target="#t-score" type="button"><%= i18n.__('catalog.quality.tab_score') %></button></li>
+					<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#t-dups" type="button" id="tab-dups"><%= i18n.__('catalog.quality.tab_duplicates') %></button></li>
+				</ul>
+
+				<div class="tab-content">
+					<div class="tab-pane fade show active" id="t-score">
+						<div class="row g-3 mb-4" id="q-cards"></div>
+						<h2 class="h6"><%= i18n.__('catalog.quality.top_issues') %></h2>
+						<div class="form-text mb-2"><%= i18n.__('catalog.quality.issues_hint') %></div>
+						<div class="table-responsive" style="max-width: 760px">
+							<table class="table table-sm align-middle">
+								<tbody id="q-issues"></tbody>
+							</table>
+						</div>
+					</div>
+
+					<div class="tab-pane fade" id="t-dups">
+						<div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+							<div class="btn-group" role="group" id="dup-types">
+								<button type="button" class="btn btn-outline-primary rounded-0 active" data-type="ean"><%= i18n.__('catalog.quality.dup.ean') %></button>
+								<button type="button" class="btn btn-outline-primary rounded-0" data-type="name"><%= i18n.__('catalog.quality.dup.name') %></button>
+								<button type="button" class="btn btn-outline-primary rounded-0" data-type="image"><%= i18n.__('catalog.quality.dup.image') %></button>
+							</div>
+							<span class="form-text ms-2" id="dup-hint"></span>
+						</div>
+						<div id="dup-list"></div>
+					</div>
+				</div>
+			</div>
+		</main>
+
+		<%- include('../../../partials/footer'); %> <%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const PERMS = { edit: <%= perms.edit %>, settings: <%= perms.settings %> };
+				const RULE_LABEL = {
+					<% rules.forEach((r) => { %>"<%= r %>": "<%= i18n.__('catalog.quality.rule.' + r) %>",
+					<% }) %>
+				};
+				const DUP_HINT = {
+					ean: "<%= i18n.__('catalog.quality.dup_hint.ean') %>",
+					name: "<%= i18n.__('catalog.quality.dup_hint.name') %>",
+					image: "<%= i18n.__('catalog.quality.dup_hint.image') %>",
+				};
+				const STATUS = {
+					draft: "<%= i18n.__('catalog.products.status.draft') %>",
+					active: "<%= i18n.__('catalog.products.status.active') %>",
+					archived: "<%= i18n.__('catalog.products.status.archived') %>",
+				};
+				const notyf = new Notyf({ duration: 3000, position: { x: "right", y: "top" } });
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+				const errMsg = (e) => notyf.error((e && e.error) || "<%= i18n.__('catalog.common.error') %>");
+				const scoreBadge = (s) => (s == null ? `<span class="badge text-bg-light border">—</span>` : `<span class="badge text-bg-${s >= 80 ? "success" : s >= 50 ? "warning" : "danger"}">${Number(s)}%</span>`);
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+
+				// ── Оцінка ──
+				async function loadSummary() {
+					const r = await api("/api/catalog/products/quality/summary/");
+					const d = r.dist;
+					const total = Number(d.total) || 1;
+					const card = (label, n, cls, filter) =>
+						`<div class="col-6 col-md-3"><a class="card rounded-0 text-decoration-none h-100" href="/catalog/products/?quality=${filter}"><div class="card-body">
+							<div class="small text-muted">${label}</div><div class="h4 mb-1">${Number(n || 0).toLocaleString()}</div>
+							<div class="progress rounded-0 q-bar"><div class="progress-bar bg-${cls}" style="width:${(Number(n || 0) / total) * 100}%"></div></div></div></a></div>`;
+					document.getElementById("q-cards").innerHTML =
+						`<div class="col-6 col-md-3"><div class="card rounded-0 h-100"><div class="card-body"><div class="small text-muted"><%= i18n.__('catalog.quality.avg') %></div><div class="h4 mb-0">${scoreBadge(d.avg_score)}</div></div></div></div>` +
+						card("<%= i18n.__('catalog.quality.levels.low') %>", d.low, "danger", "low") +
+						card("<%= i18n.__('catalog.quality.levels.mid') %>", d.mid, "warning", "mid") +
+						card("<%= i18n.__('catalog.quality.levels.high') %>", d.high, "success", "high");
+					document.getElementById("q-issues").innerHTML = Object.entries(r.issues)
+						.sort((a, b) => b[1] - a[1])
+						.map(([code, n]) => `<tr><td>${esc(RULE_LABEL[code] || code)}</td><td class="text-end" style="width:120px"><a href="/catalog/products/?issue=${encodeURIComponent(code)}">${Number(n).toLocaleString()}</a></td></tr>`)
+						.join("");
+				}
+				loadSummary().catch(errMsg);
+
+				const recalcBtn = document.getElementById("btn-recalc");
+				if (recalcBtn)
+					recalcBtn.addEventListener("click", async () => {
+						recalcBtn.disabled = true;
+						try {
+							await api("/api/catalog/products/quality/recalc/");
+							notyf.success("<%= i18n.__('catalog.quality.recalc_started') %>");
+						} catch (err) {
+							errMsg(err);
+						} finally {
+							setTimeout(() => (recalcBtn.disabled = false), 5000);
+						}
+					});
+
+				// ── Дублі ──
+				let dupType = "ean";
+				const list = document.getElementById("dup-list");
+				async function loadDups() {
+					document.getElementById("dup-hint").textContent = DUP_HINT[dupType];
+					list.innerHTML = `<div class="text-muted small p-3"><span class="spinner-border spinner-border-sm"></span></div>`;
+					try {
+						const r = await api("/api/catalog/products/quality/duplicates/", { type: dupType });
+						list.innerHTML = r.groups.length
+							? r.groups
+									.map(
+										(g) => `<div class="card rounded-0 mb-2"><div class="card-header py-1 d-flex align-items-center">
+											<code class="me-auto small text-truncate">${esc(g.key)}</code>
+											${PERMS.edit ? `<button class="btn btn-sm btn-outline-secondary rounded-0" data-ignore="${g.products.map((p) => p.id).join(",")}"><i class="fa-solid fa-check"></i> <%= i18n.__('catalog.quality.not_duplicate') %></button>` : ""}
+										</div><div class="card-body p-0"><table class="table table-sm mb-0 align-middle"><tbody>${g.products
+											.map(
+												(p) => `<tr><td style="width:60px">${p.image_url ? `<img class="q-thumb" src="${esc(p.image_url)}" alt="">` : ""}</td>
+													<td><a href="/catalog/products/${p.id}/" target="_blank">${esc(p.name || "#" + p.id)}</a><br><small class="text-muted">#${p.id} · ${esc(p.sku || "—")}${p.ean ? " · " + esc(p.ean) : ""}</small></td>
+													<td style="width:110px">${esc(STATUS[p.status] || p.status)}</td>
+													<td class="text-end" style="width:120px">${Number(p.price).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+													<td class="text-end" style="width:70px">${scoreBadge(p.quality_score)}</td></tr>`
+											)
+											.join("")}</tbody></table></div></div>`
+									)
+									.join("")
+							: `<div class="text-muted p-3"><%= i18n.__('catalog.quality.no_duplicates') %></div>`;
+					} catch (err) {
+						list.innerHTML = "";
+						errMsg(err);
+					}
+				}
+				document.getElementById("dup-types").addEventListener("click", (e) => {
+					const b = e.target.closest("[data-type]");
+					if (!b) return;
+					document.querySelectorAll("#dup-types [data-type]").forEach((x) => x.classList.toggle("active", x === b));
+					dupType = b.dataset.type;
+					loadDups();
+				});
+				list.addEventListener("click", async (e) => {
+					const b = e.target.closest("[data-ignore]");
+					if (!b) return;
+					try {
+						await api("/api/catalog/products/quality/duplicates/ignore/", { ids: b.dataset.ignore.split(",").map(Number) });
+						b.closest(".card").remove();
+					} catch (err) {
+						errMsg(err);
+					}
+				});
+				let dupsLoaded = false;
+				document.getElementById("tab-dups").addEventListener("shown.bs.tab", () => {
+					if (!dupsLoaded) ((dupsLoaded = true), loadDups());
+				});
+			})();
+		</script>
+	</body>
+</html>

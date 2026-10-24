@@ -1,0 +1,321 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('modules.feeds.title') %></title>
+		<%- include('../../../views/partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../views/partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><%= i18n.__('catalog.menu.catalog') %></li>
+					<li class="breadcrumb-item active"><%= i18n.__('modules.feeds.title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<div class="d-flex align-items-center mb-3">
+					<h1 class="h4 mb-0 me-auto"><%= i18n.__('modules.feeds.title') %></h1>
+					<% if (perms.edit) { %><button class="btn btn-primary rounded-0" id="btn-add"><i class="fa-solid fa-plus"></i> <%= i18n.__('modules.feeds.add') %></button><% } %>
+				</div>
+				<div class="form-text mb-3"><%= i18n.__('modules.feeds.help') %></div>
+				<div class="table-responsive">
+					<table class="table table-sm align-middle">
+						<thead>
+							<tr>
+								<th><%= i18n.__('modules.feeds.f.name') %></th>
+								<th><%= i18n.__('modules.feeds.f.format') %></th>
+								<th><%= i18n.__('modules.feeds.url') %></th>
+								<th class="text-end"><%= i18n.__('modules.feeds.items') %></th>
+								<th class="text-end"><%= i18n.__('modules.feeds.skipped') %></th>
+								<th><%= i18n.__('modules.feeds.generated') %></th>
+								<th></th>
+							</tr>
+						</thead>
+						<tbody id="rows"><tr><td colspan="7" class="text-muted">—</td></tr></tbody>
+					</table>
+				</div>
+			</div>
+		</main>
+
+		<div class="modal fade" id="feed-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-lg modal-dialog-scrollable">
+				<form class="modal-content rounded-0" id="feed-form" novalidate>
+					<div class="modal-header">
+						<h5 class="modal-title" id="feed-title"></h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" name="id" />
+						<div class="row g-3">
+							<div class="col-md-6" data-field="name">
+								<label class="form-label"><%= i18n.__('modules.feeds.f.name') %> *</label>
+								<input class="form-control rounded-0" name="name" maxlength="128" required />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-3" data-field="format">
+								<label class="form-label"><%= i18n.__('modules.feeds.f.format') %></label>
+								<select class="form-select rounded-0" name="format">
+									<% formats.forEach((f) => { %><option value="<%= f %>"><%= i18n.__('modules.feeds.formats.' + f) %></option><% }) %>
+								</select>
+							</div>
+							<div class="col-md-3" data-field="id_lang">
+								<label class="form-label"><%= i18n.__('modules.feeds.f.language') %></label>
+								<select class="form-select rounded-0" name="id_lang" data-type="intnull">
+									<% languages.forEach((l) => { %><option value="<%= l.id %>"><%= l.native_name || l.name %> (<%= l.code %>)</option><% }) %>
+								</select>
+							</div>
+							<div class="col-md-6" data-field="base_url">
+								<label class="form-label"><%= i18n.__('modules.feeds.f.base_url') %> *</label>
+								<input class="form-control rounded-0" name="base_url" placeholder="https://shop.example" required />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-6" data-field="url_template">
+								<label class="form-label"><%= i18n.__('modules.feeds.f.url_template') %> *</label>
+								<input class="form-control rounded-0" name="url_template" value="/{slug}" required />
+								<div class="form-text"><%= i18n.__('modules.feeds.hints.url_template') %></div>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="id_integration">
+								<label class="form-label"><%= i18n.__('modules.feeds.f.integration') %></label>
+								<select class="form-select rounded-0" name="id_integration" data-type="intnull">
+									<option value="">—</option>
+									<% integrations.forEach((i) => { %><option value="<%= i.id %>"><%= i.name %></option><% }) %>
+								</select>
+								<div class="form-text"><%= i18n.__('modules.feeds.hints.integration') %></div>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="image_size">
+								<label class="form-label"><%= i18n.__('modules.feeds.f.image_size') %></label>
+								<select class="form-select rounded-0" name="image_size">
+									<option value=""><%= i18n.__('modules.feeds.original') %></option>
+									<% thumbnails.forEach((t) => { %><option value="<%= t %>"><%= t %></option><% }) %>
+								</select>
+							</div>
+							<div class="col-md-4" data-field="interval_hours">
+								<label class="form-label"><%= i18n.__('modules.feeds.f.interval_hours') %></label>
+								<input class="form-control rounded-0" type="number" min="1" max="168" name="interval_hours" data-type="int" value="6" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-12" data-field="utm">
+								<label class="form-label">UTM</label>
+								<input class="form-control rounded-0" name="utm" maxlength="255" placeholder="utm_source=google&utm_medium=cpc&utm_campaign=shopping" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-6" data-field="shop.name">
+								<label class="form-label"><%= i18n.__('modules.feeds.f.shop_name') %></label>
+								<input class="form-control rounded-0" data-shop="name" maxlength="128" />
+							</div>
+							<div class="col-md-6" data-field="shop.company">
+								<label class="form-label"><%= i18n.__('modules.feeds.f.shop_company') %></label>
+								<input class="form-control rounded-0" data-shop="company" maxlength="255" />
+							</div>
+
+							<div class="col-12"><hr class="my-1" /><strong><%= i18n.__('modules.feeds.filters') %></strong></div>
+							<div class="col-md-6" data-field="filters.categories">
+								<label class="form-label"><%= i18n.__('modules.feeds.f.categories') %></label>
+								<select class="form-select rounded-0" data-filter="categories" multiple size="8">
+									<% categories.forEach((c) => { %><option value="<%= c.id %>"><%= c.name %></option><% }) %>
+								</select>
+								<div class="form-text"><%= i18n.__('modules.feeds.hints.multi') %></div>
+							</div>
+							<div class="col-md-6" data-field="filters.brands">
+								<label class="form-label"><%= i18n.__('modules.feeds.f.brands') %></label>
+								<select class="form-select rounded-0" data-filter="brands" multiple size="8">
+									<% brands.forEach((b) => { %><option value="<%= b.id %>"><%= b.name %></option><% }) %>
+								</select>
+								<div class="form-text"><%= i18n.__('modules.feeds.hints.multi') %></div>
+							</div>
+							<div class="col-md-6" data-field="filters.statuses">
+								<div class="form-check"><input class="form-check-input" type="checkbox" data-status="active" id="ff-active" checked /><label class="form-check-label" for="ff-active"><%= i18n.__('catalog.products.status.active') %></label></div>
+								<div class="form-check"><input class="form-check-input" type="checkbox" data-status="draft" id="ff-draft" /><label class="form-check-label" for="ff-draft"><%= i18n.__('catalog.products.status.draft') %></label></div>
+							</div>
+							<div class="col-md-6">
+								<div class="form-check form-switch"><input class="form-check-input" type="checkbox" data-flag="in_stock_only" id="ff-stock" /><label class="form-check-label" for="ff-stock"><%= i18n.__('modules.feeds.f.in_stock_only') %></label></div>
+								<div class="form-check form-switch"><input class="form-check-input" type="checkbox" data-flag="with_images_only" id="ff-img" checked /><label class="form-check-label" for="ff-img"><%= i18n.__('modules.feeds.f.with_images_only') %></label></div>
+								<div class="form-check form-switch"><input class="form-check-input" type="checkbox" data-flag="variants" id="ff-var" checked /><label class="form-check-label" for="ff-var"><%= i18n.__('modules.feeds.f.variants') %></label></div>
+								<div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="status" data-type="bool" id="ff-status" checked /><label class="form-check-label" for="ff-status"><%= i18n.__('modules.feeds.f.status') %></label></div>
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('catalog.common.cancel') %></button>
+						<% if (perms.edit) { %><button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('catalog.common.save') %></button><% } %>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<%- include('../../../views/partials/footer'); %>
+		<%- include('../../../views/partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const PERMS = { edit: <%= perms.edit %> };
+				const BASE = "/api/module/feeds";
+				const FORMAT = {
+					<% formats.forEach((f) => { %>"<%= f %>": "<%= i18n.__('modules.feeds.formats.' + f) %>",
+					<% }) %>
+				};
+				const SKIP = {
+					no_name: "<%= i18n.__('modules.feeds.skip.no_name') %>",
+					no_price: "<%= i18n.__('modules.feeds.skip.no_price') %>",
+					no_link: "<%= i18n.__('modules.feeds.skip.no_link') %>",
+					no_image: "<%= i18n.__('modules.feeds.skip.no_image') %>",
+					no_category: "<%= i18n.__('modules.feeds.skip.no_category') %>",
+					out_of_stock: "<%= i18n.__('modules.feeds.skip.out_of_stock') %>",
+					variable_without_variants: "<%= i18n.__('modules.feeds.skip.variable_without_variants') %>",
+				};
+				const notyf = new Notyf({ duration: 3000, position: { x: "right", y: "top" } });
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+				const errMsg = (e) => notyf.error((e && e.error) || "<%= i18n.__('catalog.common.error') %>");
+				const size = (b) => (b == null ? "" : b > 1048576 ? (b / 1048576).toFixed(1) + " MB" : Math.ceil(b / 1024) + " KB");
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+
+				let rows = [];
+				const tbody = document.getElementById("rows");
+				function render() {
+					tbody.innerHTML = rows.length
+						? rows
+								.map((r) => {
+									const skipped = r.report && r.report.skipped ? Object.entries(r.report.skipped).map(([k, n]) => `${SKIP[k] || k}: ${n}`).join("\n") : "";
+									return `<tr class="${Number(r.status) ? "" : "text-muted"}">
+										<td>${esc(r.name)}${r.last_error ? `<br><small class="text-danger">${esc(r.last_error)}</small>` : ""}</td>
+										<td>${esc(FORMAT[r.format] || r.format)}</td>
+										<td><div class="input-group input-group-sm" style="min-width:280px"><input class="form-control rounded-0" readonly value="${esc(r.url)}"><button class="btn btn-outline-secondary rounded-0" data-copy="${esc(r.url)}" title="<%= i18n.__('modules.feeds.copy') %>"><i class="fa-regular fa-copy"></i></button></div></td>
+										<td class="text-end">${r.items == null ? "—" : Number(r.items).toLocaleString()}</td>
+										<td class="text-end">${Number(r.skipped) ? `<span class="text-warning" title="${esc(skipped)}" style="cursor:help">${Number(r.skipped).toLocaleString()}</span>` : r.skipped == null ? "—" : 0}</td>
+										<td><small>${esc(r.last_generated_at ? String(r.last_generated_at).slice(0, 16) : "—")}${r.file_size ? "<br>" + size(r.file_size) : ""}${r.last_duration_ms ? " · " + (r.last_duration_ms / 1000).toFixed(1) + " s" : ""}</small></td>
+										<td class="text-end text-nowrap">
+											${PERMS.edit ? `<button class="btn btn-sm btn-outline-success rounded-0" data-act="generate" data-id="${r.id}" title="<%= i18n.__('modules.feeds.generate') %>"><i class="fa-solid fa-play"></i></button>` : ""}
+											<button class="btn btn-sm btn-outline-primary rounded-0" data-act="edit" data-id="${r.id}"><i class="fa-solid fa-${PERMS.edit ? "pen" : "eye"}"></i></button>
+											${PERMS.edit ? `<button class="btn btn-sm btn-outline-secondary rounded-0" data-act="token" data-id="${r.id}" title="<%= i18n.__('modules.feeds.new_url') %>"><i class="fa-solid fa-key"></i></button>
+											<button class="btn btn-sm btn-outline-danger rounded-0" data-act="delete" data-id="${r.id}"><i class="fa-solid fa-trash"></i></button>` : ""}
+										</td></tr>`;
+								})
+								.join("")
+						: `<tr><td colspan="7" class="text-muted"><%= i18n.__('modules.feeds.empty') %></td></tr>`;
+				}
+				const reload = () => api(BASE + "/list/").then((r) => ((rows = r.rows), render())).catch(errMsg);
+				reload();
+
+				// ── Форма ──
+				const form = document.getElementById("feed-form");
+				const modal = new bootstrap.Modal("#feed-modal");
+				const g = (n) => form.querySelector(`[name="${n}"]`);
+
+				function fill(r) {
+					form.reset();
+					form.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+					g("id").value = r.id || "";
+					["name", "format", "base_url", "url_template", "image_size", "utm"].forEach((k) => (g(k).value = r[k] ?? g(k).defaultValue ?? ""));
+					g("id_lang").value = r.id_lang || g("id_lang").options[0].value;
+					g("id_integration").value = r.id_integration || "";
+					g("interval_hours").value = r.interval_hours || 6;
+					g("status").checked = r.id ? !!Number(r.status) : true;
+					const f = r.filters || {};
+					["categories", "brands"].forEach((k) => Array.from(form.querySelector(`[data-filter="${k}"]`).options).forEach((o) => (o.selected = (f[k] || []).includes(Number(o.value)))));
+					form.querySelectorAll("[data-status]").forEach((el) => (el.checked = (f.statuses || ["active"]).includes(el.dataset.status)));
+					form.querySelectorAll("[data-flag]").forEach((el) => (el.checked = f[el.dataset.flag] !== undefined ? !!f[el.dataset.flag] : el.defaultChecked));
+					form.querySelectorAll("[data-shop]").forEach((el) => (el.value = (r.shop || {})[el.dataset.shop] || ""));
+					form.querySelectorAll("input, select").forEach((el) => (el.disabled = !PERMS.edit));
+					document.getElementById("feed-title").textContent = r.id ? r.name : "<%= i18n.__('modules.feeds.add') %>";
+				}
+				function read() {
+					const filters = {
+						statuses: Array.from(form.querySelectorAll("[data-status]:checked")).map((el) => el.dataset.status),
+						categories: Array.from(form.querySelector('[data-filter="categories"]').selectedOptions).map((o) => Number(o.value)),
+						brands: Array.from(form.querySelector('[data-filter="brands"]').selectedOptions).map((o) => Number(o.value)),
+					};
+					form.querySelectorAll("[data-flag]").forEach((el) => (filters[el.dataset.flag] = el.checked));
+					const shop = {};
+					form.querySelectorAll("[data-shop]").forEach((el) => (shop[el.dataset.shop] = el.value.trim()));
+					return {
+						name: g("name").value.trim(),
+						format: g("format").value,
+						status: g("status").checked,
+						id_lang: g("id_lang").value ? Number(g("id_lang").value) : null,
+						base_url: g("base_url").value.trim(),
+						url_template: g("url_template").value.trim(),
+						id_integration: g("id_integration").value ? Number(g("id_integration").value) : null,
+						image_size: g("image_size").value || null,
+						utm: g("utm").value.trim() || null,
+						interval_hours: parseInt(g("interval_hours").value, 10) || 6,
+						filters,
+						shop,
+					};
+				}
+				form.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					form.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+					try {
+						await api(BASE + "/save/", { id: g("id").value ? Number(g("id").value) : null, data: read() });
+						modal.hide();
+						notyf.success("<%= i18n.__('catalog.common.saved') %>");
+						reload();
+					} catch (err) {
+						(err.errors || []).forEach((x) => {
+							const box = form.querySelector(`[data-field="${CSS.escape(x.field || "")}"]`);
+							if (!box) return;
+							box.querySelectorAll("input,select").forEach((el) => el.classList.add("is-invalid"));
+							const fb = box.querySelector(".invalid-feedback");
+							if (fb) fb.textContent = x.message;
+						});
+						errMsg(err);
+					}
+				});
+				const add = document.getElementById("btn-add");
+				if (add) add.addEventListener("click", () => (fill({}), modal.show()));
+
+				tbody.addEventListener("click", async (e) => {
+					const c = e.target.closest("[data-copy]");
+					if (c) {
+						await navigator.clipboard.writeText(c.dataset.copy).catch(() => {});
+						return notyf.success("<%= i18n.__('modules.feeds.copied') %>");
+					}
+					const b = e.target.closest("[data-act]");
+					if (!b) return;
+					const id = Number(b.dataset.id);
+					const row = rows.find((r) => r.id === id);
+					try {
+						if (b.dataset.act === "edit") return (fill(row), modal.show());
+						if (b.dataset.act === "generate") {
+							b.disabled = true;
+							const r = await api(`${BASE}/${id}/generate/`);
+							notyf.success(r.busy ? "<%= i18n.__('modules.feeds.busy') %>" : "<%= i18n.__('modules.feeds.started') %>");
+							setTimeout(reload, 5000);
+						}
+						if (b.dataset.act === "token") {
+							if (!confirm("<%= i18n.__('modules.feeds.confirm_token') %>")) return;
+							await api(`${BASE}/${id}/token/`);
+						}
+						if (b.dataset.act === "delete") {
+							if (!confirm("<%= i18n.__('modules.feeds.confirm_delete') %>".replace("%s", row.name))) return;
+							await api(`${BASE}/${id}/delete/`);
+						}
+						reload();
+					} catch (err) {
+						errMsg(err);
+						reload();
+					} finally {
+						b.disabled = false;
+					}
+				});
+			})();
+		</script>
+	</body>
+</html>

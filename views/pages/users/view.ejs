@@ -1,0 +1,415 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= targetUser.last_name %> <%= targetUser.first_name %></title>
+		<%- include('../../partials/head'); %>
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+
+		<div class="flex-grow-1">
+			<!-- Breadcrumb -->
+			<div class="breadcrumbs pt-3 pb-3">
+				<div class="container-fluid">
+					<div class="row align-items-center">
+						<div class="col">
+							<span><%= isSelf ? i18n.__('users.profile.title_self') : i18n.__('users.profile.title') %></span>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('users.profile.home') %></span></a>
+								</li>
+								<% if (canViewList) { %>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/users/"><%= i18n.__('users.profile.users') %></a>
+								</li>
+								<% } %>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= targetUser.last_name %> <%= targetUser.first_name %>
+								</li>
+							</ul>
+						</div>
+						<div class="col-auto d-flex gap-2">
+							<% if (canEditUser || isSelf) { %>
+							<a href="<%= isSelf ? '/users/profile/edit' : '/users/' + targetUser.id + '/edit' %>" class="btn btn-warning rounded-0" title="<%= i18n.__('users.profile.edit') %>">
+								<i class="fa-solid fa-pen-to-square"></i>
+							</a>
+							<% } %> <% if (canViewList) { %>
+							<a href="/users/" class="btn btn-primary rounded-0" title="<%= i18n.__('users.profile.back') %>">
+								<i class="fa-solid fa-angle-left"></i>
+							</a>
+							<% } %>
+						</div>
+					</div>
+				</div>
+			</div>
+			<!-- END Breadcrumb -->
+
+			<div class="container-fluid mt-3 mb-4">
+				<div class="row g-3">
+					<!-- ─── LEFT ─── -->
+					<div class="col-12 col-md-3">
+						<!-- Фото профілю -->
+						<div class="card border-primary rounded-0 mb-3">
+							<div class="card-header text-bg-primary rounded-0"><%= i18n.__('users.profile.photo') %></div>
+							<div class="card-body text-center">
+								<div class="position-relative d-inline-block mb-3">
+									<img id="avatar-img" src="<%= targetUser.avatar ? '/uploads/users/' + targetUser.id + '/' + targetUser.avatar : '' %>" alt="avatar" class="rounded-circle border <%= targetUser.avatar ? '' : 'd-none' %>" style="width: 120px; height: 120px; object-fit: cover" />
+									<div id="avatar-initials" class="rounded-circle border bg-primary-subtle text-primary fw-bold align-items-center justify-content-center <%= targetUser.avatar ? 'd-none' : 'd-flex' %>" style="width: 120px; height: 120px; font-size: 42px"><%= (targetUser.first_name || '').charAt(0) %><%= (targetUser.last_name || '').charAt(0) %></div>
+									<div id="avatar-spinner" class="position-absolute top-50 start-50 translate-middle d-none">
+										<span class="spinner-border text-primary"></span>
+									</div>
+								</div>
+
+								<% if (canManage) { %>
+								<div class="d-flex justify-content-center gap-2 mb-2">
+									<label class="btn btn-sm btn-outline-primary rounded-0 mb-0">
+										<i class="fa-solid fa-camera"></i> <%= i18n.__('users.profile.avatar_change') %>
+										<input type="file" id="avatar-input" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" hidden />
+									</label>
+									<button type="button" id="avatar-delete" class="btn btn-sm btn-outline-danger rounded-0 <%= targetUser.avatar ? '' : 'd-none' %>" title="<%= i18n.__('users.profile.avatar_delete') %>">
+										<i class="fa-solid fa-trash"></i>
+									</button>
+								</div>
+								<div class="text-muted small mb-2"><%= i18n.__('users.profile.avatar_hint') %></div>
+								<% } %>
+
+								<h6 class="mb-1 fw-semibold"><%= targetUser.last_name %> <%= targetUser.first_name %> <%= targetUser.patronymic %></h6>
+								<small class="text-muted"><%= targetUser.email %></small>
+							</div>
+						</div>
+
+						<!-- Загальна інформація -->
+						<div class="card border-primary rounded-0">
+							<div class="card-header text-bg-primary rounded-0"><%= i18n.__('users.profile.general') %></div>
+							<ul class="list-group list-group-flush">
+								<li class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
+									<span class="text-muted small">ID</span>
+									<span><%= targetUser.id %></span>
+								</li>
+								<li class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
+									<span class="text-muted small"><%= i18n.__('users.profile.status') %></span>
+									<span class="badge text-bg-<%= ['secondary', 'success', 'danger', 'warning'][targetUser.active] || 'secondary' %>"> <%= i18n.__('users.profile.status_' + targetUser.active) %> </span>
+								</li>
+								<li class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
+									<span class="text-muted small"><%= i18n.__('users.profile.gender') %></span>
+									<span><%= i18n.__('users.profile.gender_' + targetUser.gender) %></span>
+								</li>
+								<li class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
+									<span class="text-muted small"><%= i18n.__('users.profile.birthday') %></span>
+									<span><%= targetUser.birthday ? new Date(targetUser.birthday).toLocaleDateString(i18n.__('lang_iso')) : '—' %></span>
+								</li>
+								<li class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
+									<span class="text-muted small"><%= i18n.__('users.profile.phone') %></span>
+									<span><%= targetUser.phone || '—' %></span>
+								</li>
+								<li class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
+									<span class="text-muted small"><%= i18n.__('users.profile.language') %></span>
+									<span><%= i18n.__('users.profile.lang_' + targetUser.id_lang) %></span>
+								</li>
+								<li class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
+									<span class="text-muted small">2FA</span>
+									<span class="badge text-bg-<%= targetUser.tfa_enabled ? 'success' : 'secondary' %>"> <%= targetUser.tfa_enabled ? i18n.__('users.profile.on') : i18n.__('users.profile.off') %> </span>
+								</li>
+								<% if (targetUser.failed_login_attempts > 0) { %>
+								<li class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
+									<span class="text-muted small"><%= i18n.__('users.profile.failed_logins') %></span>
+									<span class="badge text-bg-danger"><%= targetUser.failed_login_attempts %></span>
+								</li>
+								<% } %>
+								<li class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
+									<span class="text-muted small"><%= i18n.__('users.profile.groups') %></span>
+									<span class="text-end">
+										<% groups.forEach(function (g) { %>
+										<span class="badge text-bg-primary me-1"><%= g.name || g.id %></span>
+										<% }); %>
+									</span>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<!-- ─── END LEFT ─── -->
+
+					<!-- ─── RIGHT ─── -->
+					<div class="col-12 col-md-9">
+						<!-- Активність -->
+						<div class="card border-primary rounded-0 mb-3">
+							<div class="card-header text-bg-primary rounded-0"><%= i18n.__('users.profile.activity') %></div>
+							<div class="card-body p-0">
+								<div class="row g-0 text-center">
+									<div class="col-6 col-sm-3 py-3 border-bottom border-end">
+										<div class="text-muted small mb-1"><%= i18n.__('users.profile.activity_registered') %></div>
+										<div class="fw-semibold" data-date="<%= targetUser.date_add ? new Date(targetUser.date_add).toISOString() : '' %>">—</div>
+									</div>
+									<div class="col-6 col-sm-3 py-3 border-bottom border-end">
+										<div class="text-muted small mb-1"><%= i18n.__('users.profile.activity_last_login') %></div>
+										<div class="fw-semibold" data-date="<%= targetUser.date_last_login ? new Date(targetUser.date_last_login).toISOString() : '' %>">—</div>
+									</div>
+									<div class="col-6 col-sm-3 py-3 border-bottom border-end">
+										<div class="text-muted small mb-1"><%= i18n.__('users.profile.activity_online_since') %></div>
+										<div class="fw-semibold" data-date="<%= targetUser.date_online_since ? new Date(targetUser.date_online_since).toISOString() : '' %>">—</div>
+									</div>
+									<div class="col-6 col-sm-3 py-3 border-bottom">
+										<div class="text-muted small mb-1"><%= i18n.__('users.profile.activity_last_seen') %></div>
+										<div class="fw-semibold" data-date="<%= targetUser.date_last_seen ? new Date(targetUser.date_last_seen).toISOString() : '' %>">—</div>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- Активні сесії -->
+						<div class="card border-primary rounded-0 mb-3">
+							<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+								<span>
+									<%= i18n.__('users.profile.sessions') %>
+									<span id="sessions-count" class="badge bg-light text-dark ms-1">…</span>
+								</span>
+								<% if (canManage) { %>
+								<button type="button" id="sessions-revoke-all" class="btn btn-sm btn-light rounded-0 d-none">
+									<i class="fa-solid fa-right-from-bracket"></i>
+									<%= isSelf ? i18n.__('users.profile.sessions_revoke_others') : i18n.__('users.profile.sessions_revoke_all') %>
+								</button>
+								<% } %>
+							</div>
+							<ul id="sessions-list" class="list-group list-group-flush">
+								<li class="list-group-item text-center py-3">
+									<span class="spinner-border spinner-border-sm" role="status"></span>
+								</li>
+							</ul>
+						</div>
+
+						<!-- Журнал входів -->
+						<div class="card border-primary rounded-0">
+							<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+								<span><%= i18n.__('users.profile.login_log') %></span>
+								<span id="log-count" class="badge bg-light text-dark">
+									<span class="spinner-border spinner-border-sm" role="status"></span>
+								</span>
+							</div>
+							<div class="card-body p-2">
+								<div id="login-log-table"></div>
+							</div>
+						</div>
+					</div>
+					<!-- ─── END RIGHT ─── -->
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const userId = Number("<%= targetUser.id %>");
+				const canManage = "<%= canManage %>" === "true";
+				const isSelf = "<%= isSelf %>" === "true";
+				const locale = "<%= i18n.__('lang_iso') %>";
+
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+				const fmtDate = (val) => (val ? new Date(val).toLocaleString(locale, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—");
+
+				const notify = (type, msg) => (window.notyf ? notyf[type](msg) : alert(msg));
+
+				const post = (url, body) =>
+					fetch(url, {
+						method: "POST",
+						headers: body instanceof FormData ? { Accept: "application/json" } : { Accept: "application/json", "Content-Type": "application/json" },
+						body: body instanceof FormData ? body : JSON.stringify(body || {}),
+					}).then(async (r) => {
+						const json = await r.json().catch(() => ({}));
+						if (r.status === 401) location.href = "/login/";
+						if (!r.ok || json.status !== "success") throw new Error(json.message || "<%= i18n.__('users.profile.js.error_network') %>");
+						return json;
+					});
+
+				// ─── Дати активності (часовий пояс браузера) ────────────────────
+				document.querySelectorAll("[data-date]").forEach((el) => {
+					el.textContent = fmtDate(el.dataset.date);
+				});
+
+				// ─── Аватар ─────────────────────────────────────────────────────
+				const avInput = document.getElementById("avatar-input");
+				const avImg = document.getElementById("avatar-img");
+				const avInit = document.getElementById("avatar-initials");
+				const avDel = document.getElementById("avatar-delete");
+				const avSpin = document.getElementById("avatar-spinner");
+
+				const showAvatar = (url) => {
+					avImg.classList.toggle("d-none", !url);
+					avInit.classList.toggle("d-none", !!url);
+					avInit.classList.toggle("d-flex", !url);
+					avDel.classList.toggle("d-none", !url);
+					if (url) avImg.src = url;
+				};
+
+				if (avInput) {
+					avInput.addEventListener("change", () => {
+						const file = avInput.files[0];
+						avInput.value = "";
+						if (!file) return;
+						if (file.size > 5 * 1024 * 1024) return notify("error", "<%= i18n.__('users.profile.js.avatar_too_big') %>");
+
+						const fd = new FormData();
+						fd.append("avatar", file);
+						avSpin.classList.remove("d-none");
+
+						post(`/api/users/${userId}/avatar`, fd)
+							.then((json) => {
+								showAvatar(json.url);
+								notify("success", "<%= i18n.__('users.profile.js.avatar_saved') %>");
+							})
+							.catch((e) => notify("error", `<%= i18n.__('users.profile.js.avatar_upload_failed') %>: ${e.message}`))
+							.finally(() => avSpin.classList.add("d-none"));
+					});
+
+					avDel.addEventListener("click", () => {
+						if (!confirm("<%= i18n.__('users.profile.js.avatar_delete_confirm') %>")) return;
+						post(`/api/users/${userId}/avatar/delete`)
+							.then(() => showAvatar(""))
+							.catch((e) => notify("error", e.message));
+					});
+				}
+
+				// ─── Активні сесії ──────────────────────────────────────────────
+				const sList = document.getElementById("sessions-list");
+				const sAll = document.getElementById("sessions-revoke-all");
+				const sCount = document.getElementById("sessions-count");
+				const deviceIcon = ["fa-desktop", "fa-mobile-screen", "fa-tablet-screen-button"];
+
+				const renderSession = (s) => `
+					<li class="list-group-item d-flex align-items-center gap-3 py-2">
+						<i class="fa-solid ${deviceIcon[s.device] || deviceIcon[0]} fa-lg text-muted"></i>
+						<div class="flex-grow-1 small">
+							<div class="fw-semibold">
+								${esc(s.browser)} · ${esc(s.os)}
+								${s.current ? `<span class="badge text-bg-success ms-1"><%= i18n.__('users.profile.js.this_device') %></span>` : ""}
+							</div>
+							<div class="text-muted" title="${esc(s.user_agent)}">
+								IP ${esc(s.ip)} · <%= i18n.__('users.profile.js.signed_in') %> ${fmtDate(s.created_at)} · <%= i18n.__('users.profile.js.last_active') %> ${fmtDate(s.last_activity)}
+							</div>
+						</div>
+						${
+							canManage && !s.current
+								? `<button type="button" class="btn btn-sm btn-outline-danger rounded-0" data-revoke="${s.id}">
+									<i class="fa-solid fa-right-from-bracket"></i> <%= i18n.__('users.profile.js.sign_out') %>
+								</button>`
+								: ""
+						}
+					</li>`;
+
+				const loadSessions = () =>
+					post(`/api/users/${userId}/sessions`)
+						.then(({ data }) => {
+							sCount.textContent = data.length;
+							const others = data.filter((s) => !s.current).length;
+							if (sAll) sAll.classList.toggle("d-none", isSelf ? others === 0 : data.length === 0);
+							sList.innerHTML = data.length ? data.map(renderSession).join("") : `<li class="list-group-item text-muted text-center py-3"><%= i18n.__('users.profile.js.no_sessions') %></li>`;
+						})
+						.catch(() => {
+							sCount.textContent = "!";
+						});
+
+				sList.addEventListener("click", (e) => {
+					const btn = e.target.closest("[data-revoke]");
+					if (!btn) return;
+					btn.disabled = true;
+					post(`/api/users/${userId}/sessions/${btn.dataset.revoke}/revoke`)
+						.then(loadSessions)
+						.catch((err) => {
+							btn.disabled = false;
+							notify("error", err.message);
+						});
+				});
+
+				if (sAll) {
+					sAll.addEventListener("click", () => {
+						if (!confirm("<%= i18n.__('users.profile.js.sessions_revoke_confirm') %>")) return;
+						post(`/api/users/${userId}/sessions/revoke-all`)
+							.then(loadSessions)
+							.catch((err) => notify("error", err.message));
+					});
+				}
+
+				loadSessions();
+
+				// ─── Журнал входів ──────────────────────────────────────────────
+				const devices = ["<%= i18n.__('users.profile.js.device_desktop') %>", "<%= i18n.__('users.profile.js.device_mobile') %>", "<%= i18n.__('users.profile.js.device_tablet') %>"];
+				const reasons = {
+					login_failed_invalid_password: "<%= i18n.__('users.profile.js.reason_password') %>",
+					login_failed_invalid_2fa: "<%= i18n.__('users.profile.js.reason_2fa') %>",
+					login_blocked: "<%= i18n.__('users.profile.js.reason_blocked') %>",
+					login_inactive: "<%= i18n.__('users.profile.js.reason_inactive') %>",
+				};
+
+				const table = new Tabulator("#login-log-table", {
+					layout: "fitColumns",
+					pagination: "local",
+					paginationSize: 15,
+					paginationSizeSelector: [10, 15, 25, 50],
+					placeholder: "<%= i18n.__('users.profile.js.no_records') %>",
+					locale: "app",
+					langs: {
+						app: {
+							pagination: {
+								first: "«",
+								first_title: "<%= i18n.__('users.profile.js.page_first') %>",
+								last: "»",
+								last_title: "<%= i18n.__('users.profile.js.page_last') %>",
+								prev: "‹",
+								prev_title: "<%= i18n.__('users.profile.js.page_prev') %>",
+								next: "›",
+								next_title: "<%= i18n.__('users.profile.js.page_next') %>",
+								all: "<%= i18n.__('users.profile.js.page_all') %>",
+								page_size: "<%= i18n.__('users.profile.js.page_size') %>",
+							},
+						},
+					},
+					columns: [
+						{ title: "#", field: "id", width: 70, hozAlign: "center", headerHozAlign: "center" },
+						{ title: "<%= i18n.__('users.profile.js.col_date') %>", field: "date_add", width: 155, formatter: (cell) => fmtDate(cell.getValue()) },
+						{ title: "IP", field: "ip", minWidth: 120 },
+						{ title: "<%= i18n.__('users.profile.js.col_country') %>", field: "country", width: 80, hozAlign: "center", headerHozAlign: "center", formatter: (cell) => esc(cell.getValue()) || "—" },
+						{ title: "<%= i18n.__('users.profile.js.col_city') %>", field: "city", minWidth: 100, formatter: (cell) => esc(cell.getValue()) || "—" },
+						{ title: "<%= i18n.__('users.profile.js.col_device') %>", field: "device", width: 105, hozAlign: "center", headerHozAlign: "center", formatter: (cell) => devices[cell.getValue()] || "—" },
+						{
+							title: "<%= i18n.__('users.profile.js.col_status') %>",
+							field: "status",
+							width: 110,
+							hozAlign: "center",
+							headerHozAlign: "center",
+							formatter: (cell) => {
+								if (cell.getValue()) return `<span class="badge text-bg-success"><%= i18n.__('users.profile.js.status_success') %></span>`;
+								const reason = reasons[cell.getRow().getData().reason] || "";
+								return `<span class="badge text-bg-danger" title="${esc(reason)}"><%= i18n.__('users.profile.js.status_failed') %></span>`;
+							},
+						},
+						{
+							title: "User-Agent",
+							field: "user_agent",
+							minWidth: 200,
+							formatter: (cell) => {
+								const ua = esc(cell.getValue());
+								return `<span class="d-inline-block text-truncate" style="max-width: 280px" title="${ua}">${ua}</span>`;
+							},
+						},
+					],
+				});
+
+				post(`/api/users/${userId}/login-log`)
+					.then(({ data }) => {
+						table.setData(data);
+						document.getElementById("log-count").textContent = data.length;
+					})
+					.catch(() => {
+						document.getElementById("log-count").textContent = "!";
+					});
+			})();
+		</script>
+	</body>
+</html>

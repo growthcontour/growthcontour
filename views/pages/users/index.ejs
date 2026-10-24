@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+  <head>
+    <title><%= i18n.__('users.index.user_list') %></title>
+    <%- include('../../partials/head'); %>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+    <!-- tabulator -->
+    <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+    <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+    <style>
+      #users-table .tabulator-col,
+      #users-table .tabulator-cell {
+        border-right: 1px solid #dee2e6;
+        border-bottom: 1px solid #dee2e6;
+      }
+
+      #users-table .tabulator-col:last-child,
+      #users-table .tabulator-cell:last-child {
+        border-right: none;
+      }
+
+      #users-table .tabulator-row:last-child .tabulator-cell {
+        border-bottom: none;
+      }
+    </style>
+    <!-- END tabulator -->
+  </head>
+
+  <body class="d-flex flex-column h-100">
+    <%- include('../../partials/header'); %>
+    <!-- Breadcrumb -->
+    <div class="breadcrumbs pt-3 pb-3">
+      <div class="container-fluid">
+        <div class="row align-items-center">
+          <div class="col">
+            <span> <%= i18n.__('users.index.user_list') %> </span>
+            <div>
+              <ul class="list-inline mb-0">
+                <li class="list-inline-item">
+                  <a href="/"><i class="fas fa-home"></i> <span> <%= i18n.__('users.index.home') %> </span></a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <%= i18n.__('users.index.user_list') %>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-auto">
+            <a href="/" class="btn btn-primary rounded-0">
+              <i class="fa-solid fa-angle-left"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- END Breadcrumb -->
+    <div class="container-fluid mt-3">
+      <div class="row">
+        <div class="col-12 mb-3">
+          <% if (user.permissions?.['users.list']?.add) { %>
+          <button type="button" class="btn btn-primary rounded-0 mb-3" data-bs-toggle="modal" data-bs-target="#modalAddUser"><%= i18n.__('users.index.add_user') %></button>
+          <% } %>
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0"><%= i18n.__('users.index.user_list') %></div>
+            <div id="users-table"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <% if (user.permissions?.['users.list']?.add) { %>
+    <div class="modal fade" id="modalAddUser" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-0">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5"><%= i18n.__('users.index.add_user') %></h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+
+          <div class="modal-body">
+            <div class="row">
+              <div class="col-12 col-md-4 mb-3">
+                <label class="form-label"> <%= i18n.__('users.index.last_name') %> </label>
+                <input type="text" class="form-control rounded-0" name="last_name" />
+              </div>
+              <div class="col-12 col-md-4 mb-3">
+                <label class="form-label"> <%= i18n.__('users.index.first_name') %> </label>
+                <input type="text" class="form-control rounded-0" name="first_name" />
+              </div>
+              <div class="col-12 col-md-4 mb-3">
+                <label class="form-label"> <%= i18n.__('users.index.patronymic') %> </label>
+                <input type="text" class="form-control rounded-0" name="patronymic" />
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Email</label>
+              <input type="text" class="form-control rounded-0" name="email" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label"> <%= i18n.__('users.index.password') %> </label>
+              <div class="input-group">
+                <input type="text" class="form-control rounded-0" id="manual_password" name="password" placeholder="<%= i18n.__('users.index.min_8_chars') %>" />
+                <button type="button" class="btn btn-outline-secondary rounded-0"><%= i18n.__('users.index.generate') %></button>
+              </div>
+            </div>
+            <div class="mb-3">
+              <div class="form-check mb-0">
+                <input type="checkbox" class="form-check-input rounded-0" id="manual_send_email" name="send_email" value="1" />
+                <label class="form-check-label" for="manual_send_email"> <%= i18n.__('users.index.send_password_email') %> </label>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label"> <%= i18n.__('users.index.group') %> </label>
+              <select class="form-select rounded-0" name="id_group" id="manual_group"></select>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('users.index.close') %></button>
+            <button type="button" class="btn btn-primary rounded-0" id="btn_add_user"><%= i18n.__('users.index.add') %></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <% } %>
+    <!-- ─── МОДАЛЬНЕ ВІКНО ВИДАЛЕННЯ ───────────────────────────────────────── -->
+    <div class="modal fade" id="modalDeleteUser" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-0">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5"><%= i18n.__('users.index.delete_user') %></h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p><%= i18n.__('users.index.delete_confirm_text') %></p>
+            <div class="mb-3">
+              <strong> <%= i18n.__('users.index.user_name') %>: </strong>
+              <span id="delete_user_name"></span>
+            </div>
+            <div class="mb-3">
+              <strong>Email:</strong>
+              <span id="delete_user_email"></span>
+            </div>
+            <p class="mb-0">
+              <strong>
+                <%= i18n.__('users.index.user_id') %>:
+                <span id="delete_user_id"></span>
+              </strong>
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('users.index.cancel') %></button>
+            <button type="button" class="btn btn-danger rounded-0" id="btn_confirm_delete_user"><%= i18n.__('users.index.delete') %></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- ─── END МОДАЛЬНЕ ВІКНО ВИДАЛЕННЯ ───────────────────────────────────── -->
+
+    <%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+    <script src="/assets/js/notyf/notyf.min.js"></script>
+    <script>
+      const notyf = new Notyf({
+        position: { x: "right", y: "top" },
+        duration: 4000,
+        types: [
+          { type: "success", dismissible: true, icon: false },
+          {
+            type: "error",
+            background: "indianred",
+            dismissible: true,
+            icon: false,
+          },
+        ],
+      });
+    </script>
+    <!-- tabulator -->
+    <script src="/assets/js/tabulator/tabulator.min.js"></script>
+    <script>
+      // ── Tabulator ─────────────────────────────────────────────────────────────
+      var table = new Tabulator("#users-table", {
+        layout: "fitColumns",
+        ajaxURL: "/api/users/list-users/",
+        ajaxConfig: "POST",
+        paginationSize: 10,
+        paginationSizeSelector: [10, 20, 30, 40],
+        pagination: true,
+        movableColumns: true,
+
+        ajaxResponse: function (url, params, response) {
+          return response.data;
+        },
+
+        columns: [
+          {
+            title: "<%= i18n.__('users.index.first_name_col') %>",
+            field: "first_name",
+            sorter: "string",
+            headerSort: false,
+            widthGrow: 1,
+          },
+          {
+            title: "<%= i18n.__('users.index.last_name_col') %>",
+            field: "last_name",
+            sorter: "string",
+            headerSort: false,
+          },
+          {
+            title: "<%= i18n.__('users.index.patronymic_col') %>",
+            field: "patronymic",
+            sorter: "string",
+            headerSort: false,
+          },
+          {
+            title: "Email",
+            field: "email",
+            sorter: "string",
+            headerSort: false,
+          },
+          {
+            title: "<%= i18n.__('users.index.sex') %>",
+            field: "gender",
+            headerSort: false,
+            formatter: function (cell) {
+              const val = cell.getValue();
+              if (val === 1) return "Mr.";
+              if (val === 2) return "Mrs.";
+              return "—";
+            },
+          },
+          {
+            title: "<%= i18n.__('users.index.groups') %>",
+            field: "groups",
+            sorter: "string",
+            headerSort: false,
+          },
+          {
+            title: "<%= i18n.__('users.index.status') %>",
+            field: "active",
+            headerSort: false,
+            width: 120,
+            formatter: function (cell) {
+              const val = cell.getValue();
+              if (val === 1) return '<span class="badge bg-success rounded-0"><%= i18n.__("users.index.active") %></span>';
+              if (val === 2) return '<span class="badge bg-danger rounded-0"><%= i18n.__("users.index.blocked") %></span>';
+              if (val === 3) return '<span class="badge bg-warning text-dark rounded-0"><%= i18n.__("users.index.invited") %></span>';
+              return '<span class="badge bg-secondary rounded-0"><%= i18n.__("users.index.inactive") %></span>';
+            },
+          },
+          {
+            title: "<%= i18n.__('users.index.last_login') %>",
+            field: "date_last_login",
+            headerSort: false,
+            formatter: function (cell) {
+              const val = cell.getValue();
+              if (!val) return "—";
+              const d = new Date(val);
+              return d.toLocaleDateString("uk-UA") + " " + d.toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" });
+            },
+          },
+          {
+            title: "",
+            field: "id",
+            headerSort: false,
+            width: 130,
+            formatter: function (cell) {
+              const id = cell.getValue();
+              const row = cell.getRow().getData();
+
+              // Кнопка повторного запрошення — лише для протермінованих інвайтів
+              var resendBtn = "";
+              if (row.invite_state === "expired") {
+                resendBtn =
+                  '<button type="button" class="bg-transparent border-0 text-warning resend-invite-btn" ' +
+                  'data-user-id="' + id + '" title="<%= i18n.__('users.index.resend_invite') %>">' +
+                  '<i class="fa-solid fa-paper-plane"></i></button>';
+              }
+
+              return (
+                '<div class="d-flex justify-content-center gap-2">' +
+                resendBtn +
+                '<a href="/users/' + id + '/" class="text-center d-block">' +
+                '<i class="fa-regular fa-pen-to-square"></i></a>' +
+                '<button type="button" class="bg-transparent border-0 text-danger delete-user-btn" data-user-id="' + id + '">' +
+                '<i class="fa-regular fa-trash-can"></i></button>' +
+                "</div>"
+              );
+            },
+          },
+        ],
+      });
+
+      // ── Завантажуємо групи при відкритті модалки ──────────────────────────────
+      $("#modalAddUser").on("show.bs.modal", function () {
+        $.ajax({
+          type: "POST",
+          url: "/api/users/groups/list",
+          dataType: "json",
+          success: function (data) {
+            if (data.status === "success") {
+              var $select = $("#manual_group");
+              $select.find("option:not(:first)").remove();
+              $.each(data.data, function (i, group) {
+                $select.append('<option value="' + group.id + '">' + group.name + "</option>");
+              });
+            }
+          },
+        });
+      });
+
+      // ── Відкриття модалки видалення через делегування ──────────────────────
+      // ── Відкриття модалки видалення через делегування ──────────────────────
+      $(document).on("click", ".delete-user-btn", function () {
+        var userId = $(this).data("user-id");
+        var rowData = table.getData().find(function (item) {
+          return item.id == userId;
+        });
+
+        // Формуємо ПІБ
+        var fullName = [];
+        if (rowData && rowData.last_name) fullName.push(rowData.last_name);
+        if (rowData && rowData.first_name) fullName.push(rowData.first_name);
+        if (rowData && rowData.patronymic) fullName.push(rowData.patronymic);
+
+        var userName = fullName.length > 0 ? fullName.join(" ") : '<%= i18n.__("users.index.no_name") %>';
+        var userEmail = rowData && rowData.email ? rowData.email : '<%= i18n.__("users.index.no_email") %>';
+
+        $("#delete_user_id").text(userId);
+        $("#delete_user_name").text(userName);
+        $("#delete_user_email").text(userEmail);
+        $("#modalDeleteUser").modal("show");
+      });
+
+      // ── Повторне надсилання запрошення ──────────────────────────────────────
+      $(document).on("click", ".resend-invite-btn", function () {
+        var $btn = $(this);
+        var userId = $btn.data("user-id");
+
+        if ($btn.prop("disabled")) return;
+        var originalHtml = $btn.html();
+        $btn.prop("disabled", true).html('<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>');
+
+        $.ajax({
+          type: "POST",
+          url: "/api/users/" + userId + "/resend-invite",
+          dataType: "json",
+          success: function (data) {
+            if (data.status === "success") {
+              notyf.success("<%= i18n.__('users.index.invite_resent') %>");
+              table.replaceData(); // перечитуємо — invite_state стане 'valid'
+            } else {
+              notyf.error("<%= i18n.__('users.index.server_error') %>");
+            }
+          },
+          error: function (XHR) {
+            var data = XHR.responseJSON || {};
+            notyf.error(data.message || "<%= i18n.__('users.index.server_error') %>");
+          },
+          complete: function () {
+            $btn.prop("disabled", false).html(originalHtml);
+          },
+        });
+      });
+
+      // ── Підтвердження видалення ─────────────────────────────────────────────
+      $("#btn_confirm_delete_user").on("click", function () {
+        var userId = $("#delete_user_id").text();
+        var $btn = $(this);
+        var originalHtml = $btn.html();
+
+        if ($btn.prop("disabled")) return;
+
+        $btn.prop("disabled", true).html('<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> <%= i18n.__("users.index.deleting") %>');
+
+        $.ajax({
+          type: "POST",
+          url: "/api/users/delete",
+          dataType: "json",
+          data: {
+            id_user: userId,
+          },
+          success: function (data) {
+            if (data.status === "success") {
+              $("#modalDeleteUser").modal("hide");
+              notyf.success("<%= i18n.__('users.index.user_deleted') %>");
+              table.replaceData();
+            }
+          },
+          error: function (XHR) {
+            var data = XHR.responseJSON || {};
+            notyf.error(data.message || "<%= i18n.__('users.index.server_error') %>");
+          },
+          complete: function () {
+            $btn.prop("disabled", false).html(originalHtml);
+          },
+        });
+      });
+
+      // ── Скидаємо форму при закритті модалки ───────────────────────────────────
+      $("#modalAddUser").on("hidden.bs.modal", function () {
+        $("#modalAddUser input, #modalAddUser select").val("").prop("checked", false);
+        $("#modalAddUser .is-invalid").removeClass("is-invalid");
+        $("#modalAddUser .invalid-feedback").remove();
+        togglePasswordBlock();
+      });
+
+      // ── Генерація пароля ──────────────────────────────────────────────────────
+      $("#modalAddUser .btn-outline-secondary").on("click", function () {
+        const chars = "23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ!@#$%^&*()";
+        const pwd = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+          .map((b) => chars[b % chars.length])
+          .join("");
+        $("#manual_password").val(pwd);
+      });
+
+      // ── Показ/приховання поля пароля ──────────────────────────────────────────
+      function togglePasswordBlock() {
+        $("#manual_password").closest(".mb-3").toggle(!$("#manual_send_email").is(":checked"));
+      }
+      togglePasswordBlock();
+      $("#manual_send_email").on("change", togglePasswordBlock);
+
+      // ── Додавання користувача ─────────────────────────────────────────────────
+      $("#btn_add_user").on("click", function () {
+        $("#modalAddUser .is-invalid").removeClass("is-invalid");
+        $("#modalAddUser .invalid-feedback").remove();
+
+        var $btn = $(this);
+        var originalHtml = $btn.html();
+
+        if ($btn.prop("disabled")) return;
+
+        $btn.prop("disabled", true).html('<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> <%= i18n.__("users.index.adding") %>');
+
+        $.ajax({
+          type: "POST",
+          url: "/api/users/add",
+          dataType: "json",
+          data: {
+            last_name: $('[name="last_name"]', "#modalAddUser").val(),
+            first_name: $('[name="first_name"]', "#modalAddUser").val(),
+            patronymic: $('[name="patronymic"]', "#modalAddUser").val(),
+            email: $('[name="email"]', "#modalAddUser").val(),
+            password: $("#manual_password").val(),
+            id_group: $("#manual_group").val(),
+            send_email: $("#manual_send_email").is(":checked") ? 1 : 0,
+          },
+          success: function (data) {
+            if (data.status === "success") {
+              $("#modalAddUser").modal("hide");
+              notyf.success("<%= i18n.__('users.index.user_added') %>");
+              table.replaceData();
+            }
+          },
+          error: function (XHR) {
+            $btn.prop("disabled", false).html(originalHtml);
+
+            var data = XHR.responseJSON || {};
+            if (data.errors) {
+              $.each(data.errors, function (i, item) {
+                var $input = $('[name="' + item.field + '"]', "#modalAddUser");
+                if (!$input.length) $input = $("#manual_" + item.field);
+                if ($input.length) {
+                  $input.addClass("is-invalid");
+                  $input.after('<div class="invalid-feedback">' + item.msg + "</div>");
+                } else {
+                  notyf.error(item.msg);
+                }
+              });
+              return;
+            }
+
+            notyf.error("<%= i18n.__('users.index.server_error') %>");
+          },
+        });
+      });
+    </script>
+    <!-- END tabulator -->
+  </body>
+</html>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="<%= i18n.__('lang_iso') %>">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= i18n.__('users.invite.accept_title') %></title>
+    <%- include('../partials/head'); %>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+  </head>
+  <body class="d-flex flex-column h-100">
+    <div class="container py-5">
+      <div class="card border-primary rounded-0 mx-auto" style="max-width: 480px;">
+        <div class="card-header text-bg-primary rounded-0">
+          <%= i18n.__('users.invite.accept_title') %>
+        </div>
+        <div class="card-body">
+          <p class="mb-3">
+            <%= i18n.__('users.invite.greeting') %>
+            <strong><%= profile.first_name %> <%= profile.last_name %></strong>
+          </p>
+          <p class="mb-3 text-muted"><%= profile.email %></p>
+
+          <div class="mb-3">
+            <label class="form-label"><%= i18n.__('users.invite.password') %></label>
+            <input type="password" class="form-control rounded-0" id="password" placeholder="<%= i18n.__('users.index.min_8_chars') %>" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label"><%= i18n.__('users.invite.password_confirm') %></label>
+            <input type="password" class="form-control rounded-0" id="confirm_password" />
+          </div>
+
+          <button type="button" class="btn btn-primary rounded-0 w-100" id="btn_accept">
+            <%= i18n.__('users.invite.submit') %>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/assets/js/notyf/notyf.min.js"></script>
+    <script>
+      const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000 });
+      const token = "<%= token %>";
+
+      document.getElementById("btn_accept").addEventListener("click", function () {
+        const btn = this;
+        const password = document.getElementById("password").value;
+        const confirm_password = document.getElementById("confirm_password").value;
+
+        if (btn.disabled) return;
+        btn.disabled = true;
+
+        fetch("/api/invite/accept", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, password, confirm_password }),
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.status === "success") {
+              notyf.success("<%= i18n.__('users.invite.activated') %>");
+              setTimeout(() => (window.location.href = data.url || "/login"), 1000);
+            } else {
+              btn.disabled = false;
+              if (data.errors && data.errors.length) {
+                data.errors.forEach((e) => notyf.error(e.msg));
+              } else {
+                notyf.error(data.message || "<%= i18n.__('users.index.server_error') %>");
+              }
+            }
+          })
+          .catch(() => {
+            btn.disabled = false;
+            notyf.error("<%= i18n.__('users.index.server_error') %>");
+          });
+      });
+    </script>
+  </body>
+</html>

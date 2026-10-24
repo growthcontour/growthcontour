@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+  <head>
+    <title>Логи події — покинуті кошики</title>
+    <%- include('../../../../partials/head'); %>
+    <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+    <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+  </head>
+  <body class="d-flex flex-column h-100">
+    <%- include('../../../../partials/header'); %>
+
+    <div class="container-fluid mt-3">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">Логи події #<%= event_id %></h5>
+        <a href="/orders/abandoned-cart/event/<%= event_id %>/" class="btn btn-primary rounded-0">
+          <i class="fa-solid fa-angle-left"></i>
+        </a>
+      </div>
+
+      <div class="card border-primary rounded-0 mb-3">
+        <div class="card-header text-bg-primary rounded-0">Відправлення</div>
+        <div id="logs-table"></div>
+      </div>
+
+      <div class="card border-primary rounded-0 mb-4">
+        <div class="card-header text-bg-primary rounded-0">Черга та доставка</div>
+        <div id="queue-table"></div>
+      </div>
+    </div>
+
+    <%- include('../../../../partials/footer'); %> <%- include('../../../../partials/script'); %>
+    <script src="/assets/js/tabulator/tabulator.min.js"></script>
+    <script>
+      const EVENT_ID = <%= Number(event_id) %>;
+      const CH = { 1: "SMS", 2: "Email", 3: "Viber" };
+
+      async function fetchLogs() {
+        const res = await fetch("/api/orders/abandoned-cart/event-logs/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ event_id: EVENT_ID, limit: 500 }),
+        });
+        return res.json();
+      }
+
+      const logsTable = new Tabulator("#logs-table", {
+        layout: "fitColumns",
+        paginationSize: 10,
+        pagination: true,
+        columns: [
+          { title: "ID", field: "id", widthGrow: 0.3, headerSort: false },
+          { title: "Cart", field: "cart_id", widthGrow: 0.3, headerSort: false },
+          { title: "Канал", field: "channel", widthGrow: 0.4, headerSort: false, formatter: (c) => CH[c.getValue()] || "—" },
+          { title: "Отримувач", field: "recipient", widthGrow: 0.8, headerSort: false },
+          { title: "Результат", field: "success", widthGrow: 0.5, headerSort: false,
+            formatter: (c) => c.getValue() ? '<span class="badge rounded-0 text-bg-success">OK</span>' : '<span class="badge rounded-0 text-bg-danger">FAIL</span>' },
+          { title: "HTTP", field: "http_status", widthGrow: 0.3, headerSort: false },
+          { title: "Відправлено", field: "sent_at", widthGrow: 1, headerSort: false,
+            formatter: (c) => c.getValue() ? new Date(c.getValue()).toLocaleString("uk-UA") : "—" },
+          { title: "correlation_id", field: "correlation_id", widthGrow: 1.2, headerSort: false,
+            formatter: (c) => c.getValue() ? `<span class="text-muted small">${c.getValue()}</span>` : "—" },
+        ],
+      });
+
+      const queueTable = new Tabulator("#queue-table", {
+        layout: "fitColumns",
+        paginationSize: 10,
+        pagination: true,
+        columns: [
+          { title: "ID", field: "id", widthGrow: 0.3, headerSort: false },
+          { title: "Cart", field: "cart_id", widthGrow: 0.3, headerSort: false },
+          { title: "Спроба", field: "attempt_no", widthGrow: 0.3, headerSort: false },
+          { title: "Статус", field: "status", widthGrow: 0.6, headerSort: false,
+            formatter: (c) => {
+              const v = c.getValue();
+              const m = { sent: "text-bg-success", failed: "text-bg-danger", pending: "text-bg-secondary", processing: "text-bg-warning", skipped: "text-bg-info", canceled: "text-bg-dark" };
+              return `<span class="badge rounded-0 ${m[v] || "text-bg-secondary"}">${v}</span>`;
+            } },
+          { title: "Доставка", field: "delivery_status", widthGrow: 0.7, headerSort: false,
+            formatter: (c) => {
+              const r = c.getRow().getData();
+              const s = c.getValue();
+              if (!s) return '<span class="text-muted">—</span>';
+              const extra = r.delivery_extra ? ` <span class="text-muted small">(${r.delivery_extra})</span>` : "";
+              const cls = s === "Delivered" ? "text-bg-success" : (s === "Rejected" || s === "Undeliverable" || s === "Expired") ? "text-bg-danger" : "text-bg-secondary";
+              return `<span class="badge rounded-0 ${cls}">${s}</span>${extra}`;
+            } },
+          { title: "Спроб", field: "attempts", widthGrow: 0.3, headerSort: false },
+          { title: "Sent at", field: "sent_at", widthGrow: 1, headerSort: false,
+            formatter: (c) => c.getValue() ? new Date(c.getValue()).toLocaleString("uk-UA") : "—" },
+          { title: "Помилка", field: "last_error", widthGrow: 1.2, headerSort: false,
+            formatter: (c) => c.getValue() ? `<span class="text-danger small">${c.getValue()}</span>` : "—" },
+        ],
+      });
+
+      (async () => {
+        const d = await fetchLogs();
+        logsTable.setData(d.logs || []);
+        queueTable.setData(d.queue || []);
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,155 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.stock.movements.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="/assets/css/tabulator/tabulator_bootstrap5.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><a href="/catalog/stock/documents/"><%= i18n.__('catalog.stock.documents.title') %></a></li>
+					<li class="breadcrumb-item active"><%= i18n.__('catalog.stock.movements.title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<h1 class="h4 mb-3"><%= i18n.__('catalog.stock.movements.title') %></h1>
+				<div class="row g-2 mb-3">
+					<div class="col-md-3"><input type="search" class="form-control rounded-0" id="f-search" placeholder="<%= i18n.__('catalog.stock.movements.search') %>" /></div>
+					<div class="col-md-2">
+						<select class="form-select rounded-0" id="f-warehouse">
+							<option value=""><%= i18n.__('catalog.stock.documents.all_warehouses') %></option>
+							<% warehouses.forEach((w) => { %><option value="<%= w.id %>"><%= w.code %> — <%= w.name %></option><% }) %>
+						</select>
+					</div>
+					<div class="col-md-2">
+						<select class="form-select rounded-0" id="f-type">
+							<option value=""><%= i18n.__('catalog.stock.documents.all_types') %></option>
+							<% ['receipt','sale','return','transfer_in','transfer_out','adjustment','writeoff','inventory','reserve','unreserve'].forEach((t) => { %>
+							<option value="<%= t %>"><%= i18n.__('catalog.stock.move_types.' + t) %></option>
+							<% }) %>
+						</select>
+					</div>
+					<div class="col-md-3 d-flex gap-2">
+						<input type="date" class="form-control rounded-0" id="f-from" />
+						<input type="date" class="form-control rounded-0" id="f-to" />
+					</div>
+				</div>
+				<div id="grid"></div>
+			</div>
+		</main>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const COST = <%= perms.cost %>;
+				const MOVE = {
+					receipt: "<%= i18n.__('catalog.stock.move_types.receipt') %>",
+					sale: "<%= i18n.__('catalog.stock.move_types.sale') %>",
+					return: "<%= i18n.__('catalog.stock.move_types.return') %>",
+					transfer_in: "<%= i18n.__('catalog.stock.move_types.transfer_in') %>",
+					transfer_out: "<%= i18n.__('catalog.stock.move_types.transfer_out') %>",
+					adjustment: "<%= i18n.__('catalog.stock.move_types.adjustment') %>",
+					writeoff: "<%= i18n.__('catalog.stock.move_types.writeoff') %>",
+					inventory: "<%= i18n.__('catalog.stock.move_types.inventory') %>",
+					reserve: "<%= i18n.__('catalog.stock.move_types.reserve') %>",
+					unreserve: "<%= i18n.__('catalog.stock.move_types.unreserve') %>",
+					bundle_assembly: "bundle_assembly",
+					bundle_disassembly: "bundle_disassembly",
+				};
+				const FIELDS = {
+					on_hand: "<%= i18n.__('catalog.products.stock.on_hand') %>",
+					reserved: "<%= i18n.__('catalog.products.stock.reserved') %>",
+					incoming: "<%= i18n.__('catalog.products.stock.incoming') %>",
+				};
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+				const params = new URLSearchParams(window.location.search);
+
+				const filters = () => ({
+					search: document.getElementById("f-search").value.trim(),
+					id_product: params.get("id_product") || "",
+					id_warehouse: document.getElementById("f-warehouse").value,
+					type: document.getElementById("f-type").value,
+					date_from: document.getElementById("f-from").value,
+					date_to: document.getElementById("f-to").value,
+				});
+
+				const columns = [
+					{ title: "<%= i18n.__('catalog.stock.movements.date') %>", field: "date_add", width: 170, headerSort: false },
+					{
+						title: "<%= i18n.__('catalog.stock.f.product') %>",
+						field: "name",
+						minWidth: 220,
+						headerSort: false,
+						formatter: (c) => {
+							const r = c.getRow().getData();
+							return `<a href="/catalog/products/${r.id_product}/">${esc(r.name)}</a><div class="small text-muted">${esc(r.variant_sku || r.sku || "")}</div>`;
+						},
+					},
+					{ title: "<%= i18n.__('catalog.stock.f.warehouse') %>", field: "warehouse", width: 110, headerSort: false, formatter: (c) => esc(c.getValue()) },
+					{ title: "<%= i18n.__('catalog.stock.f.type') %>", field: "type", width: 150, headerSort: false, formatter: (c) => esc(MOVE[c.getValue()] || c.getValue()) },
+					{ title: "<%= i18n.__('catalog.stock.movements.field') %>", field: "field", width: 110, headerSort: false, formatter: (c) => esc(FIELDS[c.getValue()] || c.getValue()) },
+					{
+						title: "<%= i18n.__('catalog.stock.f.qty') %>",
+						field: "qty",
+						width: 100,
+						hozAlign: "right",
+						headerSort: false,
+						formatter: (c) => {
+							const q = Number(c.getValue());
+							return `<span class="${q < 0 ? "text-danger" : "text-success"}">${q > 0 ? "+" : ""}${q.toLocaleString()}</span>`;
+						},
+					},
+					{ title: "<%= i18n.__('catalog.stock.movements.before_after') %>", field: "qty_after", width: 140, hozAlign: "right", headerSort: false, formatter: (c) => `${Number(c.getRow().getData().qty_before).toLocaleString()} → ${Number(c.getValue()).toLocaleString()}` },
+				];
+				if (COST) columns.push({ title: "<%= i18n.__('catalog.stock.f.cost_price') %>", field: "cost_price", width: 110, hozAlign: "right", headerSort: false });
+				columns.push(
+					{
+						title: "<%= i18n.__('catalog.stock.movements.source') %>",
+						field: "ref_type",
+						width: 190,
+						headerSort: false,
+						formatter: (c) => {
+							const r = c.getRow().getData();
+							if (r.ref_type === "stock_document" && r.document_number) return `<a href="/catalog/stock/documents/${r.ref_id}/">${esc(r.document_number)}</a>`;
+							if (r.ref_type === "product_card" || r.ref_type === "product_variants") return `<a href="/catalog/products/${r.ref_id}/"><%= i18n.__('catalog.stock.movements.card') %></a>`;
+							return esc((r.ref_type || "") + (r.ref_id ? " #" + r.ref_id : ""));
+						},
+					},
+					{ title: "<%= i18n.__('catalog.stock.f.author') %>", field: "user_name", width: 150, headerSort: false, formatter: (c) => esc(c.getValue()) },
+					{ title: "<%= i18n.__('catalog.stock.f.comment') %>", field: "comment", headerSort: false, formatter: (c) => esc(c.getValue()) }
+				);
+
+				const grid = new Tabulator("#grid", {
+					layout: "fitColumns",
+					placeholder: "—",
+					pagination: true,
+					paginationMode: "remote",
+					paginationSize: 100,
+					ajaxURL: "/api/catalog/products/stock/movements/list/",
+					ajaxConfig: { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" } },
+					ajaxContentType: "json",
+					ajaxParams: filters,
+					columns,
+				});
+				let timer;
+				document.getElementById("f-search").addEventListener("input", () => {
+					clearTimeout(timer);
+					timer = setTimeout(() => grid.setData(), 300);
+				});
+				["f-warehouse", "f-type", "f-from", "f-to"].forEach((id) => document.getElementById(id).addEventListener("change", () => grid.setData()));
+			})();
+		</script>
+	</body>
+</html>

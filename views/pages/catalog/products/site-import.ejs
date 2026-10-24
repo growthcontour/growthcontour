@@ -1,0 +1,713 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.site_import.page.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			#impJobs tr { cursor: pointer; }
+			.imp-preview th { width: 160px; font-weight: 500; color: var(--bs-secondary-color); }
+			.imp-map-label { display: inline-block; min-width: 180px; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><%= i18n.__('catalog.menu.catalog') %></li>
+					<li class="breadcrumb-item"><a href="/catalog/import/"><%= i18n.__('catalog.import.title') %></a></li>
+					<li class="breadcrumb-item active"><%= i18n.__('catalog.site_import.page.title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<h1 class="h4 mb-1"><%= i18n.__('catalog.site_import.page.title') %></h1>
+				<p class="text-secondary small mb-3"><%= i18n.__('catalog.site_import.page.intro') %></p>
+
+				<% if (!integrations.length) { %>
+				<div class="alert alert-warning rounded-0"><%= i18n.__('catalog.site_import.page.no_integrations') %> <a href="/settings/integrations/"><%= i18n.__('catalog.site_import.page.to_integrations') %></a></div>
+				<% } else { %>
+				<div class="row g-3">
+					<div class="col-xl-5">
+						<div class="card rounded-0">
+							<div class="card-header fw-semibold"><%= i18n.__('catalog.site_import.page.settings') %></div>
+							<div class="card-body">
+								<div class="mb-3">
+									<label class="form-label"><%= i18n.__('catalog.site_import.page.site') %></label>
+									<select class="form-select rounded-0" id="impIntegration">
+										<% integrations.forEach(function (it) { %>
+										<option value="<%= it.id %>"><%= it.name %><%= it.base_url ? ' — ' + it.base_url : '' %></option>
+										<% }); %>
+									</select>
+									<div class="form-text" id="impSiteInfo"></div>
+								</div>
+
+								<div class="mb-3">
+									<label class="form-label d-block"><%= i18n.__('catalog.site_import.page.mode') %></label>
+									<div class="btn-group" role="group">
+										<input type="radio" class="btn-check" name="impMode" id="impModeDry" value="dry" checked />
+										<label class="btn btn-outline-primary rounded-0" for="impModeDry"><%= i18n.__('catalog.site_import.page.mode_dry') %></label>
+										<input type="radio" class="btn-check" name="impMode" id="impModeTrial" value="trial" />
+										<label class="btn btn-outline-primary" for="impModeTrial"><%= i18n.__('catalog.site_import.page.mode_trial') %></label>
+										<input type="radio" class="btn-check" name="impMode" id="impModeFull" value="full" />
+										<label class="btn btn-outline-primary rounded-0" for="impModeFull"><%= i18n.__('catalog.site_import.page.mode_full') %></label>
+									</div>
+									<div class="form-text"><%= i18n.__('catalog.site_import.page.mode_help') %></div>
+								</div>
+
+								<div class="row g-2 mb-3">
+									<div class="col-4">
+										<label class="form-label"><%= i18n.__('catalog.site_import.page.limit') %></label>
+										<input type="number" min="0" class="form-control rounded-0" id="impLimit" value="0" />
+									</div>
+									<div class="col-8">
+										<label class="form-label"><%= i18n.__('catalog.site_import.page.ids') %></label>
+										<input type="text" class="form-control rounded-0" id="impIds" placeholder="<%= i18n.__('catalog.site_import.page.ids_placeholder') %>" />
+									</div>
+									<div class="col-12 form-text mt-0"><%= i18n.__('catalog.site_import.page.limit_help') %></div>
+								</div>
+
+								<div class="mb-3">
+									<label class="form-label"><%= i18n.__('catalog.site_import.page.match') %></label>
+									<table class="table table-sm align-middle mb-1">
+										<thead><tr><th style="width:30px">#</th><th><%= i18n.__('catalog.site_import.page.site_field') %></th><th></th><th><%= i18n.__('catalog.site_import.page.crm_field') %></th><th style="width:100px"></th></tr></thead>
+										<tbody id="impMatch"></tbody>
+									</table>
+									<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="impMatchAdd"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.site_import.page.add_rule') %></button>
+									<div class="form-text"><%= i18n.__('catalog.site_import.page.match_help') %></div>
+								</div>
+
+								<div class="row g-2 mb-3">
+									<div class="col-md-6">
+										<label class="form-label"><%= i18n.__('catalog.site_import.page.on_new') %></label>
+										<select class="form-select rounded-0" id="impOnNew">
+											<option value="create"><%= i18n.__('catalog.site_import.page.new_create') %></option>
+											<option value="skip"><%= i18n.__('catalog.site_import.page.new_skip') %></option>
+										</select>
+									</div>
+									<div class="col-md-6">
+										<label class="form-label"><%= i18n.__('catalog.site_import.page.status_new') %></label>
+										<select class="form-select rounded-0" id="impStatusNew">
+											<option value="draft"><%= i18n.__('catalog.site_import.page.status_draft') %></option>
+											<option value="active"><%= i18n.__('catalog.site_import.page.status_active') %></option>
+											<option value="site"><%= i18n.__('catalog.site_import.page.status_site') %></option>
+										</select>
+									</div>
+									<div class="col-md-6">
+										<label class="form-label"><%= i18n.__('catalog.site_import.page.sku_from') %></label>
+										<select class="form-select rounded-0" id="impSkuFrom">
+											<option value="sku"><%= i18n.__('catalog.site_import.page.sku_sku') %></option>
+											<option value="model"><%= i18n.__('catalog.site_import.page.sku_model') %></option>
+											<option value="none"><%= i18n.__('catalog.site_import.page.sku_none') %></option>
+										</select>
+									</div>
+									<div class="col-md-6">
+										<label class="form-label"><%= i18n.__('catalog.site_import.page.on_match') %></label>
+										<select class="form-select rounded-0" id="impOnMatch">
+											<option value="link"><%= i18n.__('catalog.site_import.page.match_link') %></option>
+											<option value="update"><%= i18n.__('catalog.site_import.page.match_update') %></option>
+										</select>
+									</div>
+									<div class="col-12 d-none" id="impUpdateFields">
+										<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="impUpdPrice" /><label class="form-check-label" for="impUpdPrice"><%= i18n.__('catalog.site_import.page.upd_price') %></label></div>
+										<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="impUpdStock" /><label class="form-check-label" for="impUpdStock"><%= i18n.__('catalog.site_import.page.upd_stock') %></label></div>
+										<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="impUpdStatus" /><label class="form-check-label" for="impUpdStatus"><%= i18n.__('catalog.site_import.page.upd_status') %></label></div>
+										<div class="small text-secondary mt-2 mb-1"><%= i18n.__('catalog.site_import.page.upd_content') %></div>
+										<% ['names', 'codes', 'brand', 'categories', 'images', 'attributes', 'options'].forEach(function (k) { %>
+										<div class="form-check form-check-inline"><input class="form-check-input imp-upd-content" type="checkbox" data-key="<%= k %>" id="impUpd_<%= k %>" /><label class="form-check-label" for="impUpd_<%= k %>"><%= i18n.__('catalog.site_import.page.upd_' + k) %></label></div>
+										<% }); %>
+										<select class="form-select form-select-sm rounded-0 mt-2" id="impContentMode" style="max-width:420px">
+											<option value="fill"><%= i18n.__('catalog.site_import.page.content_fill') %></option>
+											<option value="overwrite"><%= i18n.__('catalog.site_import.page.content_overwrite') %></option>
+										</select>
+									</div>
+								</div>
+
+								<div class="row g-2 mb-3">
+									<div class="col-md-6">
+										<label class="form-label"><%= i18n.__('catalog.site_import.page.categories') %></label>
+										<select class="form-select rounded-0" id="impCategories">
+											<option value="path"><%= i18n.__('catalog.site_import.page.cat_path') %></option>
+											<option value="match"><%= i18n.__('catalog.site_import.page.cat_match') %></option>
+											<option value="none"><%= i18n.__('catalog.site_import.page.cat_none') %></option>
+										</select>
+									</div>
+									<div class="col-md-6">
+										<label class="form-label"><%= i18n.__('catalog.site_import.page.brands') %></label>
+										<select class="form-select rounded-0" id="impBrands">
+											<option value="create"><%= i18n.__('catalog.site_import.page.brand_create') %></option>
+											<option value="match"><%= i18n.__('catalog.site_import.page.brand_match') %></option>
+											<option value="none"><%= i18n.__('catalog.site_import.page.brand_none') %></option>
+										</select>
+									</div>
+									<div class="col-md-6">
+										<label class="form-label"><%= i18n.__('catalog.site_import.page.attributes') %></label>
+										<select class="form-select rounded-0" id="impAttributes">
+											<option value="create"><%= i18n.__('catalog.site_import.page.attr_create') %></option>
+											<option value="match"><%= i18n.__('catalog.site_import.page.attr_match') %></option>
+											<option value="none"><%= i18n.__('catalog.site_import.page.attr_none') %></option>
+										</select>
+									</div>
+									<div class="col-md-6">
+										<label class="form-label"><%= i18n.__('catalog.site_import.page.options') %></label>
+										<select class="form-select rounded-0" id="impOptions">
+											<option value="create"><%= i18n.__('catalog.site_import.page.opt_create') %></option>
+											<option value="match"><%= i18n.__('catalog.site_import.page.opt_match') %></option>
+											<option value="none"><%= i18n.__('catalog.site_import.page.opt_none') %></option>
+										</select>
+									</div>
+									<div class="col-md-6">
+										<label class="form-label"><%= i18n.__('catalog.site_import.page.warehouse') %></label>
+										<select class="form-select rounded-0" id="impWarehouse"></select>
+									</div>
+									<div class="col-md-6 d-flex flex-column justify-content-end">
+										<div class="form-check"><input class="form-check-input" type="checkbox" id="impImages" checked /><label class="form-check-label" for="impImages"><%= i18n.__('catalog.site_import.page.images') %></label></div>
+										<div class="form-check"><input class="form-check-input" type="checkbox" id="impRelated" checked /><label class="form-check-label" for="impRelated"><%= i18n.__('catalog.site_import.page.related') %></label></div>
+										<div class="form-check"><input class="form-check-input" type="checkbox" id="impLinkSite" checked /><label class="form-check-label" for="impLinkSite"><%= i18n.__('catalog.site_import.page.link_site') %></label></div>
+									</div>
+								</div>
+
+								<div class="mb-3">
+									<label class="form-label"><%= i18n.__('catalog.site_import.page.langs') %></label>
+									<div id="impLangs" class="small"></div>
+								</div>
+								<div class="mb-3">
+									<label class="form-label"><%= i18n.__('catalog.site_import.page.groups') %></label>
+									<div id="impGroups" class="small"></div>
+									<div class="form-text"><%= i18n.__('catalog.site_import.page.groups_help') %></div>
+								</div>
+
+								<% if (perms.add) { %>
+								<button type="button" class="btn btn-primary rounded-0" id="impStart"><i class="fa-solid fa-play"></i> <%= i18n.__('catalog.site_import.page.start') %></button>
+								<% } %>
+							</div>
+						</div>
+					</div>
+
+					<div class="col-xl-7">
+						<div class="card rounded-0 mb-3">
+							<div class="card-header fw-semibold"><%= i18n.__('catalog.site_import.page.schedule') %></div>
+							<div class="card-body">
+								<div class="row g-2 align-items-end">
+									<div class="col-sm-5">
+										<label class="form-label"><%= i18n.__('catalog.site_import.page.schedule_every') %></label>
+										<select class="form-select rounded-0" id="impSchedHours"<%= perms.add ? '' : ' disabled' %>>
+											<option value="0"><%= i18n.__('catalog.site_import.page.schedule_off') %></option>
+											<option value="1"><%= i18n.__('catalog.site_import.page.schedule_1') %></option>
+											<option value="3"><%= i18n.__('catalog.site_import.page.schedule_3') %></option>
+											<option value="6"><%= i18n.__('catalog.site_import.page.schedule_6') %></option>
+											<option value="12"><%= i18n.__('catalog.site_import.page.schedule_12') %></option>
+											<option value="24"><%= i18n.__('catalog.site_import.page.schedule_24') %></option>
+										</select>
+									</div>
+									<div class="col-sm-3">
+										<label class="form-label"><%= i18n.__('catalog.site_import.page.schedule_at') %></label>
+										<input type="time" class="form-control rounded-0" id="impSchedAt" value="03:00"<%= perms.add ? '' : ' disabled' %> />
+									</div>
+									<% if (perms.add) { %>
+									<div class="col-sm-4">
+										<button type="button" class="btn btn-outline-primary rounded-0 w-100" id="impSchedSave"><i class="fa-solid fa-clock"></i> <%= i18n.__('catalog.site_import.page.schedule_save') %></button>
+									</div>
+									<% } %>
+								</div>
+								<div class="form-text"><%= i18n.__('catalog.site_import.page.schedule_help') %></div>
+								<div class="small mt-2" id="impSchedInfo"></div>
+							</div>
+						</div>
+
+						<div class="card rounded-0">
+							<div class="card-header fw-semibold"><%= i18n.__('catalog.site_import.page.progress') %></div>
+							<div class="card-body">
+								<div id="impJob" class="mb-3"></div>
+								<div class="table-responsive">
+									<table class="table table-sm table-hover mb-0">
+										<thead><tr><th>#</th><th><%= i18n.__('catalog.site_import.page.col_mode') %></th><th><%= i18n.__('catalog.site_import.page.col_status') %></th><th><%= i18n.__('catalog.site_import.page.col_processed') %></th><th><%= i18n.__('catalog.site_import.page.col_result') %></th><th><%= i18n.__('catalog.site_import.page.col_date') %></th></tr></thead>
+										<tbody id="impJobs"></tbody>
+									</table>
+								</div>
+							</div>
+						</div>
+
+						<div class="card rounded-0 mt-3 d-none" id="impReport">
+							<div class="card-header fw-semibold"><%= i18n.__('catalog.site_import.page.report') %> <span id="impReportTitle"></span></div>
+							<div class="card-body">
+								<div class="d-flex flex-wrap gap-2 mb-2">
+									<div class="btn-group btn-group-sm" id="impFilter">
+										<button type="button" class="btn btn-outline-secondary rounded-0 active" data-action=""><%= i18n.__('catalog.site_import.page.f_all') %></button>
+										<button type="button" class="btn btn-outline-secondary" data-action="create"><%= i18n.__('catalog.site_import.page.a_create') %></button>
+										<button type="button" class="btn btn-outline-secondary" data-action="link"><%= i18n.__('catalog.site_import.page.a_link') %></button>
+										<button type="button" class="btn btn-outline-secondary" data-action="update"><%= i18n.__('catalog.site_import.page.a_update') %></button>
+										<button type="button" class="btn btn-outline-secondary" data-action="skip"><%= i18n.__('catalog.site_import.page.a_skip') %></button>
+										<button type="button" class="btn btn-outline-secondary" data-action="error"><%= i18n.__('catalog.site_import.page.a_error') %></button>
+										<button type="button" class="btn btn-outline-secondary rounded-0" data-action="warnings"><%= i18n.__('catalog.site_import.page.f_warnings') %></button>
+									</div>
+									<input type="search" class="form-control form-control-sm rounded-0" style="max-width:240px" id="impSearch" placeholder="<%= i18n.__('catalog.site_import.page.search') %>" />
+								</div>
+								<div class="table-responsive">
+									<table class="table table-sm table-bordered align-middle">
+										<thead><tr><th><%= i18n.__('catalog.site_import.page.col_site_id') %></th><th>SKU</th><th><%= i18n.__('catalog.site_import.page.col_name') %></th><th><%= i18n.__('catalog.site_import.page.col_action') %></th><th><%= i18n.__('catalog.site_import.page.col_matched') %></th><th><%= i18n.__('catalog.site_import.page.col_product') %></th><th><%= i18n.__('catalog.site_import.page.col_details') %></th></tr></thead>
+										<tbody id="impItems"></tbody>
+									</table>
+								</div>
+								<div class="d-flex align-items-center gap-2" id="impPager"></div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<% } %>
+			</div>
+		</main>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<% if (integrations.length) { %>
+		<script>
+			(function () {
+				"use strict";
+
+				const L = <%- JSON.stringify(i18n.__('catalog.site_import.page')).replace(/</g, '\\u003c') %>;
+				const PERMS = <%- JSON.stringify(perms) %>;
+				const B = "/api/catalog/products/site-import";
+				const STORE_KEY = "gc_site_import_options";
+				const notyf = new Notyf({ duration: 4000, position: { x: "right", y: "top" } });
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s === null || s === undefined ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const fmt = (s, v) => String(s).replace(/\{(\w+)\}/g, (m, k) => (v[k] !== undefined ? v[k] : m));
+
+				let SITE_FIELDS = ["id", "model", "sku", "ean", "upc", "mpn", "jan", "isbn"];
+				let CRM_FIELDS = ["id", "sku", "model", "ean", "upc", "mpn"];
+				let DEFAULT_MATCH = [{ site: "link" }, { site: "sku", crm: "sku" }, { site: "model", crm: "sku" }, { site: "ean", crm: "ean" }];
+				let sys = null, site = null, poll = null, currentJob = null;
+				const report = { id: 0, action: "", warnings: false, search: "", page: 1 };
+
+				const idIntegration = () => parseInt($("impIntegration").value, 10);
+
+				async function api(op, body) {
+					const res = await fetch(`${B}/${op}/`, {
+						method: "POST",
+						credentials: "same-origin",
+						headers: { "Content-Type": "application/json", Accept: "application/json" },
+						body: JSON.stringify({ id_integration: idIntegration(), ...(body || {}) }),
+					});
+					let json = {};
+					try {
+						json = await res.json();
+					} catch (e) {
+						json = {};
+					}
+					if (!res.ok || !json.ok) throw new Error(json.error || L.error);
+					return json;
+				}
+
+				function saved() {
+					try {
+						return JSON.parse(localStorage.getItem(STORE_KEY + ":" + idIntegration()) || "null") || {};
+					} catch (e) {
+						return {};
+					}
+				}
+
+				/* ─── Правила ─── */
+				function ruleRow(r) {
+					const siteOpts = [`<option value="link"${r.site === "link" ? " selected" : ""}>${esc(L.rule_link)}</option>`]
+						.concat(SITE_FIELDS.map((f) => `<option value="${f}"${r.site === f ? " selected" : ""}>${f}</option>`))
+						.join("");
+					const crmOpts = CRM_FIELDS.map((f) => `<option value="${f}"${r.crm === f ? " selected" : ""}>${f}</option>`).join("");
+					return `<tr><td class="imp-n"></td>
+						<td><select class="form-select form-select-sm rounded-0 imp-site">${siteOpts}</select></td>
+						<td class="text-center imp-arrow">&rarr;</td>
+						<td><select class="form-select form-select-sm rounded-0 imp-crm">${crmOpts}</select></td>
+						<td class="text-end text-nowrap">
+							<button type="button" class="btn btn-sm btn-outline-secondary rounded-0 imp-up"><i class="fa-solid fa-arrow-up"></i></button>
+							<button type="button" class="btn btn-sm btn-outline-secondary rounded-0 imp-down"><i class="fa-solid fa-arrow-down"></i></button>
+							<button type="button" class="btn btn-sm btn-outline-danger rounded-0 imp-del"><i class="fa-solid fa-xmark"></i></button>
+						</td></tr>`;
+				}
+				function renumber() {
+					[...$("impMatch").rows].forEach((tr, i) => {
+						tr.querySelector(".imp-n").textContent = i + 1;
+						const isLink = tr.querySelector(".imp-site").value === "link";
+						tr.querySelector(".imp-crm").classList.toggle("d-none", isLink);
+						tr.querySelector(".imp-arrow").classList.toggle("invisible", isLink);
+					});
+				}
+				function setRules(list) {
+					$("impMatch").innerHTML = list.map(ruleRow).join("");
+					renumber();
+				}
+				$("impMatchAdd").addEventListener("click", () => {
+					$("impMatch").insertAdjacentHTML("beforeend", ruleRow({ site: "sku", crm: "sku" }));
+					renumber();
+				});
+				$("impMatch").addEventListener("change", (e) => e.target.classList.contains("imp-site") && renumber());
+				$("impMatch").addEventListener("click", (e) => {
+					const btn = e.target.closest("button");
+					if (!btn) return;
+					const tr = btn.closest("tr");
+					if (btn.classList.contains("imp-del")) tr.remove();
+					if (btn.classList.contains("imp-up") && tr.previousElementSibling) tr.parentNode.insertBefore(tr, tr.previousElementSibling);
+					if (btn.classList.contains("imp-down") && tr.nextElementSibling) tr.parentNode.insertBefore(tr.nextElementSibling, tr);
+					renumber();
+				});
+
+				document.querySelectorAll('input[name="impMode"]').forEach((r) =>
+					r.addEventListener("change", () => {
+						const m = document.querySelector('input[name="impMode"]:checked').value;
+						if (m === "full") $("impLimit").value = 0;
+						else if (m === "trial" && !parseInt($("impLimit").value, 10)) $("impLimit").value = 20;
+					})
+				);
+				$("impOnMatch").addEventListener("change", () => $("impUpdateFields").classList.toggle("d-none", $("impOnMatch").value !== "update"));
+
+				/* ─── Довідники ─── */
+				function renderMaps(o) {
+					$("impWarehouse").innerHTML =
+						`<option value="">${esc(L.no_warehouse)}</option>` +
+						(sys.warehouses || []).map((w) => `<option value="${w.id}"${Number(w.id) === Number(o.id_warehouse || sys.id_default_warehouse) ? " selected" : ""}>${esc(w.name)}</option>`).join("");
+
+					$("impLangs").innerHTML = (site.languages || [])
+						.map((l) => {
+							const opts = [`<option value="">${esc(L.auto)}</option>`]
+								.concat((sys.languages || []).map((s) => `<option value="${s.id}"${o.langs && Number(o.langs[l.code]) === Number(s.id) ? " selected" : ""}>${esc(s.name + " (" + s.code + ")")}</option>`))
+								.join("");
+							return `<div class="mb-1"><span class="imp-map-label">${esc(l.name + " (" + l.code + ")")}</span> &rarr;
+								<select class="form-select form-select-sm rounded-0 d-inline-block w-auto imp-lang" data-code="${esc(l.code)}">${opts}</select></div>`;
+						})
+						.join("");
+
+					$("impGroups").innerHTML = (site.customer_groups || [])
+						.map((g) => {
+							const v = o.groups ? o.groups[g.id] : undefined;
+							const opts = [`<option value="">${esc(L.auto)}</option>`, `<option value="0"${String(v) === "0" ? " selected" : ""}>${esc(L.group_all)}</option>`]
+								.concat((sys.customer_groups || []).map((s) => `<option value="${s.id}"${Number(v) === Number(s.id) ? " selected" : ""}>${esc(s.name)}</option>`))
+								.concat([`<option value="-1"${String(v) === "-1" ? " selected" : ""}>${esc(L.group_skip)}</option>`])
+								.join("");
+							return `<div class="mb-1"><span class="imp-map-label">${esc(g.name)}${Number(g.id) === Number(site.default_customer_group) ? " *" : ""}</span> &rarr;
+								<select class="form-select form-select-sm rounded-0 d-inline-block w-auto imp-group" data-id="${g.id}">${opts}</select></div>`;
+						})
+						.join("");
+
+					$("impSiteInfo").textContent = fmt(L.site_info, { n: site.products || 0, cur: site.currency || "—" });
+				}
+
+				function applyOptions(o) {
+					setRules(o.match && o.match.length ? o.match : DEFAULT_MATCH);
+					const set = (id, v) => v !== undefined && v !== null && ($(id).value = v);
+					set("impSkuFrom", o.sku_from);
+					set("impOnNew", o.on_new);
+					set("impStatusNew", o.status_new);
+					set("impOnMatch", o.on_match);
+					set("impCategories", o.categories);
+					set("impBrands", o.brands);
+					set("impAttributes", o.attributes);
+					set("impOptions", o.options);
+					if (o.related !== undefined) $("impRelated").checked = !!o.related;
+					if (o.update) {
+						$("impUpdPrice").checked = !!o.update.price;
+						$("impUpdStock").checked = !!o.update.stock;
+						$("impUpdStatus").checked = !!o.update.status;
+						document.querySelectorAll(".imp-upd-content").forEach((c) => (c.checked = !!o.update[c.dataset.key]));
+					}
+					set("impContentMode", o.content_mode);
+					if (o.images !== undefined) $("impImages").checked = !!o.images;
+					if (o.link_site !== undefined) $("impLinkSite").checked = !!o.link_site;
+					$("impUpdateFields").classList.toggle("d-none", $("impOnMatch").value !== "update");
+				}
+
+				function collect() {
+					const match = [...$("impMatch").rows].map((tr) => {
+						const s = tr.querySelector(".imp-site").value;
+						return s === "link" ? { site: "link" } : { site: s, crm: tr.querySelector(".imp-crm").value };
+					});
+					const langs = {};
+					document.querySelectorAll(".imp-lang").forEach((s) => s.value && (langs[s.dataset.code] = parseInt(s.value, 10)));
+					const groups = {};
+					document.querySelectorAll(".imp-group").forEach((s) => s.value !== "" && (groups[s.dataset.id] = parseInt(s.value, 10)));
+					const ids = String($("impIds").value || "")
+						.split(/[\s,;]+/)
+						.map((x) => parseInt(x, 10))
+						.filter((x) => x > 0);
+					return {
+						limit: parseInt($("impLimit").value, 10) || 0,
+						ids,
+						match,
+						sku_from: $("impSkuFrom").value,
+						on_new: $("impOnNew").value,
+						status_new: $("impStatusNew").value,
+						on_match: $("impOnMatch").value,
+						update: Object.assign(
+							{ price: $("impUpdPrice").checked, stock: $("impUpdStock").checked, status: $("impUpdStatus").checked },
+							Object.fromEntries([...document.querySelectorAll(".imp-upd-content")].map((c) => [c.dataset.key, c.checked]))
+						),
+						content_mode: $("impContentMode").value,
+						categories: $("impCategories").value,
+						brands: $("impBrands").value,
+						attributes: $("impAttributes").value,
+						options: $("impOptions").value,
+						related: $("impRelated").checked,
+						images: $("impImages").checked,
+						link_site: $("impLinkSite").checked,
+						id_warehouse: parseInt($("impWarehouse").value, 10) || null,
+						langs,
+						groups,
+					};
+				}
+
+				async function loadIntegration() {
+					clearTimeout(poll);
+					currentJob = null;
+					report.id = 0;
+					$("impReport").classList.add("d-none");
+					$("impJob").innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+					$("impSiteInfo").textContent = "";
+					try {
+						const r = await api("options");
+						sys = r.system;
+						site = r.site;
+						if (sys.match_site_fields) SITE_FIELDS = sys.match_site_fields;
+						if (sys.match_crm_fields) CRM_FIELDS = sys.match_crm_fields;
+						if (sys.default_match) DEFAULT_MATCH = sys.default_match;
+						const o = saved();
+						renderMaps(o);
+						applyOptions(o);
+					} catch (e) {
+						$("impJob").innerHTML = `<div class="alert alert-danger rounded-0 mb-0">${esc(fmt(L.site_error, { msg: e.message }))}</div>`;
+						sys = sys || { warehouses: [], languages: [], customer_groups: [] };
+						site = { languages: [], customer_groups: [] };
+						renderMaps({});
+						applyOptions(saved());
+					}
+					try {
+						renderSchedule((await api("schedule")).schedule);
+					} catch (e) {
+						renderSchedule(null);
+					}
+					refresh();
+				}
+				$("impIntegration").addEventListener("change", loadIntegration);
+
+				/* ─── Розклад ─── */
+				const dt = (v) => (v ? new Date(v).toLocaleString() : "—");
+				function renderSchedule(s) {
+					s = s || { hours: 0, at: "03:00" };
+					$("impSchedHours").value = String(s.hours || 0);
+					$("impSchedAt").value = s.at || "03:00";
+					$("impSchedAt").disabled = !PERMS.add || Number(s.hours) !== 24;
+					$("impSchedInfo").innerHTML = s.hours
+						? fmt(esc(L.schedule_info), { last: esc(dt(s.last)), next: esc(dt(s.next)) })
+						: `<span class="text-secondary">${esc(L.schedule_disabled)}</span>`;
+				}
+				$("impSchedHours").addEventListener("change", () => ($("impSchedAt").disabled = !PERMS.add || $("impSchedHours").value !== "24"));
+				if ($("impSchedSave")) {
+					$("impSchedSave").addEventListener("click", async function () {
+						const o = collect();
+						if (!o.match.length) return notyf.error(L.no_rules);
+						this.disabled = true;
+						try {
+							const r = await api("schedule", { save: 1, hours: parseInt($("impSchedHours").value, 10), at: $("impSchedAt").value, options: o });
+							renderSchedule(r.schedule);
+							notyf.success(L.schedule_saved);
+						} catch (e) {
+							notyf.error(e.message);
+						} finally {
+							this.disabled = false;
+						}
+					});
+				}
+
+				/* ─── Запуск і керування ─── */
+				if ($("impStart")) {
+					$("impStart").addEventListener("click", async function () {
+						const mode = document.querySelector('input[name="impMode"]:checked').value;
+						const o = collect();
+						if (!o.match.length) return notyf.error(L.no_rules);
+						if (mode === "full" && !confirm(L.confirm_full)) return;
+						try {
+							localStorage.setItem(STORE_KEY + ":" + idIntegration(), JSON.stringify(o));
+						} catch (e) {}
+						this.disabled = true;
+						try {
+							const r = await api("start", { mode, options: o });
+							notyf.success(fmt(L.started, { id: r.id }));
+							report.id = r.id;
+							report.page = 1;
+							refresh(r.id);
+						} catch (e) {
+							notyf.error(e.message);
+						} finally {
+							this.disabled = false;
+						}
+					});
+				}
+
+				$("impJob").addEventListener("click", async (e) => {
+					const btn = e.target.closest("[data-op]");
+					if (!btn) return;
+					const op = btn.dataset.op;
+					const id = parseInt(btn.dataset.id, 10);
+					if (op === "refresh") return refresh(id);
+					if (op === "rollback" && !confirm(L.confirm_rollback)) return;
+					btn.disabled = true;
+					try {
+						if (op === "resume") await api("start", { resume_id: id });
+						else await api(op, { id });
+					} catch (err) {
+						notyf.error(err.message);
+					}
+					refresh(id);
+				});
+				$("impJobs").addEventListener("click", (e) => {
+					const tr = e.target.closest("tr[data-id]");
+					if (!tr) return;
+					report.id = parseInt(tr.dataset.id, 10);
+					report.page = 1;
+					refresh(report.id);
+				});
+
+				const counters = (j) => {
+					const out = ["created", "linked", "updated", "skipped", "errors", "warnings"].filter((k) => j[k]).map((k) => `${esc(L["cnt_" + k])}: <b>${j[k]}</b>`);
+					return out.length ? out.join(" &middot; ") : esc(L.none);
+				};
+
+				function renderJob(j) {
+					clearTimeout(poll);
+					if (!j) {
+						$("impJob").innerHTML = `<p class="text-secondary mb-0">${esc(L.none)}</p>`;
+						return;
+					}
+					currentJob = j;
+					const pct = j.total ? Math.min(100, Math.round((j.processed * 100) / j.total)) : j.status === "done" ? 100 : 0;
+					const active = ["running", "queued", "rolling_back"].includes(j.status);
+					const color = j.status === "failed" ? "bg-danger" : j.status === "done" || j.status === "rolled_back" ? "bg-success" : "bg-info";
+					let h = `<div class="mb-2"><b>#${j.id}</b> &middot; ${esc(L["mode_" + j.mode] || j.mode)}${j.source && j.source !== "manual" ? " (" + esc(L["src_" + j.source] || j.source) + ")" : ""} &middot; ${esc(L["st_" + j.status] || j.status)}</div>
+						<div class="progress rounded-0 mb-2" style="height:20px"><div class="progress-bar ${color}${active ? " progress-bar-striped progress-bar-animated" : ""}" style="width:${pct}%">${j.processed}${j.total ? " / " + j.total : ""}</div></div>
+						<div class="small mb-2">${counters(j)}</div>`;
+					if (j.message) h += `<div class="small ${j.status === "failed" ? "text-danger" : "text-secondary"} mb-2">${esc(j.message)}</div>`;
+					h += '<div class="d-flex flex-wrap gap-2">';
+					if (active && j.status !== "rolling_back" && PERMS.add) h += `<button type="button" class="btn btn-sm btn-warning rounded-0" data-op="cancel" data-id="${j.id}"><i class="fa-solid fa-stop"></i> ${esc(L.cancel)}</button>`;
+					if (j.can_resume && PERMS.add) h += `<button type="button" class="btn btn-sm btn-primary rounded-0" data-op="resume" data-id="${j.id}"><i class="fa-solid fa-play"></i> ${esc(L.resume)}</button>`;
+					if (j.can_rollback && PERMS.edit) h += `<button type="button" class="btn btn-sm btn-outline-danger rounded-0" data-op="rollback" data-id="${j.id}"><i class="fa-solid fa-rotate-left"></i> ${esc(L.rollback)}</button>`;
+					h += `<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-op="refresh" data-id="${j.id}"><i class="fa-solid fa-rotate"></i> ${esc(L.refresh)}</button></div>`;
+					$("impJob").innerHTML = h;
+					if (active) poll = setTimeout(() => refresh(j.id), 3000);
+				}
+
+				function renderJobs(list) {
+					$("impJobs").innerHTML =
+						(list || [])
+							.map(
+								(j) => `<tr data-id="${j.id}"${currentJob && currentJob.id === j.id ? ' class="table-active"' : ""}><td>${j.id}</td><td>${esc(L["mode_" + j.mode] || j.mode)}${j.source && j.source !== "manual" ? '<br><small class="text-secondary">' + esc(L["src_" + j.source] || j.source) + "</small>" : ""}</td>
+									<td>${esc(L["st_" + j.status] || j.status)}</td><td>${j.processed}${j.total ? " / " + j.total : ""}</td>
+									<td class="small">${counters(j)}</td><td class="small text-nowrap">${esc(j.date_add ? new Date(j.date_add).toLocaleString() : "")}</td></tr>`
+							)
+							.join("") || `<tr><td colspan="6" class="text-secondary">${esc(L.none)}</td></tr>`;
+				}
+
+				async function refresh(id) {
+					try {
+						const r = await api("status", id ? { id } : {});
+						renderJob(r.job);
+						renderJobs(r.jobs);
+						if (r.job) {
+							if (report.id !== r.job.id) {
+								report.id = r.job.id;
+								report.page = 1;
+							}
+							loadItems();
+						}
+					} catch (e) {
+						$("impJob").innerHTML = `<div class="alert alert-danger rounded-0 mb-0">${esc(e.message)}</div>`;
+					}
+				}
+
+				/* ─── Звіт ─── */
+				const ACTION_COLOR = { create: "success", link: "info", update: "warning", skip: "secondary", error: "danger" };
+
+				function previewHtml(p) {
+					let rows = "";
+					for (const [k, v] of Object.entries(p || {})) {
+						if (k === "descriptions") {
+							for (const [lang, d] of Object.entries(v || {})) {
+								rows += `<tr><th>${esc(lang)}</th><td><b>${esc(d.name)}</b>${d.slug ? " &middot; /" + esc(d.slug) : ""}${d.meta_title ? "<br><small>" + esc(d.meta_title) + "</small>" : ""}${d.description ? '<br><small class="text-secondary">' + esc(d.description) + "</small>" : ""}</td></tr>`;
+							}
+						} else if (v !== null && v !== "" && !(Array.isArray(v) && !v.length)) {
+							rows += `<tr><th>${esc(L["p_" + k] || k)}</th><td>${esc(Array.isArray(v) ? v.join(", ") : v)}</td></tr>`;
+						}
+					}
+					return `<table class="table table-sm mb-0 imp-preview">${rows}</table>`;
+				}
+
+				async function loadItems() {
+					if (!report.id) return;
+					$("impReport").classList.remove("d-none");
+					$("impReportTitle").textContent = "#" + report.id;
+					try {
+						const r = await api("items", { id: report.id, action: report.action, warnings: report.warnings ? 1 : 0, search: report.search, page: report.page, limit: 50 });
+						$("impItems").innerHTML =
+							(r.items || [])
+								.map((it) => {
+									let msg = esc(it.message || "");
+									if (it.warnings && it.warnings.length) msg += `<div class="small text-warning-emphasis mt-1"><i class="fa-solid fa-triangle-exclamation"></i> ${it.warnings.map(esc).join("<br>")}</div>`;
+									if (it.preview) msg += `<details class="small mt-1"><summary>${esc(L.preview)}</summary>${previewHtml(it.preview)}</details>`;
+									const prod = it.id_product ? `<a href="/catalog/products/${it.id_product}/" target="_blank">#${it.id_product}</a>` : "";
+									return `<tr><td>${it.external_id}</td><td>${esc(it.external_sku || "")}</td><td>${esc(it.name || "")}</td>
+										<td><span class="badge rounded-0 text-bg-${ACTION_COLOR[it.action] || "secondary"}">${esc(L["a_" + it.action] || it.action)}</span></td>
+										<td class="small">${esc(it.matched_by || "")}</td><td>${prod}</td><td>${msg}</td></tr>`;
+								})
+								.join("") || `<tr><td colspan="7" class="text-secondary">${esc(L.none)}</td></tr>`;
+
+						let pg = "";
+						if (r.pages > 1) {
+							const from = Math.max(1, r.page - 4);
+							const to = Math.min(r.pages, r.page + 4);
+							const li = (p, label) => `<li class="page-item${p === r.page ? " active" : ""}"><a class="page-link rounded-0" href="#" data-page="${p}">${label || p}</a></li>`;
+							pg = '<ul class="pagination pagination-sm mb-0">';
+							if (from > 1) pg += li(1);
+							for (let p = from; p <= to; p++) pg += li(p);
+							if (to < r.pages) pg += li(r.pages);
+							pg += "</ul>";
+						}
+						$("impPager").innerHTML = pg + `<span class="small text-secondary">${fmt(L.total, { n: r.total })}</span>`;
+					} catch (e) {
+						$("impItems").innerHTML = `<tr><td colspan="7" class="text-danger">${esc(e.message)}</td></tr>`;
+					}
+				}
+				$("impPager").addEventListener("click", (e) => {
+					const a = e.target.closest("a[data-page]");
+					if (!a) return;
+					e.preventDefault();
+					report.page = parseInt(a.dataset.page, 10);
+					loadItems();
+				});
+				$("impFilter").addEventListener("click", (e) => {
+					const btn = e.target.closest("button");
+					if (!btn) return;
+					$("impFilter").querySelectorAll("button").forEach((b) => b.classList.remove("active"));
+					btn.classList.add("active");
+					report.warnings = btn.dataset.action === "warnings";
+					report.action = report.warnings ? "" : btn.dataset.action;
+					report.page = 1;
+					loadItems();
+				});
+				let searchTimer = null;
+				$("impSearch").addEventListener("input", function () {
+					clearTimeout(searchTimer);
+					searchTimer = setTimeout(() => {
+						report.search = this.value.trim();
+						report.page = 1;
+						loadItems();
+					}, 400);
+				});
+
+				loadIntegration();
+			})();
+		</script>
+		<% } %>
+	</body>
+</html>

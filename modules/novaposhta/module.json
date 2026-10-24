@@ -1,0 +1,12 @@
+{
+	"name": "novaposhta",
+	"version": "1.0.0",
+	"description": "Нова пошта: акаунти (ФОП, ключі API, відправники), довідники міст і відділень, відправлення в замовленнях",
+	"author": "Growth Contour",
+	"hasConfig": false,
+	"config": {
+		"directory_sync_hours": 24,
+		"default_weight_kg": 0.5,
+		"timeout_ms": 30000
+	}
+}

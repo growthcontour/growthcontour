@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+  <head>
+    <title><%= i18n.__('orders.abandoned-cart.title') %></title>
+    <%- include('../../../partials/head'); %>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+    <!-- tabulator -->
+    <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+    <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+    <!-- END tabulator -->
+    <style>
+      #abandoned-cart-table .tabulator-col,
+      #abandoned-cart-table .tabulator-cell {
+        border-right: 1px solid #dee2e6;
+        border-bottom: 1px solid #dee2e6;
+      }
+
+      #abandoned-cart-table .tabulator-col:last-child,
+      #abandoned-cart-table .tabulator-cell:last-child {
+        border-right: none;
+      }
+
+      #abandoned-cart-table .tabulator-row:last-child .tabulator-cell {
+        border-bottom: none;
+      }
+    </style>
+  </head>
+
+  <body class="d-flex flex-column h-100">
+    <%- include('../../../partials/header'); %>
+    <!-- Breadcrumb -->
+    <div class="breadcrumbs pt-3 pb-3">
+      <div class="container-fluid">
+        <div class="row align-items-center">
+          <div class="col">
+            <span> <%= i18n.__('orders.abandoned-cart.title') %> </span>
+            <div>
+              <ul class="list-inline mb-0">
+                <li class="list-inline-item">
+                  <a href="/"><i class="fas fa-home"></i> <span> <%= i18n.__('orders.abandoned-cart.breadcrumb.home') %> </span></a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <a href="/orders"> <%= i18n.__('orders.abandoned-cart.breadcrumb.orders') %> </a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <%= i18n.__('orders.abandoned-cart.breadcrumb.current') %>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- END Breadcrumb -->
+    <div class="container-fluid mt-3">
+      <div class="row">
+        <div class="col-12 mb-3">
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0"><%= i18n.__('orders.abandoned-cart.title') %></div>
+            <div id="abandoned-cart-table"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модалка сервісу (налаштування) -->
+    <div class="modal fade" id="serviceModal" tabindex="-1" aria-labelledby="serviceModalTitle" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content rounded-0">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="cartModalTitle">Деталі кошика</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div id="modal-error" class="alert alert-danger rounded-0 d-none"></div>
+            <div id="modal-fields"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal">Закрити</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модалка підтвердження видалення кошика -->
+    <div class="modal fade" id="modalDeleteCart" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-0">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5"><%= i18n.__('orders.abandoned-cart.delete_modal.title') %></h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0"><%= i18n.__('orders.abandoned-cart.delete_modal.confirm_text') %></p>
+            <p class="mb-0">
+              <strong>ID: <span id="delete_cart_id"></span></strong>
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('orders.abandoned-cart.delete_modal.close') %></button>
+            <button type="button" class="btn btn-danger rounded-0" id="btn_confirm_delete_cart"><%= i18n.__('orders.abandoned-cart.delete_modal.delete') %></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%- include('../../../partials/footer'); %> <%- include('../../../partials/script'); %>
+    <script src="/assets/js/notyf/notyf.min.js"></script>
+    <script>
+      const notyf = new Notyf({
+        position: { x: "right", y: "top" },
+        duration: 4000,
+        types: [
+          { type: "success", dismissible: true, icon: false },
+          { type: "error", background: "indianred", dismissible: true, icon: false },
+        ],
+      });
+    </script>
+    <!-- tabulator -->
+    <script src="/assets/js/tabulator/tabulator.min.js"></script>
+    <script>
+      var table = new Tabulator("#abandoned-cart-table", {
+        layout: "fitColumns",
+        placeholder: "<%= i18n.__('orders.abandoned-cart.columns.no_data') %>",
+        ajaxURL: "/api/orders/abandoned-cart/abandoned-cart-list/",
+        ajaxConfig: "POST",
+        paginationSize: 10,
+        paginationSizeSelector: [10, 20, 30, 40],
+        pagination: true,
+        movableColumns: true,
+        columns: [
+          {
+            title: "<%= i18n.__('orders.abandoned-cart.columns.id') %>",
+            field: "id",
+            sorter: "number",
+            headerSort: false,
+            widthGrow: 0.5,
+          },
+          {
+            title: "<%= i18n.__('orders.abandoned-cart.columns.customer') %>",
+            field: "customer",
+            headerSort: false,
+            widthGrow: 2,
+            formatter: function (cell) {
+              const c = cell.getValue();
+              if (!c || !c.email) {
+                return '<span class="text-muted">' + '<%= i18n.__("orders.abandoned-cart.modal.guest") %>' + "</span>";
+              }
+              return "<div>" + c.firstname + " " + c.lastname + '</div><small class="text-muted">' + c.email + "</small>";
+            },
+          },
+          {
+            title: "<%= i18n.__('orders.abandoned-cart.columns.products') %>",
+            field: "products",
+            headerSort: false,
+            widthGrow: 2,
+            formatter: function (cell) {
+              const products = cell.getValue() || [];
+              return products
+                .map(function (p) {
+                  return '<div class="text-truncate" style="max-width:200px" title="' + p.name + '">' + p.name + "</div>";
+                })
+                .join("");
+            },
+          },
+          {
+            title: "<%= i18n.__('orders.abandoned-cart.columns.total') %>",
+            field: "total_amount",
+            headerSort: false,
+            widthGrow: 1,
+            formatter: function (cell) {
+              const row = cell.getRow().getData();
+              return '<span class="badge text-bg-primary rounded-0">' + row.total_amount + " " + row.currency + "</span>";
+            },
+          },
+          {
+            title: "<%= i18n.__('orders.abandoned-cart.columns.items') %>",
+            field: "items_count",
+            headerSort: false,
+            widthGrow: 0.5,
+          },
+          {
+            title: "<%= i18n.__('orders.abandoned-cart.columns.last_activity') %>",
+            field: "last_activity_at",
+            headerSort: false,
+            widthGrow: 1,
+          },
+          {
+            title: "<%= i18n.__('orders.abandoned-cart.columns.date_add') %>",
+            field: "date_add",
+            headerSort: false,
+            widthGrow: 1,
+          },
+          {
+            title: "",
+            field: "id",
+            headerSort: false,
+            width: 100,
+            formatter: function (cell) {
+              const id = cell.getValue();
+              return '<div class="d-flex justify-content-center gap-2">' + '<button type="button" class="bg-transparent border-0 text-primary view-cart-btn" data-cart-id="' + id + '"><i class="fa-regular fa-eye"></i></button>' + '<button type="button" class="bg-transparent border-0 text-danger delete-cart-btn" data-cart-id="' + id + '"><i class="fa-regular fa-trash-can"></i></button>' + "</div>";
+            },
+            // cellClick видаляємо – будемо обробляти через делегування
+          },
+        ],
+      });
+
+      // ===== Динамічна форма сервісу =====
+      // ===== Перегляд деталей кошика =====
+      const escHtml = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+      function renderCartDetails(row, container) {
+        const c = row.customer || {};
+        const products = row.products || [];
+
+        const customerBlock = c.email
+          ? `<div class="row mb-2">
+               <div class="col-md-6"><span class="text-muted">Ім'я:</span> ${escHtml(c.firstname)} ${escHtml(c.lastname)}</div>
+               <div class="col-md-6"><span class="text-muted">Email:</span> ${escHtml(c.email)}</div>
+               <div class="col-md-6"><span class="text-muted">Телефон:</span> ${escHtml(c.telephone || "—")}</div>
+               <div class="col-md-6"><span class="text-muted">ID клієнта:</span> ${escHtml(c.customer_id ?? "—")}</div>
+             </div>`
+          : `<div class="text-muted mb-2">Гість (дані клієнта відсутні)</div>`;
+
+        const rows = products
+          .map(
+            (p, i) => `
+            <tr>
+              <td>${i + 1}</td>
+              <td>${p.image_url ? `<img src="${escHtml(p.image_url)}" style="height:32px;object-fit:contain" class="me-2">` : ""}${escHtml(p.name)}</td>
+              <td>${escHtml(p.sku || "—")}</td>
+              <td class="text-end">${escHtml(p.quantity)}</td>
+              <td class="text-end">${escHtml(p.price)}</td>
+              <td class="text-end">${escHtml(p.total)}</td>
+            </tr>`
+          )
+          .join("");
+
+        container.innerHTML = `
+          <h6 class="fw-bold mb-2">Клієнт</h6>
+          ${customerBlock}
+          <div class="row mb-3">
+            <div class="col-md-4"><span class="text-muted">Сума:</span> <span class="badge text-bg-primary rounded-0">${escHtml(row.total_amount)} ${escHtml(row.currency)}</span></div>
+            <div class="col-md-4"><span class="text-muted">Товарів:</span> ${escHtml(row.items_count)}</div>
+            <div class="col-md-4"><span class="text-muted">Остання активність:</span> ${escHtml(row.last_activity_at || "—")}</div>
+          </div>
+          <h6 class="fw-bold mb-2">Товари</h6>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0">
+              <thead>
+                <tr>
+                  <th style="width:40px">#</th>
+                  <th>Назва</th>
+                  <th>SKU</th>
+                  <th class="text-end">К-сть</th>
+                  <th class="text-end">Ціна</th>
+                  <th class="text-end">Сума</th>
+                </tr>
+              </thead>
+              <tbody>${rows || '<tr><td colspan="6" class="text-muted text-center">Немає товарів</td></tr>'}</tbody>
+            </table>
+          </div>`;
+      }
+
+      function openCartModal(row) {
+        const container = document.getElementById("modal-fields");
+        const errorBox = document.getElementById("modal-error");
+        errorBox.classList.add("d-none");
+        document.getElementById("cartModalTitle").textContent = "Кошик #" + row.id;
+        renderCartDetails(row, container);
+        new bootstrap.Modal(document.getElementById("serviceModal")).show();
+      }
+    </script>
+    <!-- END tabulator -->
+    <script>
+      // ── Перегляд кошика через кнопку "eye" ──────────────────────────────────
+      $(document).on("click", ".view-cart-btn", function () {
+        const cartId = $(this).data("cart-id");
+        // Знаходимо рядок таблиці за ID (потрібно отримати дані)
+        const rows = table.getRows();
+        let rowData = null;
+        for (let i = 0; i < rows.length; i++) {
+          const data = rows[i].getData();
+          if (data.id === cartId) {
+            rowData = data;
+            break;
+          }
+        }
+        if (rowData) {
+          openCartModal(rowData);
+        }
+      });
+    </script>
+    <script>
+      // ── Відкриття модалки видалення ──────────────────────────────────────────
+      $(document).on("click", ".delete-cart-btn", function () {
+        const cartId = $(this).data("cart-id");
+        document.getElementById("delete_cart_id").textContent = cartId;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById("modalDeleteCart")).show();
+      });
+
+      // ── Підтвердження видалення ──────────────────────────────────────────────
+      document.getElementById("btn_confirm_delete_cart").addEventListener("click", async function () {
+        const btn = this;
+        if (btn.disabled) return;
+
+        const id = parseInt(document.getElementById("delete_cart_id").textContent, 10);
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        try {
+          const res = await fetch("/api/orders/abandoned-cart/delete/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id }),
+          });
+
+          const data = await res.json().catch(() => ({}));
+
+          if (!res.ok || data.status !== "success") {
+            throw new Error(data.message || "<%= i18n.__('orders.abandoned-cart.delete_modal.server_error') %>");
+          }
+
+          bootstrap.Modal.getOrCreateInstance(document.getElementById("modalDeleteCart")).hide();
+          notyf.success("<%= i18n.__('orders.abandoned-cart.delete_modal.deleted') %>");
+          table.replaceData(); // оновлюємо таблицю
+        } catch (err) {
+          notyf.error(err.message);
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+        }
+      });
+    </script>
+  </body>
+</html>

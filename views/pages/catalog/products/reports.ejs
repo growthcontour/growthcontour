@@ -1,0 +1,238 @@
+<% const t = (k) => i18n.__('catalog.stock.reports.' + k); %>
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= t('title') %></title>
+		<%- include('../../../partials/head'); %>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item active"><%= t('title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<h1 class="h4 mb-3"><%= t('title') %></h1>
+				<ul class="nav nav-tabs mb-3">
+					<% if (perms.cost) { %><li class="nav-item"><button type="button" class="nav-link active js-tab" data-tab="margin"><%= t('tab_margin') %></button></li><% } %>
+					<li class="nav-item"><button type="button" class="nav-link js-tab<%= perms.cost ? '' : ' active' %>" data-tab="stock"><%= t('tab_stock') %></button></li>
+					<li class="nav-item"><button type="button" class="nav-link js-tab" data-tab="dead"><%= t('tab_dead') %></button></li>
+				</ul>
+				<div class="row g-2 align-items-end mb-3">
+					<div class="col-6 col-md-2"><label class="form-label small mb-1"><%= t('from') %></label><input type="date" class="form-control rounded-0" id="f-from" /></div>
+					<div class="col-6 col-md-2"><label class="form-label small mb-1"><%= t('to') %></label><input type="date" class="form-control rounded-0" id="f-to" /></div>
+					<div class="col-md-2">
+						<label class="form-label small mb-1"><%= t('site') %></label>
+						<select class="form-select rounded-0" id="f-site">
+							<option value=""><%= t('all_sites') %></option>
+							<% integrations.forEach((i) => { %><option value="<%= i.id %>"><%= i.name %></option><% }) %>
+						</select>
+					</div>
+					<div class="col-md-2" id="group-wrap">
+						<label class="form-label small mb-1"><%= t('group') %></label>
+						<select class="form-select rounded-0" id="f-group">
+							<% ['product', 'category', 'brand', 'site', 'month'].forEach((g) => { %><option value="<%= g %>"><%= t('g_' + g) %></option><% }) %>
+						</select>
+					</div>
+					<div class="col-md-4 d-flex gap-2">
+						<button type="button" class="btn btn-primary rounded-0" id="f-show"><%= t('show') %></button>
+						<button type="button" class="btn btn-outline-secondary rounded-0" id="f-csv"><i class="fa-solid fa-download"></i> <%= t('export') %></button>
+					</div>
+				</div>
+				<p class="small text-muted" id="hint"></p>
+				<div id="summary" class="mb-3"></div>
+				<div id="chart" class="mb-3" style="width:100%;height:320px"></div>
+				<div id="box"></div>
+			</div>
+		</main>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const T = <%- JSON.stringify(i18n.__('catalog.stock.reports')).replace(/</g, '\\u003c') %>;
+				const CUR = <%- JSON.stringify(currency) %>;
+				const box = document.getElementById("box");
+				const sum = document.getElementById("summary");
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+				const num = (v, d = 2) => (v === null || v === undefined ? "—" : Number(v).toLocaleString("uk-UA", { minimumFractionDigits: 0, maximumFractionDigits: d }));
+				let tab = document.querySelector(".js-tab.active").dataset.tab;
+				let last = { cols: [], rows: [] };
+				// Графіки — ECharts (як на головній)
+				const chartEl = document.getElementById("chart");
+				const chart = window.echarts ? echarts.init(chartEl) : null;
+				window.addEventListener("resize", () => chart && chart.resize());
+				const money = (v) => num(v, 0) + " " + CUR;
+				function draw(option) {
+					if (!chart) return;
+					chartEl.classList.toggle("d-none", !option);
+					if (option) (chart.setOption(option, true), chart.resize());
+				}
+				const label = (r) => r.label || r.name || T.none;
+				function chartMargin(d) {
+					if (!d.rows.length) return draw(null);
+					if (d.group === "month") {
+						return draw({
+							tooltip: { trigger: "axis" },
+							legend: { top: 0 },
+							grid: { left: 70, right: 60, top: 40, bottom: 30 },
+							xAxis: { type: "category", data: d.rows.map((r) => r.key) },
+							yAxis: [{ type: "value", name: CUR }, { type: "value", name: "%", splitLine: { show: false } }],
+							series: [
+								{ name: T.revenue, type: "bar", data: d.rows.map((r) => r.revenue) },
+								{ name: T.profit, type: "bar", data: d.rows.map((r) => r.profit) },
+								{ name: T.margin, type: "line", yAxisIndex: 1, smooth: true, data: d.rows.map((r) => r.margin) },
+							],
+						});
+					}
+					const top = d.rows.slice(0, 15).reverse();
+					draw({
+						tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: (v) => money(v) },
+						legend: { top: 0 },
+						grid: { left: 10, right: 30, top: 40, bottom: 10, containLabel: true },
+						xAxis: { type: "value" },
+						yAxis: { type: "category", data: top.map((r) => String(label(r)).slice(0, 40)) },
+						series: [
+							{ name: T.revenue, type: "bar", data: top.map((r) => r.revenue) },
+							{ name: T.profit, type: "bar", data: top.map((r) => ({ value: r.profit, itemStyle: r.profit < 0 ? { color: "#dc3545" } : undefined })) },
+						],
+					});
+				}
+				function chartStock(d, dead) {
+					if (!d.rows.length) return draw(null);
+					if (dead) {
+						const top = d.rows.filter((r) => r.stock_value !== null).slice(0, 15).reverse();
+						if (!top.length) return draw(null);
+						return draw({
+							tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: (v) => money(v) },
+							grid: { left: 10, right: 30, top: 10, bottom: 10, containLabel: true },
+							xAxis: { type: "value" },
+							yAxis: { type: "category", data: top.map((r) => String(label(r)).slice(0, 40)) },
+							series: [{ name: T.stock_value, type: "bar", itemStyle: { color: "#dc3545" }, data: top.map((r) => r.stock_value) }],
+						});
+					}
+					// ABC: частка виручки й кількість товарів у групах
+					const g = { A: 0, B: 0, C: 0 };
+					d.rows.forEach((r) => (g[r.abc] += r.revenue || 0));
+					draw({
+						tooltip: { trigger: "item", formatter: (p) => `${p.name}: ${money(p.value)} (${p.percent}%)<br>${T.items}: ${d.summary.abc[p.name]}` },
+						legend: { top: 0 },
+						series: [{ type: "pie", radius: ["40%", "70%"], top: 30, data: ["A", "B", "C"].map((k) => ({ name: k, value: Math.round(g[k] * 100) / 100, itemStyle: { color: { A: "#198754", B: "#ffc107", C: "#6c757d" }[k] } })) }],
+					});
+				}
+
+				const iso = (d) => d.toISOString().slice(0, 10);
+				document.getElementById("f-to").value = iso(new Date());
+				document.getElementById("f-from").value = iso(new Date(Date.now() - 29 * 86400000));
+
+				async function post(url, body) {
+					const r = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const d = await r.json().catch(() => ({}));
+					if (!r.ok || !d.ok) throw d;
+					return d;
+				}
+				const tile = (label, value, cls) => `<div class="col-6 col-md-2"><div class="border p-2 h-100"><div class="small text-muted">${esc(label)}</div><div class="fs-5 fw-semibold ${cls || ""}">${value}</div></div></div>`;
+
+				// Таблиця + те саме для CSV
+				function table(cols, rows) {
+					last = { cols, rows };
+					if (!rows.length) return (box.innerHTML = `<div class="text-muted">${esc(T.empty)}</div>`);
+					box.innerHTML = `<div class="table-responsive"><table class="table table-sm table-hover align-middle"><thead><tr>${cols.map((c) => `<th class="${c.num ? "text-end" : ""}">${esc(c.label)}</th>`).join("")}</tr></thead><tbody>${rows
+						.map((r) => `<tr>${cols.map((c) => `<td class="${c.num ? "text-end" : ""} ${c.cls ? c.cls(r) : ""}">${c.html ? c.html(r) : esc(c.num ? num(r[c.key]) : r[c.key])}</td>`).join("")}</tr>`)
+						.join("")}</tbody></table></div>`;
+				}
+
+				const nameCell = (r) => (r.id_product ? `<a href="/catalog/products/${r.id_product}/" target="_blank">${esc(r.label || r.name || "#" + r.id_product)}</a>${r.sku ? `<div class="small text-muted">${esc(r.sku)}</div>` : ""}` : esc(r.label || r.name || T.none));
+
+				async function loadMargin() {
+					const d = await post("/api/catalog/products/reports/margin/", filters());
+					chartMargin(d);
+					const tt = d.total;
+					sum.innerHTML = `<div class="row g-2">${tile(T.revenue, num(tt.revenue) + " " + esc(CUR))}${tile(T.cost, num(tt.cost) + " " + esc(CUR))}${tile(T.profit, num(tt.profit) + " " + esc(CUR), tt.profit < 0 ? "text-danger" : "text-success")}${tile(T.margin, tt.margin === null ? "—" : num(tt.margin, 1) + "%")}${tile(T.qty, num(tt.qty, 3))}</div>
+						${tt.no_cost ? `<div class="small text-warning mt-2">${esc(T.no_cost.replace("%s", tt.no_cost))}</div>` : ""}${tt.estimated ? `<div class="small text-muted">${esc(T.estimated.replace("%s", tt.estimated))}</div>` : ""}`;
+					table(
+						[
+							{ key: "label", label: T.name, html: nameCell },
+							{ key: "qty", label: T.qty, num: true },
+							{ key: "revenue", label: T.revenue, num: true },
+							{ key: "cost", label: T.cost, num: true },
+							{ key: "profit", label: T.profit, num: true, cls: (r) => (r.profit < 0 ? "text-danger" : "") },
+							{ key: "margin", label: T.margin, num: true, cls: (r) => (r.margin !== null && r.margin < 10 ? "text-danger" : "") },
+						],
+						d.rows
+					);
+				}
+
+				async function loadStock(dead) {
+					const d = await post("/api/catalog/products/reports/stock/", { ...filters(), view: dead ? "dead" : "" });
+					chartStock(d, dead);
+					const s = d.summary;
+					sum.innerHTML = `<div class="row g-2">${tile(T.items, num(s.items, 0))}${s.stock_value !== null ? tile(T.stock_value, num(s.stock_value) + " " + esc(CUR)) : ""}${tile("A / B / C", `${s.abc.A} / ${s.abc.B} / ${s.abc.C}`)}${tile(T.dead, num(s.dead, 0), s.dead ? "text-danger" : "")}${s.dead_value !== null ? tile(T.dead_value, num(s.dead_value) + " " + esc(CUR), s.dead_value ? "text-danger" : "") : ""}</div>`;
+					table(
+						[
+							{ key: "name", label: T.name, html: nameCell },
+							{ key: "abc", label: T.abc, html: (r) => `<span class="badge rounded-0 ${r.abc === "A" ? "text-bg-success" : r.abc === "B" ? "text-bg-warning" : "text-bg-secondary"}">${r.abc}</span>` },
+							{ key: "sold", label: T.qty, num: true },
+							{ key: "revenue", label: T.revenue, num: true },
+							{ key: "on_hand", label: T.on_hand, num: true },
+							{ key: "stock_value", label: T.stock_value, num: true },
+							{ key: "cover_days", label: T.cover, num: true, cls: (r) => (r.cover_days !== null && r.cover_days < 7 ? "text-danger" : "") },
+							{ key: "turnover", label: T.turnover, num: true },
+						],
+						d.rows
+					);
+				}
+
+				const filters = () => ({
+					date_from: document.getElementById("f-from").value,
+					date_to: document.getElementById("f-to").value,
+					id_integration: document.getElementById("f-site").value === "" ? null : Number(document.getElementById("f-site").value),
+					group: document.getElementById("f-group").value,
+				});
+
+				async function load() {
+					document.getElementById("group-wrap").classList.toggle("d-none", tab !== "margin");
+					document.getElementById("hint").textContent = tab === "margin" ? T.hint_margin : T.hint_stock;
+					box.innerHTML = `<div class="text-muted">${esc(T.loading)}</div>`;
+					sum.innerHTML = "";
+					try {
+						if (tab === "margin") await loadMargin();
+						else await loadStock(tab === "dead");
+					} catch (e) {
+						box.innerHTML = `<div class="text-danger">${esc(e.error || T.error)}</div>`;
+					}
+				}
+
+				// CSV поточної таблиці (Excel відкриває з BOM, роздільник «;»)
+				document.getElementById("f-csv").addEventListener("click", () => {
+					if (!last.rows.length) return;
+					const cell = (v) => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`;
+					const lines = [last.cols.map((c) => cell(c.label)).join(";"), ...last.rows.map((r) => last.cols.map((c) => cell(c.key === "label" || c.key === "name" ? r.label || r.name || "" : r[c.key])).join(";"))];
+					const a = document.createElement("a");
+					a.href = URL.createObjectURL(new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8" }));
+					a.download = `report-${tab}-${document.getElementById("f-from").value}-${document.getElementById("f-to").value}.csv`;
+					a.click();
+				});
+				document.querySelectorAll(".js-tab").forEach((b) =>
+					b.addEventListener("click", () => {
+						document.querySelectorAll(".js-tab").forEach((x) => x.classList.toggle("active", x === b));
+						tab = b.dataset.tab;
+						load();
+					})
+				);
+				document.getElementById("f-show").addEventListener("click", load);
+				load();
+			})();
+		</script>
+	</body>
+</html>

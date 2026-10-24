@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="<%= i18n.__('lang_iso') %>">
+<head>
+	<%- include('../../partials/head'); %>
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	<style>
+		.mailing-sub { font-size: 0.8rem; color: #6c757d; }
+	</style>
+	<link rel="stylesheet" href="https://unpkg.com/grapesjs@0.22.6/dist/css/grapes.min.css" />
+	<title><%= i18n.__('mailing.ui.editor.title') %></title>
+	<style>
+		#gjs { border: 1px solid #dee2e6; }
+		#gjs .gjs-block { min-height: 70px; padding: 8px 4px; font-size: 0.72rem; }
+		#html-source { height: calc(100vh - 260px); min-height: 520px; font-family: monospace; font-size: 13px; }
+		#html-preview { width: 100%; height: calc(100vh - 260px); min-height: 520px; border: 1px solid #dee2e6; background: #fff; }
+		.tag-btn { font-family: monospace; font-size: 12px; }
+		#preview-frame { width: 100%; height: 70vh; border: 0; background: #fff; }
+		.preview-mobile #preview-frame { width: 375px; margin: 0 auto; display: block; border: 1px solid #dee2e6; }
+	</style>
+</head>
+<body>
+	<%- include('../../partials/header'); %>
+	<%
+		const isTpl = data.owner_type === 'template';
+		const canEdit = can(isTpl ? 'mailing.templates' : 'mailing.campaigns', 'edit');
+		const backUrl = isTpl ? '/mailing/templates/' : '/mailing/campaigns/' + data.id_campaign + '/';
+	%>
+
+	<div class="breadcrumbs pt-3 pb-3">
+		<div class="container-fluid">
+			<nav aria-label="breadcrumb">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><i class="fa-solid fa-house"></i></a></li>
+					<li class="breadcrumb-item"><a href="<%= backUrl %>" id="bc-back"><%= isTpl ? i18n.__('mailing.ui.templates.title') : i18n.__('mailing.ui.campaigns.edit_title') %></a></li>
+					<li class="breadcrumb-item active" id="bc-name"><%= i18n.__('mailing.ui.editor.title') %></li>
+				</ol>
+			</nav>
+		</div>
+	</div>
+
+	<div class="container-fluid mt-2 mb-4">
+		<div class="alert alert-warning rounded-0 d-none" id="readonly-note"><%= i18n.__('mailing.ui.editor.readonly') %></div>
+
+		<div class="row g-2 align-items-end mb-2">
+			<div class="col-6 col-md-2">
+				<label class="form-label small mb-0"><%= i18n.__('mailing.ui.editor.lang') %></label>
+				<select class="form-select form-select-sm rounded-0" id="lang"><% languages.forEach(function (l) { %><option value="<%= l.id %>"><%= l.name %></option><% }) %></select>
+			</div>
+			<div class="col-12 col-md-4">
+				<label class="form-label small mb-0"><%= i18n.__('mailing.ui.editor.subject') %> *</label>
+				<input class="form-control form-control-sm rounded-0 js-ro" id="subject" maxlength="255" />
+			</div>
+			<div class="col-12 col-md-3">
+				<label class="form-label small mb-0"><%= i18n.__('mailing.ui.editor.preheader') %></label>
+				<input class="form-control form-control-sm rounded-0 js-ro" id="preheader" maxlength="255" title="<%= i18n.__('mailing.ui.editor.preheader_hint') %>" />
+			</div>
+			<div class="col-12 col-md-3 d-flex gap-1 justify-content-md-end flex-wrap">
+				<div class="btn-group btn-group-sm" role="group">
+					<input type="radio" class="btn-check js-ro" name="mode" id="mode-visual" value="visual" />
+					<label class="btn btn-outline-primary rounded-0" for="mode-visual"><%= i18n.__('mailing.ui.editor.mode_visual') %></label>
+					<input type="radio" class="btn-check js-ro" name="mode" id="mode-html" value="html" />
+					<label class="btn btn-outline-primary rounded-0" for="mode-html">HTML</label>
+				</div>
+				<button class="btn btn-sm btn-outline-secondary rounded-0" id="btn-preview"><i class="fa-solid fa-eye"></i> <%= i18n.__('mailing.ui.editor.preview') %></button>
+				<% if (canEdit) { %><button class="btn btn-sm btn-primary rounded-0 js-ro" id="btn-save"><i class="fa-solid fa-floppy-disk"></i> <%= i18n.__('mailing.ui.save') %></button><% } %>
+			</div>
+		</div>
+
+		<div class="row g-2">
+			<div class="col-12 col-xl-10">
+				<div id="visual-box"><div id="gjs"></div></div>
+				<div id="html-box" class="row g-2 d-none">
+					<div class="col-lg-6">
+						<textarea class="form-control rounded-0 js-ro" id="html-source" spellcheck="false"></textarea>
+						<div class="form-text"><%= i18n.__('mailing.ui.editor.html_hint') %></div>
+					</div>
+					<div class="col-lg-6"><iframe id="html-preview" sandbox="" referrerpolicy="no-referrer"></iframe></div>
+				</div>
+			</div>
+			<div class="col-12 col-xl-2">
+				<div class="card rounded-0 mb-2">
+					<div class="card-header rounded-0 small"><%= i18n.__('mailing.ui.editor.warnings') %> <span class="mailing-sub" id="size"></span></div>
+					<div class="card-body p-2 small" id="warnings"><span class="mailing-sub"><%= i18n.__('mailing.ui.editor.no_warnings') %></span></div>
+				</div>
+				<div class="card rounded-0 mb-2">
+					<div class="card-header rounded-0 small"><%= i18n.__('mailing.ui.editor.merge_tags') %></div>
+					<div class="card-body p-2" id="tags"></div>
+					<div class="card-footer mailing-sub rounded-0"><%= i18n.__('mailing.ui.editor.copy_hint') %></div>
+				</div>
+				<% if (canEdit) { %><button class="btn btn-sm btn-outline-danger rounded-0 w-100 js-ro" id="btn-delete-lang"><i class="fa-solid fa-trash"></i> <%= i18n.__('mailing.ui.editor.delete_lang') %></button><% } %>
+			</div>
+		</div>
+	</div>
+
+	<!-- ═══ ПЕРЕГЛЯД (скомпільований лист, у пісочниці без скриптів) ═══ -->
+	<div class="modal fade" id="modal-preview" tabindex="-1">
+		<div class="modal-dialog modal-xl">
+			<div class="modal-content rounded-0">
+				<div class="modal-header">
+					<h5 class="modal-title"><%= i18n.__('mailing.ui.editor.preview') %></h5>
+					<div class="btn-group btn-group-sm ms-3">
+						<button class="btn btn-outline-secondary rounded-0 active" id="pv-desktop"><i class="fa-solid fa-desktop"></i></button>
+						<button class="btn btn-outline-secondary rounded-0" id="pv-mobile"><i class="fa-solid fa-mobile-screen"></i></button>
+					</div>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+				</div>
+				<div class="modal-body" id="preview-wrap"><iframe id="preview-frame" sandbox="" referrerpolicy="no-referrer"></iframe></div>
+			</div>
+		</div>
+	</div>
+
+	<%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+	<script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+	<script>
+		var TR_WARNINGS = { gmail_clip: "<%= i18n.__('mailing.warnings.gmail_clip', { code: '%CODE%', value: '%VALUE%' }) %>", size_large: "<%= i18n.__('mailing.warnings.size_large', { code: '%CODE%', value: '%VALUE%' }) %>", img_no_alt: "<%= i18n.__('mailing.warnings.img_no_alt', { code: '%CODE%', value: '%VALUE%' }) %>", img_relative: "<%= i18n.__('mailing.warnings.img_relative', { code: '%CODE%', value: '%VALUE%' }) %>", img_insecure: "<%= i18n.__('mailing.warnings.img_insecure', { code: '%CODE%', value: '%VALUE%' }) %>", link_empty: "<%= i18n.__('mailing.warnings.link_empty', { code: '%CODE%', value: '%VALUE%' }) %>", link_insecure: "<%= i18n.__('mailing.warnings.link_insecure', { code: '%CODE%', value: '%VALUE%' }) %>", footer_auto: "<%= i18n.__('mailing.warnings.footer_auto', { code: '%CODE%', value: '%VALUE%' }) %>", image_heavy: "<%= i18n.__('mailing.warnings.image_heavy', { code: '%CODE%', value: '%VALUE%' }) %>", mjml: "<%= i18n.__('mailing.warnings.mjml', { code: '%CODE%', value: '%VALUE%' }) %>", removed_unsafe: "<%= i18n.__('mailing.warnings.removed_unsafe', { code: '%CODE%', value: '%VALUE%' }) %>" };
+		var TR_UI_EDITOR_TAGS = { first_name: "<%= i18n.__('mailing.ui.editor.tags.first_name') %>", last_name: "<%= i18n.__('mailing.ui.editor.tags.last_name') %>", full_name: "<%= i18n.__('mailing.ui.editor.tags.full_name') %>", email: "<%= i18n.__('mailing.ui.editor.tags.email') %>", company: "<%= i18n.__('mailing.ui.editor.tags.company') %>", company_address: "<%= i18n.__('mailing.ui.editor.tags.company_address') %>", current_year: "<%= i18n.__('mailing.ui.editor.tags.current_year') %>", unsubscribe_url: "<%= i18n.__('mailing.ui.editor.tags.unsubscribe_url') %>", preferences_url: "<%= i18n.__('mailing.ui.editor.tags.preferences_url') %>", web_version_url: "<%= i18n.__('mailing.ui.editor.tags.web_version_url') %>" };
+		var notyf = new Notyf({
+			position: { x: "right", y: "top" },
+			duration: 4000,
+			types: [
+				{ type: "success", dismissible: true, icon: false },
+				{ type: "error", background: "indianred", dismissible: true, icon: false },
+			],
+		});
+
+		// Екранування для форматерів Tabulator
+		function esc(v) {
+			return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) {
+				return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+			});
+		}
+
+		// Дата UTC з БД → локальний час браузера
+		function fmtDate(v) {
+			if (!v) return "";
+			var d = new Date(String(v).replace(" ", "T") + "Z");
+			if (isNaN(d)) return esc(v);
+			var p = function (n) {
+				return String(n).padStart(2, "0");
+			};
+			return p(d.getHours()) + ":" + p(d.getMinutes()) + " " + p(d.getDate()) + "." + p(d.getMonth() + 1) + "." + d.getFullYear();
+		}
+
+		// POST JSON → Promise(data). Помилка: notyf + reject(data)
+		function api(url, payload) {
+			return fetch(url, {
+				method: "POST",
+				credentials: "same-origin",
+				headers: { "Content-Type": "application/json", Accept: "application/json" },
+				body: JSON.stringify(payload || {}),
+			})
+				.then(function (r) {
+					return r
+						.json()
+						.catch(function () {
+							return { ok: false, message: "<%= i18n.__('mailing.errors.server_error') %>" };
+						})
+						.then(function (d) {
+							if (!r.ok || d.ok === false) return Promise.reject(d);
+							return d;
+						});
+				})
+				.catch(function (d) {
+					if (d && d.message) notyf.error(d.message);
+					else notyf.error("<%= i18n.__('mailing.errors.server_error') %>");
+					return Promise.reject(d || {});
+				});
+		}
+
+		// Помилки полів: {errors:[{field,message}]} → .is-invalid + .invalid-feedback (текст, не HTML)
+		function clearErrors($form) {
+			$form.find(".is-invalid").removeClass("is-invalid");
+			$form.find(".invalid-feedback.js-err").remove();
+		}
+
+		function showErrors($form, d) {
+			clearErrors($form);
+			(d && d.errors ? d.errors : []).forEach(function (e) {
+				var $el = $form.find('[name="' + String(e.field).replace(/"/g, "") + '"]').first();
+				if (!$el.length) return;
+				$el.addClass("is-invalid");
+				$('<div class="invalid-feedback js-err"></div>').text(e.message).insertAfter($el);
+			});
+		}
+
+		// Значення форми → об'єкт: data-type="int|bool|json" керує типом
+		function formData($form) {
+			var out = {};
+			$form.find("[name]").each(function () {
+				var $el = $(this);
+				var name = $el.attr("name");
+				var type = $el.data("type");
+				if ($el.is(":disabled") && !$el.data("send-disabled")) return;
+				var val;
+				if ($el.is(":checkbox")) val = $el.is(":checked");
+				else val = $el.val();
+				if (type === "int") val = val === "" || val === null ? null : parseInt(val, 10);
+				if (type === "nullable") val = val === "" ? null : val;
+				out[name] = val;
+			});
+			return out;
+		}
+
+		// Спільні налаштування Tabulator (серверна пагінація/сортування)
+		function gridOptions(url, extra) {
+			return Object.assign(
+				{
+					layout: "fitColumns",
+					ajaxURL: url,
+					ajaxConfig: "POST",
+					ajaxContentType: "json",
+					pagination: true,
+					paginationMode: "remote",
+					sortMode: "remote",
+					paginationSize: 20,
+					paginationSizeSelector: [20, 50, 100],
+					placeholder: "<%= i18n.__('mailing.ui.empty') %>",
+					movableColumns: true,
+				},
+				extra || {}
+			);
+		}
+
+		function badge(text, cls) {
+			return '<span class="badge rounded-0 ' + (cls || "text-bg-secondary") + '">' + esc(text) + "</span>";
+		}
+
+		var STATUS_CLS = {
+			active: "text-bg-success",
+			subscribed: "text-bg-success",
+			unsubscribed: "text-bg-secondary",
+			pending: "text-bg-warning",
+			bounced: "text-bg-danger",
+			complained: "text-bg-danger",
+			cleaned: "text-bg-dark",
+			draft: "text-bg-secondary",
+			scheduled: "text-bg-info",
+			preparing: "text-bg-info",
+			sending: "text-bg-primary",
+			paused: "text-bg-warning",
+			sent: "text-bg-success",
+			cancelled: "text-bg-dark",
+			failed: "text-bg-danger",
+			uploaded: "text-bg-secondary",
+			queued: "text-bg-info",
+			processing: "text-bg-primary",
+			done: "text-bg-success",
+		};
+	</script>
+	<script src="https://unpkg.com/grapesjs@0.22.6/dist/grapes.min.js"></script>
+	<script src="https://unpkg.com/grapesjs-mjml@1.0.7/dist/index.js"></script>
+	<script>
+		var OWNER_TYPE = <%- JSON.stringify(data.owner_type).replace(/</g, '\\u003c') %>;
+		var ID_OWNER = <%- JSON.stringify(data.id_owner).replace(/</g, '\\u003c') %>;
+		var ID_CAMPAIGN = <%- JSON.stringify(data.id_campaign || null).replace(/</g, '\\u003c') %>;
+		var CAN_EDIT = <%- JSON.stringify(canEdit).replace(/</g, '\\u003c') %>;
+		var TAGS = ["first_name", "last_name", "full_name", "email", "company", "company_address", "current_year", "unsubscribe_url", "preferences_url", "web_version_url"];
+		var CONTENTS = {}; // id_lang → контент з сервера
+		var READONLY = !CAN_EDIT;
+		var DIRTY = false;
+		var editor = null;
+		var LANG = parseInt(new URLSearchParams(location.search).get("lang"), 10) || parseInt($("#lang").val(), 10);
+		if ($('#lang option[value="' + LANG + '"]').length) $("#lang").val(LANG);
+
+		// Стартовий макет MJML (тексти — з мовних файлів)
+		function starterMjml() {
+			var h = function (s) { return esc(s); };
+			return (
+				"<mjml><mj-body background-color=\"#f4f6f9\">" +
+				'<mj-section background-color="#ffffff" padding="24px"><mj-column>' +
+				'<mj-text font-size="22px" font-weight="700" color="#0d3b66">' + h("<%= i18n.__('mailing.ui.editor.starter_title', { name: '{{first_name}}' }) %>") + "</mj-text>" +
+				'<mj-text font-size="15px" line-height="22px" color="#333333">' + h("<%= i18n.__('mailing.ui.editor.starter_text') %>") + "</mj-text>" +
+				'<mj-button background-color="#f4a261" color="#ffffff" href="https://">' + h("<%= i18n.__('mailing.ui.editor.starter_button') %>") + "</mj-button>" +
+				"</mj-column></mj-section></mj-body></mjml>"
+			);
+		}
+
+		// ─── Попередження з серверної перевірки ───
+		function showWarnings(list, size) {
+			var $w = $("#warnings").empty();
+			$("#size").text(size ? "· " + Math.round(size / 1024) + " KB" : "");
+			if (!list || !list.length) return $w.append($('<span class="mailing-sub"></span>').text("<%= i18n.__('mailing.ui.editor.no_warnings') %>"));
+			list.forEach(function (w) {
+				var cls = w.level === "error" ? "text-danger" : w.level === "info" ? "text-muted" : "text-warning-emphasis";
+				var text = w.code === "mjml" ? w.message : (TR_WARNINGS[w.code] || w.code).replace("%VALUE%", w.value != null ? w.value : "").replace("%CODE%", "");
+				$w.append($('<div class="mb-1"></div>').addClass(cls).text("• " + text));
+			});
+		}
+
+		// ─── Merge-теги: клік — копіювати ───
+		TAGS.forEach(function (k) {
+			var tag = "{{" + k + "}}";
+			$("#tags").append($('<button type="button" class="btn btn-sm btn-light border rounded-0 w-100 text-start mb-1 tag-btn"></button>').text(tag).attr("title", TR_UI_EDITOR_TAGS[k] || "").on("click", function () {
+				insertTag(tag);
+			}));
+		});
+		api("/api/mailing/fields/list").then(function (fields) {
+			fields.forEach(function (f) {
+				var tag = "{{" + f.code + "}}";
+				$("#tags").append($('<button type="button" class="btn btn-sm btn-light border rounded-0 w-100 text-start mb-1 tag-btn"></button>').text(tag).attr("title", f.name).on("click", function () {
+					insertTag(tag);
+				}));
+			});
+		});
+
+		// ─── GrapesJS (стандартний інтерфейс, як у демо: панелі праворуч, блоки — кнопка «квадратики») ───
+		var TR_BLOCK = {
+			"mj-1-column": "<%= i18n.__('mailing.ui.editor.block.col1') %>",
+			"mj-2-columns": "<%= i18n.__('mailing.ui.editor.block.col2') %>",
+			"mj-3-columns": "<%= i18n.__('mailing.ui.editor.block.col3') %>",
+			"mj-text": "<%= i18n.__('mailing.ui.editor.block.text') %>",
+			"mj-button": "<%= i18n.__('mailing.ui.editor.block.button') %>",
+			"mj-image": "<%= i18n.__('mailing.ui.editor.block.image') %>",
+			"mj-divider": "<%= i18n.__('mailing.ui.editor.block.divider') %>",
+			"mj-social-group": "<%= i18n.__('mailing.ui.editor.block.social') %>",
+			"mj-social-element": "<%= i18n.__('mailing.ui.editor.block.social_item') %>",
+			"mj-spacer": "<%= i18n.__('mailing.ui.editor.block.spacer') %>",
+			"mj-navbar": "<%= i18n.__('mailing.ui.editor.block.navbar') %>",
+			"mj-navbar-link": "<%= i18n.__('mailing.ui.editor.block.navbar_link') %>",
+			"mj-hero": "<%= i18n.__('mailing.ui.editor.block.hero') %>",
+			"mj-wrapper": "<%= i18n.__('mailing.ui.editor.block.wrapper') %>",
+			"mj-raw": "<%= i18n.__('mailing.ui.editor.block.raw') %>",
+		};
+		var CAT_BASIC = "<%= i18n.__('mailing.ui.editor.cat_basic') %>";
+		var CAT_SECTIONS = "<%= i18n.__('mailing.ui.editor.cat_sections') %>";
+		var PH = "https://placehold.co/"; // заглушки картинок; замініть своїми (кнопка «Картинка» → завантаження)
+
+		/** Готові секції листа. Тексти — з мовних файлів, екрановані для MJML */
+		function sectionBlocks() {
+			var h = function (s) { return esc(s); };
+			var T = {
+				title: h("<%= i18n.__('mailing.ui.editor.sample.title') %>"),
+				text: h("<%= i18n.__('mailing.ui.editor.sample.text') %>"),
+				button: h("<%= i18n.__('mailing.ui.editor.sample.button') %>"),
+				product: h("<%= i18n.__('mailing.ui.editor.sample.product') %>"),
+				price: h("<%= i18n.__('mailing.ui.editor.sample.price') %>"),
+				coupon: h("<%= i18n.__('mailing.ui.editor.sample.coupon') %>"),
+				coupon_text: h("<%= i18n.__('mailing.ui.editor.sample.coupon_text') %>"),
+				quote: h("<%= i18n.__('mailing.ui.editor.sample.quote') %>"),
+				author: h("<%= i18n.__('mailing.ui.editor.sample.author') %>"),
+				link: h("<%= i18n.__('mailing.ui.editor.sample.link') %>"),
+				unsubscribe: h("<%= i18n.__('mailing.ui.editor.sample.unsubscribe') %>"),
+				preferences: h("<%= i18n.__('mailing.ui.editor.sample.preferences') %>"),
+				web: h("<%= i18n.__('mailing.ui.editor.sample.web_version') %>"),
+			};
+			var sec = function (inner, bg) { return '<mj-section background-color="' + (bg || "#ffffff") + '" padding="20px 0">' + inner + "</mj-section>"; };
+			var col = function (inner, w) { return "<mj-column" + (w ? ' width="' + w + '"' : "") + ">" + inner + "</mj-column>"; };
+			var title = function (size) { return '<mj-text font-size="' + (size || 22) + 'px" font-weight="700" color="#212529" line-height="1.3">' + T.title + "</mj-text>"; };
+			var text = '<mj-text font-size="15px" line-height="1.6" color="#495057">' + T.text + "</mj-text>";
+			var button = function (align) { return '<mj-button href="https://" background-color="#0d6efd" color="#ffffff" border-radius="4px" font-size="15px" align="' + (align || "center") + '">' + T.button + "</mj-button>"; };
+			var img = function (w, hgt) { return '<mj-image src="' + PH + w + "x" + hgt + '/e9ecef/6c757d/png" alt="" href="https://"></mj-image>'; };
+			return [
+				{ id: "s-header", icon: "fa-heading", label: "<%= i18n.__('mailing.ui.editor.block.s_header') %>", content: sec(col('<mj-image src="' + PH + '160x50/e9ecef/6c757d/png" alt="" width="160px" align="left" href="https://"></mj-image>', "40%") + col('<mj-text align="right" font-size="13px" color="#6c757d"><a href="{{web_version_url}}" style="color:#6c757d">' + T.web + "</a></mj-text>", "60%")) },
+				{ id: "s-hero", icon: "fa-panorama", label: "<%= i18n.__('mailing.ui.editor.block.s_hero') %>", content: '<mj-hero mode="fixed-height" height="320px" background-width="600px" background-height="320px" background-url="' + PH + '600x320/343a40/ffffff/png" background-color="#343a40" padding="60px 20px"><mj-text align="center" font-size="30px" font-weight="700" color="#ffffff">' + T.title + '</mj-text><mj-text align="center" font-size="16px" color="#ffffff">' + T.text + "</mj-text>" + button() + "</mj-hero>" },
+				{ id: "s-text", icon: "fa-align-left", label: "<%= i18n.__('mailing.ui.editor.block.s_text') %>", content: sec(col(title() + text + button("left"))) },
+				{ id: "s-image-full", icon: "fa-image", label: "<%= i18n.__('mailing.ui.editor.block.s_image') %>", content: sec(col(img(600, 300)), "#ffffff") },
+				{ id: "s-image-text", icon: "fa-table-columns", label: "<%= i18n.__('mailing.ui.editor.block.s_image_text') %>", content: sec(col(img(280, 200)) + col(title(20) + text + button("left"))) },
+				{ id: "s-text-image", icon: "fa-table-columns", label: "<%= i18n.__('mailing.ui.editor.block.s_text_image') %>", content: sec(col(title(20) + text + button("left")) + col(img(280, 200))) },
+				{ id: "s-cards-2", icon: "fa-grip", label: "<%= i18n.__('mailing.ui.editor.block.s_cards2') %>", content: sec(col(img(280, 180) + title(18) + text + button()) + col(img(280, 180) + title(18) + text + button())) },
+				{ id: "s-features-3", icon: "fa-grip-lines", label: "<%= i18n.__('mailing.ui.editor.block.s_features3') %>", content: sec([1, 2, 3].map(function () { return col('<mj-image src="' + PH + '64x64/e9ecef/6c757d/png" alt="" width="64px"></mj-image><mj-text align="center" font-size="16px" font-weight="700" color="#212529">' + T.title + '</mj-text><mj-text align="center" font-size="14px" color="#495057">' + T.text + "</mj-text>"); }).join("")) },
+				{ id: "s-product", icon: "fa-bag-shopping", label: "<%= i18n.__('mailing.ui.editor.block.s_product') %>", content: sec(col(img(260, 260)) + col('<mj-text font-size="20px" font-weight="700" color="#212529">' + T.product + '</mj-text><mj-text font-size="15px" color="#495057">' + T.text + '</mj-text><mj-text font-size="22px" font-weight="700" color="#d63384">' + T.price + "</mj-text>" + button("left"))) },
+				{ id: "s-products-3", icon: "fa-store", label: "<%= i18n.__('mailing.ui.editor.block.s_products3') %>", content: sec([1, 2, 3].map(function () { return col(img(180, 180) + '<mj-text align="center" font-size="15px" font-weight="700" color="#212529">' + T.product + '</mj-text><mj-text align="center" font-size="16px" color="#d63384" font-weight="700">' + T.price + "</mj-text>" + button()); }).join("")) },
+				{ id: "s-coupon", icon: "fa-ticket", label: "<%= i18n.__('mailing.ui.editor.block.s_coupon') %>", content: sec(col('<mj-text align="center" font-size="15px" color="#495057">' + T.coupon_text + '</mj-text><mj-text align="center" font-size="28px" font-weight="700" letter-spacing="4px" color="#212529" container-background-color="#fff3cd" padding="16px" css-class="coupon">' + T.coupon + "</mj-text>" + button())) },
+				{ id: "s-quote", icon: "fa-quote-left", label: "<%= i18n.__('mailing.ui.editor.block.s_quote') %>", content: sec(col('<mj-text font-size="18px" font-style="italic" line-height="1.6" color="#212529" align="center">“' + T.quote + '”</mj-text><mj-text align="center" font-size="14px" color="#6c757d">— ' + T.author + "</mj-text>"), "#f8f9fa") },
+				{ id: "s-video", icon: "fa-circle-play", label: "<%= i18n.__('mailing.ui.editor.block.s_video') %>", content: sec(col('<mj-image src="' + PH + '600x340/212529/ffffff/png?text=%E2%96%B6" alt="" href="https://"></mj-image>' + text)) },
+				{ id: "s-cta", icon: "fa-bullhorn", label: "<%= i18n.__('mailing.ui.editor.block.s_cta') %>", content: sec(col('<mj-text align="center" font-size="24px" font-weight="700" color="#ffffff">' + T.title + "</mj-text>" + '<mj-button href="https://" background-color="#ffffff" color="#0d6efd" border-radius="4px" font-weight="700">' + T.button + "</mj-button>"), "#0d6efd") },
+				{ id: "s-social", icon: "fa-share-nodes", label: "<%= i18n.__('mailing.ui.editor.block.s_social') %>", content: sec(col('<mj-social font-size="13px" icon-size="28px" mode="horizontal" align="center"><mj-social-element name="facebook" href="https://"></mj-social-element><mj-social-element name="instagram" href="https://"></mj-social-element><mj-social-element name="youtube" href="https://"></mj-social-element></mj-social>')) },
+				{ id: "s-divider", icon: "fa-minus", label: "<%= i18n.__('mailing.ui.editor.block.s_divider') %>", content: sec(col('<mj-divider border-width="1px" border-color="#dee2e6"></mj-divider>'), "#ffffff") },
+				{ id: "s-footer", icon: "fa-shoe-prints", label: "<%= i18n.__('mailing.ui.editor.block.s_footer') %>", content: sec(col('<mj-text align="center" font-size="12px" line-height="1.6" color="#6c757d">{{company}}<br>{{company_address}}<br><br><a href="{{preferences_url}}" style="color:#6c757d">' + T.preferences + '</a> · <a href="{{unsubscribe_url}}" style="color:#6c757d">' + T.unsubscribe + "</a></mj-text>"), "#f8f9fa") },
+			];
+		}
+
+		function initEditor() {
+			if (editor) return editor;
+			var mjmlPlugin = window["grapesjs-mjml"];
+			editor = grapesjs.init({
+				container: "#gjs",
+				// Висота — конкретним значенням (не "100%": батьківський блок без висоти дає 0)
+				height: "calc(100vh - 260px)",
+				width: "auto",
+				fromElement: false,
+				storageManager: false, // зберігаємо лише через наш API
+				avoidInlineStyle: true,
+				plugins: [typeof mjmlPlugin === "function" ? mjmlPlugin : mjmlPlugin && mjmlPlugin.default].filter(Boolean),
+				pluginsOpts: {},
+				assetManager: {
+					upload: false,
+					multiUpload: false,
+					accept: "image/jpeg,image/png,image/gif,image/webp",
+					// Завантаження через наш API: тип перевіряється на сервері за вмістом
+					uploadFile: function (e) {
+						var files = e.dataTransfer ? e.dataTransfer.files : e.target.files;
+						if (!files || !files[0]) return;
+						if (files[0].size > 5 * 1024 * 1024) return notyf.error("<%= i18n.__('mailing.errors.file_too_large') %>");
+						var fd = new FormData();
+						fd.append("file", files[0]);
+						fetch("/api/mailing/images/upload", { method: "POST", body: fd, credentials: "same-origin", headers: { Accept: "application/json" } })
+							.then(function (r) { return r.json().then(function (d) { return r.ok && d.ok !== false ? d : Promise.reject(d); }); })
+							.then(function (d) { editor.AssetManager.add({ src: d.url }); })
+							.catch(function (d) { notyf.error((d && d.message) || "<%= i18n.__('mailing.errors.upload_failed') %>"); });
+					},
+				},
+			});
+
+			// Блоки: базові MJML плагіна (перекладені назви) + готові секції
+			var bm = editor.Blocks;
+			bm.getAll().forEach(function (b) {
+				if (TR_BLOCK[b.getId()]) b.set("label", TR_BLOCK[b.getId()]);
+				b.set("category", CAT_BASIC);
+			});
+			sectionBlocks().forEach(function (s) {
+				bm.add(s.id, { label: s.label, category: CAT_SECTIONS, media: '<i class="fa-solid ' + s.icon + ' fa-2x"></i>', content: s.content });
+			});
+
+			editor.on("update", function () { DIRTY = true; });
+			editor.on("load", function () {
+				// Одразу відкрити панель блоків (у стандартному інтерфейсі вона за кнопкою)
+				editor.runCommand("open-blocks");
+				var btn = editor.Panels.getButton("views", "open-blocks");
+				if (btn) btn.set("active", true);
+			});
+			return editor;
+		}
+
+		function setMode(mode) {
+			$('[name="mode"][value="' + mode + '"]').prop("checked", true);
+			$("#visual-box").toggleClass("d-none", mode !== "visual");
+			$("#html-box").toggleClass("d-none", mode !== "html");
+			if (mode === "visual") {
+				initEditor();
+				setTimeout(function () { editor.refresh(); }, 0);
+			}
+		}
+
+		/** Змінна: якщо редагується текст — вставити в курсор, інакше скопіювати */
+		function insertTag(tag) {
+			var editing = editor && editor.getEditing && editor.getEditing();
+			if (editing && !READONLY) {
+				editor.Canvas.getDocument().execCommand("insertText", false, tag);
+				DIRTY = true;
+				return notyf.success("<%= i18n.__('mailing.ui.editor.inserted') %>" + " " + tag);
+			}
+			navigator.clipboard.writeText(tag).then(function () { notyf.success("<%= i18n.__('mailing.ui.editor.copied') %>" + " " + tag); });
+		}
+		// Не забирати фокус із тексту в редакторі при кліку на змінну
+		$(document).on("mousedown", ".tag-btn", function (e) { e.preventDefault(); });
+
+		function currentMode() { return $('[name="mode"]:checked').val() || "visual"; }
+
+		function fillLang(idLang) {
+			var c = CONTENTS[idLang];
+			$("#subject").val(c ? c.subject : "");
+			$("#preheader").val(c ? c.preheader || "" : "");
+			var mode = c ? c.editor : "visual";
+			setMode(mode);
+			if (mode === "visual") {
+				if (c && c.project) editor.loadProjectData(c.project);
+				else editor.setComponents(c && c.source ? c.source : starterMjml());
+			} else {
+				$("#html-source").val(c ? c.source || "" : "");
+				renderHtmlPreview(c ? c.html : "");
+			}
+			showWarnings(c ? c.warnings : [], c ? c.size_bytes : 0);
+			$("#btn-delete-lang").toggleClass("d-none", !c || READONLY);
+			DIRTY = false;
+		}
+
+		// ─── HTML-режим: превʼю після серверної очистки ───
+		function renderHtmlPreview(html) { document.getElementById("html-preview").srcdoc = html || ""; }
+		var htmlTimer;
+		$("#html-source").on("input", function () {
+			DIRTY = true;
+			clearTimeout(htmlTimer);
+			htmlTimer = setTimeout(function () {
+				var src = $("#html-source").val();
+				if (!src.trim()) return renderHtmlPreview("");
+				api("/api/mailing/content/compile", { editor: "html", source: src }).then(function (r) {
+					renderHtmlPreview(r.html);
+					showWarnings(r.warnings, r.size);
+				}).catch(function () {});
+			}, 800);
+		});
+
+		$('[name="mode"]').on("change", function () {
+			var to = $(this).val();
+			var c = CONTENTS[LANG];
+			// Візуальний макет → HTML: беремо скомпільований HTML. Назад повернути макет неможливо.
+			if (to === "html") {
+				if (!confirm("<%= i18n.__('mailing.ui.editor.switch_confirm') %>")) return setMode("visual");
+				var src = editor ? editor.getHtml() : "";
+				api("/api/mailing/content/compile", { editor: "visual", source: src }).then(function (r) {
+					$("#html-source").val(r.html);
+					renderHtmlPreview(r.html);
+					showWarnings(r.warnings, r.size);
+				});
+			} else {
+				if (!confirm("<%= i18n.__('mailing.ui.editor.switch_confirm') %>")) return setMode("html");
+				initEditor().setComponents(c && c.editor === "visual" && c.source ? c.source : starterMjml());
+			}
+			setMode(to);
+			DIRTY = true;
+		});
+
+		// ─── Завантаження ───
+		function load() {
+			var url = OWNER_TYPE === "template" ? "/api/mailing/templates/" + ID_OWNER : "/api/mailing/campaigns/" + ID_CAMPAIGN;
+			return api(url).then(function (r) {
+				var list = [];
+				if (OWNER_TYPE === "template") {
+					list = r.contents;
+					$("#bc-name").text(r.name);
+				} else {
+					var v = r.variants.filter(function (x) { return x.id === ID_OWNER; })[0];
+					if (!v) return notyf.error("<%= i18n.__('mailing.errors.not_found') %>");
+					list = v.contents;
+					$("#bc-name").text(r.name + " · " + "<%= i18n.__('mailing.ui.campaigns.variant') %>" + " " + v.code);
+					// Лист автоматизації редагується завжди; назад — до автоматизації
+					if (r.status !== "draft" && r.type !== "automation") READONLY = true;
+					if (r.type === "automation" && r.id_automation) $("#bc-back").attr("href", "/mailing/automations/" + parseInt(r.id_automation, 10) + "/");
+				}
+				CONTENTS = {};
+				list.forEach(function (c) { CONTENTS[c.id_lang] = c; });
+				$("#readonly-note").toggleClass("d-none", !READONLY || !CAN_EDIT);
+				$(".js-ro").prop("disabled", READONLY);
+				fillLang(LANG);
+			});
+		}
+
+		$("#lang").on("change", function () {
+			var next = parseInt($(this).val(), 10);
+			if (DIRTY && !confirm("<%= i18n.__('mailing.ui.editor.unsaved') %>")) return $(this).val(LANG);
+			LANG = next;
+			history.replaceState(null, "", "?lang=" + LANG);
+			fillLang(LANG);
+		});
+
+		// ─── Збереження ───
+		$("#btn-save").on("click", function () {
+			if (READONLY) return;
+			var mode = currentMode();
+			var body = { owner_type: OWNER_TYPE, id_owner: ID_OWNER, id_lang: LANG, subject: $("#subject").val(), preheader: $("#preheader").val() || null, editor: mode };
+			if (mode === "visual") {
+				body.project = editor.getProjectData();
+				body.source = editor.getHtml(); // MJML
+			} else {
+				body.project = null;
+				body.source = $("#html-source").val();
+			}
+			var $b = $(this).prop("disabled", true);
+			$("#subject").removeClass("is-invalid");
+			api("/api/mailing/content/save", body)
+				.then(function (r) {
+					DIRTY = false;
+					notyf.success("<%= i18n.__('mailing.ui.saved') %>");
+					showWarnings(r.warnings, r.size);
+					return load();
+				})
+				.catch(function (err) {
+					(err.errors || []).forEach(function (e) { if (e.field === "subject") $("#subject").addClass("is-invalid"); });
+				})
+				.finally(function () { $b.prop("disabled", false); });
+		});
+
+		$("#btn-delete-lang").on("click", function () {
+			if (!confirm("<%= i18n.__('mailing.ui.editor.delete_confirm') %>")) return;
+			api("/api/mailing/content/delete", { owner_type: OWNER_TYPE, id_owner: ID_OWNER, id_lang: LANG }).then(function () {
+				notyf.success("<%= i18n.__('mailing.ui.deleted') %>");
+				load();
+			});
+		});
+
+		// ─── Перегляд: серверна компіляція → iframe sandbox без скриптів ───
+		var pvModal = new bootstrap.Modal("#modal-preview");
+		$("#btn-preview").on("click", function () {
+			var mode = currentMode();
+			var src = mode === "visual" ? editor.getHtml() : $("#html-source").val();
+			api("/api/mailing/content/compile", { editor: mode, source: src }).then(function (r) {
+				document.getElementById("preview-frame").srcdoc = r.html;
+				showWarnings(r.warnings, r.size);
+				pvModal.show();
+			});
+		});
+		$("#pv-desktop").on("click", function () { $("#preview-wrap").removeClass("preview-mobile"); $(this).addClass("active"); $("#pv-mobile").removeClass("active"); });
+		$("#pv-mobile").on("click", function () { $("#preview-wrap").addClass("preview-mobile"); $(this).addClass("active"); $("#pv-desktop").removeClass("active"); });
+
+		window.addEventListener("beforeunload", function (e) {
+			if (DIRTY && !READONLY) { e.preventDefault(); e.returnValue = ""; }
+		});
+
+		load();
+	</script>
+</body>
+</html>

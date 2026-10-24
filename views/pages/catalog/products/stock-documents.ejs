@@ -1,0 +1,149 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.stock.documents.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="/assets/css/tabulator/tabulator_bootstrap5.min.css" />
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><%= i18n.__('catalog.menu.catalog') %></li>
+					<li class="breadcrumb-item active"><%= i18n.__('catalog.stock.documents.title') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+					<h1 class="h4 mb-0"><%= i18n.__('catalog.stock.documents.title') %></h1>
+					<div class="d-flex gap-2">
+						<a class="btn btn-outline-secondary rounded-0" href="/catalog/stock/movements/"><i class="fa-solid fa-list"></i> <%= i18n.__('catalog.stock.movements.title') %></a>
+						<% if (perms.add) { %>
+						<div class="dropdown">
+							<button class="btn btn-primary rounded-0 dropdown-toggle" data-bs-toggle="dropdown"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.stock.documents.create') %></button>
+							<ul class="dropdown-menu dropdown-menu-end rounded-0">
+								<li><a class="dropdown-item" href="/catalog/stock/documents/new/receipt/"><%= i18n.__('catalog.stock.types.receipt') %></a></li>
+								<li><a class="dropdown-item" href="/catalog/stock/documents/new/transfer/"><%= i18n.__('catalog.stock.types.transfer') %></a></li>
+								<li><a class="dropdown-item" href="/catalog/stock/documents/new/writeoff/"><%= i18n.__('catalog.stock.types.writeoff') %></a></li>
+								<li><a class="dropdown-item" href="/catalog/stock/documents/new/inventory/"><%= i18n.__('catalog.stock.types.inventory') %></a></li>
+								<li><a class="dropdown-item" href="/catalog/stock/documents/new/return/"><%= i18n.__('catalog.stock.types.return') %></a></li>
+								<li><a class="dropdown-item" href="/catalog/stock/documents/new/adjustment/"><%= i18n.__('catalog.stock.types.adjustment') %></a></li>
+							</ul>
+						</div>
+						<% } %>
+					</div>
+				</div>
+
+				<div class="row g-2 mb-3">
+					<div class="col-md-3"><input type="search" class="form-control rounded-0" id="f-search" placeholder="<%= i18n.__('catalog.stock.documents.search') %>" /></div>
+					<div class="col-md-2">
+						<select class="form-select rounded-0" id="f-type">
+							<option value=""><%= i18n.__('catalog.stock.documents.all_types') %></option>
+							<option value="receipt"><%= i18n.__('catalog.stock.types.receipt') %></option>
+							<option value="transfer"><%= i18n.__('catalog.stock.types.transfer') %></option>
+							<option value="writeoff"><%= i18n.__('catalog.stock.types.writeoff') %></option>
+							<option value="inventory"><%= i18n.__('catalog.stock.types.inventory') %></option>
+							<option value="return"><%= i18n.__('catalog.stock.types.return') %></option>
+							<option value="adjustment"><%= i18n.__('catalog.stock.types.adjustment') %></option>
+						</select>
+					</div>
+					<div class="col-md-2">
+						<select class="form-select rounded-0" id="f-status">
+							<option value=""><%= i18n.__('catalog.stock.documents.all_statuses') %></option>
+							<option value="draft"><%= i18n.__('catalog.stock.status.draft') %></option>
+							<option value="posted"><%= i18n.__('catalog.stock.status.posted') %></option>
+							<option value="cancelled"><%= i18n.__('catalog.stock.status.cancelled') %></option>
+						</select>
+					</div>
+					<div class="col-md-2">
+						<select class="form-select rounded-0" id="f-warehouse">
+							<option value=""><%= i18n.__('catalog.stock.documents.all_warehouses') %></option>
+							<% warehouses.forEach((w) => { %><option value="<%= w.id %>"><%= w.code %> — <%= w.name %></option><% }) %>
+						</select>
+					</div>
+					<div class="col-md-3 d-flex gap-2">
+						<input type="date" class="form-control rounded-0" id="f-from" />
+						<input type="date" class="form-control rounded-0" id="f-to" />
+					</div>
+				</div>
+				<div id="grid"></div>
+			</div>
+		</main>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const TYPES = {
+					receipt: "<%= i18n.__('catalog.stock.types.receipt') %>",
+					transfer: "<%= i18n.__('catalog.stock.types.transfer') %>",
+					writeoff: "<%= i18n.__('catalog.stock.types.writeoff') %>",
+					inventory: "<%= i18n.__('catalog.stock.types.inventory') %>",
+					return: "<%= i18n.__('catalog.stock.types.return') %>",
+					adjustment: "<%= i18n.__('catalog.stock.types.adjustment') %>",
+				};
+				const STATUS = {
+					draft: '<span class="badge text-bg-secondary"><%= i18n.__('catalog.stock.status.draft') %></span>',
+					posted: '<span class="badge text-bg-success"><%= i18n.__('catalog.stock.status.posted') %></span>',
+					cancelled: '<span class="badge text-bg-danger"><%= i18n.__('catalog.stock.status.cancelled') %></span>',
+				};
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+
+				const filters = () => ({
+					search: document.getElementById("f-search").value.trim(),
+					type: document.getElementById("f-type").value,
+					status: document.getElementById("f-status").value,
+					id_warehouse: document.getElementById("f-warehouse").value,
+					date_from: document.getElementById("f-from").value,
+					date_to: document.getElementById("f-to").value,
+				});
+
+				const grid = new Tabulator("#grid", {
+					layout: "fitColumns",
+					placeholder: "—",
+					pagination: true,
+					paginationMode: "remote",
+					paginationSize: 50,
+					ajaxURL: "/api/catalog/products/stock/documents/list/",
+					ajaxConfig: { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" } },
+					ajaxContentType: "json",
+					ajaxParams: filters,
+					columns: [
+						{ title: "<%= i18n.__('catalog.stock.f.number') %>", field: "number", width: 170, headerSort: false, formatter: (c) => `<a href="/catalog/stock/documents/${c.getRow().getData().id}/">${esc(c.getValue())}</a>` },
+						{ title: "<%= i18n.__('catalog.stock.f.type') %>", field: "type", width: 160, headerSort: false, formatter: (c) => esc(TYPES[c.getValue()]) },
+						{ title: "<%= i18n.__('catalog.stock.f.status') %>", field: "status", width: 120, headerSort: false, formatter: (c) => STATUS[c.getValue()] },
+						{ title: "<%= i18n.__('catalog.stock.f.date_document') %>", field: "date_document", width: 120, headerSort: false },
+						{
+							title: "<%= i18n.__('catalog.stock.f.warehouse') %>",
+							field: "warehouse",
+							headerSort: false,
+							formatter: (c) => esc(c.getValue()) + (c.getRow().getData().warehouse_to ? " → " + esc(c.getRow().getData().warehouse_to) : ""),
+						},
+						{ title: "<%= i18n.__('catalog.stock.f.supplier') %>", field: "supplier", headerSort: false, formatter: (c) => esc(c.getValue()) },
+						{ title: "<%= i18n.__('catalog.stock.f.external_number') %>", field: "external_number", width: 140, headerSort: false, formatter: (c) => esc(c.getValue()) },
+						{ title: "<%= i18n.__('catalog.stock.f.lines') %>", field: "lines_count", width: 90, hozAlign: "right", headerSort: false },
+						{ title: "<%= i18n.__('catalog.stock.f.qty_total') %>", field: "qty_total", width: 110, hozAlign: "right", headerSort: false, formatter: (c) => Number(c.getValue()).toLocaleString() },
+						{ title: "<%= i18n.__('catalog.stock.f.author') %>", field: "author", width: 160, headerSort: false, formatter: (c) => esc(c.getValue()) },
+					],
+				});
+				let timer;
+				document.getElementById("f-search").addEventListener("input", () => {
+					clearTimeout(timer);
+					timer = setTimeout(() => grid.setData(), 300);
+				});
+				["f-type", "f-status", "f-warehouse", "f-from", "f-to"].forEach((id) => document.getElementById(id).addEventListener("change", () => grid.setData()));
+			})();
+		</script>
+	</body>
+</html>

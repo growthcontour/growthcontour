@@ -1,0 +1,105 @@
+a {
+  color: #0057B8;
+  text-decoration: none;
+}
+
+/* Breadcrumbs */
+.breadcrumbs {
+  background: #637280;
+  color: #fff;
+}
+
+.breadcrumbs a {
+  color: #fff;
+}
+
+/* END Breadcrumbs */
+
+/* Header */
+.header-navbar {
+  background: #0057B8;
+}
+
+.header-navbar .nav-link {
+  color: #fff;
+}
+
+.header-navbar .nav-link:focus,
+.header-navbar .nav-link:hover {
+  background: #057bff;
+}
+
+.header-navbar .nav-link.active {
+  background: #057bff;
+}
+
+/* notification */
+.notification-block .tab-content li {
+  border-bottom: 1px solid #eee;
+}
+
+.notification-block .tab-content a {
+  padding: 10px 15px;
+  color: #000;
+}
+
+.notification-block .tab-content li:hover {
+  background: #f8f9fa;
+}
+
+.notification-block .tab-content li a>span {
+  width: 2.5rem;
+  height: 2.5rem;
+  line-height: 2.4rem;
+  background: #0057B8;
+  color: #fff;
+  text-align: center;
+  border-radius: 50%;
+}
+
+/*.notification-block .tab-content li:last-child {
+  border-bottom: 0px;
+}*/
+/* END notification */
+
+/* END Header */
+
+/* B */
+.form-check-input:focus,
+.form-control:focus,
+.btn-close:focus,
+.form-select:focus,
+.form-control.is-invalid:focus,
+.was-validated .form-control:invalid:focus,
+.btn-check:focus+.btn-danger,
+.btn-danger:focus,
+.btn-check:focus+.btn-primary,
+.btn-primary:focus {
+  box-shadow: none !important;
+}
+
+.text-bg-primary {
+  background: #0057B8;
+  background-color: #0057B8 !important;
+}
+
+.border-primary,
+.btn {
+  border-color: #0057B8 !important;
+}
+
+.btn-primary {
+  background-color: #0057B8;
+}
+
+.nav-link,
+.btn-outline-primary {
+  color: #0057B8;
+}
+
+.btn:hover {
+  background-color: #057bff;
+}
+
+
+/* END B */

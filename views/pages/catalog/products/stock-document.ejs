@@ -1,0 +1,489 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.stock.documents.document') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.pc-sticky { position: sticky; top: 0; z-index: 1020; background: var(--bs-body-bg); }
+			#items-body td { vertical-align: middle; }
+			#items-body textarea { min-width: 180px; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('catalog.common.home') %></a></li>
+					<li class="breadcrumb-item"><a href="/catalog/stock/documents/"><%= i18n.__('catalog.stock.documents.title') %></a></li>
+					<li class="breadcrumb-item active" id="bc-title"><%= documentId ? '#' + documentId : i18n.__('catalog.stock.documents.new') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<div class="pc-sticky py-2 mb-3 border-bottom d-flex flex-wrap gap-2 align-items-center">
+					<h1 class="h4 mb-0 me-auto"><span id="doc-type"></span> <span id="doc-number" class="text-muted"></span> <span id="doc-status"></span></h1>
+					<% if (perms.delete) { %>
+					<button type="button" class="btn btn-outline-danger rounded-0" id="btn-delete" style="display: none"><i class="fa-solid fa-trash"></i> <%= i18n.__('catalog.common.delete') %></button>
+					<button type="button" class="btn btn-outline-danger rounded-0" id="btn-cancel" style="display: none"><i class="fa-solid fa-rotate-left"></i> <%= i18n.__('catalog.stock.documents.cancel') %></button>
+					<% } %>
+					<% if (perms.add || perms.edit) { %>
+					<button type="button" class="btn btn-outline-primary rounded-0" id="btn-save" style="display: none"><i class="fa-solid fa-floppy-disk"></i> <%= i18n.__('catalog.stock.documents.save_draft') %></button>
+					<% } %>
+					<% if (perms.edit) { %>
+					<button type="button" class="btn btn-success rounded-0" id="btn-post" style="display: none"><i class="fa-solid fa-check"></i> <%= i18n.__('catalog.stock.documents.post') %></button>
+					<% } %>
+				</div>
+
+				<div class="card rounded-0 mb-3">
+					<div class="card-body">
+						<div class="row g-3" id="header-form">
+							<div class="col-md-3" data-field="header.id_warehouse">
+								<label class="form-label" id="lbl-warehouse"><%= i18n.__('catalog.stock.f.warehouse') %> *</label>
+								<select class="form-select rounded-0 js-w" name="id_warehouse">
+									<% warehouses.filter((w) => Number(w.status) === 1).forEach((w) => { %><option value="<%= w.id %>"><%= w.code %> — <%= w.name %></option><% }) %>
+								</select>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-3 js-only-transfer" data-field="header.id_warehouse_to">
+								<label class="form-label"><%= i18n.__('catalog.stock.f.warehouse_to') %> *</label>
+								<select class="form-select rounded-0 js-w" name="id_warehouse_to">
+									<option value=""></option>
+									<% warehouses.filter((w) => Number(w.status) === 1).forEach((w) => { %><option value="<%= w.id %>"><%= w.code %> — <%= w.name %></option><% }) %>
+								</select>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-3 js-only-receipt" data-field="header.id_supplier">
+								<label class="form-label"><%= i18n.__('catalog.stock.f.supplier') %></label>
+								<select class="form-select rounded-0 js-w" name="id_supplier">
+									<option value=""><%= i18n.__('catalog.common.none') %></option>
+									<% suppliers.forEach((s) => { %><option value="<%= s.id %>"><%= s.name %><%= s.code ? ' (' + s.code + ')' : '' %></option><% }) %>
+								</select>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-2" data-field="header.date_document">
+								<label class="form-label"><%= i18n.__('catalog.stock.f.date_document') %> *</label>
+								<input class="form-control rounded-0 js-w" type="date" name="date_document" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-2 js-only-receipt" data-field="header.external_number">
+								<label class="form-label"><%= i18n.__('catalog.stock.f.external_number') %></label>
+								<input class="form-control rounded-0 js-w" name="external_number" maxlength="64" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-1 js-only-receipt" data-field="header.currency">
+								<label class="form-label"><%= i18n.__('catalog.stock.f.currency') %></label>
+								<input class="form-control rounded-0 text-uppercase js-w" name="currency" maxlength="3" placeholder="<%= currency %>" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-12" data-field="header.comment">
+								<label class="form-label"><%= i18n.__('catalog.stock.f.comment') %></label>
+								<textarea class="form-control rounded-0 js-w" name="comment" rows="2" maxlength="5000"></textarea>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-12 small text-muted" id="doc-meta"></div>
+						</div>
+					</div>
+				</div>
+
+				<div class="card rounded-0">
+					<div class="card-header d-flex flex-wrap gap-2 align-items-center">
+						<strong class="me-auto"><%= i18n.__('catalog.stock.documents.lines') %> (<span id="lines-count">0</span>)</strong>
+						<input type="search" class="form-control form-control-sm rounded-0 js-w" id="p-search" placeholder="<%= i18n.__('catalog.products.related.search') %>" list="p-options" style="max-width: 340px" />
+						<datalist id="p-options"></datalist>
+						<select class="form-select form-select-sm rounded-0 js-w" id="p-variant" style="max-width: 260px; display: none"></select>
+						<button type="button" class="btn btn-sm btn-outline-secondary rounded-0 js-w" id="btn-add-line"><i class="fa-solid fa-plus"></i> <%= i18n.__('catalog.stock.documents.add_line') %></button>
+					</div>
+					<div class="card-body p-0">
+						<div data-field="items"><div class="invalid-feedback px-3 pt-2"></div></div>
+						<div class="table-responsive">
+							<table class="table table-sm mb-0">
+								<thead id="items-head"></thead>
+								<tbody id="items-body"></tbody>
+							</table>
+						</div>
+						<div class="text-muted p-4 text-center" id="items-empty"><%= i18n.__('catalog.stock.documents.no_lines') %></div>
+					</div>
+				</div>
+			</div>
+		</main>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const DOC_ID = <%= documentId ? Number(documentId) : 'null' %>;
+				const NEW_TYPE = <%- documentType ? JSON.stringify(documentType) : 'null' %>;
+				const PERMS = { add: <%= perms.add %>, edit: <%= perms.edit %>, delete: <%= perms.delete %>, cost: <%= perms.cost %>, locations: <%= perms.locations %> };
+				const TRACK_BATCHES = <%= !!stockCfg.track_batches %>;
+				const TRACK_SERIALS = <%= !!stockCfg.track_serials %>;
+				const TYPES = {
+					receipt: "<%= i18n.__('catalog.stock.types.receipt') %>",
+					transfer: "<%= i18n.__('catalog.stock.types.transfer') %>",
+					writeoff: "<%= i18n.__('catalog.stock.types.writeoff') %>",
+					inventory: "<%= i18n.__('catalog.stock.types.inventory') %>",
+					return: "<%= i18n.__('catalog.stock.types.return') %>",
+					adjustment: "<%= i18n.__('catalog.stock.types.adjustment') %>",
+				};
+				const STATUS = {
+					draft: '<span class="badge text-bg-secondary"><%= i18n.__('catalog.stock.status.draft') %></span>',
+					posted: '<span class="badge text-bg-success"><%= i18n.__('catalog.stock.status.posted') %></span>',
+					cancelled: '<span class="badge text-bg-danger"><%= i18n.__('catalog.stock.status.cancelled') %></span>',
+				};
+
+				const notyf = new Notyf({ duration: 3500, position: { x: "right", y: "top" } });
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+				const errMsg = (err) => err.error || "<%= i18n.__('catalog.common.error') %>";
+				const hf = (name) => document.querySelector(`#header-form [name="${name}"]`);
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+
+				let doc = null;
+				let type = NEW_TYPE;
+				let editable = false;
+				let dirty = false;
+				const body = document.getElementById("items-body");
+
+				// ── Колонки залежно від типу документа ─────────
+				const showCost = () => PERMS.cost && (type === "receipt" || type === "return");
+				const showBatch = () => TRACK_BATCHES;
+				const showExpiry = () => TRACK_BATCHES && (type === "receipt" || type === "return");
+				const showSerials = () => TRACK_SERIALS;
+				const showLocation = () => PERMS.locations && ["receipt", "return", "transfer", "inventory", "adjustment"].includes(type);
+
+				function renderHead() {
+					let h = `<tr><th><%= i18n.__('catalog.stock.f.product') %></th>`;
+					if (type === "inventory") h += `<th class="text-end"><%= i18n.__('catalog.stock.f.qty_expected') %></th><th style="width:130px"><%= i18n.__('catalog.stock.f.qty_counted') %></th><th class="text-end"><%= i18n.__('catalog.stock.f.difference') %></th>`;
+					else h += `<th style="width:130px">${type === "adjustment" ? "<%= i18n.__('catalog.stock.f.qty_signed') %>" : "<%= i18n.__('catalog.stock.f.qty') %>"}</th>`;
+					if (showCost()) h += `<th style="width:130px"><%= i18n.__('catalog.stock.f.cost_price') %></th>`;
+					if (showBatch()) h += `<th style="width:140px"><%= i18n.__('catalog.stock.f.batch_no') %></th>`;
+					if (showExpiry()) h += `<th style="width:150px"><%= i18n.__('catalog.stock.f.expiry_date') %></th>`;
+					if (showLocation()) h += `<th style="width:170px"><%= i18n.__('catalog.stock.f.location') %></th>`;
+					if (showSerials()) h += `<th><%= i18n.__('catalog.stock.f.serials') %></th>`;
+					h += `<th style="width:40px"></th></tr>`;
+					document.getElementById("items-head").innerHTML = h;
+				}
+
+				// ── Комірки складу-отримувача ──────────────────
+				const locCache = {};
+				function targetWarehouse() {
+					return parseInt((type === "transfer" ? hf("id_warehouse_to").value : hf("id_warehouse").value) || 0, 10);
+				}
+				async function locations() {
+					const wh = targetWarehouse();
+					if (!PERMS.locations || !wh) return [];
+					if (!locCache[wh]) locCache[wh] = api(`/api/catalog/products/warehouses/${wh}/locations/list/`).then((r) => r.rows).catch(() => []);
+					return locCache[wh];
+				}
+				async function fillLocationSelects() {
+					const locs = await locations();
+					body.querySelectorAll('[data-i="id_location"]').forEach((sel) => {
+						const v = sel.dataset.value || sel.value;
+						sel.innerHTML = `<option value=""></option>` + locs.map((l) => `<option value="${l.id}">${esc(l.code)}</option>`).join("");
+						sel.value = v || "";
+					});
+				}
+
+				function lineRow(it) {
+					const tr = document.createElement("tr");
+					tr.dataset.product = it.id_product;
+					tr.dataset.variant = it.id_variant || 0;
+					tr.dataset.current = it.current_on_hand ?? "";
+					const title = esc(it.name) + (it.variant_label ? ` <span class="text-muted">— ${esc(it.variant_label)}</span>` : "");
+					const sku = esc(it.variant_sku || it.sku || "");
+					let html = `<td><a href="/catalog/products/${it.id_product}/" target="_blank">${title}</a><div class="small text-muted">${sku}</div></td>`;
+					if (type === "inventory") {
+						const expected = it.qty_expected ?? it.current_on_hand;
+						html += `<td class="text-end js-expected">${expected == null ? "—" : Number(expected).toLocaleString()}</td>`;
+						html += `<td><input class="form-control form-control-sm rounded-0 js-w" type="number" min="0" step="0.001" data-i="qty" value="${it.qty ?? ""}"></td>`;
+						html += `<td class="text-end js-diff"></td>`;
+					} else {
+						html += `<td><input class="form-control form-control-sm rounded-0 js-w" type="number" step="0.001" ${type === "adjustment" ? "" : 'min="0.001"'} data-i="qty" value="${it.qty ?? 1}"></td>`;
+					}
+					if (showCost()) html += `<td><input class="form-control form-control-sm rounded-0 js-w" type="number" min="0" step="0.0001" data-i="cost_price" value="${it.cost_price ?? ""}"></td>`;
+					if (showBatch()) html += `<td><input class="form-control form-control-sm rounded-0 js-w" data-i="batch_no" maxlength="64" value="${esc(it.batch_no || "")}"></td>`;
+					if (showExpiry()) html += `<td><input class="form-control form-control-sm rounded-0 js-w" type="date" data-i="expiry_date" value="${esc(it.expiry_date ? String(it.expiry_date).slice(0, 10) : "")}"></td>`;
+					if (showLocation()) html += `<td><select class="form-select form-select-sm rounded-0 js-w" data-i="id_location" data-value="${it.id_location || ""}"></select></td>`;
+					if (showSerials()) html += `<td><textarea class="form-control form-control-sm rounded-0 js-w" data-i="serials" rows="1" placeholder="<%= i18n.__('catalog.stock.f.serials_hint') %>">${esc((it.serials || []).join("\n"))}</textarea></td>`;
+					html += `<td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger rounded-0 js-w js-del"><i class="fa-solid fa-xmark"></i></button></td>`;
+					tr.innerHTML = html;
+					return tr;
+				}
+				function recalc() {
+					document.getElementById("lines-count").textContent = body.children.length;
+					document.getElementById("items-empty").style.display = body.children.length ? "none" : "";
+					if (type !== "inventory") return;
+					body.querySelectorAll("tr").forEach((tr) => {
+						const expectedText = tr.querySelector(".js-expected").textContent.replace(/\s/g, "").replace(",", ".");
+						const expected = Number(expectedText) || 0;
+						const counted = tr.querySelector('[data-i="qty"]').value;
+						const cell = tr.querySelector(".js-diff");
+						if (counted === "") return (cell.textContent = "");
+						const d = Math.round((Number(counted) - expected) * 1000) / 1000;
+						cell.innerHTML = `<span class="${d < 0 ? "text-danger" : d > 0 ? "text-success" : ""}">${d > 0 ? "+" : ""}${d.toLocaleString()}</span>`;
+					});
+				}
+				body.addEventListener("input", () => {
+					dirty = true;
+					recalc();
+				});
+				body.addEventListener("click", (e) => {
+					if (e.target.closest(".js-del") && editable) {
+						e.target.closest("tr").remove();
+						dirty = true;
+						recalc();
+					}
+				});
+				["id_warehouse", "id_warehouse_to"].forEach((n) => hf(n).addEventListener("change", fillLocationSelects));
+
+				// ── Додавання рядка ────────────────────────────
+				let found = [];
+				let timer;
+				const search = document.getElementById("p-search");
+				const variantSel = document.getElementById("p-variant");
+				search.addEventListener("input", () => {
+					clearTimeout(timer);
+					timer = setTimeout(async () => {
+						const r = await api("/api/catalog/products/search/", { search: search.value.trim() }).catch(() => ({ rows: [] }));
+						found = r.rows;
+						document.getElementById("p-options").innerHTML = r.rows.map((p) => `<option value="${esc(p.name)} [#${p.id}]"></option>`).join("");
+					}, 300);
+				});
+				const picked = () => {
+					const m = search.value.match(/\[#(\d+)\]$/);
+					return m ? found.find((x) => x.id === parseInt(m[1], 10)) : null;
+				};
+				search.addEventListener("change", async () => {
+					const p = picked();
+					variantSel.style.display = "none";
+					variantSel.innerHTML = "";
+					if (!p) return;
+					const r = await api(`/api/catalog/products/${p.id}/bundle/variants/`, { id_product: p.id }).catch(() => ({ rows: [] }));
+					if (r.rows.length) {
+						r.rows.forEach((v) => variantSel.add(new Option(`${v.label || "#" + v.id}${v.sku ? " · " + v.sku : ""}`, v.id)));
+						variantSel.style.display = "";
+					}
+				});
+				document.getElementById("btn-add-line").addEventListener("click", async () => {
+					const p = picked();
+					if (!p) return;
+					const idVariant = variantSel.style.display === "none" ? 0 : parseInt(variantSel.value, 10) || 0;
+					if (body.querySelector(`tr[data-product="${p.id}"][data-variant="${idVariant}"]`) && !TRACK_BATCHES) return notyf.error("<%= i18n.__('catalog.stock.documents.duplicate_line') %>");
+					const label = idVariant ? variantSel.selectedOptions[0].text : null;
+					body.appendChild(lineRow({ id_product: p.id, id_variant: idVariant, name: p.name, sku: p.sku, variant_label: label, qty: type === "inventory" ? "" : 1 }));
+					search.value = "";
+					variantSel.style.display = "none";
+					await fillLocationSelects();
+					dirty = true;
+					recalc();
+				});
+
+				// ── Дані ───────────────────────────────────────
+				function readItems() {
+					return Array.from(body.querySelectorAll("tr")).map((tr) => {
+						const g = (k) => tr.querySelector(`[data-i="${k}"]`);
+						const out = { id_product: parseInt(tr.dataset.product, 10), id_variant: parseInt(tr.dataset.variant, 10) || 0, qty: g("qty").value === "" ? null : Number(g("qty").value) };
+						if (g("cost_price")) out.cost_price = g("cost_price").value === "" ? null : Number(g("cost_price").value);
+						if (g("batch_no")) out.batch_no = g("batch_no").value.trim() || null;
+						if (g("expiry_date")) out.expiry_date = g("expiry_date").value || null;
+						if (g("id_location")) out.id_location = g("id_location").value ? parseInt(g("id_location").value, 10) : null;
+						if (g("serials")) out.serials = g("serials").value.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean);
+						return out;
+					});
+				}
+				function readHeader() {
+					return {
+						type,
+						id_warehouse: parseInt(hf("id_warehouse").value, 10),
+						id_warehouse_to: hf("id_warehouse_to").value ? parseInt(hf("id_warehouse_to").value, 10) : null,
+						id_supplier: hf("id_supplier").value ? parseInt(hf("id_supplier").value, 10) : null,
+						date_document: hf("date_document").value,
+						external_number: hf("external_number").value.trim() || null,
+						currency: hf("currency").value.trim() || null,
+						comment: hf("comment").value.trim() || null,
+					};
+				}
+
+				function applyUi() {
+					document.getElementById("doc-type").textContent = TYPES[type];
+					document.querySelectorAll(".js-only-transfer").forEach((el) => (el.style.display = type === "transfer" ? "" : "none"));
+					document.querySelectorAll(".js-only-receipt").forEach((el) => (el.style.display = type === "receipt" ? "" : "none"));
+					document.getElementById("lbl-warehouse").textContent = (type === "transfer" ? "<%= i18n.__('catalog.stock.f.warehouse_from') %>" : "<%= i18n.__('catalog.stock.f.warehouse') %>") + " *";
+					const status = doc ? doc.status : "draft";
+					editable = status === "draft" && (DOC_ID ? PERMS.edit : PERMS.add);
+					document.querySelectorAll(".js-w").forEach((el) => (el.disabled = !editable));
+					const vis = (id, on) => {
+						const el = document.getElementById(id);
+						if (el) el.style.display = on ? "" : "none";
+					};
+					vis("btn-save", editable);
+					vis("btn-post", DOC_ID && status === "draft" && PERMS.edit);
+					vis("btn-delete", DOC_ID && status === "draft" && PERMS.delete);
+					vis("btn-cancel", DOC_ID && status === "posted" && PERMS.delete);
+					document.getElementById("doc-status").innerHTML = doc ? STATUS[doc.status] : STATUS.draft;
+				}
+
+				async function load() {
+					doc = (await api(`/api/catalog/products/stock/documents/${DOC_ID}/get/`)).row;
+					type = doc.type;
+					document.getElementById("doc-number").textContent = doc.number;
+					document.getElementById("bc-title").textContent = doc.number;
+					hf("id_warehouse").value = doc.id_warehouse;
+					hf("id_warehouse_to").value = doc.id_warehouse_to || "";
+					hf("id_supplier").value = doc.id_supplier || "";
+					hf("date_document").value = String(doc.date_document).slice(0, 10);
+					hf("external_number").value = doc.external_number || "";
+					hf("currency").value = doc.currency || "";
+					hf("comment").value = doc.comment || "";
+					document.getElementById("doc-meta").textContent =
+						`<%= i18n.__('catalog.stock.f.author') %>: ${doc.author || "—"} · ${doc.date_add}` + (doc.date_posted ? ` · <%= i18n.__('catalog.stock.f.posted') %>: ${doc.posted_by || "—"} ${doc.date_posted}` : "");
+					renderHead();
+					body.innerHTML = "";
+					doc.items.forEach((it) => body.appendChild(lineRow(it)));
+					applyUi();
+					await fillLocationSelects();
+					applyUi();
+					recalc();
+					dirty = false;
+				}
+
+				function clearErrors() {
+					document.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+					document.querySelectorAll(".invalid-feedback").forEach((el) => {
+						el.textContent = "";
+						el.style.display = "";
+					});
+				}
+				function showErrors(errors) {
+					(errors || []).forEach((e) => {
+						const field = String(e.field || "");
+						let box = document.querySelector(`[data-field="${CSS.escape(field)}"]`);
+						if (!box && field.startsWith("items")) {
+							const m = field.match(/^items\.(\d+)/);
+							const tr = m && body.children[parseInt(m[1], 10)];
+							if (tr) tr.classList.add("table-danger");
+							box = document.querySelector('[data-field="items"]');
+						}
+						if (!box) return;
+						box.querySelectorAll(":scope > input, :scope > select, :scope > textarea").forEach((el) => el.classList.add("is-invalid"));
+						const fb = box.querySelector(".invalid-feedback");
+						if (fb) {
+							fb.textContent = (fb.textContent ? fb.textContent + "; " : "") + (box.dataset.field !== field ? field + ": " : "") + e.message;
+							fb.style.display = "block";
+						}
+					});
+				}
+
+				async function save() {
+					clearErrors();
+					body.querySelectorAll(".table-danger").forEach((tr) => tr.classList.remove("table-danger"));
+					const r = await api("/api/catalog/products/stock/documents/save/", { id: DOC_ID, version: doc ? doc.version : null, header: readHeader(), items: readItems() });
+					dirty = false;
+					return r;
+				}
+				function handleError(err) {
+					if (err.code === "version_conflict") {
+						if (confirm("<%= i18n.__('catalog.stock.documents.version_conflict') %>")) load();
+						return;
+					}
+					showErrors(err.errors);
+					notyf.error(errMsg(err));
+				}
+
+				const saveBtn = document.getElementById("btn-save");
+				if (saveBtn)
+					saveBtn.addEventListener("click", async () => {
+						saveBtn.disabled = true;
+						try {
+							const r = await save();
+							notyf.success("<%= i18n.__('catalog.common.saved') %>");
+							if (!DOC_ID) return (window.location.href = `/catalog/stock/documents/${r.id}/`);
+							await load();
+						} catch (err) {
+							handleError(err);
+						} finally {
+							saveBtn.disabled = false;
+						}
+					});
+
+				const postBtn = document.getElementById("btn-post");
+				if (postBtn)
+					postBtn.addEventListener("click", async () => {
+						if (!confirm("<%= i18n.__('catalog.stock.documents.confirm_post') %>")) return;
+						postBtn.disabled = true;
+						try {
+							if (dirty) await save();
+							await load();
+							await api(`/api/catalog/products/stock/documents/${DOC_ID}/post/`, { version: doc.version });
+							notyf.success("<%= i18n.__('catalog.stock.documents.posted') %>");
+							await load();
+						} catch (err) {
+							handleError(err);
+						} finally {
+							postBtn.disabled = false;
+						}
+					});
+
+				const cancelBtn = document.getElementById("btn-cancel");
+				if (cancelBtn)
+					cancelBtn.addEventListener("click", async () => {
+						if (!confirm("<%= i18n.__('catalog.stock.documents.confirm_cancel') %>")) return;
+						try {
+							await api(`/api/catalog/products/stock/documents/${DOC_ID}/cancel/`, { version: doc.version });
+							notyf.success("<%= i18n.__('catalog.stock.documents.cancelled') %>");
+							await load();
+						} catch (err) {
+							handleError(err);
+						}
+					});
+
+				const delBtn = document.getElementById("btn-delete");
+				if (delBtn)
+					delBtn.addEventListener("click", async () => {
+						if (!confirm("<%= i18n.__('catalog.stock.documents.confirm_delete') %>")) return;
+						try {
+							await api(`/api/catalog/products/stock/documents/${DOC_ID}/delete/`);
+							dirty = false;
+							window.location.href = "/catalog/stock/documents/";
+						} catch (err) {
+							notyf.error(errMsg(err));
+						}
+					});
+
+				window.addEventListener("beforeunload", (e) => {
+					if (dirty && editable) {
+						e.preventDefault();
+						e.returnValue = "";
+					}
+				});
+				document.getElementById("header-form").addEventListener("input", () => (dirty = true));
+
+				(async () => {
+					try {
+						if (DOC_ID) await load();
+						else {
+							hf("date_document").value = new Date().toISOString().slice(0, 10);
+							renderHead();
+							applyUi();
+							recalc();
+						}
+					} catch (err) {
+						notyf.error(errMsg(err));
+					}
+				})();
+			})();
+		</script>
+	</body>
+</html>

@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+
+<head>
+    <%- include('../../../partials/head'); %>
+</head>
+
+<body class="d-flex flex-column h-100">
+    <%- include('../../../partials/header'); %>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12 mb-3">
+
+                <!-- Хлібні крихти -->
+                <nav aria-label="breadcrumb" class="mb-3">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="/abandoned-cart/">Покинуті кошики</a></li>
+                        <li class="breadcrumb-item"><a href="/abandoned-cart/event/">Події</a></li>
+                        <li class="breadcrumb-item active">Створити подію</li>
+                    </ol>
+                </nav>
+
+                <div class="row g-3">
+
+                    <!-- Ліва колонка: форма -->
+                    <div class="col-12 col-xl-8">
+                        <div class="card border-primary rounded-0 mb-3">
+                            <div class="card-header text-bg-primary rounded-0">
+                                Основні налаштування
+                            </div>
+                            <div class="card-body">
+
+                                <!-- Назва події -->
+                                <div class="mb-3">
+                                    <label class="form-label">Назва події <span class="text-danger">*</span></label>
+                                    <input type="text" id="event-name" class="form-control rounded-0"
+                                        placeholder="Наприклад: Viber - нагадування через 24 години">
+                                </div>
+
+                                <!-- Сервіс -->
+                                <div class="mb-3">
+                                    <label class="form-label">Сервіс відправки <span class="text-danger">*</span></label>
+                                    <select id="event-service" class="form-select rounded-0">
+                                        <option value="">— Оберіть сервіс —</option>
+                                    </select>
+                                    <div id="service-not-connected" class="form-text text-danger d-none">
+                                        <i class="fa-regular fa-triangle-exclamation"></i>
+                                        Сервіс не підключений. <a href="/abandoned-cart/services/">Підключити</a>
+                                    </div>
+                                </div>
+
+                                <!-- Затримка -->
+                                <div class="mb-3">
+                                    <label class="form-label">Затримка відправки <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="number" id="event-delay" class="form-control rounded-0"
+                                            value="24" min="1" max="720">
+                                        <span class="input-group-text rounded-0">годин після покинення кошика</span>
+                                    </div>
+                                </div>
+
+                                                        </div>
+                        </div>
+
+                        <!-- Розклад відправлення -->
+                        <div class="card border-primary rounded-0 mb-3">
+                            <div class="card-header text-bg-primary rounded-0">Розклад відправлення</div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Додаткова затримка (хв)</label>
+                                        <input type="number" id="event-delay-min" class="form-control rounded-0" value="0" min="0" max="59">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Мін. сума кошика</label>
+                                        <input type="number" id="event-min-amount" class="form-control rounded-0" value="0" min="0" step="0.01">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Відправляти з</label>
+                                        <input type="time" id="event-time-from" class="form-control rounded-0" value="09:00">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Відправляти до</label>
+                                        <input type="time" id="event-time-to" class="form-control rounded-0" value="20:00">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label d-block">Дні відправлення</label>
+                                        <div class="btn-group flex-wrap" role="group" id="event-days">
+                                            <% const dayLabels = ['Пн','Вт','Ср','Чт','Пт','Сб','Нд']; %>
+                                            <% for (let i = 0; i < 7; i++) { %>
+                                                <input type="checkbox" class="btn-check day-check" id="day-<%= i %>" value="<%= i %>" checked>
+                                                <label class="btn btn-outline-primary rounded-0" for="day-<%= i %>"><%= dayLabels[i] %></label>
+                                            <% } %>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Режим повтору</label>
+                                        <select id="event-resend-mode" class="form-select rounded-0">
+                                            <option value="once" selected>Один раз</option>
+                                            <option value="once_repeat">Один раз + повтор</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Повтор через (год)</label>
+                                        <input type="number" id="event-repeat-hours" class="form-control rounded-0" value="24" min="1" max="8760">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Шаблон повідомлення -->
+                        <div class="card border-primary rounded-0">
+                            <div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+                                <span>Шаблон повідомлення</span>
+                                <!-- Кнопки плейсхолдерів -->
+                                <div class="d-flex flex-wrap gap-1">
+                                    <button type="button" class="btn btn-sm btn-light rounded-0 btn-placeholder" data-placeholder="{firstname}">firstname</button>
+                                    <button type="button" class="btn btn-sm btn-light rounded-0 btn-placeholder" data-placeholder="{lastname}">lastname</button>
+                                    <button type="button" class="btn btn-sm btn-light rounded-0 btn-placeholder" data-placeholder="{telephone}">telephone</button>
+                                    <button type="button" class="btn btn-sm btn-light rounded-0 btn-placeholder" data-placeholder="{total_amount}">total_amount</button>
+                                    <button type="button" class="btn btn-sm btn-light rounded-0 btn-placeholder" data-placeholder="{currency}">currency</button>
+                                    <button type="button" class="btn btn-sm btn-light rounded-0 btn-placeholder" data-placeholder="{items_count}">items_count</button>
+                                    <button type="button" class="btn btn-sm btn-light rounded-0 btn-placeholder" data-placeholder="{recovery_url}">recovery_url</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <textarea id="event-message" class="form-control rounded-0"
+                                    rows="8"
+                                    placeholder="Доброго дня, {firstname}!&#10;Ви залишили товари в кошику на суму {total_amount} {currency}.&#10;Повернутись: {recovery_url}"></textarea>
+                                <div class="form-text">
+                                    Натисніть на кнопку плейсхолдера щоб вставити його в позицію курсора.
+                                    Переноси рядків передаються в повідомлення як є.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Права колонка: налаштування і превью -->
+                    <div class="col-12 col-xl-4">
+
+                        <!-- Статус і дії -->
+                        <div class="card border-primary rounded-0 mb-3">
+                            <div class="card-header text-bg-primary rounded-0">
+                                Збереження
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Статус</label>
+                                    <select id="event-active" class="form-select rounded-0">
+                                        <option value="1">Активна</option>
+                                        <option value="0">Вимкнена</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Порядок сортування</label>
+                                    <input type="number" id="event-sort" class="form-control rounded-0" value="0" min="0">
+                                </div>
+                                <div id="save-error" class="alert alert-danger rounded-0 d-none"></div>
+                                <div id="save-success" class="alert alert-success rounded-0 d-none">Подію збережено.</div>
+                                <button type="button" id="btn-save" class="btn btn-primary rounded-0 w-100">
+                                    <i class="fa-regular fa-floppy-disk me-1"></i> Зберегти
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Превью повідомлення -->
+                        <div class="card border-secondary rounded-0">
+                            <div class="card-header text-bg-secondary rounded-0">
+                                Превью повідомлення
+                            </div>
+                            <div class="card-body">
+                                <div id="message-preview"
+                                    class="p-3 rounded-0 text-white"
+                                    style="background:#7360f2; min-height:120px; white-space:pre-wrap; font-size:14px; line-height:1.5">
+                                    Тут відобразиться повідомлення...
+                                </div>
+                                <div class="form-text mt-2">
+                                    Превью оновлюється при редагуванні тексту.
+                                    Плейсхолдери відображаються як є.
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <%- include('../../../partials/footer'); %>
+    <%- include('../../../partials/script'); %>
+
+    <script>
+        // =====================================================
+        // Завантаження сервісів в select
+        // =====================================================
+        async function loadServices() {
+            try {
+                const res  = await fetch("/api/orders/abandoned-cart/services-list/", { method: "POST" });
+                const data = await res.json();
+
+                const select = document.getElementById("event-service");
+
+                data.forEach(service => {
+                    const option = document.createElement("option");
+                    option.value                  = service.id;
+                    option.textContent            = `${service.name} (${channelLabel(service.channel)})`;
+                    option.dataset.isConnected    = service.is_connected;
+                    select.appendChild(option);
+                });
+
+            } catch (e) {
+                console.error("Помилка завантаження сервісів:", e);
+            }
+        }
+
+        function channelLabel(channel) {
+            const map = { 1: "SMS", 2: "Email", 3: "Viber" };
+            return map[channel] || "—";
+        }
+
+        async function loadIntegrations() {
+            try {
+                const res = await fetch("/api/orders/abandoned-cart/integrations-list/", { method: "POST" });
+                const list = await res.json();
+                const select = document.getElementById("event-integration");
+                list.forEach((it) => {
+                    const opt = document.createElement("option");
+                    opt.value = it.id;
+                    opt.textContent = it.name;
+                    select.appendChild(opt);
+                });
+            } catch (e) {
+                console.error("Помилка завантаження сайтів:", e);
+            }
+        }
+
+        // Перевірка чи сервіс підключений при виборі
+        document.getElementById("event-service").addEventListener("change", function () {
+            const selected = this.options[this.selectedIndex];
+            const warning  = document.getElementById("service-not-connected");
+            if (selected.value && selected.dataset.isConnected === "0") {
+                warning.classList.remove("d-none");
+            } else {
+                warning.classList.add("d-none");
+            }
+        });
+
+
+        // =====================================================
+        // Вставка плейсхолдера в позицію курсора
+        // =====================================================
+        document.querySelectorAll(".btn-placeholder").forEach(btn => {
+            btn.addEventListener("click", function () {
+                const textarea    = document.getElementById("event-message");
+                const placeholder = this.dataset.placeholder;
+                const start       = textarea.selectionStart;
+                const end         = textarea.selectionEnd;
+                const text        = textarea.value;
+
+                textarea.value = text.slice(0, start) + placeholder + text.slice(end);
+
+                // Повертаємо курсор після вставленого плейсхолдера
+                const newPos = start + placeholder.length;
+                textarea.setSelectionRange(newPos, newPos);
+                textarea.focus();
+
+                // Оновлюємо превью
+                updatePreview();
+            });
+        });
+
+
+        // =====================================================
+        // Превью повідомлення
+        // =====================================================
+        function updatePreview() {
+            const text    = document.getElementById("event-message").value;
+            const preview = document.getElementById("message-preview");
+            preview.textContent = text || "Тут відобразиться повідомлення...";
+        }
+
+        document.getElementById("event-message").addEventListener("input", updatePreview);
+
+
+        // =====================================================
+        // Збереження події
+        // =====================================================
+        document.getElementById("btn-save").addEventListener("click", async function () {
+                        const name        = document.getElementById("event-name").value.trim();
+            const service_id  = document.getElementById("event-service").value;
+            const delay_hours = document.getElementById("event-delay").value;
+            const message     = document.getElementById("event-message").value;
+            const active      = document.getElementById("event-active").value;
+            const sort_order  = document.getElementById("event-sort").value;
+
+            // поля розкладу
+            const delay_minutes     = document.getElementById("event-delay-min").value;
+            const min_cart_amount   = document.getElementById("event-min-amount").value;
+            const send_time_from    = document.getElementById("event-time-from").value;
+            const send_time_to      = document.getElementById("event-time-to").value;
+            const send_days         = Array.from(document.querySelectorAll(".day-check:checked")).map((c) => parseInt(c.value));
+            const resend_mode       = document.getElementById("event-resend-mode").value;
+            const repeat_after_hours = document.getElementById("event-repeat-hours").value;
+
+            const errorBox   = document.getElementById("save-error");
+            const successBox = document.getElementById("save-success");
+
+            errorBox.classList.add("d-none");
+            successBox.classList.add("d-none");
+
+            // Валідація
+            if (!name) {
+                errorBox.textContent = "Введіть назву події.";
+                errorBox.classList.remove("d-none");
+                return;
+            }
+            if (!service_id) {
+                errorBox.textContent = "Оберіть сервіс відправки.";
+                errorBox.classList.remove("d-none");
+                return;
+            }
+            if (!message.trim()) {
+                errorBox.textContent = "Введіть текст повідомлення.";
+                errorBox.classList.remove("d-none");
+                return;
+            }
+
+            try {
+                this.disabled = true;
+                this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Збереження...';
+
+                const res  = await fetch("/api/orders/abandoned-cart/events-save/", {
+                    method:  "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        service_id:  parseInt(service_id),
+                        id_integration: document.getElementById("event-integration").value || null,
+                        name,
+                        delay_hours: parseInt(delay_hours),
+                        delay_minutes: parseInt(delay_minutes),
+                        min_cart_amount: parseFloat(min_cart_amount),
+                        send_time_from,
+                        send_time_to,
+                        send_days,
+                        resend_mode,
+                        repeat_after_hours: parseInt(repeat_after_hours),
+                        message,
+                        active:      parseInt(active),
+                        sort_order:  parseInt(sort_order)
+                    })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    errorBox.textContent = data.message || "Помилка збереження.";
+                    errorBox.classList.remove("d-none");
+                    return;
+                }
+
+                successBox.classList.remove("d-none");
+
+                // Редирект на список подій через 1 секунду
+                setTimeout(() => {
+                    window.location.href = "/abandoned-cart/event/";
+                }, 1000);
+
+            } catch (e) {
+                errorBox.textContent = "Помилка сервера.";
+                errorBox.classList.remove("d-none");
+            } finally {
+                this.disabled = false;
+                this.innerHTML = '<i class="fa-regular fa-floppy-disk me-1"></i> Зберегти';
+            }
+        });
+
+
+        // =====================================================
+        // Ініціалізація
+        // =====================================================
+        loadServices();
+        loadIntegrations();
+    </script>
+
+</body>
+</html>

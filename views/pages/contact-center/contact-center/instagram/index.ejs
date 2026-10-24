@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en" class="h-100">
+<head>
+	<%- include('../../../../partials/head'); %>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/css/lightgallery-bundle.min.css">
+	<style>
+		.chats-list-card .avatar { height:44px; width:44px; position:relative; display:flex; }
+		.chats-list-card h5 { font-size:0.9375rem; }
+		.chats-list-card .line-clamp { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+		.chats-list-card .card-body { position:relative; cursor:pointer; border-bottom:1px solid #d2d2d2; }
+		form textarea { resize:none; }
+		.message-client .time { font-size:10px; color:#000; display:block; }
+		.message-manager { text-align:right; }
+		.message-manager>p { margin-left:35px; padding:15px; border-radius:12px; margin-bottom:0; display:inline-block; }
+		.message-manager .time { font-size:10px; color:#000; display:block; }
+	</style>
+</head>
+
+<body class="d-flex flex-column h-100">
+	<%- include('../../../../partials/header'); %>
+	<div class="container-fluid mt-3 h-100">
+		<div class="row h-100">
+
+			<% if (data_manager == 2) { %>
+			<div class="row h-100">
+				<div class="col-12 mb-3 d-flex align-items-center justify-content-center">
+					<div class="alert alert-danger" role="alert">
+						<%- i18n.__('contact_center.chat.already_assigned').replace('\n', '<br>') %>
+					</div>
+				</div>
+			</div>
+			<% } else { %>
+
+			<div class="col-12 col-lg-3 mb-3">
+				<ul class="nav nav-underline nav-fill mb-3" id="pills-tab" role="tablist">
+					<li class="nav-item" role="presentation">
+						<button class="nav-link active" id="pills-home-tab" data-bs-toggle="pill" data-bs-target="#pills-home" type="button" role="tab"><%= i18n.__('contact_center.chat.tab_chat') %></button>
+					</li>
+					<li class="nav-item" role="presentation">
+						<button class="nav-link" id="pills-profile-tab" data-bs-toggle="pill" data-bs-target="#pills-profile" type="button" role="tab"><%= i18n.__('contact_center.chat.tab_settings') %></button>
+					</li>
+					<li class="nav-item" role="presentation">
+						<button class="nav-link" id="pills-media-tab" data-bs-toggle="pill" data-bs-target="#pills-media" type="button" role="tab"><%= i18n.__('contact_center.chat.tab_media') %></button>
+					</li>
+				</ul>
+
+				<div class="tab-content" id="pills-tabContent">
+					<!-- TAB: інфо -->
+					<div class="tab-pane fade show active" id="pills-home" role="tabpanel" tabindex="0">
+						<div class="card rounded-0">
+							<div class="card-header rounded-0"><%= i18n.__('contact_center.chat.user_info') %></div>
+							<div class="card-body chats-list-card">
+								<p>First name: <%= data_instagram[0].first_name %></p>
+								<p>Last name: <%= data_instagram[0].last_name %></p>
+								<p>Username: <%= data_instagram[0].username %></p>
+							</div>
+						</div>
+					</div>
+
+					<!-- TAB: дії -->
+					<div class="tab-pane fade" id="pills-profile" role="tabpanel" tabindex="0">
+						<div class="card rounded-0">
+							<div class="card-header rounded-0"><%= i18n.__('contact_center.chat.tab_settings') %></div>
+							<div class="card-body row chats-list-card">
+								<% if (data_manager == 0) { %>
+								<% } else { %>
+									<div class="col-12 col-md-6 mb-3">
+										<button type="button" class="btn btn-success rounded-0 w-100" data-bs-toggle="modal" data-bs-target="#modal_resolve_chat"><%= i18n.__('contact_center.chat.resolve_chat') %></button>
+									</div>
+									<div class="col-12 col-md-6 mb-3">
+										<button type="button" class="btn btn-primary rounded-0 w-100" data-bs-toggle="modal" data-bs-target="#modal_archive_chat"><%= i18n.__('contact_center.chat.archive_chat') %></button>
+									</div>
+									<div class="col-12 col-md-6 mb-3">
+										<button type="button" class="btn btn-primary rounded-0 w-100" data-bs-toggle="modal" data-bs-target="#modal_delete_chat"><%= i18n.__('contact_center.chat.delete_chat') %></button>
+									</div>
+									<div class="col-12 col-md-6 mb-3">
+										<button type="button" class="btn btn-primary rounded-0 w-100" data-bs-toggle="modal" data-bs-target="#modal_delegate_chat"><%= i18n.__('contact_center.chat.delegate_chat') %></button>
+									</div>
+								<% } %>
+							</div>
+						</div>
+					</div>
+
+					<!-- TAB: медіа -->
+					<div class="tab-pane fade" id="pills-media" role="tabpanel" tabindex="0">
+						<ul class="nav nav-pills nav-fill mb-3" id="media-type-tabs">
+							<li class="nav-item"><button class="nav-link active px-2" data-media-type="photos"><i class="fa-solid fa-image"></i></button></li>
+							<li class="nav-item"><button class="nav-link px-2" data-media-type="videos"><i class="fa-solid fa-video"></i></button></li>
+							<li class="nav-item"><button class="nav-link px-2" data-media-type="files"><i class="fa-solid fa-file"></i></button></li>
+							<li class="nav-item"><button class="nav-link px-2" data-media-type="audio"><i class="fa-solid fa-music"></i></button></li>
+							<li class="nav-item"><button class="nav-link px-2" data-media-type="links"><i class="fa-solid fa-link"></i></button></li>
+						</ul>
+						<div id="media-content" style="overflow-y:auto; max-height:60vh;">
+							<div class="text-center p-3"><%= i18n.__('contact_center.chat.select_media') %></div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- CHAT AREA -->
+			<div class="col-12 col-lg-9 mb-3">
+				<div class="card h-100 rounded-0">
+					<div class="card-header rounded-0"><%= i18n.__('contact_center.chat.tab_chat') %></div>
+					<div style="position:relative; height:100%; overflow:hidden; min-height:300px">
+						<div class="card-body" id="message_list" style="position:absolute; top:0; bottom:0; left:0; right:0; width:100%; overflow-y:auto; scrollbar-width:thin"></div>
+					</div>
+
+					<% if (data_manager == 0) { %>
+					<div class="card-footer alert alert-primary m-0 rounded-0">
+						<p><%= i18n.__('contact_center.chat.take_work_notice') %></p>
+						<button type="button" class="btn btn-primary btn-take-work rounded-0"><%= i18n.__('contact_center.chat.btn_take_work') %></button>
+					</div>
+					<% } else { %>
+						<% var accDown = (typeof account_available !== 'undefined' && account_available === 0); %>
+						<% var windowClosed = (typeof window_open !== 'undefined' && window_open === 0); %>
+						<% if (accDown) { %>
+						<div class="alert alert-warning m-0 rounded-0 border-0">
+							<i class="fa-solid fa-triangle-exclamation me-1"></i>
+							<%= account_status_reason === 'inactive' ? i18n.__('contact_center.chat.account_inactive') : i18n.__('contact_center.chat.account_deleted') %>
+						</div>
+						<% } else { %>
+						<!-- Банер вікна 24h (керується і серверним window_open, і реактивно з 409) -->
+						<div id="ig_window_closed" class="alert alert-warning m-0 rounded-0 border-0 <%= windowClosed ? '' : 'd-none' %>">
+							<i class="fa-solid fa-clock me-1"></i><%= i18n.__('contact_center.chat.ig_window_closed') %>
+						</div>
+						<form class="card-footer text-body-secondary bg-transparent p-0 rounded-0" id="ig_send_form" <%= windowClosed ? 'style=display:none' : '' %>>
+							<textarea class="form-control border-0 rounded-0" id="messageInput" name="message" rows="3" placeholder="<%= i18n.__('contact_center.chat.message_placeholder') %>"></textarea>
+							<div class="d-flex justify-content-between p-3 pt-1">
+								<div class="btn-group" role="group">
+									<button type="button" class="btn btn-outline-primary rounded-0" id="emoji-btn"><i class="fa-regular fa-face-smile"></i></button>
+									<label for="formFile" class="btn btn-outline-primary rounded-0"><i class="fa-solid fa-paperclip"></i></label>
+									<input class="form-control d-none" type="file" id="formFile" />
+								</div>
+								<button type="button" id="submitButton" class="btn btn-outline-primary rounded-0"><%= i18n.__('contact_center.chat.send') %></button>
+							</div>
+						</form>
+						<% } %>
+					<% } %>
+				</div>
+			</div>
+
+			<% } %>
+		</div>
+	</div>
+
+		<!-- MODAL: Resolve -->
+	<div class="modal fade" id="modal_resolve_chat" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered">
+			<div class="modal-content rounded-0">
+				<div class="modal-header">
+					<h1 class="modal-title fs-5"><%= i18n.__('contact_center.chat.resolve_chat') %>?</h1>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+				</div>
+				<div class="modal-body"><p><%= i18n.__('contact_center.chat.confirm_resolve') %></p></div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('contact_center.chat.close') %></button>
+					<button type="button" class="btn btn-success resolve-chat-submit rounded-0"><%= i18n.__('contact_center.chat.resolve') %></button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- MODAL: Archive -->
+	<div class="modal fade" id="modal_archive_chat" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered">
+			<div class="modal-content rounded-0">
+				<div class="modal-header">
+					<h1 class="modal-title fs-5"><%= i18n.__('contact_center.chat.archive_chat') %>?</h1>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+				</div>
+				<div class="modal-body"><p><%= i18n.__('contact_center.chat.confirm_archive') %></p></div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('contact_center.chat.close') %></button>
+					<button type="button" class="btn btn-primary archive-chat-submit rounded-0"><%= i18n.__('contact_center.chat.archive') %></button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- MODAL: Delete -->
+	<div class="modal fade" id="modal_delete_chat" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered">
+			<div class="modal-content rounded-0">
+				<div class="modal-header">
+					<h1 class="modal-title fs-5"><%= i18n.__('contact_center.chat.delete_chat') %>?</h1>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+				</div>
+				<div class="modal-body">
+					<p><%= i18n.__('contact_center.chat.confirm_delete') %></p>
+					<p><%= i18n.__('contact_center.chat.confirm_delete_note') %></p>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('contact_center.chat.close') %></button>
+					<button type="button" class="btn btn-primary delete-chat-submit rounded-0"><%= i18n.__('contact_center.chat.delete') %></button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- MODAL: Delegate -->
+	<div class="modal fade" id="modal_delegate_chat" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered">
+			<div class="modal-content rounded-0">
+				<div class="modal-header">
+					<h1 class="modal-title fs-5"><%= i18n.__('contact_center.chat.delegate_chat') %>?</h1>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+				</div>
+				<div class="modal-body">
+					<div class="mb-3">
+						<label for="managers-list" class="form-label"><%= i18n.__('contact_center.chat.managers_list') %></label>
+						<select id="managers-list" class="form-select"></select>
+					</div>
+					<p><%= i18n.__('contact_center.chat.confirm_delegate') %></p>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('contact_center.chat.close') %></button>
+					<button type="button" class="btn btn-primary delegate-chat-submit rounded-0"><%= i18n.__('contact_center.chat.delegate') %></button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<%- include('../../../../partials/footer'); %>
+	<%- include('../../../../partials/script'); %>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/lightgallery.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/plugins/zoom/lg-zoom.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/lightgallery/2.7.2/plugins/thumbnail/lg-thumbnail.min.js"></script>
+
+	<script>
+		const CHAT_ID = "<%= data_instagram_chat_id %>";
+	</script>
+
+	<!-- Realtime -->
+	<script>
+		socket.emit("room", "io_alert_instagram_" + CHAT_ID);
+		socket.on("io_alert_instagram_" + CHAT_ID, function (data) {
+			const near = () => $("#message_list").prop("scrollHeight") - ($("#message_list").scrollTop() + $("#message_list").height()) <= 500;
+			let el;
+			if (data.id_manager == null) {
+				// вхідне (клієнт)
+				if (data.type_message == "photo") {
+					el = $('<div class="message-client mb-4"><img class="img-thumbnail rounded-0" style="max-height:400px;" src="/assets/contact-center/instagram/' + data.chat_id + "/client/" + data.message_id + "/" + data.message + '">');
+					if (data.caption) el.append('<span class="d-block">' + data.caption + "</span>");
+					el.append('<span class="time m-0">' + data.date + "</span></div>");
+				} else if (data.type_message == "video") {
+					el = $('<div class="message-client mb-4"><video width="100%" controls><source src="/assets/contact-center/instagram/' + data.chat_id + "/client/" + data.message_id + "/" + data.message + '"></video><span class="time m-0">' + data.date + "</span></div>");
+				} else if (data.type_message == "audio") {
+					el = $('<div class="message-client mb-4"><audio controls><source src="/assets/contact-center/instagram/' + data.chat_id + "/client/" + data.message_id + "/" + data.message + '"></audio><span class="time m-0">' + data.date + "</span></div>");
+				} else {
+					el = $('<div class="message-client mb-4"><div class="alert alert-light rounded-0 d-inline-block mb-0 p-1">' + (data.message || "") + '</div><span class="time m-0">' + data.date + "</span></div>");
+				}
+				$("#message_list").append(el);
+				// нове вхідне → вікно 24h знову відкрите
+				$("#ig_window_closed").addClass("d-none");
+				$("#ig_send_form").show();
+			} else {
+				// вихідне (менеджер)
+				if (data.type_message == "photo") {
+					el = $('<div class="message-manager mb-4"><img class="img-thumbnail rounded-0" style="max-height:400px;" src="/assets/contact-center/instagram/' + data.chat_id + "/manager/" + data.message_id + "/" + data.message + '"><span class="time m-0">' + data.date + "</span></div>");
+				} else {
+					el = $('<div class="message-manager mb-4"><div class="alert alert-primary rounded-0 d-inline-block mb-0 p-1">' + (data.message || "") + '</div><span class="time m-0">' + data.date + "</span></div>");
+				}
+				$("#message_list").append(el);
+			}
+			if (near()) $("#message_list").scrollTop($("#message_list")[0].scrollHeight);
+			if (["photo", "video", "document", "file", "audio"].includes(data.type_message)) { mediaData = null; if (currentMediaType) showMediaType(currentMediaType); }
+		});
+	</script>
+
+	<!-- Історія -->
+	<script>
+		$(document).ready(function () {
+			$.ajax({
+				type: "POST", url: "/contact-center/instagram/",
+				data: { chat_id: CHAT_ID },
+				success: function (response) {
+					$("#message_list").empty();
+					response.forEach(function (item) {
+						let div;
+						if (item.id_manager == null) {
+							if (item.type_message == "photo") {
+								div = $('<div class="message-client mb-4"><img class="img-thumbnail rounded-0" style="max-height:400px;" src="/assets/contact-center/instagram/' + item.chat_id + "/client/" + item.message_id + "/" + item.message + '">');
+								if (item.caption) div.append('<span class="d-block">' + item.caption + "</span>");
+								div.append('<span class="time m-0">' + item.formattedDate + "</span></div>");
+							} else if (item.type_message == "video") {
+								div = $('<div class="message-client mb-4"><video width="100%" controls><source src="/assets/contact-center/instagram/' + item.chat_id + "/client/" + item.message_id + "/" + item.message + '"></video><span class="time m-0">' + item.formattedDate + "</span></div>");
+							} else {
+								div = $('<div class="message-client mb-4"><div class="alert alert-light rounded-0 d-inline-block mb-0 p-1">' + (item.message || "") + '</div><span class="time m-0">' + item.formattedDate + "</span></div>");
+							}
+						} else {
+							if (item.type_message == "photo" || item.type_message == "file") {
+								div = $('<div class="message-manager mb-4"><img class="img-thumbnail rounded-0" style="max-height:400px;" src="/assets/contact-center/instagram/' + item.chat_id + "/manager/" + item.message_id + "/" + item.message + '"><span class="time m-0">' + item.formattedDate + "</span></div>");
+							} else {
+								div = $('<div class="message-manager mb-4"><div class="alert alert-primary rounded-0 d-inline-block mb-0 p-1">' + (item.message || "") + '</div><span class="time m-0">' + item.formattedDate + "</span></div>");
+							}
+						}
+						$("#message_list").append(div);
+					});
+					$("#message_list").scrollTop($("#message_list")[0].scrollHeight);
+				},
+			});
+		});
+	</script>
+
+	<!-- Відправка тексту (з обробкою вікна 24h) -->
+	<script>
+		$("#submitButton").click(function () {
+			const msg = $("#messageInput").val();
+			if (!msg.trim()) return;
+			$.ajax({
+				method: "POST", url: "/contact-center/instagram/" + CHAT_ID + "/",
+				dataType: "json", data: { message: msg },
+				success: function (data) {
+					$("#message_list").append('<div class="message-manager mb-4"><div class="alert alert-primary rounded-0 d-inline-block mb-0 p-1">' + data.message + '</div><span class="time m-0">' + data.date + "</span></div>");
+					$("#messageInput").val("");
+					$("#message_list").scrollTop($("#message_list")[0].scrollHeight);
+				},
+				error: function (xhr) {
+					const r = xhr.responseJSON || {};
+					if (xhr.status === 409 && r.error === "WINDOW_CLOSED") {
+						$("#ig_send_form").hide();
+						$("#ig_window_closed").removeClass("d-none");
+					} else if (xhr.status === 409) {
+						alert(r.message || "Акаунт недоступний.");
+					} else {
+						console.log("ig send error");
+					}
+				},
+			});
+		});
+	</script>
+
+	<!-- Відправка файлу -->
+	<script>
+		$("#formFile").on("change", function () {
+			const file = this.files[0];
+			if (!file) return;
+			const fd = new FormData();
+			fd.append("file", file);
+			$.ajax({
+				url: "/contact-center/instagram/" + CHAT_ID + "/add-file/", type: "POST",
+				data: fd, contentType: false, processData: false,
+				success: function (r) { console.log("Файл завантажено", r); },
+				error: function (xhr) {
+					const r = xhr.responseJSON || {};
+					if (xhr.status === 409 && r.error === "WINDOW_CLOSED") {
+						$("#ig_send_form").hide();
+						$("#ig_window_closed").removeClass("d-none");
+					} else { console.error("Помилка файлу", r.message || ""); }
+				},
+			});
+		});
+	</script>
+
+	<!-- Дії над чатом: resolve / archive / delete / take-work / delegate -->
+	<script>
+		$(".resolve-chat-submit").on("click", function () {
+			$.post("/api/contact-center/instagram/resolve/", { id_chat: CHAT_ID }, function () { window.location.href = "/contact-center/"; });
+		});
+		$(".archive-chat-submit").on("click", function () {
+			$.post("/api/contact-center/instagram/archive/", { id_chat: CHAT_ID }, function () { window.location.href = "/contact-center/"; });
+		});
+		$(".delete-chat-submit").on("click", function () {
+			$.post("/api/contact-center/instagram/delete/", { id_chat: CHAT_ID }, function () { window.location.href = "/contact-center/"; });
+		});
+		$(".btn-take-work").click(function () {
+			$.ajax({ url: "/api/contact-center/instagram/manager/assign/", method: "POST", dataType: "json", data: { chat_id: CHAT_ID }, success: function () { location.reload(); } });
+		});
+		$(".delegate-chat-submit").click(function () {
+			const id_manager = $("#managers-list").val();
+			if (!id_manager) return;
+			$.ajax({ url: "/api/contact-center/instagram/manager/delegate/", method: "POST", dataType: "json", data: { chat_id: CHAT_ID, id_manager }, success: function () { location.replace("/contact-center/"); } });
+		});
+		// Спільний ендпоінт списку менеджерів (той самий, що й telegram)
+		$("#modal_delegate_chat").on("show.bs.modal", function () {
+			$.ajax({ url: "/api/contact-center/managers/list/", method: "POST", dataType: "json", success: function (data) {
+				const s = $("#managers-list").empty();
+				s.append('<option value="">-- <%= i18n.__("orders.columns.edit") %> --</option>');
+				$.each(data, function (i, m) { s.append('<option value="' + m.id + '">' + m.name + "</option>"); });
+			}});
+		});
+	</script>
+
+	<!-- Медіатека (дзеркало telegram, шляхи instagram) -->
+	<script>
+		let mediaData = null, currentMediaType = null, lgInstance = null;
+		function loadMedia() {
+			if (mediaData) return Promise.resolve(mediaData);
+			return $.ajax({ url: "/api/contact-center/instagram/" + CHAT_ID + "/media/", method: "GET" }).then(d => { mediaData = d; return d; });
+		}
+		const empty = () => '<div class="text-center text-muted p-4">Немає файлів</div>';
+		const renderers = {
+			photos(items) { if (!items.length) return empty(); return '<div id="lg-photos" class="row g-0">' + items.map(i => '<a href="' + i.url + '" class="col-4 p-1 d-block"><img src="' + i.url + '" class="img-fluid w-100" style="height:100px;object-fit:cover;"></a>').join("") + "</div>"; },
+			videos(items) { if (!items.length) return empty(); return items.map(i => '<div class="col-12 p-1"><video class="w-100" controls style="max-height:200px;"><source src="' + i.url + '"></video></div>').join(""); },
+			files(items) { if (!items.length) return empty(); return items.map(i => '<div class="d-flex align-items-center p-2 border-bottom"><img src="/assets/images/file-type/' + i.ext + '.svg" onerror="this.src=\'/assets/images/file-type/file.svg\'" style="height:36px;width:36px;" class="me-2"><div class="flex-grow-1 text-truncate small">' + i.name + '</div><a href="' + i.url + '" download class="btn btn-sm btn-outline-primary rounded-0 ms-2"><i class="fa-solid fa-download"></i></a></div>').join(""); },
+			audio(items) { if (!items.length) return empty(); return items.map(i => '<div class="p-2 border-bottom"><div class="small text-muted mb-1">' + i.date + '</div><audio controls class="w-100"><source src="' + i.url + '"></audio></div>').join(""); },
+			links(items) { if (!items.length) return empty(); const seen = new Set(); return items.filter(i => !seen.has(i.url) && seen.add(i.url)).map(i => '<div class="p-2 border-bottom"><a href="' + i.url + '" target="_blank" rel="noopener" class="text-break small">' + i.url + "</a></div>").join(""); },
+		};
+		function showMediaType(type) {
+			currentMediaType = type;
+			const $c = $("#media-content").html('<div class="text-center p-3"><div class="spinner-border spinner-border-sm"></div></div>');
+			if (lgInstance) { lgInstance.destroy(); lgInstance = null; }
+			loadMedia().then(data => {
+				$c.html((renderers[type] || empty)(data[type] || []));
+				if (type === "photos") { const el = document.getElementById("lg-photos"); if (el) lgInstance = lightGallery(el, { plugins: [lgZoom, lgThumbnail], selector: "a" }); }
+			}).catch(() => $c.html('<div class="text-center text-danger p-3">Помилка завантаження</div>'));
+		}
+		$(document).ready(function () {
+			$("#media-type-tabs").on("click", "button[data-media-type]", function () {
+				$("#media-type-tabs button").removeClass("active"); $(this).addClass("active");
+				showMediaType($(this).data("media-type"));
+			});
+			$("#pills-media-tab").on("shown.bs.tab", function () { if (!currentMediaType) showMediaType("photos"); });
+		});
+	</script>
+
+		<!-- Emoji-пікер -->
+	<script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
+	<script>
+		document.addEventListener('DOMContentLoaded', () => {
+			const button = document.getElementById('emoji-btn');
+			const textarea = document.getElementById('messageInput');
+			if (!button || !textarea) return;
+			const picker = document.createElement('emoji-picker');
+			picker.setAttribute('theme', 'light');
+			picker.style.position = 'fixed';
+			picker.style.zIndex = '9999';
+			picker.style.display = 'none';
+			document.body.appendChild(picker);
+			button.addEventListener('click', (e) => {
+				e.stopPropagation();
+				const rect = button.getBoundingClientRect();
+				picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
+				if (picker.style.display === 'block') {
+					let left = Math.min(rect.left, window.innerWidth - 360);
+					let top = rect.top - 405; if (top < 10) top = rect.bottom + 5;
+					picker.style.left = Math.max(10, left) + 'px';
+					picker.style.top = top + 'px';
+				}
+			});
+			picker.addEventListener('emoji-click', (ev) => {
+				const emoji = ev.detail.unicode;
+				const s = textarea.selectionStart, en = textarea.selectionEnd;
+				textarea.value = textarea.value.slice(0, s) + emoji + textarea.value.slice(en);
+				textarea.focus();
+				textarea.setSelectionRange(s + emoji.length, s + emoji.length);
+				picker.style.display = 'none';
+			});
+			document.addEventListener('click', (e) => {
+				if (!picker.contains(e.target) && !button.contains(e.target)) picker.style.display = 'none';
+			});
+		});
+	</script>
+</body>
+</html>
