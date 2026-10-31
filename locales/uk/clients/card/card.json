@@ -1,0 +1,310 @@
+{
+	"clients": {
+		"card": {
+			"title": "Картка клієнта",
+			"breadcrumb": {
+				"home": "Головна",
+				"clients": "Клієнти"
+			},
+			"merged_from": "Клієнта #{{id}} було злито з цим записом, тому вас переведено сюди.",
+			"kind": {
+				"person": "Людина",
+				"organization": "Організація",
+				"group": "Група"
+			},
+			"status": {
+				"active": "Активний",
+				"blocked": "Заблокований",
+				"archived": "Архів"
+			},
+			"gender": {
+				"male": "Чоловіча",
+				"female": "Жіноча",
+				"other": "Інша"
+			},
+			"label": {
+				"personal": "особистий",
+				"work": "робочий",
+				"other": "інший"
+			},
+			"label_opt": {
+				"personal": "Особистий",
+				"work": "Робочий",
+				"other": "Інший"
+			},
+			"no_name": "Без імені",
+			"delete_to_trash": "Видалити в кошик",
+			"confirm_delete_client": "Видалити клієнта? Його можна буде відновити з кошика протягом 30 днів.",
+			"delete_error": "Помилка видалення",
+			"merged_ok": "Клієнтів злито.",
+			"revert_merge": "Скасувати злиття",
+			"possible_duplicates": "Можливі дублі:",
+			"compare": "Порівняти",
+			"profile": {
+				"title": "Профіль",
+				"full_name": "ПІБ",
+				"trade_name": "Торгова назва",
+				"job_title": "Посада",
+				"gender": "Стать",
+				"birth_date": "Дата народження",
+				"legal_name_short": "Юр. назва",
+				"industry": "Галузь",
+				"employees": "Працівників",
+				"website": "Сайт",
+				"country": "Країна",
+				"timezone": "Часовий пояс",
+				"language": "Мова",
+				"manager": "Менеджер",
+				"source": "Джерело",
+				"first_contact": "Перший контакт",
+				"last_activity": "Остання активність",
+				"note": "Нотатка"
+			},
+			"contacts": {
+				"title": "Контакти",
+				"empty": "Контактів немає",
+				"primary": "Основний",
+				"invalid": "Не пройшов перевірку формату",
+				"consent": "Згода на розсилки",
+				"make_primary": "Зробити основним"
+			},
+			"edit": "Змінити",
+			"delete": "Видалити",
+			"edit_note": "Редагувати",
+			"addresses": {
+				"title": "Адреси",
+				"empty": "Адрес немає",
+				"apartment_short": "кв.",
+				"default_badge": "основна",
+				"recipient_label": "Отримувач:",
+				"make_default": "Зробити основною"
+			},
+			"identifiers": {
+				"title": "Реквізити",
+				"empty": "Реквізитів немає",
+				"verified": "Перевірено"
+			},
+			"relationships": {
+				"title": "Звʼязки",
+				"empty": "Звʼязків немає",
+				"until": "до",
+				"primary": "Головна контактна особа",
+				"end": "Завершити (лишиться в історії)"
+			},
+			"commercial": {
+				"title": "Комерційні умови",
+				"price_group": "Цінова група",
+				"discount": "Знижка",
+				"credit_limit": "Кредитний ліміт",
+				"payment_terms": "Відстрочка",
+				"days_short": "дн.",
+				"currency": "Валюта",
+				"payment_method": "Спосіб оплати",
+				"vat_payer": "Платник ПДВ",
+				"not_set": "Не задано",
+				"discount_percent": "Знижка, %",
+				"no_limit": "без ліміту",
+				"payment_terms_days": "Відстрочка, днів"
+			},
+			"yes": "так",
+			"no": "ні",
+			"custom_fields": {
+				"title": "Додаткові поля",
+				"yes": "Так",
+				"no": "Ні"
+			},
+			"merges": {
+				"title": "Історія злиттів",
+				"reverted": "скасовано"
+			},
+			"externals": {
+				"title": "Зовнішні ID"
+			},
+			"stats": {
+				"orders": "Замовлень",
+				"revenue": "Виручка",
+				"avg_order": "Середній чек",
+				"leads": "Лідів",
+				"rfm": "Сегмент RFM",
+				"rfm_hint": "Давність · Частота · Сума, 1–5"
+			},
+			"calendar": {
+				"title": "Заплановано",
+				"done": "Виконані",
+				"planned": "Заплановані",
+				"add": "Запланувати",
+				"what": "Що зробити",
+				"what_ph": "Передзвонити, надіслати КП, зустріч…",
+				"date": "Дата",
+				"time": "Час",
+				"minutes": "Хв.",
+				"remind": "Нагадати",
+				"remind_at_start": "Лише в момент початку",
+				"remind_15m": "За 15 хв",
+				"remind_1h": "За 1 год",
+				"remind_1d": "За 1 день",
+				"description": "Опис",
+				"add_manager": "Додати менеджера клієнта учасником",
+				"status_done": "виконано",
+				"status_overdue": "прострочено",
+				"mark_done": "Виконано",
+				"restore": "Повернути",
+				"empty_done": "Виконаних немає",
+				"empty": "Нічого не заплановано",
+				"need_title_date": "Вкажіть що зробити і дату"
+			},
+			"type": "Тип",
+			"notes": {
+				"title": "Нотатки",
+				"placeholder": "Нотатка… @ — згадати колегу",
+				"add": "Додати",
+				"edited": "змінено",
+				"unpin": "Відкріпити",
+				"pin": "Закріпити",
+				"empty": "Нотаток ще немає",
+				"confirm_delete": "Видалити нотатку?"
+			},
+			"show_more": "Показати ще",
+			"timeline": {
+				"all": "Уся історія",
+				"orders": "Замовлення",
+				"leads": "Ліди",
+				"changes": "Зміни",
+				"loading": "Завантаження історії…",
+				"role": {
+					"buyer": "покупець",
+					"recipient": "отримувач",
+					"company": "компанія-покупець"
+				},
+				"conv": {
+					"open": "відкритий",
+					"pending": "очікує",
+					"resolved": "завершений",
+					"archived": "архів"
+				},
+				"lead": "Лід",
+				"converted": "конвертовано",
+				"dialog": "Діалог",
+				"messages": "повідомлень:",
+				"empty": "Історії поки немає",
+				"load_error": "Не вдалося завантажити історію."
+			},
+			"history": {
+				"source": {
+					"manual": "Вручну",
+					"contact_center": "Контакт-центр",
+					"chat": "Чат",
+					"import": "Імпорт",
+					"merge": "Злиття",
+					"site_sync": "Синк із сайтом",
+					"system": "Система"
+				},
+				"entity": {
+					"client": "Клієнт",
+					"person": "Особа",
+					"relationship": "Звʼязок",
+					"tag": "Тег",
+					"role": "Роль",
+					"external_id": "Зовнішній ID",
+					"chat_contact": "Контакт чату",
+					"duplicate": "Дубль",
+					"links": "Звʼязки",
+					"event": "Подія",
+					"field": "Додаткове поле"
+				},
+				"action": {
+					"created": "створено",
+					"added": "додано",
+					"removed": "видалено",
+					"linked": "привʼязано",
+					"unlinked": "відвʼязано",
+					"merged": "злиття",
+					"merge_reverted": "злиття скасовано",
+					"dismissed": "не дубль"
+				},
+				"order_ref": "замовлення",
+				"lead_ref": "лід",
+				"all_sources": "Усі джерела",
+				"all_entities": "Усі розділи",
+				"empty": "Змін поки немає",
+				"load_error": "Не вдалося завантажити зміни."
+			},
+			"cancel": "Скасувати",
+			"save": "Зберегти",
+			"saved": "Збережено",
+			"error": "Помилка",
+			"server_error": "Помилка сервера",
+			"profile_form": {
+				"title": "Редагування профілю",
+				"last_name": "Прізвище",
+				"first_name": "Імʼя",
+				"middle_name": "По батькові",
+				"trade_name": "Торгова назва (для ФОП)",
+				"legal_name": "Юридична назва",
+				"short_name": "Коротка назва",
+				"registration_date": "Дата реєстрації",
+				"legal_type": "Правова форма",
+				"lifecycle": "Стадія",
+				"status": "Статус",
+				"tags": "Теги",
+				"no_tags": "Тегів поки немає"
+			},
+			"contact_form": {
+				"title": "Контакт",
+				"value": "Значення",
+				"label": "Мітка",
+				"edit_title": "Змінити контакт",
+				"new_title": "Новий контакт",
+				"duplicate_in": "Цей контакт є ще в:",
+				"invalid_saved": "Номер збережено, але він не пройшов перевірку формату. Перевірте код країни.",
+				"confirm_delete": "Видалити контакт"
+			},
+			"duplicate_added": "Пару додано в можливі дублі.",
+			"address_form": {
+				"title": "Адреса",
+				"region": "Область / штат",
+				"postcode": "Індекс",
+				"city": "Місто",
+				"street": "Вулиця",
+				"building": "Будинок",
+				"apartment": "Кв. / офіс",
+				"address_line": "Адреса одним рядком (для країн з іншою структурою)",
+				"carrier": "Служба доставки",
+				"carrier_point": "Відділення / поштомат",
+				"carrier_point_ref": "Код відділення",
+				"recipient": "Отримувач",
+				"recipient_phone": "Телефон отримувача",
+				"comment": "Коментар",
+				"is_default": "Основна адреса цього типу",
+				"edit_title": "Змінити адресу",
+				"new_title": "Нова адреса",
+				"confirm_delete": "Видалити адресу?"
+			},
+			"identifier_form": {
+				"title": "Реквізит",
+				"value": "Номер",
+				"edit_title": "Змінити реквізит",
+				"new_title": "Новий реквізит",
+				"duplicate_in": "Такий самий реквізит є в:",
+				"confirm_delete": "Видалити реквізит?"
+			},
+			"relationship_form": {
+				"title": "Звʼязок",
+				"other": "Кому / з ким",
+				"search_ph": "Пошук: імʼя, телефон, email, ЄДРПОУ",
+				"position": "Посада / уточнення",
+				"position_ph": "Комерційний директор",
+				"from": "З",
+				"to": "По",
+				"edit_title": "Змінити звʼязок",
+				"new_title": "Новий звʼязок",
+				"not_picked": "Клієнта не обрано",
+				"not_found": "Нічого не знайдено",
+				"pick_client": "Оберіть клієнта",
+				"confirm_end": "Завершити звʼязок сьогоднішньою датою? Він лишиться в історії.",
+				"confirm_delete": "Видалити звʼязок повністю?"
+			},
+			"confirm_revert_merge": "Скасувати злиття? Дані повернуться до злитого клієнта, і обидва записи знову стануть окремими."
+		}
+	}
+}

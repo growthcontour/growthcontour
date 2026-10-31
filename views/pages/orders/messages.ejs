@@ -1,0 +1,175 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('orders.messages.title') %></title>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+
+		<!-- ─── хлібні крихти ─────────────────────────────────────────── -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('orders.messages.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('orders.messages.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/orders/"><%= i18n.__('orders.messages.breadcrumb.orders') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('orders.messages.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/orders/" class="btn btn-primary rounded-0">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3">
+			<div class="form-text mt-0 mb-3"><%= i18n.__('orders.messages.help') %></div>
+			<div class="row g-3">
+				<div class="col-xl-6">
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0 d-flex align-items-center">
+							<span class="me-auto"><%= i18n.__('orders.messages.templates') %></span>
+							<button type="button" class="btn btn-sm btn-light rounded-0" id="tp-new"><i class="fa-solid fa-plus me-1"></i><%= i18n.__('orders.messages.add') %></button>
+						</div>
+						<div class="card-body p-0">
+							<table class="table table-sm table-hover align-middle mb-0">
+								<thead><tr><th><%= i18n.__('orders.messages.name') %></th><th><%= i18n.__('orders.messages.trigger') %></th><th></th></tr></thead>
+								<tbody id="tp-rows"><tr><td colspan="3" class="p-3"><span class="spinner-border spinner-border-sm"></span></td></tr></tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+				<div class="col-xl-6">
+					<div class="card border-primary rounded-0 mb-3" id="tp-form">
+						<div class="card-header text-bg-primary rounded-0" id="tp-title"><%= i18n.__('orders.messages.add') %></div>
+						<div class="card-body row g-3">
+							<input type="hidden" id="tp-id" />
+							<div class="col-md-8"><label class="form-label"><%= i18n.__('orders.messages.name') %></label><input class="form-control rounded-0" id="tp-name" maxlength="128" /></div>
+							<div class="col-md-4 d-flex align-items-end"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="tp-status" checked /><label class="form-check-label" for="tp-status"><%= i18n.__('orders.messages.active') %></label></div></div>
+							<div class="col-md-6">
+								<label class="form-label"><%= i18n.__('orders.messages.trigger') %></label>
+								<select class="form-select rounded-0" id="tp-trigger">
+									<option value=""><%= i18n.__('orders.messages.tr_manual') %></option>
+									<% triggers.forEach(function (t) { %><option value="<%= t %>"><%= i18n.__('orders.messages.tr_' + t) %></option><% }); %>
+								</select>
+							</div>
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('orders.messages.service') %></label><select class="form-select rounded-0" id="tp-service"></select></div>
+							<div class="col-12 d-none" id="tp-statuses-wrap"><label class="form-label"><%= i18n.__('orders.messages.statuses') %></label><div class="border p-2 d-flex flex-wrap gap-3" id="tp-statuses"></div></div>
+							<div class="col-12"><label class="form-label"><%= i18n.__('orders.messages.sites') %></label><div class="border p-2 d-flex flex-wrap gap-3" id="tp-sites"></div><div class="form-text"><%= i18n.__('orders.messages.sites_hint') %></div></div>
+							<div class="col-12">
+								<label class="form-label"><%= i18n.__('orders.messages.text') %></label>
+								<textarea class="form-control rounded-0" id="tp-text" rows="5" maxlength="1000"></textarea>
+								<div class="form-text"><%= i18n.__('orders.messages.vars') %></div>
+							</div>
+						</div>
+						<div class="card-footer rounded-0 d-flex gap-2">
+							<button type="button" class="btn btn-primary rounded-0" id="tp-save"><%= i18n.__('orders.messages.save') %></button>
+							<button type="button" class="btn btn-outline-danger rounded-0 ms-auto d-none" id="tp-delete"><%= i18n.__('orders.messages.delete') %></button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../partials/footer'); %>
+		<%- include('../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const notyf = new Notyf({ duration: 4000, position: { x: "right", y: "top" }, types: [{ type: "error", background: "indianred" }] });
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				let data = { templates: [], services: [], statuses: [], integrations: [] };
+
+				async function call(url, body) {
+					const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+					const r = await res.json().catch(() => ({}));
+					if (!res.ok) throw new Error(r.message || "Error");
+					return r;
+				}
+				const checks = (box, list, picked) => ($(box).innerHTML = list.map((x) => `<div class="form-check"><input class="form-check-input" type="checkbox" value="${x.id}" id="${box}-${x.id}" ${picked.includes(x.id) ? "checked" : ""}><label class="form-check-label" for="${box}-${x.id}">${esc(x.name || "#" + x.id)}</label></div>`).join(""));
+				const picked = (box) => [...$(box).querySelectorAll("input:checked")].map((i) => Number(i.value));
+
+				function open(t) {
+					t = t || { id: "", name: "", text: "", status: 1, trigger_event: "", trigger_statuses: [], integrations: [], id_service: "" };
+					$("tp-title").textContent = t.id ? t.name : "<%= i18n.__('orders.messages.add') %>";
+					$("tp-id").value = t.id;
+					$("tp-name").value = t.name;
+					$("tp-text").value = t.text;
+					$("tp-status").checked = !!t.status;
+					$("tp-trigger").value = t.trigger_event || "";
+					$("tp-service").value = t.id_service || ($("tp-service").options[0] || {}).value || "";
+					checks("tp-statuses", data.statuses, t.trigger_statuses);
+					checks("tp-sites", data.integrations, t.integrations);
+					$("tp-statuses-wrap").classList.toggle("d-none", $("tp-trigger").value !== "status");
+					$("tp-delete").classList.toggle("d-none", !t.id);
+				}
+
+				async function load(openId) {
+					data = await call("/api/orders/settings/messages/list/");
+					$("tp-service").innerHTML = data.services.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join("") || `<option value=""><%= i18n.__('orders.messages.no_service') %></option>`;
+					$("tp-rows").innerHTML = data.templates.length
+						? data.templates.map((t) => `<tr data-id="${t.id}" role="button" class="${t.status ? "" : "text-muted"}"><td>${esc(t.name)}</td><td class="small">${esc(({ title: "<%= i18n.__('orders.messages.title') %>", tab: "<%= i18n.__('orders.messages.tab') %>", help: "<%= i18n.__('orders.messages.help') %>", templates: "<%= i18n.__('orders.messages.templates') %>", add: "<%= i18n.__('orders.messages.add') %>", name: "<%= i18n.__('orders.messages.name') %>", trigger: "<%= i18n.__('orders.messages.trigger') %>", active: "<%= i18n.__('orders.messages.active') %>", service: "<%= i18n.__('orders.messages.service') %>", statuses: "<%= i18n.__('orders.messages.statuses') %>", sites: "<%= i18n.__('orders.messages.sites') %>", sites_hint: "<%= i18n.__('orders.messages.sites_hint') %>", text: "<%= i18n.__('orders.messages.text') %>", vars: "<%= i18n.__('orders.messages.vars') %>", tr_manual: "<%= i18n.__('orders.messages.tr_manual') %>", tr_new: "<%= i18n.__('orders.messages.tr_new') %>", tr_status: "<%= i18n.__('orders.messages.tr_status') %>", tr_ttn: "<%= i18n.__('orders.messages.tr_ttn') %>", tr_delivered: "<%= i18n.__('orders.messages.tr_delivered') %>", tr_returned: "<%= i18n.__('orders.messages.tr_returned') %>", save: "<%= i18n.__('orders.messages.save') %>", saved: "<%= i18n.__('orders.messages.saved') %>", delete: "<%= i18n.__('orders.messages.delete') %>", confirm_delete: "<%= i18n.__('orders.messages.confirm_delete') %>", no_templates: "<%= i18n.__('orders.messages.no_templates') %>", no_service: "<%= i18n.__('orders.messages.no_service') %>", own_text: "<%= i18n.__('orders.messages.own_text') %>", text_ph: "<%= i18n.__('orders.messages.text_ph') %>", preview: "<%= i18n.__('orders.messages.preview') %>", send: "<%= i18n.__('orders.messages.send') %>", confirm: "<%= i18n.__('orders.messages.confirm') %>", queued: "<%= i18n.__('orders.messages.queued') %>", empty: "<%= i18n.__('orders.messages.empty') %>", no_phone: "<%= i18n.__('orders.messages.no_phone') %>", auto: "<%= i18n.__('orders.messages.auto') %>", manual: "<%= i18n.__('orders.messages.manual') %>", quiet: "<%= i18n.__('orders.messages.quiet') %>", st_pending: "<%= i18n.__('orders.messages.st_pending') %>", st_processing: "<%= i18n.__('orders.messages.st_processing') %>", st_sent: "<%= i18n.__('orders.messages.st_sent') %>", st_failed: "<%= i18n.__('orders.messages.st_failed') %>", e_required: "<%= i18n.__('orders.messages.e_required') %>", e_order: "<%= i18n.__('orders.messages.e_order') %>", e_service: "<%= i18n.__('orders.messages.e_service') %>" })["tr_" + (t.trigger_event || "manual")])}</td><td class="text-end"><i class="fa-regular fa-pen-to-square text-primary"></i></td></tr>`).join("")
+						: `<tr><td colspan="3" class="p-3 text-muted"><%= i18n.__('orders.messages.no_templates') %></td></tr>`;
+					open(data.templates.find((t) => t.id === openId));
+				}
+
+				$("tp-rows").addEventListener("click", (e) => {
+					const tr = e.target.closest("tr[data-id]");
+					if (tr) open(data.templates.find((t) => t.id === Number(tr.dataset.id)));
+				});
+				$("tp-new").addEventListener("click", () => open(null));
+				$("tp-trigger").addEventListener("change", () => $("tp-statuses-wrap").classList.toggle("d-none", $("tp-trigger").value !== "status"));
+				$("tp-save").addEventListener("click", async () => {
+					try {
+						const r = await call("/api/orders/settings/messages/save/", {
+							id: $("tp-id").value || null,
+							name: $("tp-name").value,
+							text: $("tp-text").value,
+							status: $("tp-status").checked ? 1 : 0,
+							trigger_event: $("tp-trigger").value || null,
+							trigger_statuses: picked("tp-statuses"),
+							integrations: picked("tp-sites"),
+							id_service: $("tp-service").value || null,
+						});
+						notyf.success("<%= i18n.__('orders.messages.saved') %>");
+						load(r.id);
+					} catch (e) {
+						notyf.error(e.message);
+					}
+				});
+				$("tp-delete").addEventListener("click", async () => {
+					if (!confirm("<%= i18n.__('orders.messages.confirm_delete') %>")) return;
+					try {
+						await call("/api/orders/settings/messages/delete/", { id: $("tp-id").value });
+						load(null);
+					} catch (e) {
+						notyf.error(e.message);
+					}
+				});
+				load(null).catch((e) => notyf.error(e.message));
+			})();
+		</script>
+	</body>
+</html>

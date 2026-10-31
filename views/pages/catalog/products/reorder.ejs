@@ -1,0 +1,158 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.stock.reorder.title') %></title>
+		<%- include('../../../partials/head'); %>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('catalog.stock.reorder.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('catalog.stock.reorder.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/catalog/stock/documents/"><%= i18n.__('catalog.stock.reorder.breadcrumb.documents') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('catalog.stock.reorder.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/catalog" class="btn btn-primary rounded-0">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<h1 class="h4 mb-2"><%= i18n.__('catalog.stock.reorder.title') %></h1>
+				<p class="small text-muted"><%= i18n.__('catalog.stock.reorder.hint') %></p>
+				<div class="row g-2 mb-3">
+					<div class="col-md-3">
+						<select class="form-select rounded-0" id="f-warehouse">
+							<option value=""><%= i18n.__('catalog.stock.documents.all_warehouses') %></option>
+							<% warehouses.filter((w) => Number(w.status)).forEach((w) => { %><option value="<%= w.id %>"><%= w.code %> — <%= w.name %></option><% }) %>
+						</select>
+					</div>
+				</div>
+				<div id="box"><div class="text-muted"><%= i18n.__('catalog.stock.reorder.loading') %></div></div>
+			</div>
+		</main>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script>
+			(function () {
+				"use strict";
+
+				const CAN_ADD = <%= !!perms.add %>;
+				const box = document.getElementById("box");
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+				const num = (v, d = 2) => (v === null || v === undefined ? "—" : Number(v).toLocaleString("uk-UA", { maximumFractionDigits: d }));
+				let rows = [];
+
+				async function post(url, body) {
+					const r = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const d = await r.json().catch(() => ({}));
+					if (!r.ok || !d.ok) throw d;
+					return d;
+				}
+
+				// Групи за постачальником (без постачальника — окремо)
+				function render() {
+					if (!rows.length) return (box.innerHTML = `<div class="alert alert-success rounded-0">${"<%= i18n.__('catalog.stock.reorder.empty') %>"}</div>`);
+					const groups = new Map();
+					rows.forEach((r, i) => {
+						const k = r.supplier ? r.supplier.id : 0;
+						(groups.get(k) || groups.set(k, { name: r.supplier ? r.supplier.name : "<%= i18n.__('catalog.stock.reorder.no_supplier') %>", list: [] }).get(k)).list.push(i);
+					});
+					box.innerHTML = [...groups.entries()]
+						.map(([k, g]) => {
+							const body = g.list
+								.map((i) => {
+									const r = rows[i];
+									const s = r.supplier || {};
+									return `<tr>
+										<td><input class="form-check-input js-sel" type="checkbox" data-i="${i}" ${r.qty > 0 ? "checked" : ""}></td>
+										<td><a href="/catalog/products/${r.id_product}/" target="_blank">${esc(r.name)}</a><div class="small text-muted">${esc(r.sku || "")}${s.sku ? " · " + "<%= i18n.__('catalog.stock.reorder.supplier_sku') %>" + " " + esc(s.sku) : ""}</div></td>
+										<td>${esc(r.warehouse)}</td>
+										<td class="text-end ${r.available <= 0 ? "text-danger fw-semibold" : ""}">${num(r.available, 3)}</td>
+										<td class="text-end">${num(r.incoming, 3)}</td>
+										<td class="text-end">${num(r.reorder_point, 3)}</td>
+										<td class="text-end">${num(r.daily)}</td>
+										<td class="text-end">${r.days_left === null ? "—" : r.days_left}</td>
+										<td class="small">${esc(r.reason === "point" ? "<%= i18n.__('catalog.stock.reorder.reason_point') %>" : "<%= i18n.__('catalog.stock.reorder.reason_run_out') %>".replace("%s", r.lead))}</td>
+										<td class="text-end">${s.price === null || s.price === undefined ? "—" : num(s.price) + " " + esc(s.currency || "")}</td>
+										<td style="width:110px"><input type="number" min="0" step="1" class="form-control form-control-sm rounded-0 js-qty" data-i="${i}" value="${r.qty}"></td>
+									</tr>`;
+								})
+								.join("");
+							return `<div class="card rounded-0 mb-3">
+								<div class="card-header d-flex align-items-center gap-2"><strong>${esc(g.name)}</strong>
+									${CAN_ADD ? `<button type="button" class="btn btn-sm btn-primary rounded-0 ms-auto js-create" data-sup="${k}">${"<%= i18n.__('catalog.stock.reorder.create') %>"}</button>` : ""}</div>
+								<div class="table-responsive"><table class="table table-sm align-middle mb-0">
+									<thead><tr><th></th><th>${"<%= i18n.__('catalog.stock.reorder.product') %>"}</th><th>${"<%= i18n.__('catalog.stock.reorder.warehouse') %>"}</th><th class="text-end">${"<%= i18n.__('catalog.stock.reorder.available') %>"}</th><th class="text-end">${"<%= i18n.__('catalog.stock.reorder.incoming') %>"}</th><th class="text-end">${"<%= i18n.__('catalog.stock.reorder.point') %>"}</th><th class="text-end">${"<%= i18n.__('catalog.stock.reorder.daily') %>"}</th><th class="text-end">${"<%= i18n.__('catalog.stock.reorder.days_left') %>"}</th><th>${"<%= i18n.__('catalog.stock.reorder.reason') %>"}</th><th class="text-end">${"<%= i18n.__('catalog.stock.reorder.price') %>"}</th><th>${"<%= i18n.__('catalog.stock.reorder.qty') %>"}</th></tr></thead>
+									<tbody>${body}</tbody>
+								</table></div>
+							</div>`;
+						})
+						.join("");
+				}
+
+				async function load() {
+					box.innerHTML = `<div class="text-muted">${"<%= i18n.__('catalog.stock.reorder.loading') %>"}</div>`;
+					try {
+						rows = (await post("/api/catalog/products/stock/reorder/list/", { id_warehouse: document.getElementById("f-warehouse").value || null })).rows;
+						render();
+					} catch (e) {
+						box.innerHTML = `<div class="text-danger">${esc(e.error || "<%= i18n.__('catalog.stock.reorder.error') %>")}</div>`;
+					}
+				}
+
+				box.addEventListener("input", (e) => {
+					if (e.target.classList.contains("js-qty")) rows[e.target.dataset.i].qty = Number(e.target.value) || 0;
+				});
+				box.addEventListener("click", async (e) => {
+					const b = e.target.closest(".js-create");
+					if (!b) return;
+					const card = b.closest(".card");
+					const lines = [...card.querySelectorAll(".js-sel:checked")]
+						.map((el) => rows[el.dataset.i])
+						.filter((r) => r.qty > 0)
+						.map((r) => ({ id_product: r.id_product, id_variant: r.id_variant, id_warehouse: r.id_warehouse, qty: r.qty, id_supplier: r.supplier ? r.supplier.id : null, price: r.supplier ? r.supplier.price : null, currency: r.supplier ? r.supplier.currency : null }));
+					if (!lines.length) return alert("<%= i18n.__('catalog.stock.reorder.nothing') %>");
+					b.disabled = true;
+					try {
+						const d = await post("/api/catalog/products/stock/reorder/create/", { lines });
+						card.querySelector(".card-header").insertAdjacentHTML(
+							"beforeend",
+							`<span class="small">${"<%= i18n.__('catalog.stock.reorder.created') %>"}: ${d.created.map((id) => `<a href="/catalog/stock/documents/${id}/" target="_blank">#${id}</a>`).join(", ")}</span>`
+						);
+					} catch (err) {
+						alert(err.error || "<%= i18n.__('catalog.stock.reorder.error') %>");
+						b.disabled = false;
+					}
+				});
+				document.getElementById("f-warehouse").addEventListener("change", load);
+				load();
+			})();
+		</script>
+	</body>
+</html>

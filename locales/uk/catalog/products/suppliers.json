@@ -1,0 +1,31 @@
+{
+	"catalog": {
+		"suppliers": {
+			"title": "Постачальники",
+			"breadcrumb": {
+				"home": "Головна",
+				"catalog": "Каталог",
+				"current": "Постачальники"
+			},
+			"add": "Додати постачальника",
+			"edit": "Постачальник",
+			"products_count": "Товарів",
+			"confirm_delete": "Видалити постачальника «%s»? Його можна буде відновити з кошика.",
+			"f": {
+				"name": "Назва",
+				"code": "Код",
+				"tax_number": "Податковий номер / VAT",
+				"contact_person": "Контактна особа",
+				"email": "Email",
+				"phone": "Телефон",
+				"website": "Сайт",
+				"address": "Адреса",
+				"country": "Країна (ISO)",
+				"currency": "Валюта (ISO)",
+				"lead_time_days": "Термін постачання, днів",
+				"status": "Активний",
+				"note": "Примітка"
+			}
+		}
+	}
+}

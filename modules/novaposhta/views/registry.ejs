@@ -1,0 +1,205 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('modules.novaposhta.registry.title') %></title>
+		<%- include('../../../views/partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../views/partials/header'); %>
+
+		<!-- Breadcrumb -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('modules.novaposhta.registry.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('modules.novaposhta.home') %></span></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/modules/novaposhta/"><%= i18n.__('modules.novaposhta.title') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= i18n.__('modules.novaposhta.registry.title') %></li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/orders/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- END Breadcrumb -->
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pt-3 pb-5">
+				<div class="form-text mt-0 mb-3"><%= i18n.__('modules.novaposhta.registry.help') %></div>
+				<% if (!accounts.length) { %>
+				<div class="alert alert-warning rounded-0"><%= i18n.__('modules.novaposhta.panel.no_accounts') %></div>
+				<% } else { %>
+				<div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+					<div>
+						<label class="form-label small mb-1"><%= i18n.__('modules.novaposhta.panel.account') %></label>
+						<select class="form-select rounded-0" id="rg-account">
+							<% accounts.forEach(function (a) { %><option value="<%= a.id %>"><%= a.name %></option><% }); %>
+						</select>
+					</div>
+					<button type="button" class="btn btn-outline-secondary rounded-0" id="rg-reload"><i class="fa-solid fa-rotate"></i></button>
+				</div>
+
+				<div class="row g-3">
+					<div class="col-xl-7">
+						<div class="card rounded-0">
+							<div class="card-header fw-semibold d-flex align-items-center gap-2">
+								<span class="me-auto"><%= i18n.__('modules.novaposhta.registry.free') %></span>
+								<select class="form-select form-select-sm rounded-0 w-auto" id="rg-target"></select>
+								<button type="button" class="btn btn-sm btn-primary rounded-0" id="rg-create" disabled><i class="fa-solid fa-file-circle-plus"></i> <%= i18n.__('modules.novaposhta.registry.create') %></button>
+							</div>
+							<div class="card-body p-0 table-responsive">
+								<table class="table table-sm table-hover mb-0 align-middle">
+									<thead><tr>
+										<th style="width:32px"><input type="checkbox" class="form-check-input" id="rg-all" /></th>
+										<th><%= i18n.__('modules.novaposhta.panel.ttn') %></th>
+										<th><%= i18n.__('modules.novaposhta.registry.order') %></th>
+										<th><%= i18n.__('modules.novaposhta.panel.recipient') %></th>
+										<th><%= i18n.__('modules.novaposhta.panel.city') %></th>
+										<th class="text-end"><%= i18n.__('modules.novaposhta.panel.cod') %></th>
+									</tr></thead>
+									<tbody id="rg-free"></tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+					<div class="col-xl-5">
+						<div class="card rounded-0">
+							<div class="card-header fw-semibold"><%= i18n.__('modules.novaposhta.registry.sheets') %></div>
+							<div class="card-body p-0 table-responsive">
+								<table class="table table-sm mb-0 align-middle">
+									<thead><tr>
+										<th><%= i18n.__('modules.novaposhta.registry.number') %></th>
+										<th><%= i18n.__('modules.novaposhta.registry.date') %></th>
+										<th class="text-end"><%= i18n.__('modules.novaposhta.registry.count') %></th>
+										<th></th>
+									</tr></thead>
+									<tbody id="rg-sheets"></tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				</div>
+				<% } %>
+			</div>
+		</main>
+
+		<%- include('../../../views/partials/footer'); %>
+		<%- include('../../../views/partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const sel = document.getElementById("rg-account");
+				if (!sel) return;
+				const L = <%- JSON.stringify(i18n.__('modules.novaposhta.registry')).replace(/</g, '\\u003c') %>;
+				const B = "/api/module/novaposhta";
+				const notyf = new Notyf({ duration: 4000, position: { x: "right", y: "top" } });
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s === null || s === undefined ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const money = (v) => new Intl.NumberFormat("uk-UA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(v) || 0);
+
+				async function api(path, body) {
+					const res = await fetch(B + path, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					let j = {};
+					try {
+						j = await res.json();
+					} catch (e) {}
+					if (!res.ok || !j.ok) throw new Error(j.error || L.error);
+					return j;
+				}
+
+				// Останній вибраний акаунт — зручність одного користувача
+				try {
+					const saved = localStorage.getItem("np-registry-account");
+					if (saved && [...sel.options].some((o) => o.value === saved)) sel.value = saved;
+				} catch (e) {}
+
+				const checked = () => [...document.querySelectorAll(".rg-pick:checked")].map((c) => Number(c.value));
+				const sync = () => {
+					$("rg-create").disabled = !checked().length;
+					$("rg-create").lastChild.textContent = " " + (checked().length ? L.create_n.replace("%s", checked().length) : L.create);
+				};
+
+				async function load() {
+					$("rg-free").innerHTML = $("rg-sheets").innerHTML = `<tr><td colspan="6" class="text-secondary p-3"><span class="spinner-border spinner-border-sm"></span></td></tr>`;
+					$("rg-all").checked = false;
+					try {
+						const d = await api("/registry/data/", { account_id: Number(sel.value) });
+						$("rg-free").innerHTML = d.free.length
+							? d.free.map((r) => `<tr>
+								<td><input type="checkbox" class="form-check-input rg-pick" value="${r.id}" /></td>
+								<td class="text-nowrap">${esc(r.number)}</td>
+								<td><a href="/orders/${r.id_order}/" target="_blank">${esc(r.reference || "#" + r.id_order)}</a></td>
+								<td>${esc(r.recipient)}</td>
+								<td>${esc(r.city)}</td>
+								<td class="text-end text-nowrap">${r.cod ? money(r.cod) : "—"}</td></tr>`).join("")
+							: `<tr><td colspan="6" class="text-secondary p-3">${esc(L.free_empty)}</td></tr>`;
+						$("rg-target").innerHTML = `<option value="">${esc(L.new_sheet)}</option>` + d.sheets.map((x) => `<option value="${esc(x.ref)}">${esc(L.add_to.replace("%s", x.number))}</option>`).join("");
+						$("rg-sheets").innerHTML = d.sheets.length
+							? d.sheets.map((x) => `<tr>
+								<td class="text-nowrap"><b>${esc(x.number)}</b>${x.printed ? ` <span class="badge rounded-0 text-bg-light border">${esc(L.printed)}</span>` : ""}</td>
+								<td class="text-nowrap small">${esc(x.date)}</td>
+								<td class="text-end">${x.count === null ? "—" : x.count}</td>
+								<td class="text-end text-nowrap">
+									<a class="btn btn-sm btn-outline-primary rounded-0" href="${B}/registry/print/?account=${sel.value}&ref=${encodeURIComponent(x.ref)}" target="_blank" title="${esc(L.print)}"><i class="fa-solid fa-print"></i></a>
+									<button type="button" class="btn btn-sm btn-outline-danger rounded-0" data-del="${esc(x.ref)}" data-num="${esc(x.number)}" title="${esc(L.delete)}"><i class="fa-solid fa-trash"></i></button>
+								</td></tr>`).join("")
+							: `<tr><td colspan="4" class="text-secondary p-3">${esc(L.sheets_empty)}</td></tr>`;
+					} catch (e) {
+						$("rg-free").innerHTML = `<tr><td colspan="6" class="text-danger p-3">${esc(e.message)}</td></tr>`;
+						$("rg-sheets").innerHTML = "";
+					}
+					sync();
+				}
+
+				sel.addEventListener("change", () => {
+					try {
+						localStorage.setItem("np-registry-account", sel.value);
+					} catch (e) {}
+					load();
+				});
+				$("rg-reload").addEventListener("click", load);
+				$("rg-all").addEventListener("change", (e) => {
+					document.querySelectorAll(".rg-pick").forEach((c) => (c.checked = e.target.checked));
+					sync();
+				});
+				$("rg-free").addEventListener("change", sync);
+
+				$("rg-create").addEventListener("click", async (e) => {
+					const b = e.currentTarget;
+					b.disabled = true;
+					try {
+						const r = await api("/registry/create/", { account_id: Number(sel.value), ids: checked(), sheet_ref: $("rg-target").value || null });
+						notyf.success(L.created.replace("%s", r.number).replace("%n", r.added));
+						if (r.rejected) notyf.error(L.rejected.replace("%s", r.rejected));
+					} catch (err) {
+						notyf.error(err.message);
+					}
+					load();
+				});
+
+				$("rg-sheets").addEventListener("click", async (e) => {
+					const b = e.target.closest("[data-del]");
+					if (!b || !confirm(L.confirm_delete.replace("%s", b.dataset.num))) return;
+					b.disabled = true;
+					try {
+						await api("/registry/delete/", { account_id: Number(sel.value), ref: b.dataset.del });
+						notyf.success(L.deleted);
+					} catch (err) {
+						notyf.error(err.message);
+					}
+					load();
+				});
+
+				load();
+			})();
+		</script>
+	</body>
+</html>

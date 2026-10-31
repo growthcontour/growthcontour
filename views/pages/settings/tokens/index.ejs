@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+  <head>
+    <title><%= i18n.__('orders.tokens.title') %></title>
+    <%- include('../../../partials/head'); %>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+    <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+    <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+    <style>
+      #tokens-table .tabulator-col,
+      #tokens-table .tabulator-cell {
+        border-right: 1px solid #dee2e6;
+        border-bottom: 1px solid #dee2e6;
+      }
+      #tokens-table .tabulator-col:last-child,
+      #tokens-table .tabulator-cell:last-child { border-right: none; }
+      #tokens-table .tabulator-row:last-child .tabulator-cell { border-bottom: none; }
+      .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase;
+                       color: #6c757d; letter-spacing: .5px; margin-bottom: 4px; }
+    </style>
+  </head>
+  <body class="d-flex flex-column h-100">
+    <%- include('../../../partials/header'); %>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumbs pt-3 pb-3">
+      <div class="container-fluid">
+        <div class="row align-items-center">
+          <div class="col">
+            <span><%= i18n.__('orders.tokens.title') %></span>
+            <div>
+              <ul class="list-inline mb-0">
+                <li class="list-inline-item">
+                  <a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('orders.tokens.breadcrumb.home') %></span></a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <%= i18n.__('header.nav.settings') %>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <%= i18n.__('orders.tokens.breadcrumb.current') %>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-auto">
+            <a href="/settings/integrations/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- END Breadcrumb -->
+ 
+      <div class="container-fluid mt-3">
+      <div class="row">
+        <div class="col-12 mb-3">
+          <a href="/settings/tokens/new/" class="btn btn-primary rounded-0 mb-3">
+            <i class="fa-solid fa-plus me-1"></i><%= i18n.__('orders.tokens.generate_modal.button') %>
+          </a>
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0"><%= i18n.__('orders.tokens.title') %></div>
+            <div id="tokens-table"></div>
+          </div>
+        </div>
+      </div>
+       </div>
+
+
+        <!-- ─── МОДАЛКА: ВИДАЛЕННЯ ТОКЕНА ──────────────────────────────────────── -->
+    <div class="modal fade" id="modalDeleteToken" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-0">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5"><%= i18n.__('orders.tokens.delete_modal.title') %></h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-2"><%= i18n.__('orders.tokens.delete_modal.confirm_text') %></p>
+            <p class="mb-0"><strong id="delete_token_name"></strong> <span class="text-muted">#<span id="delete_token_id"></span></span></p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('orders.tokens.delete_modal.close') %></button>
+            <button type="button" class="btn btn-danger rounded-0" id="btn_confirm_delete_token"><%= i18n.__('orders.tokens.delete_modal.delete') %></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- ─── END ─────────────────────────────────────────────────────────────── -->
+
+      <!-- ─── МОДАЛКА: ВІДКЛИКАННЯ З ТАБЛИЦІ ─────────────────────────────────── -->
+    <div class="modal fade" id="modalRevokeTokenRow" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-0">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5"><%= i18n.__('orders.tokens.revoke_modal.title') %></h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-2"><%= i18n.__('orders.tokens.revoke_modal.confirm_text') %></p>
+            <p class="mb-2"><strong id="revoke_row_name"></strong> <span class="text-muted">#<span id="revoke_row_id"></span></span></p>
+            <label class="form-label"><%= i18n.__('orders.tokens.revoke_modal.reason') %></label>
+            <input type="text" class="form-control rounded-0" id="revoke_row_reason" />
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('orders.tokens.revoke_modal.close') %></button>
+            <button type="button" class="btn btn-danger rounded-0" id="btn_confirm_revoke_row"><%= i18n.__('orders.tokens.revoke_modal.revoke') %></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- ─── END ─────────────────────────────────────────────────────────────── -->
+
+
+    <%- include('../../../partials/footer'); %> <%- include('../../../partials/script'); %>
+    <script src="/assets/js/notyf/notyf.min.js"></script>
+    <script>
+      const notyf = new Notyf({
+        position: { x: "right", y: "top" },
+        duration: 4000,
+        types: [
+          { type: "success", dismissible: true, icon: false },
+          { type: "error", background: "indianred", dismissible: true, icon: false },
+        ],
+      });
+
+      function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+      // Мітки станів/результатів (з перекладів)
+      const STATE_BADGE = { active:'text-bg-success', disabled:'text-bg-secondary', expired:'text-bg-warning', revoked:'text-bg-danger' };
+      const STATE_LABEL = {
+        active: "<%= i18n.__('orders.tokens.state.active') %>",
+        disabled: "<%= i18n.__('orders.tokens.state.disabled') %>",
+        expired: "<%= i18n.__('orders.tokens.state.expired') %>",
+        revoked: "<%= i18n.__('orders.tokens.state.revoked') %>",
+      };
+    </script>
+    <!-- Відкликання -->
+    <script>
+      // Відкликання з таблиці
+      let revokeRowId = null;
+      $(document).on("click", ".revoke-token-btn", function () {
+        revokeRowId = $(this).data("token-id");
+        document.getElementById("revoke_row_id").textContent = revokeRowId;
+        document.getElementById("revoke_row_name").textContent = $(this).data("token-name") || "";
+        document.getElementById("revoke_row_reason").value = "";
+        bootstrap.Modal.getOrCreateInstance(document.getElementById("modalRevokeTokenRow")).show();
+      });
+
+      document.getElementById("btn_confirm_revoke_row").addEventListener("click", async function () {
+        const btn = this;
+        if (btn.disabled || !revokeRowId) return;
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        try {
+          const res = await fetch("/api/settings/tokens/revoke/", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: revokeRowId, reason: document.getElementById("revoke_row_reason").value }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data.status !== "success") throw new Error(data.message || "Error");
+          bootstrap.Modal.getOrCreateInstance(document.getElementById("modalRevokeTokenRow")).hide();
+          notyf.success("<%= i18n.__('orders.tokens.revoke_modal.revoked') %>");
+          table.replaceData();
+        } catch (err) {
+          notyf.error(err.message);
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = original;
+        }
+      });
+    </script>
+    <!-- Видалення токена з таблиці -->
+    <script>
+      let deleteTokenId = null;
+      $(document).on("click", ".delete-token-btn", function () {
+        deleteTokenId = $(this).data("token-id");
+        document.getElementById("delete_token_id").textContent = deleteTokenId;
+        document.getElementById("delete_token_name").textContent = $(this).data("token-name") || "";
+        bootstrap.Modal.getOrCreateInstance(document.getElementById("modalDeleteToken")).show();
+      });
+
+      document.getElementById("btn_confirm_delete_token").addEventListener("click", async function () {
+        const btn = this;
+        if (btn.disabled || !deleteTokenId) return;
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        try {
+          const res = await fetch("/api/settings/tokens/delete/", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: deleteTokenId }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data.status !== "success") throw new Error(data.message || "Error");
+          bootstrap.Modal.getOrCreateInstance(document.getElementById("modalDeleteToken")).hide();
+          notyf.success(data.message || "OK");
+          table.replaceData();
+        } catch (err) {
+          notyf.error(err.message);
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = original;
+        }
+      });
+    </script>
+    <!-- Tabulator -->
+    <script src="/assets/js/tabulator/tabulator.min.js"></script>
+    <script>
+      var table = new Tabulator("#tokens-table", {
+        layout: "fitColumns",
+        ajaxURL: "/api/settings/tokens/list/",
+        ajaxConfig: "POST",
+        paginationSize: 10,
+        paginationSizeSelector: [10, 20, 30, 40],
+        pagination: true,
+        movableColumns: true,
+        placeholder: "<%= i18n.__('orders.tokens.table.empty') %>",
+        columns: [
+          { title: "<%= i18n.__('orders.tokens.columns.id') %>", field: "id", headerSort: false, widthGrow: 1 },
+          { title: "<%= i18n.__('orders.tokens.columns.name') %>", field: "name", headerSort: false, widthGrow: 3,
+            formatter: function (cell) {
+              const d = cell.getRow().getData();
+              const env = d.environment === "test"
+                ? ' <span class="badge rounded-0 text-bg-light border"><%= i18n.__('orders.tokens.env.test') %></span>' : '';
+              return '<div>' + esc(d.name) + env + '</div>'
+                + '<small class="text-muted"><code>' + esc(d.prefix || '') + '…' + esc(d.last4 || '') + '</code></small>';
+            },
+          },
+          { title: "<%= i18n.__('orders.tokens.columns.state') %>", field: "state", headerSort: false, widthGrow: 1,
+            formatter: function (cell) {
+              const s = cell.getValue();
+              return '<span class="badge rounded-0 ' + (STATE_BADGE[s] || 'text-bg-secondary') + '">' + (STATE_LABEL[s] || s) + '</span>';
+            },
+          },
+          { title: "<%= i18n.__('orders.tokens.columns.usage') %>", field: "usage_count", headerSort: false, widthGrow: 1,
+            formatter: function (cell) {
+              const d = cell.getRow().getData();
+              let out = '<span class="text-success">' + (d.usage_count || 0) + '</span>';
+              if (d.error_count) out += ' / <span class="text-danger">' + d.error_count + '</span>';
+              return out;
+            },
+          },
+          { title: "<%= i18n.__('orders.tokens.columns.last_used') %>", field: "last_used_at", headerSort: false, widthGrow: 2,
+            formatter: (cell) => cell.getValue() || '—' },
+          { title: "<%= i18n.__('orders.tokens.columns.date_add') %>", field: "date_add", headerSort: false, widthGrow: 2 },
+                    { title: "", field: "id", headerSort: false, width: 130,
+                        formatter: function (cell) {
+              const d = cell.getRow().getData();
+              const id = d.id;
+              // Відкликаний токен уже не відкликати повторно — кнопку глушимо
+              const revoked = d.state === "revoked";
+              const revokeBtn = revoked
+                ? '<button type="button" class="bg-transparent border-0 text-muted" disabled title="<%= i18n.__('orders.tokens.state.revoked') %>"><i class="fa-solid fa-ban"></i></button>'
+                : '<button type="button" class="bg-transparent border-0 text-danger revoke-token-btn" data-token-id="' + id + '" data-token-name="' + esc(d.name) + '" title="<%= i18n.__('orders.tokens.actions.revoke') %>"><i class="fa-solid fa-ban"></i></button>';
+              return '<div class="d-flex justify-content-center gap-2">'
+                + '<a href="/settings/tokens/' + id + '/" class="text-primary" title="<%= i18n.__('orders.tokens.actions.edit') %>"><i class="fa-regular fa-pen-to-square"></i></a>'
+                + '<a href="/settings/tokens/' + id + '/#log" class="text-secondary" title="<%= i18n.__('orders.tokens.actions.log') %>"><i class="fa-solid fa-list"></i></a>'
+                + revokeBtn
+                + '<button type="button" class="bg-transparent border-0 text-danger delete-token-btn" data-token-id="' + id + '" data-token-name="' + esc(d.name) + '" title="<%= i18n.__('orders.tokens.actions.delete') %>"><i class="fa-regular fa-trash-can"></i></button>'
+                + '</div>';
+            },
+            },
+        ],
+      });
+    </script>
+  </body>
+</html>

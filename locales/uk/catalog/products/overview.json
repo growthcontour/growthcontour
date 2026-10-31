@@ -1,0 +1,45 @@
+{
+	"catalog": {
+		"overview": {
+			"title": "Огляд каталогу",
+			"breadcrumb": {
+				"home": "Головна",
+				"current": "Каталог"
+			},
+			"stock_title": "Огляд складу",
+			"add_product": "Додати товар",
+			"new_document": "Новий документ",
+			"products": "Товари",
+			"total": "Усього",
+			"quality": "Середня якість",
+			"quality_low": "Нижче 50%",
+			"reviews_pending": "Відгуки на модерації",
+			"stock_low": "Закінчуються",
+			"stock_low_hint": "Доступно не більше точки дозамовлення",
+			"reserved_refs": "Документів",
+			"drafts": "Чернетки документів",
+			"movements_hint": "Журнал усіх змін залишків",
+			"sections": "Розділи",
+			"recent": "Нещодавно змінені товари",
+			"recent_movements": "Останні рухи",
+			"all": "Усі",
+			"empty": "Поки що нічого немає",
+			"no_warehouses": "Склади ще не створено",
+			"inactive": "Вимкнено",
+			"not_sellable": "Не для продажу",
+			"col_name": "Назва",
+			"col_sku": "Артикул",
+			"col_status": "Статус",
+			"col_quality": "Якість",
+			"col_edited": "Змінено",
+			"col_warehouse": "Склад",
+			"col_products": "Товарів",
+			"col_on_hand": "Фізично",
+			"col_reserved": "У резерві",
+			"col_available": "Доступно",
+			"col_date": "Дата",
+			"col_type": "Тип",
+			"col_qty": "Кількість"
+		}
+	}
+}

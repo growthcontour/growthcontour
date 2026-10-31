@@ -1,0 +1,11 @@
+{
+	"mailing": {
+		"campaign": {
+			"title": "Кампанія",
+			"breadcrumb": {
+				"home": "Головна",
+				"campaigns": "Кампанії"
+			}
+		}
+	}
+}

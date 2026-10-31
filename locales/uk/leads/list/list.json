@@ -1,0 +1,25 @@
+{
+	"leads": {
+		"list": {
+			"title": "Ліди",
+			"breadcrumb": {
+				"home": "Головна",
+				"current": "Ліди"
+			},
+			"t": {
+				"lidy": "Ліди",
+				"holovna": "Головна",
+				"nazva": "Назва",
+				"konvertovano": "Конвертовано",
+				"dublikat": "Дублікат",
+				"kontakt": "Контакт",
+				"status": "Статус",
+				"suma": "Сума",
+				"priorytet": "Пріоритет",
+				"dzherelo": "Джерело",
+				"tehy": "Теги",
+				"dodano": "Додано"
+			}
+		}
+	}
+}

@@ -1,0 +1,42 @@
+{
+	"contact_center": {
+		"social_posts": {
+			"title": "Публікації",
+			"breadcrumb": {
+				"home": "Головна",
+				"contact_center": "Контакт-центр",
+				"current": "Публікації"
+			},
+			"add": "Нова публікація",
+			"accounts": "Акаунти",
+			"calendar": "Календар",
+			"stats": "Статистика",
+			"snippets": "Шаблони",
+			"filter_status": "Статус",
+			"filter_account": "Акаунт",
+			"all": "Усі",
+			"search": "Пошук за назвою або текстом",
+			"columns": {
+				"id": "ID",
+				"post": "Публікація",
+				"targets": "Куди",
+				"publish_at": "Час публікації",
+				"status": "Статус",
+				"actions": "Дії"
+			},
+			"empty": "Публікацій ще немає",
+			"no_text": "Без тексту",
+			"media_n": "медіа: {n}",
+			"confirm_delete": "Видалити публікацію? Уже опубліковане в соцмережах залишиться.",
+			"confirm_cancel": "Скасувати публікацію? Цілі, що ще не опубліковані, не будуть надіслані.",
+			"deleted": "Публікацію видалено",
+			"canceled": "Публікацію скасовано",
+			"retried": "Помилкові цілі поставлено в чергу",
+			"action_edit": "Відкрити",
+			"action_cancel": "Скасувати",
+			"action_retry": "Повторити помилкові",
+			"action_delete": "Видалити",
+			"no_accounts": "Немає підключених акаунтів. Спершу додайте акаунт Instagram, Facebook, Telegram або Viber."
+		}
+	}
+}

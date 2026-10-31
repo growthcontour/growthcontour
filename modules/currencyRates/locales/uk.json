@@ -1,0 +1,12 @@
+{
+	"modules": {
+		"currencyRates": {
+			"providers": {
+				"nbu": "НБУ",
+				"privat_cash": "ПриватБанк (готівка, продаж)",
+				"privat_card": "ПриватБанк (безготівковий, продаж)",
+				"monobank": "Monobank (продаж)"
+			}
+		}
+	}
+}

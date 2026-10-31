@@ -1,0 +1,14 @@
+{
+    "contact_center": {
+        "webchat": {
+            "settings": {
+                "title": "Вебчат: сайти",
+                "breadcrumb": {
+                    "home": "Головна",
+                    "contact_center": "Контакт-центр",
+                    "current": "Вебчат: сайти"
+                }
+            }
+        }
+    }
+}

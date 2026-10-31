@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<%- include('../../partials/head'); %>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<span>Журнал дій</span>
+				<div>
+					<ul class="list-inline mb-0">
+						<li class="list-inline-item">
+							<a href="/"><i class="fas fa-home"></i></a>
+						</li>
+						<li class="list-inline-item"><i class="fas fa-chevron-right"></i> Журнал дій</li>
+					</ul>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3">
+			<div class="card border-primary rounded-0 mb-3">
+				<div class="card-header text-bg-primary rounded-0">Хто, коли і що робив з даними</div>
+				<div class="card-body border-bottom bg-light">
+					<div class="row g-2">
+						<div class="col-6 col-md-3">
+							<label class="section-title d-block">Користувач</label>
+							<select class="form-select form-select-sm rounded-0" id="a-user">
+								<option value="">Усі</option>
+								<% users.forEach(function (u) { %>
+								<option value="<%= u.id %>"><%= u.name || ('#' + u.id) %></option>
+								<% }) %>
+							</select>
+						</div>
+						<div class="col-6 col-md-2">
+							<label class="section-title d-block">Дія</label>
+							<select class="form-select form-select-sm rounded-0" id="a-action">
+								<option value="">Усі</option>
+								<option value="export">Експорт</option>
+								<option value="import">Імпорт</option>
+								<option value="bulk">Масова зміна</option>
+								<option value="merge">Злиття</option>
+								<option value="merge_revert">Скасування злиття</option>
+								<option value="settings_save">Зміна налаштувань</option>
+								<option value="settings_delete">Видалення з довідника</option>
+							</select>
+						</div>
+						<div class="col-6 col-md-2">
+							<label class="section-title d-block">Модуль</label>
+							<select class="form-select form-select-sm rounded-0" id="a-module">
+								<option value="">Усі</option>
+								<option value="clients">Клієнти</option>
+							</select>
+						</div>
+						<div class="col-6 col-md-2">
+							<label class="section-title d-block">З</label>
+							<input type="date" class="form-control form-control-sm rounded-0" id="a-from" />
+						</div>
+						<div class="col-6 col-md-2">
+							<label class="section-title d-block">По</label>
+							<input type="date" class="form-control form-control-sm rounded-0" id="a-to" />
+						</div>
+					</div>
+				</div>
+				<div class="table-responsive">
+					<table class="table table-sm align-middle mb-0">
+						<thead>
+							<tr>
+								<th style="width: 160px">Час</th>
+								<th>Хто</th>
+								<th>Дія</th>
+								<th>Модуль</th>
+								<th class="text-end">Записів</th>
+								<th>Деталі</th>
+								<th>IP</th>
+							</tr>
+						</thead>
+						<tbody id="a-body"></tbody>
+					</table>
+				</div>
+				<div class="card-body text-center d-none" id="a-more-box"><button class="btn btn-sm btn-outline-primary rounded-0" id="a-more">Показати ще</button></div>
+			</div>
+		</div>
+
+		<%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+		<script>
+			(function () {
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const ACT = { export: ["Експорт", "success"], import: ["Імпорт", "primary"], bulk: ["Масова зміна", "warning"], merge: ["Злиття", "info"], merge_revert: ["Скасування злиття", "secondary"], settings_save: ["Налаштування", "secondary"], settings_delete: ["Видалення з довідника", "danger"], settings_sort: ["Порядок у довіднику", "light"], delete: ["Видалення", "danger"], restore: ["Відновлення", "success"], purge: ["Остаточне видалення", "dark"] };
+				let NEXT = null;
+
+				function details(d) {
+					if (!d) return "";
+					const o = typeof d === "string" ? JSON.parse(d) : d;
+					return Object.entries(o)
+						.filter(([, v]) => v !== null && v !== "" && !(typeof v === "object" && !Object.keys(v).length))
+						.map(([k, v]) => '<span class="text-muted">' + esc(k) + ":</span> " + esc(typeof v === "object" ? JSON.stringify(v) : v))
+						.join("; ");
+				}
+
+				function row(r) {
+					const a = ACT[r.action] || [r.action, "light"];
+					return "<tr><td class='small'>" + esc(new Date(r.date_add).toLocaleString()) + "</td>" + "<td>" + esc(r.user_name || (r.id_user ? "#" + r.id_user : "Система")) + "</td>" + '<td><span class="badge rounded-0 text-bg-' + a[1] + '">' + esc(a[0]) + "</span></td>" + "<td class='small'>" + esc(r.module) + (r.id_entity ? " #" + r.id_entity : "") + "</td>" + "<td class='text-end'>" + (r.count || "") + "</td>" + "<td class='small text-break' style='max-width:480px'>" + details(r.details) + "</td>" + "<td class='small text-muted'>" + esc(r.ip || "") + "</td></tr>";
+				}
+
+				async function load(reset) {
+					const body = {
+						id_user: $("a-user").value,
+						action: $("a-action").value,
+						module: $("a-module").value,
+						date_from: $("a-from").value,
+						date_to: $("a-to").value,
+						before_id: reset ? null : NEXT,
+						limit: 50,
+					};
+					const r = await fetch("/api/audit/list/", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+					const d = await r.json();
+					const html = (d.rows || []).map(row).join("");
+					if (reset) $("a-body").innerHTML = html || '<tr><td colspan="7" class="text-center text-muted py-3">Записів немає</td></tr>';
+					else $("a-body").insertAdjacentHTML("beforeend", html);
+					NEXT = d.next_before_id;
+					$("a-more-box").classList.toggle("d-none", !d.has_more);
+				}
+
+				["a-user", "a-action", "a-module", "a-from", "a-to"].forEach((id) => $(id).addEventListener("change", () => load(true)));
+				$("a-more").addEventListener("click", () => load(false));
+				load(true);
+			})();
+		</script>
+	</body>
+</html>

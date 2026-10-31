@@ -1,0 +1,1492 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+<head>
+    <title><%= i18n.__('orders.page.title') %> <%= order.reference %></title>
+    <%- include('../../partials/head'); %>
+    <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+    <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+    <style>
+        .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase;
+                         color: #6c757d; letter-spacing: .5px; margin-bottom: 6px; }
+        .tab-content { min-height: 260px; }
+        .spinner-wrap { padding: 40px; text-align: center; color: #adb5bd; }
+        .kv td { padding: .25rem .5rem; font-size: 13px; }
+        .kv td.k { color: #6c757d; width: 45%; }
+        .badge-status { font-size: 12px; }
+        .money-final { font-size: 20px; font-weight: 700; }
+        .warn-sum { color: #e67e22; cursor: help; }
+    </style>
+</head>
+<body class="d-flex flex-column h-100">
+<%- include('../../partials/header'); %>
+
+<!-- Breadcrumb -->а
+		<!-- ─── ХЛІБНІ КРИХТИ ─────────────────────────────────────────── -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('orders.page.title') %> <%= order.reference %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('orders.page.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/orders/"><%= i18n.__('orders.page.breadcrumb.orders') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= order.reference %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/orders/" class="btn btn-primary rounded-0">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+<!-- END Breadcrumb -->
+
+<div class="container-fluid py-3">
+
+    <!-- В роботі: хто веде замовлення; поки воно в роботі в іншого — змінювати не можна -->
+    <% const lockLive = !!order.locked_by && Number(order.lock_live) === 1;
+       const lockMine = lockLive && Number(order.locked_by) === Number(me);
+       const lockOther = lockLive && !lockMine; %>
+    <div id="order-lock" class="alert rounded-0 d-flex flex-wrap align-items-center gap-2 py-2 mb-3 <%= lockMine ? 'alert-success' : lockOther ? 'alert-warning' : 'alert-light border' %>">
+        <i class="fa-solid <%= lockLive ? 'fa-user-lock' : 'fa-lock-open' %>"></i>
+        <span class="me-auto"><%= lockMine ? i18n.__('orders.lock.mine') : lockOther ? i18n.__('orders.lock.busy', { name: order.locked_name || '#' + order.locked_by }) : i18n.__('orders.lock.free') %></span>
+        <% if (can('orders.list', 'edit') && !lockLive) { %><button type="button" class="btn btn-sm btn-primary rounded-0" data-lock="take"><i class="fa-solid fa-hand"></i> <%= i18n.__('orders.lock.take') %></button><% } %>
+        <% if (lockMine || (lockOther && can('orders.settings', 'edit'))) { %><button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-lock="release"><i class="fa-solid fa-lock-open"></i> <%= i18n.__('orders.lock.release') %></button><% } %>
+        <% if (lockOther && can('orders.settings', 'edit')) { %><button type="button" class="btn btn-sm btn-outline-danger rounded-0" data-lock="force"><i class="fa-solid fa-hand"></i> <%= i18n.__('orders.lock.force') %></button><% } %>
+    </div>
+
+    <%- include('../../partials/risk', { riskUrl: '/api/orders/' + order.id + '/risk/' }) %>
+
+    <div class="row g-3">
+
+        <!-- ЛІВА КОЛОНКА -->
+        <div class="col-12 col-xl-8">
+
+            <!-- Шапка замовлення -->
+            <div class="card rounded-0 border-primary mb-3">
+                <div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+                    <span class="fw-bold fs-5">
+                        <%= i18n.__('orders.title') %> <%= order.reference %>
+                        <% if (order.external_number) { %>
+                            <small class="opacity-75">· <%= i18n.__('orders.page.external_number') %>: <%= order.external_number %></small>
+                        <% } %>
+                    </span>
+                    <a href="/orders/" class="btn btn-sm btn-light rounded-0"><i class="fa-solid fa-arrow-left"></i></a>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3">
+                            <div class="section-title"><%= i18n.__('orders.page.status') %></div>
+                            <span class="badge badge-status rounded-0" id="current-status-badge"
+                                  style="color:<%= order.status_color_text %>;background:<%= order.status_color_background %>">
+                                <% if (order.status_icon) { %><i class="<%= order.status_icon %> me-1"></i><% } %>
+                                <%= order.status_name || '—' %>
+                            </span>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title"><%= i18n.__('orders.page.payment') %></div>
+                            <% const finCls = { paid: 'text-bg-success', partially_paid: 'text-bg-warning', authorized: 'text-bg-info', refunded: 'text-bg-dark', partially_refunded: 'text-bg-dark', voided: 'text-bg-danger' }; %>
+                            <span class="badge rounded-0 <%= finCls[order.financial_status] || 'text-bg-secondary' %>" id="financial-badge"><%= i18n.__('orders.financial.' + (order.financial_status || 'pending')) %></span>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title"><%= i18n.__('orders.page.fulfillment') %></div>
+                            <% const fulCls = { fulfilled: 'text-bg-success', partial: 'text-bg-warning', returned: 'text-bg-dark' }; %>
+                            <span class="badge rounded-0 <%= fulCls[order.fulfillment_status] || 'text-bg-secondary' %>"><%= i18n.__('orders.fulfillment.' + (order.fulfillment_status || 'unfulfilled')) %></span>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title"><%= i18n.__('orders.source.title') %></div>
+                            <% if (order.integration_name) { %>
+                            <span class="badge rounded-0" style="color:<%= order.integration_color_text || '#ffffff' %>;background:<%= order.integration_color_background || '#607d8b' %>"><%= order.integration_name %></span>
+                            <% if (order.integration_url) { %><a href="<%= order.integration_url %>" target="_blank" rel="noopener" class="small ms-1"><i class="fa-solid fa-arrow-up-right-from-square"></i></a><% } %>
+                            <% } else if (order.source_channel === 'contact-center') { %>
+                            <span class="badge rounded-0 text-bg-dark"><%= i18n.__('orders.source.contact_center') %></span>
+                            <% } else { %>
+                            <span class="badge rounded-0 text-bg-secondary"><%= i18n.__('orders.source.none') %></span>
+                            <% } %>
+                            <% if (order.source_channel && order.source_channel !== 'contact-center') { %><div class="small text-secondary mt-1"><%= i18n.__('orders.source.channel') %>: <%= i18n.__('orders.source.channels.' + order.source_channel) %></div><% } %>
+                            <% if (typeof ccConversation !== 'undefined' && ccConversation) { %>
+                            <div class="mt-1">
+                                <a href="/contact-center/chat/<%= ccConversation.url_token %>/" class="btn btn-sm btn-outline-primary rounded-0" target="_blank">
+                                    <i class="fa-solid fa-comments me-1"></i> <%= i18n.__('orders.page.open_chat') %>
+                                </a>
+                            </div>
+                            <% } %>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- Зміна статусу (стиль OpenCart) -->
+                    <div class="row g-2 align-items-end">
+                        <div class="col-12 col-md-3">
+                            <div class="section-title"><%= i18n.__('orders.page.new_status') %></div>
+                            <select id="new-status" class="form-select form-select-sm rounded-0">
+                                <% statuses.forEach(function(s) { %>
+                                <option value="<%= s.id %>" <%= order.status == s.id ? 'selected' : '' %>><%= s.name %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-5">
+                            <div class="section-title"><%= i18n.__('orders.page.status_comment') %></div>
+                            <input id="status-comment" type="text" class="form-control form-control-sm rounded-0" placeholder="<%= i18n.__('orders.page.optional') %>">
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <div class="form-check mt-3">
+                                <input id="status-notify" class="form-check-input" type="checkbox">
+                                <label class="form-check-label small" for="status-notify"><%= i18n.__('orders.page.notify_client') %></label>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <button class="btn btn-primary btn-sm rounded-0 w-100" data-action="apply-status">
+                                <i class="fa-solid fa-check me-1"></i> <%= i18n.__('orders.page.apply') %>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Товари (ліниво) -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2 d-flex justify-content-between">
+                    <span><%= i18n.__('orders.page.items') %> <span id="sum-warn" class="warn-sum d-none" title="<%= i18n.__('orders.page.sum_warn') %>"><i class="fa-solid fa-triangle-exclamation"></i></span></span>
+                </div>
+                <div class="card-body p-0" id="items-body">
+                    <div class="spinner-wrap"><span class="spinner-border spinner-border-sm"></span> <%= i18n.__('orders.page.loading') %></div>
+                </div>
+            </div>
+
+            <!-- Склад: зіставлення з каталогом, резерв / списання -->
+            <div class="card rounded-0 mb-3" id="os-card">
+                <div class="card-header fw-semibold py-2 d-flex flex-wrap gap-2 align-items-center">
+                    <span class="me-auto"><i class="fa-solid fa-warehouse me-1"></i><%= i18n.__('catalog.order_stock.title') %> <span class="badge rounded-0 ms-1" id="os-state"></span></span>
+                    <select class="form-select form-select-sm rounded-0 w-auto" id="os-warehouse" title="<%= i18n.__('catalog.order_stock.warehouse') %>"></select>
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="os-resync" title="<%= i18n.__('catalog.order_stock.resync') %>"><i class="fa-solid fa-rotate"></i></button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="px-3 pt-2 small" id="os-messages"></div>
+                    <div id="os-body"><div class="p-3 text-muted small"><span class="spinner-border spinner-border-sm"></span></div></div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="os-map-modal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content rounded-0">
+                        <div class="modal-header">
+                            <h5 class="modal-title"><%= i18n.__('catalog.order_stock.map_title') %></h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="small text-muted mb-2" id="os-map-item"></div>
+                            <div class="position-relative mb-2">
+                                <input class="form-control rounded-0" id="os-map-search" autocomplete="off" placeholder="<%= i18n.__('catalog.order_stock.search') %>" />
+                                <div class="list-group rounded-0 position-absolute w-100 d-none" style="z-index:1060;max-height:260px;overflow:auto" id="os-map-results"></div>
+                            </div>
+                            <div class="mb-2 d-none" id="os-map-variant-box">
+                                <label class="form-label small"><%= i18n.__('catalog.order_stock.variant') %></label>
+                                <select class="form-select rounded-0" id="os-map-variant"></select>
+                            </div>
+                            <div class="fw-semibold mb-2" id="os-map-picked"></div>
+                            <div class="form-check" id="os-map-remember-box"><input class="form-check-input" type="checkbox" id="os-map-remember" checked /><label class="form-check-label" for="os-map-remember"><%= i18n.__('catalog.order_stock.remember') %></label></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-danger rounded-0 me-auto" id="os-map-clear"><%= i18n.__('catalog.order_stock.unmap') %></button>
+                            <button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('catalog.common.cancel') %></button>
+                            <button type="button" class="btn btn-primary rounded-0" id="os-map-save" disabled><%= i18n.__('catalog.common.save') %></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Оплати (ліниво) -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2"><%= i18n.__('orders.page.payments') %></div>
+                <div class="card-body p-0" id="payments-body">
+                    <div class="spinner-wrap"><span class="spinner-border spinner-border-sm"></span></div>
+                </div>
+            </div>
+
+            <!-- Доставка (ліниво) -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2"><%= i18n.__('orders.page.shipments') %></div>
+                <%- typeof hook === 'function' ? hook('displayOrderShipping', { i18n, can, order }) : '' %>
+                <div class="card-body p-0" id="shipments-body">
+                    <div class="spinner-wrap"><span class="spinner-border spinner-border-sm"></span></div>
+                </div>
+            </div>
+
+            <!-- Повернення / Документи (ліниво) -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2 d-flex align-items-center"><%= i18n.__('orders.page.refunds_docs') %>
+                    <a class="btn btn-sm btn-outline-secondary rounded-0 ms-auto py-0 me-1" href="/orders/<%= order.id %>/print/invoice/" target="_blank"><i class="fa-solid fa-print"></i> <%= i18n.__('orders.print.invoice') %></a>
+                    <a class="btn btn-sm btn-outline-secondary rounded-0 py-0 me-1" href="/orders/<%= order.id %>/print/delivery/" target="_blank"><i class="fa-solid fa-print"></i> <%= i18n.__('orders.print.delivery') %></a>
+                    <% if (can('orders.list', 'edit')) { %><button type="button" class="btn btn-sm btn-outline-danger rounded-0 py-0" id="rf-open"><i class="fa-solid fa-rotate-left"></i> <%= i18n.__('orders.refunds.create') %></button><% } %>
+                </div>
+                <div class="card-body" id="refdoc-body">
+                    <div class="spinner-wrap"><span class="spinner-border spinner-border-sm"></span></div>
+                </div>
+            </div>
+
+            <!-- Заявки на повернення / обмін (ліниво) -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2 d-flex align-items-center"><%= i18n.__('orders.returns.section') %>
+                    <a class="btn btn-sm btn-link py-0 ms-auto" href="/orders/returns/"><%= i18n.__('orders.returns.menu') %></a>
+                    <% if (can('orders.list', 'edit')) { %><button type="button" class="btn btn-sm btn-outline-primary rounded-0 py-0" id="rma-open"><i class="fa-solid fa-right-left"></i> <%= i18n.__('orders.returns.create') %></button><% } %>
+                </div>
+                <div class="card-body p-0" id="rma-body">
+                    <div class="spinner-wrap p-3"><span class="spinner-border spinner-border-sm"></span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Оформлення повернення -->
+        <div class="modal fade" id="rf-modal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <form class="modal-content rounded-0" id="rf-form">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><%= i18n.__('orders.refunds.title') %></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle">
+                                <thead><tr><th><%= i18n.__('orders.refunds.item') %></th><th class="text-end"><%= i18n.__('orders.refunds.bought') %></th><th class="text-end"><%= i18n.__('orders.refunds.returned') %></th><th class="text-end"><%= i18n.__('orders.refunds.price') %></th><th style="width:110px"><%= i18n.__('orders.refunds.qty') %></th></tr></thead>
+                                <tbody id="rf-items"></tbody>
+                            </table>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-4"><label class="form-label small mb-1"><%= i18n.__('orders.refunds.shipping') %></label><input type="number" min="0" step="0.01" class="form-control form-control-sm rounded-0" id="rf-shipping" value="0"></div>
+                            <div class="col-md-4"><label class="form-label small mb-1"><%= i18n.__('orders.refunds.amount') %></label><input type="number" min="0" step="0.01" class="form-control form-control-sm rounded-0" id="rf-amount"><div class="form-text"><%= i18n.__('orders.refunds.amount_hint') %></div></div>
+                            <div class="col-md-4"><label class="form-label small mb-1"><%= i18n.__('orders.refunds.transaction') %></label><input type="text" maxlength="191" class="form-control form-control-sm rounded-0" id="rf-transaction"></div>
+                            <div class="col-12"><label class="form-label small mb-1"><%= i18n.__('orders.refunds.reason') %></label><input type="text" maxlength="255" class="form-control form-control-sm rounded-0" id="rf-reason"></div>
+                            <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" id="rf-restock" checked><label class="form-check-label" for="rf-restock"><%= i18n.__('orders.refunds.restock') %></label></div><div class="form-text"><%= i18n.__('orders.refunds.restock_hint') %></div></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <span class="me-auto fw-semibold" id="rf-total"></span>
+                        <button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('orders.refunds.cancel') %></button>
+                        <button type="submit" class="btn btn-danger rounded-0" id="rf-submit"><%= i18n.__('orders.refunds.submit') %></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Нова заявка на повернення / обмін -->
+        <div class="modal fade" id="rma-modal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <form class="modal-content rounded-0" id="rma-form">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><%= i18n.__('orders.returns.create_title') %></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-4"><label class="form-label small mb-1"><%= i18n.__('orders.returns.type') %></label>
+                                <select class="form-select form-select-sm rounded-0" id="rma-type"><option value="return"><%= i18n.__('orders.returns.t.return') %></option><option value="exchange"><%= i18n.__('orders.returns.t.exchange') %></option></select></div>
+                            <div class="col-md-8"><label class="form-label small mb-1"><%= i18n.__('orders.returns.reason') %></label>
+                                <select class="form-select form-select-sm rounded-0" id="rma-reason"></select></div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle">
+                                <thead><tr><th><%= i18n.__('orders.returns.item') %></th><th class="text-end"><%= i18n.__('orders.returns.bought') %></th><th class="text-end"><%= i18n.__('orders.returns.in_requests') %></th><th class="text-end"><%= i18n.__('orders.returns.price') %></th><th style="width:110px"><%= i18n.__('orders.returns.qty') %></th></tr></thead>
+                                <tbody id="rma-items"></tbody>
+                            </table>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-5"><label class="form-label small mb-1"><%= i18n.__('orders.returns.ttn') %></label><input type="text" maxlength="36" class="form-control form-control-sm rounded-0" id="rma-ttn"><div class="form-text"><%= i18n.__('orders.returns.ttn_hint') %></div></div>
+                            <div class="col-md-7"><label class="form-label small mb-1"><%= i18n.__('orders.returns.comment') %></label><textarea rows="2" maxlength="2000" class="form-control form-control-sm rounded-0" id="rma-comment"></textarea></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <span class="me-auto fw-semibold" id="rma-total"></span>
+                        <button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('orders.returns.cancel') %></button>
+                        <button type="submit" class="btn btn-primary rounded-0" id="rma-submit"><%= i18n.__('orders.returns.submit') %></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Повернення коштів за заявкою -->
+        <div class="modal fade" id="rma-refund-modal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <form class="modal-content rounded-0" id="rma-refund-form">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="rma-refund-title"></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-2 small" id="rma-refund-info"></div>
+                        <div class="row g-2">
+                            <div class="col-6"><label class="form-label small mb-1"><%= i18n.__('orders.returns.shipping') %></label><input type="number" min="0" step="0.01" class="form-control form-control-sm rounded-0" id="rma-refund-shipping" value="0"></div>
+                            <div class="col-6"><label class="form-label small mb-1"><%= i18n.__('orders.returns.amount') %></label><input type="number" min="0" step="0.01" class="form-control form-control-sm rounded-0" id="rma-refund-amount"><div class="form-text"><%= i18n.__('orders.returns.amount_hint') %></div></div>
+                            <div class="col-12"><label class="form-label small mb-1"><%= i18n.__('orders.returns.transaction') %></label><input type="text" maxlength="191" class="form-control form-control-sm rounded-0" id="rma-refund-transaction"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('orders.returns.cancel') %></button>
+                        <button type="submit" class="btn btn-danger rounded-0" id="rma-refund-submit"><%= i18n.__('orders.returns.refund') %></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Обмін за заявкою -->
+        <div class="modal fade" id="rma-exchange-modal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <form class="modal-content rounded-0" id="rma-exchange-form">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="rma-exchange-title"></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-text mt-0 mb-2"><%= i18n.__('orders.returns.exchange_hint') %></div>
+                        <div class="position-relative mb-2">
+                            <input type="search" class="form-control form-control-sm rounded-0" id="rma-ex-search" autocomplete="off" placeholder="<%= i18n.__('orders.returns.exchange_search') %>">
+                            <div class="list-group position-absolute w-100 shadow-sm d-none" style="z-index:1060;max-height:260px;overflow:auto" id="rma-ex-found"></div>
+                        </div>
+                        <table class="table table-sm align-middle">
+                            <thead><tr><th><%= i18n.__('orders.returns.item') %></th><th style="width:120px"><%= i18n.__('orders.returns.price') %></th><th style="width:90px"><%= i18n.__('orders.returns.qty') %></th><th style="width:30px"></th></tr></thead>
+                            <tbody id="rma-ex-items"></tbody>
+                        </table>
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-4"><label class="form-label small mb-1"><%= i18n.__('orders.returns.exchange_shipping') %></label><input type="number" min="0" step="0.01" class="form-control form-control-sm rounded-0" id="rma-ex-shipping" value="0"></div>
+                            <div class="col-md-8 small" id="rma-ex-sum"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('orders.returns.cancel') %></button>
+                        <button type="submit" class="btn btn-primary rounded-0" id="rma-ex-submit"><%= i18n.__('orders.returns.exchange') %></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ПРАВА КОЛОНКА -->
+        <div class="col-12 col-xl-4">
+
+            <!-- Клієнт -->
+            <div class="card rounded-0 mb-3" id="client-card">
+                <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center">
+                    <span><%= i18n.__('orders.page.client') %></span>
+                    <span id="client-badge"></span>
+                </div>
+                <div class="card-body" id="client-body">
+                    <div class="spinner-wrap"><span class="spinner-border spinner-border-sm"></span></div>
+                </div>
+            </div>
+
+                        <!-- Заплановано -->
+            <%- include('../../partials/calendar/links', {
+                calType: 'order',
+                calId: order.id,
+                calManager: order.id_user || 0,
+                calExtra: [order.id_client ? { type: 'client', id: order.id_client } : null, order.id_client_org ? { type: 'client', id: order.id_client_org } : null].filter(Boolean)
+            }) %>
+
+            <!-- Контакт із замовлення (снапшот) — показуємо завжди -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2"><%= i18n.__('orders.page.snapshot') %></div>
+                <div class="card-body" id="snapshot-body">
+                    <div class="spinner-wrap"><span class="spinner-border spinner-border-sm"></span></div>
+                </div>
+            </div>
+
+            <!-- Адреси -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2"><%= i18n.__('orders.page.addresses') %></div>
+                <div class="card-body">
+                    <% if (!addresses.length) { %>
+                        <span class="text-muted"><%= i18n.__('orders.page.no_addresses') %></span>
+                    <% } %>
+                    <% addresses.forEach(function(a) { %>
+                        <div class="mb-2">
+                            <div class="section-title"><%= a.type === 'billing' ? i18n.__('orders.page.addr_billing') : i18n.__('orders.page.addr_shipping') %></div>
+                            <div style="font-size:13px">
+                                <%= [a.firstname, a.lastname].filter(Boolean).join(' ') %><br>
+                                <% if (a.company) { %><%= a.company %><br><% } %>
+                                <%= [a.country, a.region, a.city].filter(Boolean).join(', ') %><br>
+                                <% if (a.warehouse) { %><%= a.warehouse %><br><% } %>
+                                <% if (a.address_1) { %><%= a.address_1 %><% if (a.address_2) { %>, <%= a.address_2 %><% } %><br><% } %>
+                                <% if (a.postcode) { %><%= a.postcode %><% } %>
+                                <% if (a.phone) { %> · <%= a.phone %><% } %>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+            </div>
+
+            <!-- Підсумок -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2"><%= i18n.__('orders.page.summary') %></div>
+                <div class="card-body">
+                    <% const fm = (v) => new Intl.NumberFormat('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(v) || 0); %>
+                    <table class="table table-sm table-borderless kv mb-2">
+                        <tr><td class="k"><%= i18n.__('orders.page.sum_items') %></td><td><%= fm(order.total_products) %> <%= order.currency_iso %></td></tr>
+                        <% if (Number(order.total_discount)) { %><tr><td class="k"><%= i18n.__('orders.page.sum_discount') %></td><td class="text-danger">−<%= fm(order.total_discount) %> <%= order.currency_iso %></td></tr><% } %>
+                        <% if (Number(order.total_shipping)) { %><tr><td class="k"><%= i18n.__('orders.page.sum_shipping') %></td><td><%= fm(order.total_shipping) %> <%= order.currency_iso %></td></tr><% } %>
+                        <% if (Number(order.total_wrapping)) { %><tr><td class="k"><%= i18n.__('orders.page.sum_wrapping') %></td><td><%= fm(order.total_wrapping) %> <%= order.currency_iso %></td></tr><% } %>
+                        <% if (Number(order.total_tax)) { %><tr><td class="k"><%= i18n.__('orders.page.sum_tax') %></td><td><%= fm(order.total_tax) %> <%= order.currency_iso %></td></tr><% } %>
+                        <% if (Number(order.total_tips)) { %><tr><td class="k"><%= i18n.__('orders.page.sum_tips') %></td><td><%= fm(order.total_tips) %> <%= order.currency_iso %></td></tr><% } %>
+                    </table>
+                    <div class="d-flex justify-content-between align-items-center border-top pt-2">
+                        <span class="text-muted"><%= i18n.__('orders.page.to_pay') %></span>
+                        <span class="money-final"><%= fm(order.total) %> <%= order.currency_iso %></span>
+                    </div>
+                    <table class="table table-sm table-borderless kv mt-2 mb-0">
+                        <tr><td class="k"><%= i18n.__('orders.page.sum_paid') %></td><td><%= fm(order.total_paid) %> <%= order.currency_iso %></td></tr>
+                        <% if (Number(order.total_refunded)) { %><tr><td class="k"><%= i18n.__('orders.page.sum_refunded') %></td><td class="text-danger">−<%= fm(order.total_refunded) %> <%= order.currency_iso %></td></tr><% } %>
+                        <% if (Number(order.total_fees)) { %><tr><td class="k"><%= i18n.__('orders.page.sum_fees') %></td><td><%= fm(order.total_fees) %> <%= order.currency_iso %></td></tr><% } %>
+                        <% if (order.currency_iso !== order.base_currency) { %><tr><td class="k"><%= i18n.__('orders.page.sum_rate') %></td><td><%= Number(order.currency_rate).toFixed(4) %></td></tr><% } %>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Дати / прапорці -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2"><%= i18n.__('orders.page.info') %></div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless kv mb-2">
+                        <tr><td class="k"><%= i18n.__('orders.page.created') %></td><td><%= new Date(order.date_add).toLocaleString('uk-UA') %></td></tr>
+                        <tr><td class="k"><%= i18n.__('orders.page.changed') %></td><td><%= new Date(order.date_edit).toLocaleString('uk-UA') %></td></tr>
+                        <% if (order.date_order) { %><tr><td class="k"><%= i18n.__('orders.page.date_source') %></td><td><%= new Date(order.date_order).toLocaleString('uk-UA') %></td></tr><% } %>
+                        <% if (order.ip_text) { %><tr><td class="k">IP</td><td><%= order.ip_text %></td></tr><% } %>
+                    </table>
+                    <div class="d-flex flex-wrap gap-1">
+                        <% if (order.is_paid) { %><span class="badge rounded-0 text-bg-success"><%= i18n.__('orders.page.flag_paid') %></span><% } %>
+                        <% if (order.is_shipped) { %><span class="badge rounded-0 text-bg-info"><%= i18n.__('orders.page.flag_shipped') %></span><% } %>
+                        <% if (order.is_gift) { %><span class="badge rounded-0 text-bg-warning text-dark"><%= i18n.__('orders.page.flag_gift') %></span><% } %>
+                        <% if (order.is_canceled) { %><span class="badge rounded-0 text-bg-danger"><%= i18n.__('orders.page.flag_canceled') %></span><% } %>
+                    </div>
+                    <% if (order.is_gift && order.gift_message) { %>
+                        <div class="mt-2 small fst-italic text-muted">🎁 <%= order.gift_message %></div>
+                    <% } %>
+                    <% if (order.note) { %>
+                        <div class="mt-2"><div class="section-title"><%= i18n.__('orders.page.note') %></div><div class="small"><%= order.note %></div></div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ТАБИ -->
+    <div class="card rounded-0 mt-1">
+        <div class="card-header p-0">
+            <ul class="nav nav-tabs border-0">
+                <li class="nav-item"><button class="nav-link active rounded-0" data-bs-toggle="tab" data-bs-target="#tab-history">
+                    <i class="fa-solid fa-clock-rotate-left me-1"></i> <%= i18n.__('orders.page.tab_history') %></button></li>
+                <li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#tab-events" data-action="load-events">
+                    <i class="fa-solid fa-list me-1"></i> <%= i18n.__('orders.page.tab_events') %></button></li>
+                <li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#tab-messages">
+                    <i class="fa-brands fa-viber me-1"></i> <%= i18n.__('orders.messages.tab') %></button></li>
+                <li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#tab-raw" data-action="load-raw">
+                    <i class="fa-solid fa-code me-1"></i> <%= i18n.__('orders.page.tab_raw') %></button></li>
+            </ul>
+        </div>
+        <div class="tab-content p-3">
+            <div class="tab-pane fade show active" id="tab-history"><div id="history-table"></div></div>
+            <div class="tab-pane fade" id="tab-events"><div id="events-list"><div class="spinner-wrap"><span class="spinner-border spinner-border-sm"></span></div></div></div>
+            <div class="tab-pane fade" id="tab-messages">
+                <% if (can('orders.list', 'edit')) { %>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-4">
+                        <select class="form-select form-select-sm rounded-0" id="msg-template"><option value=""><%= i18n.__('orders.messages.own_text') %></option></select>
+                    </div>
+                    <div class="col-md-8">
+                        <textarea class="form-control form-control-sm rounded-0" id="msg-text" rows="3" maxlength="1000" placeholder="<%= i18n.__('orders.messages.text_ph') %>"></textarea>
+                        <div class="form-text"><%= i18n.__('orders.messages.vars') %></div>
+                    </div>
+                    <div class="col-12 d-flex flex-wrap align-items-center gap-2">
+                        <select class="form-select form-select-sm rounded-0 w-auto" id="msg-service"></select>
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="msg-preview"><i class="fa-solid fa-eye me-1"></i><%= i18n.__('orders.messages.preview') %></button>
+                        <button type="button" class="btn btn-sm btn-primary rounded-0" id="msg-send"><i class="fa-brands fa-viber me-1"></i><%= i18n.__('orders.messages.send') %></button>
+                        <span class="small" id="msg-state"></span>
+                    </div>
+                    <div class="col-12 d-none" id="msg-preview-box"><div class="border bg-light p-2 small" style="white-space:pre-wrap"></div></div>
+                </div>
+                <% } %>
+                <div id="msg-list"><div class="spinner-wrap"><span class="spinner-border spinner-border-sm"></span></div></div>
+            </div>
+            <div class="tab-pane fade" id="tab-raw"><pre id="raw-box" class="small bg-light p-3 rounded-0 mb-0" style="max-height:400px;overflow:auto">—</pre></div>
+        </div>
+    </div>
+
+</div>
+<!-- Модалка: ручний пошук клієнта -->
+<div class="modal fade" id="client-search-modal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content rounded-0">
+            <div class="modal-header">
+                <h6 class="modal-title"><%= i18n.__('orders.page.client_search') %></h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="client-search-input" class="form-control rounded-0 mb-3"
+                       placeholder="<%= i18n.__('orders.page.client_search_ph') %>" autocomplete="off">
+                <div id="client-search-results"><p class="text-muted small mb-0"><%= i18n.__('orders.page.min2') %></p></div>
+            </div>
+        </div>
+    </div>
+</div>
+<%- include('../../partials/footer'); %>
+<%- include('../../partials/script'); %>
+<script src="/assets/js/tabulator/tabulator.min.js"></script>
+<script>
+const ORDER_ID = <%= order.id %>;
+const LOCK = { other: <%= lockOther %> };
+const STATUS_NAMES = <%- JSON.stringify(Object.fromEntries(statuses.map((s) => [s.id, s.name]))).replace(/</g, '\\u003c') %>;
+
+// Взяти в роботу / звільнити / перехопити
+document.getElementById('order-lock').addEventListener('click', async function (e) {
+    const b = e.target.closest('[data-lock]');
+    if (!b) return;
+    if (b.dataset.lock === 'force' && !confirm("<%= i18n.__('orders.lock.force_q') %>")) return;
+    b.disabled = true;
+    const res = await fetch('/api/orders/' + ORDER_ID + '/' + (b.dataset.lock === 'release' ? 'release' : 'take') + '/', {
+        method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ force: b.dataset.lock === 'force' })
+    }).catch(() => null);
+    const d = res ? await res.json().catch(() => ({})) : {};
+    if (!res || !res.ok || !d.ok) { alert(d.error || "<%= i18n.__('orders.lock.error') %>"); b.disabled = false; return; }
+    location.reload();
+});
+// У роботі в іншого: кнопки змін вимкнено (сервер однаково не прийме зміну — 423)
+if (LOCK.other) document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-action="apply-status"], #rf-open, #os-resync, #os-warehouse, #new-status, #status-comment').forEach(function (el) { el.disabled = true; el.title = "<%= i18n.__('orders.lock.disabled_hint') %>"; });
+});
+const CURRENCY = "<%= order.currency_iso %>";
+const TOTAL_PRODUCTS = <%= Number(order.total_products) %>;
+
+// Екранування всього, що прийшло ззовні (CMS/маркетплейс), перед вставкою в DOM
+function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, function(c) {
+        return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+    });
+}
+// Гроші: розряди й 2 знаки після коми (4 344,00 UAH)
+const MONEY = new Intl.NumberFormat('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function money(v, cur) { return MONEY.format(Number(v || 0)) + ' ' + (cur === undefined ? CURRENCY : cur || ''); }
+
+/* ─── Повернення ─── */
+const RF = { canEdit: <%= !!can('orders.list', 'edit') %> };
+function rfPost(url, body) {
+    return fetch(url, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body || {}) })
+        .then(function (r) { return r.json().then(function (d) { if (!r.ok || !d.ok) throw d; return d; }); });
+}
+function rfErr(e) {
+    alert((e && (e.error + (e.errors ? ': ' + e.errors.map(function (x) { return x.field + ' ' + x.message; }).join('; ') : ''))) || "<%= i18n.__('orders.refunds.error') %>");
+}
+function rfTotal() {
+    var sum = Number(document.getElementById('rf-shipping').value || 0);
+    document.querySelectorAll('#rf-items input[data-item]').forEach(function (el) { sum += Number(el.value || 0) * Number(el.dataset.unit); });
+    document.getElementById('rf-amount').placeholder = sum.toFixed(2);
+    document.getElementById('rf-total').textContent = "<%= i18n.__('orders.refunds.total') %>" + ': ' + money(Number(document.getElementById('rf-amount').value || sum));
+}
+document.addEventListener('click', function (e) {
+    if (e.target.closest('#rf-open')) {
+        rfPost('/api/orders/' + ORDER_ID + '/refunds/form/').then(function (d) {
+            document.getElementById('rf-items').innerHTML = d.items.map(function (it) {
+                return '<tr><td>' + esc(it.name) + (it.sku ? '<br><small class="text-muted">' + esc(it.sku) + '</small>' : '') + (it.mapped ? '' : ' <span class="badge text-bg-warning rounded-0" title="' + "<%= i18n.__('orders.refunds.unmapped_tip') %>" + '">' + "<%= i18n.__('orders.refunds.unmapped') %>" + '</span>') + '</td>'
+                    + '<td class="text-end">' + it.quantity + '</td><td class="text-end">' + it.returned + '</td><td class="text-end">' + money(it.unit) + '</td>'
+                    + '<td><input type="number" class="form-control form-control-sm rounded-0" min="0" max="' + it.available + '" step="1" value="0" data-item="' + it.id + '" data-unit="' + it.unit + '"' + (it.available > 0 ? '' : ' disabled') + '></td></tr>';
+            }).join('');
+            ['rf-amount', 'rf-reason', 'rf-transaction'].forEach(function (id) { document.getElementById(id).value = ''; });
+            document.getElementById('rf-shipping').value = 0;
+            rfTotal();
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('rf-modal')).show();
+        }).catch(rfErr);
+    }
+    var del = e.target.closest('.js-rf-del');
+    if (del) {
+        if (!confirm("<%= i18n.__('orders.refunds.del_q') %>")) return;
+        rfPost('/api/orders/' + ORDER_ID + '/refunds/' + del.dataset.id + '/delete/').then(function () { location.reload(); }).catch(rfErr);
+    }
+});
+document.addEventListener('input', function (e) { if (e.target.closest('#rf-form')) rfTotal(); });
+document.addEventListener('submit', function (e) {
+    if (e.target.id !== 'rf-form') return;
+    e.preventDefault();
+    var items = [];
+    document.querySelectorAll('#rf-items input[data-item]').forEach(function (el) { if (Number(el.value) > 0) items.push({ id_item: Number(el.dataset.item), qty: Number(el.value) }); });
+    var body = {
+        items: items,
+        shipping: Number(document.getElementById('rf-shipping').value || 0),
+        restock: document.getElementById('rf-restock').checked,
+        reason: document.getElementById('rf-reason').value,
+        transaction_id: document.getElementById('rf-transaction').value,
+    };
+    var amount = document.getElementById('rf-amount').value;
+    if (amount !== '') body.amount = Number(amount);
+    var btn = document.getElementById('rf-submit');
+    btn.disabled = true;
+    rfPost('/api/orders/' + ORDER_ID + '/refunds/create/', body)
+        .then(function () { location.reload(); })
+        .catch(function (err) { btn.disabled = false; rfErr(err); });
+});
+
+/* ─── Заявки на повернення / обмін ─── */
+const RMA_BADGE = { new: 'primary', awaiting: 'info', received: 'warning', checked: 'warning', refunded: 'success', exchanged: 'success', rejected: 'danger', closed: 'secondary', canceled: 'secondary' };
+const RMA_EDITABLE = ['new', 'awaiting', 'received', 'checked'];
+let rmaRows = [];
+let rmaCurrent = null;
+const rmaUrl = (r, action) => '/api/orders/' + ORDER_ID + '/returns/' + Number(r.id) + '/' + action + '/';
+const rmaValue = (r) => r.items.reduce(function (s, x) { return s + Number(x.qty) * Number(x.unit || 0); }, 0);
+function rmaFill(s, vars) { return String(s || '').replace(/\{(\w+)\}/g, function (m, k) { return vars[k] != null ? vars[k] : m; }); }
+
+function rmaLoad() {
+    rfPost('/api/orders/' + ORDER_ID + '/returns/').then(function (d) {
+        rmaRows = d.rows;
+        document.getElementById('rma-body').innerHTML = rmaRows.length ? rmaRows.map(rmaCard).join('') : '<div class="p-3 text-muted">' + "<%= i18n.__('orders.returns.none') %>" + '</div>';
+    }).catch(function () { document.getElementById('rma-body').innerHTML = '<div class="p-3 text-danger">' + "<%= i18n.__('orders.page.load_error') %>" + '</div>'; });
+}
+function rmaCard(r) {
+    const edit = RF.canEdit && RMA_EDITABLE.includes(r.status);
+    const items = r.items.map(function (x, i) {
+        const cond = edit
+            ? '<select class="form-select form-select-sm rounded-0 w-auto" data-rma-cond="' + i + '">' + ['', 'ok', 'defect'].map(function (c) { return '<option value="' + c + '"' + ((x.condition || '') === c ? ' selected' : '') + '>' + esc(({ none: "<%= i18n.__('orders.returns.c.none') %>", ok: "<%= i18n.__('orders.returns.c.ok') %>", defect: "<%= i18n.__('orders.returns.c.defect') %>" })[c || 'none']) + '</option>'; }).join('') + '</select>'
+            : (x.condition ? '<span class="badge rounded-0 text-bg-' + (x.condition === 'defect' ? 'danger' : 'success') + '">' + esc(({ none: "<%= i18n.__('orders.returns.c.none') %>", ok: "<%= i18n.__('orders.returns.c.ok') %>", defect: "<%= i18n.__('orders.returns.c.defect') %>" })[x.condition]) + '</span>' : '');
+        return '<tr><td>' + esc(x.name || x.sku || '') + (x.sku ? ' <small class="text-muted">' + esc(x.sku) + '</small>' : '') + '</td><td class="text-end text-nowrap">' + Number(x.qty) + ' × ' + money(x.unit) + '</td><td style="width:200px">' + cond + '</td></tr>';
+    }).join('');
+    const ttn = edit
+        ? '<div class="input-group input-group-sm" style="max-width:320px"><span class="input-group-text rounded-0">' + "<%= i18n.__('orders.returns.ttn') %>" + '</span><input type="text" maxlength="36" class="form-control rounded-0" data-rma-ttn value="' + esc(r.ttn || '') + '"></div>'
+        : (r.ttn ? '<span class="small">' + "<%= i18n.__('orders.returns.ttn') %>" + ': ' + esc(r.ttn) + '</span>' : '');
+    const track = r.ttn ? ' <a class="small ms-1" target="_blank" rel="noopener" href="https://novaposhta.ua/tracking/?cargo_number=' + encodeURIComponent(r.ttn) + '">' + "<%= i18n.__('orders.returns.track') %>" + '</a>' : '';
+    const flow = RF.canEdit ? (r.flow || []).map(function (s) {
+        return '<button type="button" class="btn btn-sm rounded-0 py-0 btn-outline-' + (s === 'canceled' || s === 'rejected' ? 'danger' : 'secondary') + ' js-rma-go" data-id="' + Number(r.id) + '" data-to="' + s + '">' + esc(({ awaiting: "<%= i18n.__('orders.returns.go.awaiting') %>", received: "<%= i18n.__('orders.returns.go.received') %>", checked: "<%= i18n.__('orders.returns.go.checked') %>", rejected: "<%= i18n.__('orders.returns.go.rejected') %>", closed: "<%= i18n.__('orders.returns.go.closed') %>", canceled: "<%= i18n.__('orders.returns.go.canceled') %>" })[s] || s) + '</button>';
+    }).join(' ') : '';
+    const resolve = RF.canEdit && r.status === 'checked'
+        ? ' <button type="button" class="btn btn-sm rounded-0 py-0 btn-' + (r.type === 'return' ? '' : 'outline-') + 'danger js-rma-refund" data-id="' + Number(r.id) + '"><i class="fa-solid fa-rotate-left"></i> ' + "<%= i18n.__('orders.returns.refund') %>" + '</button>'
+          + ' <button type="button" class="btn btn-sm rounded-0 py-0 btn-' + (r.type === 'exchange' ? '' : 'outline-') + 'primary js-rma-exchange" data-id="' + Number(r.id) + '"><i class="fa-solid fa-right-left"></i> ' + "<%= i18n.__('orders.returns.exchange') %>" + '</button>'
+        : '';
+    const result = [
+        Number(r.amount) ? "<%= i18n.__('orders.returns.back') %>" + ': <b class="text-danger">' + money(r.amount) + '</b>' : '',
+        Number(r.amount_due) ? "<%= i18n.__('orders.returns.due') %>" + ': <b>' + money(r.amount_due) + '</b>' : '',
+        r.id_exchange_order ? "<%= i18n.__('orders.returns.exchange_order') %>" + ': <a href="/orders/' + Number(r.id_exchange_order) + '/">' + esc(r.exchange_reference || '#' + r.id_exchange_order) + '</a>' : '',
+    ].filter(Boolean).join(' · ');
+    return '<div class="border-bottom p-2" data-rma="' + Number(r.id) + '">'
+        + '<div class="d-flex flex-wrap align-items-center gap-2 mb-1"><b>' + esc(r.number) + '</b>'
+        + '<span class="badge rounded-0 text-bg-light border">' + esc(({ return: "<%= i18n.__('orders.returns.t.return') %>", exchange: "<%= i18n.__('orders.returns.t.exchange') %>" })[r.type] || r.type) + '</span>'
+        + '<span class="badge rounded-0 text-bg-' + (RMA_BADGE[r.status] || 'secondary') + '">' + esc(({ new: "<%= i18n.__('orders.returns.s.new') %>", awaiting: "<%= i18n.__('orders.returns.s.awaiting') %>", received: "<%= i18n.__('orders.returns.s.received') %>", checked: "<%= i18n.__('orders.returns.s.checked') %>", refunded: "<%= i18n.__('orders.returns.s.refunded') %>", exchanged: "<%= i18n.__('orders.returns.s.exchanged') %>", rejected: "<%= i18n.__('orders.returns.s.rejected') %>", closed: "<%= i18n.__('orders.returns.s.closed') %>", canceled: "<%= i18n.__('orders.returns.s.canceled') %>" })[r.status] || r.status) + '</span>'
+        + '<span class="small">' + esc(({ size: "<%= i18n.__('orders.returns.r.size') %>", defect: "<%= i18n.__('orders.returns.r.defect') %>", not_as_described: "<%= i18n.__('orders.returns.r.not_as_described') %>", wrong_item: "<%= i18n.__('orders.returns.r.wrong_item') %>", damaged: "<%= i18n.__('orders.returns.r.damaged') %>", changed_mind: "<%= i18n.__('orders.returns.r.changed_mind') %>", other: "<%= i18n.__('orders.returns.r.other') %>" })[r.reason] || r.reason) + '</span>'
+        + '<small class="text-muted ms-auto">' + esc(new Date(r.date_add).toLocaleString()) + (r.user_name ? ' · ' + esc(r.user_name) : '') + '</small></div>'
+        + '<table class="table table-sm mb-1"><tbody>' + items + '</tbody></table>'
+        + '<div class="small text-muted mb-1">' + "<%= i18n.__('orders.returns.value') %>" + ': ' + money(rmaValue(r)) + (result ? ' · ' + result : '') + '</div>'
+        + (edit
+            ? '<textarea rows="1" maxlength="2000" class="form-control form-control-sm rounded-0 mb-1" data-rma-comment placeholder="' + "<%= i18n.__('orders.returns.comment') %>" + '">' + esc(r.comment || '') + '</textarea>'
+            : (r.comment ? '<div class="small mb-1"><i>' + esc(r.comment) + '</i></div>' : ''))
+        + '<div class="d-flex flex-wrap align-items-center gap-1">' + ttn + track
+        + (edit ? ' <button type="button" class="btn btn-sm btn-outline-primary rounded-0 py-0 js-rma-save" data-id="' + Number(r.id) + '"><i class="fa-solid fa-floppy-disk"></i> ' + "<%= i18n.__('orders.returns.save') %>" + '</button>' : '')
+        + '<span class="ms-auto"></span>' + flow + resolve + '</div>'
+        + '</div>';
+}
+// Поточні значення полів картки заявки
+function rmaFields(id) {
+    const box = document.querySelector('[data-rma="' + id + '"]');
+    const body = {};
+    const ttn = box.querySelector('[data-rma-ttn]');
+    const comment = box.querySelector('[data-rma-comment]');
+    const conds = box.querySelectorAll('[data-rma-cond]');
+    if (ttn) body.ttn = ttn.value;
+    if (comment) body.comment = comment.value;
+    if (conds.length) body.conditions = Array.prototype.map.call(conds, function (el) { return el.value; });
+    return body;
+}
+function rmaCreateTotal() {
+    let sum = 0;
+    document.querySelectorAll('#rma-items input[data-item]').forEach(function (el) { sum += Number(el.value || 0) * Number(el.dataset.unit); });
+    document.getElementById('rma-total').textContent = "<%= i18n.__('orders.returns.value') %>" + ': ' + money(sum);
+}
+
+// Обмін: вибрані товари й підсумок
+let rmaEx = [];
+let rmaExTimer = null;
+function rmaExRender() {
+    document.getElementById('rma-ex-items').innerHTML = rmaEx.map(function (x, i) {
+        return '<tr><td>' + esc(x.name) + (x.sku ? ' <small class="text-muted">' + esc(x.sku) + '</small>' : '') + '</td>'
+            + '<td><input type="number" min="0" step="0.01" class="form-control form-control-sm rounded-0" data-ex-price="' + i + '" value="' + Number(x.price) + '"></td>'
+            + '<td><input type="number" min="1" step="1" class="form-control form-control-sm rounded-0" data-ex-qty="' + i + '" value="' + Number(x.quantity) + '"></td>'
+            + '<td><button type="button" class="btn btn-sm btn-link text-danger p-0" data-ex-del="' + i + '"><i class="fa-solid fa-xmark"></i></button></td></tr>';
+    }).join('');
+    rmaExSum();
+}
+function rmaExSum() {
+    const credit = rmaCurrent ? rmaValue(rmaCurrent) : 0;
+    const total = rmaEx.reduce(function (s, x) { return s + Number(x.price) * Number(x.quantity); }, 0) + Number(document.getElementById('rma-ex-shipping').value || 0);
+    const diff = total - credit;
+    document.getElementById('rma-ex-sum').innerHTML = "<%= i18n.__('orders.returns.credit') %>" + ': <b>' + money(Math.min(credit, total)) + '</b> · ' + "<%= i18n.__('orders.returns.new_total') %>" + ': <b>' + money(total) + '</b><br>'
+        + (diff > 0.004 ? "<%= i18n.__('orders.returns.due') %>" + ': <b>' + money(diff) + '</b>' : diff < -0.004 ? "<%= i18n.__('orders.returns.back') %>" + ': <b class="text-danger">' + money(-diff) + '</b>' : '');
+}
+
+document.addEventListener('click', function (e) {
+    if (e.target.closest('#rma-open')) {
+        rfPost('/api/orders/' + ORDER_ID + '/returns/form/').then(function (d) {
+            document.getElementById('rma-reason').innerHTML = d.reasons.map(function (k) { return '<option value="' + k + '">' + esc(({ size: "<%= i18n.__('orders.returns.r.size') %>", defect: "<%= i18n.__('orders.returns.r.defect') %>", not_as_described: "<%= i18n.__('orders.returns.r.not_as_described') %>", wrong_item: "<%= i18n.__('orders.returns.r.wrong_item') %>", damaged: "<%= i18n.__('orders.returns.r.damaged') %>", changed_mind: "<%= i18n.__('orders.returns.r.changed_mind') %>", other: "<%= i18n.__('orders.returns.r.other') %>" })[k] || k) + '</option>'; }).join('');
+            document.getElementById('rma-items').innerHTML = d.items.map(function (it) {
+                return '<tr><td>' + esc(it.name) + (it.sku ? '<br><small class="text-muted">' + esc(it.sku) + '</small>' : '') + '</td>'
+                    + '<td class="text-end">' + it.quantity + (it.returned ? ' <small class="text-muted">(−' + it.returned + ')</small>' : '') + '</td><td class="text-end">' + (it.in_requests || 0) + '</td><td class="text-end">' + money(it.unit) + '</td>'
+                    + '<td><input type="number" class="form-control form-control-sm rounded-0" min="0" max="' + it.available + '" step="1" value="0" data-item="' + it.id + '" data-unit="' + it.unit + '"' + (it.available > 0 ? '' : ' disabled') + '></td></tr>';
+            }).join('');
+            ['rma-ttn', 'rma-comment'].forEach(function (id) { document.getElementById(id).value = ''; });
+            document.getElementById('rma-type').value = 'return';
+            rmaCreateTotal();
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('rma-modal')).show();
+        }).catch(rfErr);
+        return;
+    }
+    const byId = function (el) { return rmaRows.find(function (x) { return Number(x.id) === Number(el.dataset.id); }); };
+    const save = e.target.closest('.js-rma-save');
+    if (save) {
+        rfPost(rmaUrl(byId(save), 'update'), rmaFields(save.dataset.id)).then(rmaLoad).catch(rfErr);
+        return;
+    }
+    const go = e.target.closest('.js-rma-go');
+    if (go) {
+        if (!confirm(rmaFill("<%= i18n.__('orders.returns.confirm_status') %>", { status: ({ new: "<%= i18n.__('orders.returns.s.new') %>", awaiting: "<%= i18n.__('orders.returns.s.awaiting') %>", received: "<%= i18n.__('orders.returns.s.received') %>", checked: "<%= i18n.__('orders.returns.s.checked') %>", refunded: "<%= i18n.__('orders.returns.s.refunded') %>", exchanged: "<%= i18n.__('orders.returns.s.exchanged') %>", rejected: "<%= i18n.__('orders.returns.s.rejected') %>", closed: "<%= i18n.__('orders.returns.s.closed') %>", canceled: "<%= i18n.__('orders.returns.s.canceled') %>" })[go.dataset.to] || go.dataset.to }))) return;
+        rfPost(rmaUrl(byId(go), 'update'), Object.assign(rmaFields(go.dataset.id), { to: go.dataset.to })).then(rmaLoad).catch(rfErr);
+        return;
+    }
+    const rf = e.target.closest('.js-rma-refund');
+    if (rf) {
+        rmaCurrent = byId(rf);
+        document.getElementById('rma-refund-title').textContent = rmaFill("<%= i18n.__('orders.returns.refund_title') %>", { number: rmaCurrent.number });
+        document.getElementById('rma-refund-info').innerHTML = rmaCurrent.items.map(function (x) { return esc(x.name) + ' × ' + Number(x.qty) + (x.condition === 'defect' ? ' <span class="badge text-bg-danger rounded-0">' + "<%= i18n.__('orders.returns.defect') %>" + '</span>' : ''); }).join('<br>')
+            + '<div class="mt-1">' + "<%= i18n.__('orders.returns.value') %>" + ': <b>' + money(rmaValue(rmaCurrent)) + '</b></div>';
+        ['rma-refund-amount', 'rma-refund-transaction'].forEach(function (id) { document.getElementById(id).value = ''; });
+        document.getElementById('rma-refund-shipping').value = 0;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('rma-refund-modal')).show();
+        return;
+    }
+    const ex = e.target.closest('.js-rma-exchange');
+    if (ex) {
+        rmaCurrent = byId(ex);
+        // За замовчуванням — ті самі товари (обмін на інший розмір / екземпляр), ціни як у поверненні
+        rmaEx = rmaCurrent.items.map(function (x) { return { sku: x.sku || '', name: x.name, price: Number(x.unit) || 0, quantity: Number(x.qty) }; });
+        document.getElementById('rma-exchange-title').textContent = rmaFill("<%= i18n.__('orders.returns.exchange_title') %>", { number: rmaCurrent.number });
+        document.getElementById('rma-ex-shipping').value = 0;
+        document.getElementById('rma-ex-search').value = '';
+        rmaExRender();
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('rma-exchange-modal')).show();
+        return;
+    }
+    const pick = e.target.closest('[data-ex-pick]');
+    if (pick) {
+        const p = JSON.parse(pick.dataset.exPick);
+        rmaEx.push({ sku: p.sku || '', name: p.name, price: Number(p.price) || 0, quantity: 1 });
+        document.getElementById('rma-ex-found').classList.add('d-none');
+        document.getElementById('rma-ex-search').value = '';
+        rmaExRender();
+        return;
+    }
+    const del = e.target.closest('[data-ex-del]');
+    if (del) { rmaEx.splice(Number(del.dataset.exDel), 1); rmaExRender(); }
+});
+document.addEventListener('input', function (e) {
+    if (e.target.closest('#rma-form')) rmaCreateTotal();
+    if (e.target.dataset.exPrice !== undefined) { rmaEx[Number(e.target.dataset.exPrice)].price = Number(e.target.value || 0); rmaExSum(); }
+    if (e.target.dataset.exQty !== undefined) { rmaEx[Number(e.target.dataset.exQty)].quantity = Math.max(1, parseInt(e.target.value, 10) || 1); rmaExSum(); }
+    if (e.target.id === 'rma-ex-shipping') rmaExSum();
+    if (e.target.id === 'rma-ex-search') {
+        clearTimeout(rmaExTimer);
+        const q = e.target.value.trim();
+        const box = document.getElementById('rma-ex-found');
+        if (q.length < 2) { box.classList.add('d-none'); return; }
+        rmaExTimer = setTimeout(function () {
+            rfPost('/api/orders/products/search/', { q: q }).catch(function () { return { rows: [] }; }).then(function (d) {
+                box.innerHTML = (d.rows || []).map(function (p) {
+                    return '<button type="button" class="list-group-item list-group-item-action rounded-0 py-1 small" data-ex-pick="' + esc(JSON.stringify(p)) + '">' + esc(p.name) + ' <span class="text-muted">' + esc(p.sku || '') + '</span><span class="float-end">' + money(p.price) + '</span></button>';
+                }).join('');
+                box.classList.toggle('d-none', !(d.rows || []).length);
+            });
+        }, 300);
+    }
+});
+document.addEventListener('submit', function (e) {
+    if (e.target.id === 'rma-form') {
+        e.preventDefault();
+        const items = [];
+        document.querySelectorAll('#rma-items input[data-item]').forEach(function (el) { if (Number(el.value) > 0) items.push({ id_item: Number(el.dataset.item), qty: Number(el.value) }); });
+        const btn = document.getElementById('rma-submit');
+        btn.disabled = true;
+        rfPost('/api/orders/' + ORDER_ID + '/returns/create/', {
+            type: document.getElementById('rma-type').value,
+            reason: document.getElementById('rma-reason').value,
+            ttn: document.getElementById('rma-ttn').value,
+            comment: document.getElementById('rma-comment').value,
+            items: items,
+        }).then(function () {
+            bootstrap.Modal.getInstance(document.getElementById('rma-modal')).hide();
+            rmaLoad();
+        }).catch(rfErr).finally(function () { btn.disabled = false; });
+    }
+    if (e.target.id === 'rma-refund-form') {
+        e.preventDefault();
+        const body = { shipping: Number(document.getElementById('rma-refund-shipping').value || 0), transaction_id: document.getElementById('rma-refund-transaction').value };
+        const amount = document.getElementById('rma-refund-amount').value;
+        if (amount !== '') body.amount = Number(amount);
+        const btn = document.getElementById('rma-refund-submit');
+        btn.disabled = true;
+        rfPost(rmaUrl(rmaCurrent, 'refund'), body).then(function () { location.reload(); }).catch(function (err) { btn.disabled = false; rfErr(err); });
+    }
+    if (e.target.id === 'rma-exchange-form') {
+        e.preventDefault();
+        const btn = document.getElementById('rma-ex-submit');
+        btn.disabled = true;
+        rfPost(rmaUrl(rmaCurrent, 'exchange'), { items: rmaEx, shipping: Number(document.getElementById('rma-ex-shipping').value || 0) })
+            .then(function (d) { location.href = '/orders/' + Number(d.order.id) + '/'; })
+            .catch(function (err) { btn.disabled = false; rfErr(err); });
+    }
+});
+rmaLoad();
+
+// ── ДЕЛЕГУВАННЯ ПОДІЙ (замість inline onclick — сумісно з CSP) ──
+document.addEventListener('click', function(e) {
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+    switch (el.dataset.action) {
+        case 'apply-status':       applyStatus(); break;
+        case 'load-events':        loadEvents(); break;
+        case 'load-raw':           loadRaw(); break;
+        case 'link-client':        linkClient(Number(el.dataset.id)); break;
+        case 'unlink-client':      unlinkClient(); break;
+        case 'open-client-search': openClientSearch(); break;
+        case 'create-client':      createClient(); break;
+        case 'load-client':        loadClient(); break;
+    }
+});
+
+// ── СТАТУС ────────────────────────────────────────────────
+function applyStatus() {
+    const id_status = document.getElementById('new-status').value;
+    const comment   = document.getElementById('status-comment').value;
+    const notify    = document.getElementById('status-notify').checked;
+
+    fetch('/api/orders/' + ORDER_ID + '/status/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_status, comment, notify })
+    }).then(r => r.json()).then(function(d) {
+        if (d.status === 'success') {
+            document.getElementById('status-comment').value = '';
+            document.getElementById('status-notify').checked = false;
+            if (historyTable) historyTable.setData('/api/orders/' + ORDER_ID + '/history/', {}, 'POST');
+            // Оновлюємо бейдж поточного статусу з випадайки
+            const opt = document.querySelector('#new-status option[value="' + d.id_status + '"]');
+            if (opt) document.getElementById('current-status-badge').textContent = opt.textContent.trim();
+        } else {
+            alert(d.message || d.error || "<%= i18n.__('orders.page.error') %>");
+        }
+        eventsLoaded = false;
+        if (document.getElementById('tab-events').classList.contains('active')) loadEvents();
+    });
+}
+
+// ── ДЕТАЛІ (товари/оплати/доставка/повернення+документи) — ліниво ──
+function renderDetails(d) {
+    // Товари
+    if (!d.items.length) {
+        document.getElementById('items-body').innerHTML = '<div class="p-3 text-muted">' + "<%= i18n.__('orders.page.no_items') %>" + '</div>';
+    } else {
+        let sum = 0;
+        let rows = d.items.map(function(it) {
+            sum += Number(it.total);
+            let attrs = '';
+            if (it.attributes) { try { attrs = Object.entries(it.attributes).map(([k,v]) => esc(k)+': '+esc(v)).join(', '); } catch(e){} }
+            return '<tr>'
+                 + '<td>' + esc(it.name) + (attrs ? '<br><small class="text-muted">'+attrs+'</small>' : '') + '</td>'
+                 + '<td>' + esc(it.sku || '—') + '</td>'
+                 + '<td class="text-end">' + Number(it.quantity) + '</td>'
+                 + '<td class="text-end text-nowrap">' + money(it.unit_price_wt) + '</td>'
+                 + '<td class="text-end text-nowrap">' + (Number(it.discount) ? '−'+money(it.discount) : '—') + '</td>'
+                 + '<td class="text-end fw-semibold text-nowrap">' + money(it.total) + '</td>'
+                 + '</tr>';
+        }).join('');
+        let totals = d.totals.map(t =>
+            '<tr><td colspan="5" class="text-end text-muted">'+esc(t.title)+'</td><td class="text-end text-nowrap">'+money(t.value)+'</td></tr>'
+        ).join('');
+        // Знижки замовлення (купон, сертифікат, бали): назва, код, сума
+        if (d.discounts && d.discounts.length) {
+            totals += '<tr><td colspan="6" class="small text-muted pt-2">' + "<%= i18n.__('orders.events.discounts') %>" + ': ' + d.discounts.map(function (x) {
+                return esc(x.name || x.type) + (x.code ? ' <code>' + esc(x.code) + '</code>' : '') + ' <span class="text-danger text-nowrap">−' + money(x.value) + '</span>';
+            }).join(' · ') + '</td></tr>';
+        }
+        document.getElementById('items-body').innerHTML =
+            '<table class="table table-sm mb-0"><thead><tr>'
+          + '<th>' + "<%= i18n.__('orders.page.col_name') %>" + '</th><th>SKU</th><th class="text-end">' + "<%= i18n.__('orders.page.col_qty') %>" + '</th><th class="text-end">' + "<%= i18n.__('orders.page.col_price') %>" + '</th><th class="text-end">' + "<%= i18n.__('orders.page.col_discount') %>" + '</th><th class="text-end">' + "<%= i18n.__('orders.page.col_total') %>" + '</th>'
+          + '</tr></thead><tbody>' + rows + totals + '</tbody></table>';
+
+        // Перевірка «здоровʼя» сум: сума позицій vs total_products
+        if (Math.abs(sum - TOTAL_PRODUCTS) > 0.01) {
+            document.getElementById('sum-warn').classList.remove('d-none');
+        }
+    }
+
+    // Оплати
+    const payBadge = { paid:'success', pending:'secondary', authorized:'info', failed:'danger', refunded:'danger', partially_refunded:'warning' };
+    document.getElementById('payments-body').innerHTML = d.payments.length
+        ? '<table class="table table-sm mb-0"><tbody>' + d.payments.map(p =>
+            '<tr><td><span class="badge rounded-0 text-bg-'+(payBadge[p.status]||'secondary')+'">'+esc(({ external_number: "<%= i18n.__('orders.page.external_number') %>", status: "<%= i18n.__('orders.page.status') %>", payment: "<%= i18n.__('orders.page.payment') %>", fulfillment: "<%= i18n.__('orders.page.fulfillment') %>", open_chat: "<%= i18n.__('orders.page.open_chat') %>", new_status: "<%= i18n.__('orders.page.new_status') %>", status_comment: "<%= i18n.__('orders.page.status_comment') %>", optional: "<%= i18n.__('orders.page.optional') %>", notify_client: "<%= i18n.__('orders.page.notify_client') %>", apply: "<%= i18n.__('orders.page.apply') %>", items: "<%= i18n.__('orders.page.items') %>", sum_warn: "<%= i18n.__('orders.page.sum_warn') %>", loading: "<%= i18n.__('orders.page.loading') %>", payments: "<%= i18n.__('orders.page.payments') %>", shipments: "<%= i18n.__('orders.page.shipments') %>", refunds_docs: "<%= i18n.__('orders.page.refunds_docs') %>", client: "<%= i18n.__('orders.page.client') %>", snapshot: "<%= i18n.__('orders.page.snapshot') %>", addresses: "<%= i18n.__('orders.page.addresses') %>", no_addresses: "<%= i18n.__('orders.page.no_addresses') %>", addr_billing: "<%= i18n.__('orders.page.addr_billing') %>", addr_shipping: "<%= i18n.__('orders.page.addr_shipping') %>", summary: "<%= i18n.__('orders.page.summary') %>", sum_items: "<%= i18n.__('orders.page.sum_items') %>", sum_discount: "<%= i18n.__('orders.page.sum_discount') %>", sum_shipping: "<%= i18n.__('orders.page.sum_shipping') %>", sum_wrapping: "<%= i18n.__('orders.page.sum_wrapping') %>", sum_tax: "<%= i18n.__('orders.page.sum_tax') %>", sum_tips: "<%= i18n.__('orders.page.sum_tips') %>", sum_paid: "<%= i18n.__('orders.page.sum_paid') %>", sum_refunded: "<%= i18n.__('orders.page.sum_refunded') %>", sum_fees: "<%= i18n.__('orders.page.sum_fees') %>", sum_rate: "<%= i18n.__('orders.page.sum_rate') %>", to_pay: "<%= i18n.__('orders.page.to_pay') %>", info: "<%= i18n.__('orders.page.info') %>", created: "<%= i18n.__('orders.page.created') %>", changed: "<%= i18n.__('orders.page.changed') %>", date_source: "<%= i18n.__('orders.page.date_source') %>", flag_paid: "<%= i18n.__('orders.page.flag_paid') %>", flag_shipped: "<%= i18n.__('orders.page.flag_shipped') %>", flag_gift: "<%= i18n.__('orders.page.flag_gift') %>", flag_canceled: "<%= i18n.__('orders.page.flag_canceled') %>", note: "<%= i18n.__('orders.page.note') %>", tab_history: "<%= i18n.__('orders.page.tab_history') %>", tab_events: "<%= i18n.__('orders.page.tab_events') %>", tab_raw: "<%= i18n.__('orders.page.tab_raw') %>", client_search: "<%= i18n.__('orders.page.client_search') %>", client_search_ph: "<%= i18n.__('orders.page.client_search_ph') %>", min2: "<%= i18n.__('orders.page.min2') %>", error: "<%= i18n.__('orders.page.error') %>", no_items: "<%= i18n.__('orders.page.no_items') %>", col_name: "<%= i18n.__('orders.page.col_name') %>", col_qty: "<%= i18n.__('orders.page.col_qty') %>", col_price: "<%= i18n.__('orders.page.col_price') %>", col_discount: "<%= i18n.__('orders.page.col_discount') %>", col_total: "<%= i18n.__('orders.page.col_total') %>", no_payments: "<%= i18n.__('orders.page.no_payments') %>", no_shipments: "<%= i18n.__('orders.page.no_shipments') %>", refunds: "<%= i18n.__('orders.page.refunds') %>", documents: "<%= i18n.__('orders.page.documents') %>", fees: "<%= i18n.__('orders.page.fees') %>", none: "<%= i18n.__('orders.page.none') %>", load_error: "<%= i18n.__('orders.page.load_error') %>", history_empty: "<%= i18n.__('orders.page.history_empty') %>", h_change: "<%= i18n.__('orders.page.h_change') %>", h_source: "<%= i18n.__('orders.page.h_source') %>", src_webhook: "<%= i18n.__('orders.page.src_webhook') %>", src_manual: "<%= i18n.__('orders.page.src_manual') %>", src_system: "<%= i18n.__('orders.page.src_system') %>", h_date: "<%= i18n.__('orders.page.h_date') %>", h_notified: "<%= i18n.__('orders.page.h_notified') %>", no_raw: "<%= i18n.__('orders.page.no_raw') %>", conf_high: "<%= i18n.__('orders.page.conf_high') %>", conf_medium: "<%= i18n.__('orders.page.conf_medium') %>", conf_low: "<%= i18n.__('orders.page.conf_low') %>", r_phone: "<%= i18n.__('orders.page.r_phone') %>", r_name: "<%= i18n.__('orders.page.r_name') %>", r_site: "<%= i18n.__('orders.page.r_site') %>", r_edrpou: "<%= i18n.__('orders.page.r_edrpou') %>", r_tax: "<%= i18n.__('orders.page.r_tax') %>", orders_short: "<%= i18n.__('orders.page.orders_short') %>", link: "<%= i18n.__('orders.page.link') %>", f_name: "<%= i18n.__('orders.page.f_name') %>", f_company: "<%= i18n.__('orders.page.f_company') %>", f_phone: "<%= i18n.__('orders.page.f_phone') %>", no_contact: "<%= i18n.__('orders.page.no_contact') %>", linked: "<%= i18n.__('orders.page.linked') %>", client_card: "<%= i18n.__('orders.page.client_card') %>", price_group: "<%= i18n.__('orders.page.price_group') %>", orders_count: "<%= i18n.__('orders.page.orders_count') %>", revenue: "<%= i18n.__('orders.page.revenue') %>", unlink: "<%= i18n.__('orders.page.unlink') %>", guest: "<%= i18n.__('orders.page.guest') %>", similar: "<%= i18n.__('orders.page.similar') %>", no_matches: "<%= i18n.__('orders.page.no_matches') %>", find: "<%= i18n.__('orders.page.find') %>", create: "<%= i18n.__('orders.page.create') %>", unlink_q: "<%= i18n.__('orders.page.unlink_q') %>", back: "<%= i18n.__('orders.page.back') %>", nothing: "<%= i18n.__('orders.page.nothing') %>", carrier_novaposhta: "<%= i18n.__('orders.page.carrier_novaposhta') %>", ship_review: "<%= i18n.__('orders.page.ship_review') %>", ship_draft: "<%= i18n.__('orders.page.ship_draft') %>", ship_created: "<%= i18n.__('orders.page.ship_created') %>", ship_in_transit: "<%= i18n.__('orders.page.ship_in_transit') %>", ship_delivered: "<%= i18n.__('orders.page.ship_delivered') %>", ship_returned: "<%= i18n.__('orders.page.ship_returned') %>", pay_pending: "<%= i18n.__('orders.page.pay_pending') %>", pay_authorized: "<%= i18n.__('orders.page.pay_authorized') %>", pay_paid: "<%= i18n.__('orders.page.pay_paid') %>", pay_failed: "<%= i18n.__('orders.page.pay_failed') %>", pay_refunded: "<%= i18n.__('orders.page.pay_refunded') %>", pay_partially_refunded: "<%= i18n.__('orders.page.pay_partially_refunded') %>" })['pay_' + p.status] || p.status)+'</span></td>'
+          + '<td>'+esc(p.transaction_id||'—')+'</td>'
+          + '<td class="text-end fw-semibold text-nowrap">'+money(p.amount, esc(p.currency_iso))+'</td>'
+          + '<td class="text-end text-muted small">'+esc(p.paid_at||'')+'</td></tr>'
+          ).join('') + '</tbody></table>'
+        : '<div class="p-3 text-muted">' + "<%= i18n.__('orders.page.no_payments') %>" + '</div>';
+
+    // Відправлення (трек-номер клікабельний)
+    document.getElementById('shipments-body').innerHTML = d.shipments.length
+        ? '<table class="table table-sm mb-0"><tbody>' + d.shipments.map(s =>
+            '<tr><td>'+esc(({ external_number: "<%= i18n.__('orders.page.external_number') %>", status: "<%= i18n.__('orders.page.status') %>", payment: "<%= i18n.__('orders.page.payment') %>", fulfillment: "<%= i18n.__('orders.page.fulfillment') %>", open_chat: "<%= i18n.__('orders.page.open_chat') %>", new_status: "<%= i18n.__('orders.page.new_status') %>", status_comment: "<%= i18n.__('orders.page.status_comment') %>", optional: "<%= i18n.__('orders.page.optional') %>", notify_client: "<%= i18n.__('orders.page.notify_client') %>", apply: "<%= i18n.__('orders.page.apply') %>", items: "<%= i18n.__('orders.page.items') %>", sum_warn: "<%= i18n.__('orders.page.sum_warn') %>", loading: "<%= i18n.__('orders.page.loading') %>", payments: "<%= i18n.__('orders.page.payments') %>", shipments: "<%= i18n.__('orders.page.shipments') %>", refunds_docs: "<%= i18n.__('orders.page.refunds_docs') %>", client: "<%= i18n.__('orders.page.client') %>", snapshot: "<%= i18n.__('orders.page.snapshot') %>", addresses: "<%= i18n.__('orders.page.addresses') %>", no_addresses: "<%= i18n.__('orders.page.no_addresses') %>", addr_billing: "<%= i18n.__('orders.page.addr_billing') %>", addr_shipping: "<%= i18n.__('orders.page.addr_shipping') %>", summary: "<%= i18n.__('orders.page.summary') %>", sum_items: "<%= i18n.__('orders.page.sum_items') %>", sum_discount: "<%= i18n.__('orders.page.sum_discount') %>", sum_shipping: "<%= i18n.__('orders.page.sum_shipping') %>", sum_wrapping: "<%= i18n.__('orders.page.sum_wrapping') %>", sum_tax: "<%= i18n.__('orders.page.sum_tax') %>", sum_tips: "<%= i18n.__('orders.page.sum_tips') %>", sum_paid: "<%= i18n.__('orders.page.sum_paid') %>", sum_refunded: "<%= i18n.__('orders.page.sum_refunded') %>", sum_fees: "<%= i18n.__('orders.page.sum_fees') %>", sum_rate: "<%= i18n.__('orders.page.sum_rate') %>", to_pay: "<%= i18n.__('orders.page.to_pay') %>", info: "<%= i18n.__('orders.page.info') %>", created: "<%= i18n.__('orders.page.created') %>", changed: "<%= i18n.__('orders.page.changed') %>", date_source: "<%= i18n.__('orders.page.date_source') %>", flag_paid: "<%= i18n.__('orders.page.flag_paid') %>", flag_shipped: "<%= i18n.__('orders.page.flag_shipped') %>", flag_gift: "<%= i18n.__('orders.page.flag_gift') %>", flag_canceled: "<%= i18n.__('orders.page.flag_canceled') %>", note: "<%= i18n.__('orders.page.note') %>", tab_history: "<%= i18n.__('orders.page.tab_history') %>", tab_events: "<%= i18n.__('orders.page.tab_events') %>", tab_raw: "<%= i18n.__('orders.page.tab_raw') %>", client_search: "<%= i18n.__('orders.page.client_search') %>", client_search_ph: "<%= i18n.__('orders.page.client_search_ph') %>", min2: "<%= i18n.__('orders.page.min2') %>", error: "<%= i18n.__('orders.page.error') %>", no_items: "<%= i18n.__('orders.page.no_items') %>", col_name: "<%= i18n.__('orders.page.col_name') %>", col_qty: "<%= i18n.__('orders.page.col_qty') %>", col_price: "<%= i18n.__('orders.page.col_price') %>", col_discount: "<%= i18n.__('orders.page.col_discount') %>", col_total: "<%= i18n.__('orders.page.col_total') %>", no_payments: "<%= i18n.__('orders.page.no_payments') %>", no_shipments: "<%= i18n.__('orders.page.no_shipments') %>", refunds: "<%= i18n.__('orders.page.refunds') %>", documents: "<%= i18n.__('orders.page.documents') %>", fees: "<%= i18n.__('orders.page.fees') %>", none: "<%= i18n.__('orders.page.none') %>", load_error: "<%= i18n.__('orders.page.load_error') %>", history_empty: "<%= i18n.__('orders.page.history_empty') %>", h_change: "<%= i18n.__('orders.page.h_change') %>", h_source: "<%= i18n.__('orders.page.h_source') %>", src_webhook: "<%= i18n.__('orders.page.src_webhook') %>", src_manual: "<%= i18n.__('orders.page.src_manual') %>", src_system: "<%= i18n.__('orders.page.src_system') %>", h_date: "<%= i18n.__('orders.page.h_date') %>", h_notified: "<%= i18n.__('orders.page.h_notified') %>", no_raw: "<%= i18n.__('orders.page.no_raw') %>", conf_high: "<%= i18n.__('orders.page.conf_high') %>", conf_medium: "<%= i18n.__('orders.page.conf_medium') %>", conf_low: "<%= i18n.__('orders.page.conf_low') %>", r_phone: "<%= i18n.__('orders.page.r_phone') %>", r_name: "<%= i18n.__('orders.page.r_name') %>", r_site: "<%= i18n.__('orders.page.r_site') %>", r_edrpou: "<%= i18n.__('orders.page.r_edrpou') %>", r_tax: "<%= i18n.__('orders.page.r_tax') %>", orders_short: "<%= i18n.__('orders.page.orders_short') %>", link: "<%= i18n.__('orders.page.link') %>", f_name: "<%= i18n.__('orders.page.f_name') %>", f_company: "<%= i18n.__('orders.page.f_company') %>", f_phone: "<%= i18n.__('orders.page.f_phone') %>", no_contact: "<%= i18n.__('orders.page.no_contact') %>", linked: "<%= i18n.__('orders.page.linked') %>", client_card: "<%= i18n.__('orders.page.client_card') %>", price_group: "<%= i18n.__('orders.page.price_group') %>", orders_count: "<%= i18n.__('orders.page.orders_count') %>", revenue: "<%= i18n.__('orders.page.revenue') %>", unlink: "<%= i18n.__('orders.page.unlink') %>", guest: "<%= i18n.__('orders.page.guest') %>", similar: "<%= i18n.__('orders.page.similar') %>", no_matches: "<%= i18n.__('orders.page.no_matches') %>", find: "<%= i18n.__('orders.page.find') %>", create: "<%= i18n.__('orders.page.create') %>", unlink_q: "<%= i18n.__('orders.page.unlink_q') %>", back: "<%= i18n.__('orders.page.back') %>", nothing: "<%= i18n.__('orders.page.nothing') %>", carrier_novaposhta: "<%= i18n.__('orders.page.carrier_novaposhta') %>", ship_review: "<%= i18n.__('orders.page.ship_review') %>", ship_draft: "<%= i18n.__('orders.page.ship_draft') %>", ship_created: "<%= i18n.__('orders.page.ship_created') %>", ship_in_transit: "<%= i18n.__('orders.page.ship_in_transit') %>", ship_delivered: "<%= i18n.__('orders.page.ship_delivered') %>", ship_returned: "<%= i18n.__('orders.page.ship_returned') %>", pay_pending: "<%= i18n.__('orders.page.pay_pending') %>", pay_authorized: "<%= i18n.__('orders.page.pay_authorized') %>", pay_paid: "<%= i18n.__('orders.page.pay_paid') %>", pay_failed: "<%= i18n.__('orders.page.pay_failed') %>", pay_refunded: "<%= i18n.__('orders.page.pay_refunded') %>", pay_partially_refunded: "<%= i18n.__('orders.page.pay_partially_refunded') %>" })['carrier_' + s.carrier] || s.carrier || '—')+'</td>'
+          + '<td>'+(s.tracking_number ? '<a href="https://novaposhta.ua/tracking/?cargo_number='+encodeURIComponent(s.tracking_number)+'" target="_blank">'+esc(s.tracking_number)+'</a>' : '—')+'</td>'
+          + '<td><span class="badge rounded-0 text-bg-secondary">'+esc(({ external_number: "<%= i18n.__('orders.page.external_number') %>", status: "<%= i18n.__('orders.page.status') %>", payment: "<%= i18n.__('orders.page.payment') %>", fulfillment: "<%= i18n.__('orders.page.fulfillment') %>", open_chat: "<%= i18n.__('orders.page.open_chat') %>", new_status: "<%= i18n.__('orders.page.new_status') %>", status_comment: "<%= i18n.__('orders.page.status_comment') %>", optional: "<%= i18n.__('orders.page.optional') %>", notify_client: "<%= i18n.__('orders.page.notify_client') %>", apply: "<%= i18n.__('orders.page.apply') %>", items: "<%= i18n.__('orders.page.items') %>", sum_warn: "<%= i18n.__('orders.page.sum_warn') %>", loading: "<%= i18n.__('orders.page.loading') %>", payments: "<%= i18n.__('orders.page.payments') %>", shipments: "<%= i18n.__('orders.page.shipments') %>", refunds_docs: "<%= i18n.__('orders.page.refunds_docs') %>", client: "<%= i18n.__('orders.page.client') %>", snapshot: "<%= i18n.__('orders.page.snapshot') %>", addresses: "<%= i18n.__('orders.page.addresses') %>", no_addresses: "<%= i18n.__('orders.page.no_addresses') %>", addr_billing: "<%= i18n.__('orders.page.addr_billing') %>", addr_shipping: "<%= i18n.__('orders.page.addr_shipping') %>", summary: "<%= i18n.__('orders.page.summary') %>", sum_items: "<%= i18n.__('orders.page.sum_items') %>", sum_discount: "<%= i18n.__('orders.page.sum_discount') %>", sum_shipping: "<%= i18n.__('orders.page.sum_shipping') %>", sum_wrapping: "<%= i18n.__('orders.page.sum_wrapping') %>", sum_tax: "<%= i18n.__('orders.page.sum_tax') %>", sum_tips: "<%= i18n.__('orders.page.sum_tips') %>", sum_paid: "<%= i18n.__('orders.page.sum_paid') %>", sum_refunded: "<%= i18n.__('orders.page.sum_refunded') %>", sum_fees: "<%= i18n.__('orders.page.sum_fees') %>", sum_rate: "<%= i18n.__('orders.page.sum_rate') %>", to_pay: "<%= i18n.__('orders.page.to_pay') %>", info: "<%= i18n.__('orders.page.info') %>", created: "<%= i18n.__('orders.page.created') %>", changed: "<%= i18n.__('orders.page.changed') %>", date_source: "<%= i18n.__('orders.page.date_source') %>", flag_paid: "<%= i18n.__('orders.page.flag_paid') %>", flag_shipped: "<%= i18n.__('orders.page.flag_shipped') %>", flag_gift: "<%= i18n.__('orders.page.flag_gift') %>", flag_canceled: "<%= i18n.__('orders.page.flag_canceled') %>", note: "<%= i18n.__('orders.page.note') %>", tab_history: "<%= i18n.__('orders.page.tab_history') %>", tab_events: "<%= i18n.__('orders.page.tab_events') %>", tab_raw: "<%= i18n.__('orders.page.tab_raw') %>", client_search: "<%= i18n.__('orders.page.client_search') %>", client_search_ph: "<%= i18n.__('orders.page.client_search_ph') %>", min2: "<%= i18n.__('orders.page.min2') %>", error: "<%= i18n.__('orders.page.error') %>", no_items: "<%= i18n.__('orders.page.no_items') %>", col_name: "<%= i18n.__('orders.page.col_name') %>", col_qty: "<%= i18n.__('orders.page.col_qty') %>", col_price: "<%= i18n.__('orders.page.col_price') %>", col_discount: "<%= i18n.__('orders.page.col_discount') %>", col_total: "<%= i18n.__('orders.page.col_total') %>", no_payments: "<%= i18n.__('orders.page.no_payments') %>", no_shipments: "<%= i18n.__('orders.page.no_shipments') %>", refunds: "<%= i18n.__('orders.page.refunds') %>", documents: "<%= i18n.__('orders.page.documents') %>", fees: "<%= i18n.__('orders.page.fees') %>", none: "<%= i18n.__('orders.page.none') %>", load_error: "<%= i18n.__('orders.page.load_error') %>", history_empty: "<%= i18n.__('orders.page.history_empty') %>", h_change: "<%= i18n.__('orders.page.h_change') %>", h_source: "<%= i18n.__('orders.page.h_source') %>", src_webhook: "<%= i18n.__('orders.page.src_webhook') %>", src_manual: "<%= i18n.__('orders.page.src_manual') %>", src_system: "<%= i18n.__('orders.page.src_system') %>", h_date: "<%= i18n.__('orders.page.h_date') %>", h_notified: "<%= i18n.__('orders.page.h_notified') %>", no_raw: "<%= i18n.__('orders.page.no_raw') %>", conf_high: "<%= i18n.__('orders.page.conf_high') %>", conf_medium: "<%= i18n.__('orders.page.conf_medium') %>", conf_low: "<%= i18n.__('orders.page.conf_low') %>", r_phone: "<%= i18n.__('orders.page.r_phone') %>", r_name: "<%= i18n.__('orders.page.r_name') %>", r_site: "<%= i18n.__('orders.page.r_site') %>", r_edrpou: "<%= i18n.__('orders.page.r_edrpou') %>", r_tax: "<%= i18n.__('orders.page.r_tax') %>", orders_short: "<%= i18n.__('orders.page.orders_short') %>", link: "<%= i18n.__('orders.page.link') %>", f_name: "<%= i18n.__('orders.page.f_name') %>", f_company: "<%= i18n.__('orders.page.f_company') %>", f_phone: "<%= i18n.__('orders.page.f_phone') %>", no_contact: "<%= i18n.__('orders.page.no_contact') %>", linked: "<%= i18n.__('orders.page.linked') %>", client_card: "<%= i18n.__('orders.page.client_card') %>", price_group: "<%= i18n.__('orders.page.price_group') %>", orders_count: "<%= i18n.__('orders.page.orders_count') %>", revenue: "<%= i18n.__('orders.page.revenue') %>", unlink: "<%= i18n.__('orders.page.unlink') %>", guest: "<%= i18n.__('orders.page.guest') %>", similar: "<%= i18n.__('orders.page.similar') %>", no_matches: "<%= i18n.__('orders.page.no_matches') %>", find: "<%= i18n.__('orders.page.find') %>", create: "<%= i18n.__('orders.page.create') %>", unlink_q: "<%= i18n.__('orders.page.unlink_q') %>", back: "<%= i18n.__('orders.page.back') %>", nothing: "<%= i18n.__('orders.page.nothing') %>", carrier_novaposhta: "<%= i18n.__('orders.page.carrier_novaposhta') %>", ship_review: "<%= i18n.__('orders.page.ship_review') %>", ship_draft: "<%= i18n.__('orders.page.ship_draft') %>", ship_created: "<%= i18n.__('orders.page.ship_created') %>", ship_in_transit: "<%= i18n.__('orders.page.ship_in_transit') %>", ship_delivered: "<%= i18n.__('orders.page.ship_delivered') %>", ship_returned: "<%= i18n.__('orders.page.ship_returned') %>", pay_pending: "<%= i18n.__('orders.page.pay_pending') %>", pay_authorized: "<%= i18n.__('orders.page.pay_authorized') %>", pay_paid: "<%= i18n.__('orders.page.pay_paid') %>", pay_failed: "<%= i18n.__('orders.page.pay_failed') %>", pay_refunded: "<%= i18n.__('orders.page.pay_refunded') %>", pay_partially_refunded: "<%= i18n.__('orders.page.pay_partially_refunded') %>" })['ship_' + s.status] || s.status || '—')+'</span></td>'
+          + '<td class="text-end text-muted small">'+esc(s.shipped_at||'')+'</td></tr>'
+          ).join('') + '</tbody></table>'
+        : '<div class="p-3 text-muted">' + "<%= i18n.__('orders.page.no_shipments') %>" + '</div>';
+
+    // Повернення + документи
+    let ref = d.refunds.length
+        ? '<div class="section-title">' + "<%= i18n.__('orders.page.refunds') %>" + '</div>' + d.refunds.map(function (r) {
+            var items = [];
+            try { items = typeof r.items === 'string' ? JSON.parse(r.items) : (r.items || []); } catch (e) {}
+            return '<div class="border-bottom py-1"><div class="d-flex justify-content-between gap-2"><span>' + esc(r.number || '') + (r.reason ? ' · ' + esc(r.reason) : '')
+                + (Number(r.restock) ? ' <span class="badge text-bg-success rounded-0">' + "<%= i18n.__('orders.refunds.restocked') %>" + '</span>' : '')
+                + '</span><span class="text-nowrap"><span class="text-danger fw-semibold">−' + money(r.amount) + '</span>'
+                + (RF.canEdit ? ' <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-1 js-rf-del" data-id="' + Number(r.id) + '" title="' + "<%= i18n.__('orders.refunds.del') %>" + '"><i class="fa-solid fa-xmark"></i></button>' : '')
+                + '</span></div>'
+                + (items.length ? '<small class="text-muted">' + items.map(function (x) { return esc(x.name || x.sku || '') + ' × ' + Number(x.qty); }).join(', ') + '</small>' : '')
+                + '<small class="text-muted d-block">' + esc(new Date(r.date_add).toLocaleString()) + '</small></div>';
+          }).join('') : '';
+    let doc = d.documents.length
+        ? '<div class="section-title mt-2">' + "<%= i18n.__('orders.page.documents') %>" + '</div>' + d.documents.map(dc =>
+            '<div class="py-1"><i class="fa-solid fa-file-pdf text-danger me-2"></i><a href="'+esc(dc.file_path||'#')+'" target="_blank">'+esc(dc.number||dc.type)+'</a> <small class="text-muted">'+esc(dc.type)+'</small></div>'
+          ).join('') : '';
+    let fees = d.fees.length
+        ? '<div class="section-title mt-2">' + "<%= i18n.__('orders.page.fees') %>" + '</div>' + d.fees.map(f =>
+            '<div class="d-flex justify-content-between border-bottom py-1"><span>'+esc(f.title||f.type)+'</span><span class="text-nowrap">'+money(f.amount)+'</span></div>'
+          ).join('') : '';
+    document.getElementById('refdoc-body').innerHTML = (ref+doc+fees) || '<span class="text-muted">' + "<%= i18n.__('orders.page.none') %>" + '</span>';
+}
+
+fetch('/api/orders/' + ORDER_ID + '/details/', { method: 'POST' })
+    .then(r => r.json()).then(renderDetails)
+    .catch(() => { document.getElementById('items-body').innerHTML = '<div class="p-3 text-danger">' + "<%= i18n.__('orders.page.load_error') %>" + '</div>'; });
+
+// ── ІСТОРІЯ СТАТУСІВ (Tabulator) ──
+var historyTable = new Tabulator("#history-table", {
+    layout: "fitColumns",
+    ajaxURL: "/api/orders/" + ORDER_ID + "/history/",
+    ajaxConfig: "POST",
+    pagination: true, paginationMode: "local", paginationSize: 15,
+    placeholder: "<%= i18n.__('orders.page.history_empty') %>",
+    columns: [
+        { title: "<%= i18n.__('orders.page.h_change') %>", widthGrow: 3, headerSort: false, formatter: function(cell) {
+            const h = cell.getRow().getData();
+            const o = esc(h.status_old_name || '—'), n = esc(h.status_name || '—');
+            let out = '<span class="text-muted text-decoration-line-through me-1">'+o+'</span>'
+                    + '<i class="fa-solid fa-arrow-right mx-1 text-muted" style="font-size:10px"></i>'
+                    + '<span class="text-success fw-semibold">'+n+'</span>';
+            if (h.comment) out += '<div class="small fst-italic text-muted mt-1">'+esc(h.comment)+'</div>';
+            return out;
+        }},
+        { title: "<%= i18n.__('orders.page.h_source') %>", field: "source", width: 160, formatter: c => esc(c.getRow().getData().user_name || (({ external_number: "<%= i18n.__('orders.page.external_number') %>", status: "<%= i18n.__('orders.page.status') %>", payment: "<%= i18n.__('orders.page.payment') %>", fulfillment: "<%= i18n.__('orders.page.fulfillment') %>", open_chat: "<%= i18n.__('orders.page.open_chat') %>", new_status: "<%= i18n.__('orders.page.new_status') %>", status_comment: "<%= i18n.__('orders.page.status_comment') %>", optional: "<%= i18n.__('orders.page.optional') %>", notify_client: "<%= i18n.__('orders.page.notify_client') %>", apply: "<%= i18n.__('orders.page.apply') %>", items: "<%= i18n.__('orders.page.items') %>", sum_warn: "<%= i18n.__('orders.page.sum_warn') %>", loading: "<%= i18n.__('orders.page.loading') %>", payments: "<%= i18n.__('orders.page.payments') %>", shipments: "<%= i18n.__('orders.page.shipments') %>", refunds_docs: "<%= i18n.__('orders.page.refunds_docs') %>", client: "<%= i18n.__('orders.page.client') %>", snapshot: "<%= i18n.__('orders.page.snapshot') %>", addresses: "<%= i18n.__('orders.page.addresses') %>", no_addresses: "<%= i18n.__('orders.page.no_addresses') %>", addr_billing: "<%= i18n.__('orders.page.addr_billing') %>", addr_shipping: "<%= i18n.__('orders.page.addr_shipping') %>", summary: "<%= i18n.__('orders.page.summary') %>", sum_items: "<%= i18n.__('orders.page.sum_items') %>", sum_discount: "<%= i18n.__('orders.page.sum_discount') %>", sum_shipping: "<%= i18n.__('orders.page.sum_shipping') %>", sum_wrapping: "<%= i18n.__('orders.page.sum_wrapping') %>", sum_tax: "<%= i18n.__('orders.page.sum_tax') %>", sum_tips: "<%= i18n.__('orders.page.sum_tips') %>", sum_paid: "<%= i18n.__('orders.page.sum_paid') %>", sum_refunded: "<%= i18n.__('orders.page.sum_refunded') %>", sum_fees: "<%= i18n.__('orders.page.sum_fees') %>", sum_rate: "<%= i18n.__('orders.page.sum_rate') %>", to_pay: "<%= i18n.__('orders.page.to_pay') %>", info: "<%= i18n.__('orders.page.info') %>", created: "<%= i18n.__('orders.page.created') %>", changed: "<%= i18n.__('orders.page.changed') %>", date_source: "<%= i18n.__('orders.page.date_source') %>", flag_paid: "<%= i18n.__('orders.page.flag_paid') %>", flag_shipped: "<%= i18n.__('orders.page.flag_shipped') %>", flag_gift: "<%= i18n.__('orders.page.flag_gift') %>", flag_canceled: "<%= i18n.__('orders.page.flag_canceled') %>", note: "<%= i18n.__('orders.page.note') %>", tab_history: "<%= i18n.__('orders.page.tab_history') %>", tab_events: "<%= i18n.__('orders.page.tab_events') %>", tab_raw: "<%= i18n.__('orders.page.tab_raw') %>", client_search: "<%= i18n.__('orders.page.client_search') %>", client_search_ph: "<%= i18n.__('orders.page.client_search_ph') %>", min2: "<%= i18n.__('orders.page.min2') %>", error: "<%= i18n.__('orders.page.error') %>", no_items: "<%= i18n.__('orders.page.no_items') %>", col_name: "<%= i18n.__('orders.page.col_name') %>", col_qty: "<%= i18n.__('orders.page.col_qty') %>", col_price: "<%= i18n.__('orders.page.col_price') %>", col_discount: "<%= i18n.__('orders.page.col_discount') %>", col_total: "<%= i18n.__('orders.page.col_total') %>", no_payments: "<%= i18n.__('orders.page.no_payments') %>", no_shipments: "<%= i18n.__('orders.page.no_shipments') %>", refunds: "<%= i18n.__('orders.page.refunds') %>", documents: "<%= i18n.__('orders.page.documents') %>", fees: "<%= i18n.__('orders.page.fees') %>", none: "<%= i18n.__('orders.page.none') %>", load_error: "<%= i18n.__('orders.page.load_error') %>", history_empty: "<%= i18n.__('orders.page.history_empty') %>", h_change: "<%= i18n.__('orders.page.h_change') %>", h_source: "<%= i18n.__('orders.page.h_source') %>", src_webhook: "<%= i18n.__('orders.page.src_webhook') %>", src_manual: "<%= i18n.__('orders.page.src_manual') %>", src_system: "<%= i18n.__('orders.page.src_system') %>", h_date: "<%= i18n.__('orders.page.h_date') %>", h_notified: "<%= i18n.__('orders.page.h_notified') %>", no_raw: "<%= i18n.__('orders.page.no_raw') %>", conf_high: "<%= i18n.__('orders.page.conf_high') %>", conf_medium: "<%= i18n.__('orders.page.conf_medium') %>", conf_low: "<%= i18n.__('orders.page.conf_low') %>", r_phone: "<%= i18n.__('orders.page.r_phone') %>", r_name: "<%= i18n.__('orders.page.r_name') %>", r_site: "<%= i18n.__('orders.page.r_site') %>", r_edrpou: "<%= i18n.__('orders.page.r_edrpou') %>", r_tax: "<%= i18n.__('orders.page.r_tax') %>", orders_short: "<%= i18n.__('orders.page.orders_short') %>", link: "<%= i18n.__('orders.page.link') %>", f_name: "<%= i18n.__('orders.page.f_name') %>", f_company: "<%= i18n.__('orders.page.f_company') %>", f_phone: "<%= i18n.__('orders.page.f_phone') %>", no_contact: "<%= i18n.__('orders.page.no_contact') %>", linked: "<%= i18n.__('orders.page.linked') %>", client_card: "<%= i18n.__('orders.page.client_card') %>", price_group: "<%= i18n.__('orders.page.price_group') %>", orders_count: "<%= i18n.__('orders.page.orders_count') %>", revenue: "<%= i18n.__('orders.page.revenue') %>", unlink: "<%= i18n.__('orders.page.unlink') %>", guest: "<%= i18n.__('orders.page.guest') %>", similar: "<%= i18n.__('orders.page.similar') %>", no_matches: "<%= i18n.__('orders.page.no_matches') %>", find: "<%= i18n.__('orders.page.find') %>", create: "<%= i18n.__('orders.page.create') %>", unlink_q: "<%= i18n.__('orders.page.unlink_q') %>", back: "<%= i18n.__('orders.page.back') %>", nothing: "<%= i18n.__('orders.page.nothing') %>", carrier_novaposhta: "<%= i18n.__('orders.page.carrier_novaposhta') %>", ship_review: "<%= i18n.__('orders.page.ship_review') %>", ship_draft: "<%= i18n.__('orders.page.ship_draft') %>", ship_created: "<%= i18n.__('orders.page.ship_created') %>", ship_in_transit: "<%= i18n.__('orders.page.ship_in_transit') %>", ship_delivered: "<%= i18n.__('orders.page.ship_delivered') %>", ship_returned: "<%= i18n.__('orders.page.ship_returned') %>", pay_pending: "<%= i18n.__('orders.page.pay_pending') %>", pay_authorized: "<%= i18n.__('orders.page.pay_authorized') %>", pay_paid: "<%= i18n.__('orders.page.pay_paid') %>", pay_failed: "<%= i18n.__('orders.page.pay_failed') %>", pay_refunded: "<%= i18n.__('orders.page.pay_refunded') %>", pay_partially_refunded: "<%= i18n.__('orders.page.pay_partially_refunded') %>" })['src_' + c.getValue()] || c.getValue())) },
+        { title: "<%= i18n.__('orders.page.h_notified') %>", field: "notified", width: 90, hozAlign: "center", formatter: c =>
+            c.getValue() ? '<i class="fa-solid fa-envelope text-success"></i>' : '<i class="fa-solid fa-minus text-muted"></i>' },
+        { title: "<%= i18n.__('orders.page.h_date') %>", field: "date_add", width: 150 }
+    ]
+});
+
+// ── ЖУРНАЛ ПОДІЙ (ліниво) ──
+var eventsLoaded = false;
+function loadEvents() {
+    if (eventsLoaded) return; eventsLoaded = true;
+    fetch('/api/orders/' + ORDER_ID + '/events/', { method: 'POST' })
+        .then(r => r.json()).then(function(rows) {
+            document.getElementById('events-list').innerHTML = rows.length
+                ? '<table class="table table-sm align-middle mb-0"><tbody>' + rows.map(function(e) {
+                    let p = e.payload;
+                    if (typeof p === 'string') { try { p = JSON.parse(p); } catch (x) { p = null; } }
+                    return '<tr><td class="text-nowrap text-muted small" style="width:150px">' + esc(e.date_add) + '</td>'
+                         + '<td style="width:180px"><span class="badge rounded-0 text-bg-' + (EV_COLOR[e.type] || 'secondary') + '">' + esc(({ created: "<%= i18n.__('orders.events.types.created') %>", updated: "<%= i18n.__('orders.events.types.updated') %>", status_change: "<%= i18n.__('orders.events.types.status_change') %>", taken: "<%= i18n.__('orders.events.types.taken') %>", released: "<%= i18n.__('orders.events.types.released') %>", client_linked: "<%= i18n.__('orders.events.types.client_linked') %>", client_created: "<%= i18n.__('orders.events.types.client_created') %>", client_unlinked: "<%= i18n.__('orders.events.types.client_unlinked') %>", refund: "<%= i18n.__('orders.events.types.refund') %>", refund_canceled: "<%= i18n.__('orders.events.types.refund_canceled') %>", item_mapped: "<%= i18n.__('orders.events.types.item_mapped') %>", warehouse_change: "<%= i18n.__('orders.events.types.warehouse_change') %>", ttn_created: "<%= i18n.__('orders.events.types.ttn_created') %>", ttn_deleted: "<%= i18n.__('orders.events.types.ttn_deleted') %>", assigned: "<%= i18n.__('orders.events.types.assigned') %>", merged: "<%= i18n.__('orders.events.types.merged') %>", merged_into: "<%= i18n.__('orders.events.types.merged_into') %>", rma: "<%= i18n.__('orders.events.types.rma') %>" })[e.type] || e.type) + '</span></td>'
+                         + '<td class="small">' + eventText(e.type, p || {}) + '</td>'
+                         + '<td class="text-nowrap small text-muted text-end">' + esc(e.user_name || (e.source === 'webhook' ? "<%= i18n.__('orders.events.site') %>" : "<%= i18n.__('orders.events.system') %>")) + '</td></tr>';
+                  }).join('') + '</tbody></table>'
+                : '<p class="text-muted">' + "<%= i18n.__('orders.events.empty') %>" + '</p>';
+        });
+}
+const EV_COLOR = { created: 'primary', updated: 'info', status_change: 'primary', taken: 'success', released: 'secondary', refund: 'danger', refund_canceled: 'warning', ttn_created: 'success', ttn_deleted: 'warning', assigned: 'info', merged: 'primary', merged_into: 'warning', client_linked: 'info', client_created: 'info', client_unlinked: 'warning', rma: 'dark' };
+// Людський опис події: що саме змінилось
+function eventText(type, p) {
+    const st = (id) => esc(STATUS_NAMES[id] || ('#' + id));
+    switch (type) {
+        case 'status_change': return st(p.before) + ' → ' + st(p.after) + (p.comment ? ' · <i>' + esc(p.comment) + '</i>' : '') + (p.notify ? ' · ' + "<%= i18n.__('orders.events.notified') %>" : '');
+        case 'client_linked': case 'client_created': return p.id_client ? '<a href="/clients/' + Number(p.id_client) + '/">#' + Number(p.id_client) + '</a>' : '';
+        case 'client_unlinked': return p.prev_client ? '#' + Number(p.prev_client) : '';
+        case 'refund': return esc(p.number || '') + ' · −' + money(p.amount) + (p.items && p.items.length ? ' · ' + p.items.map((x) => esc(x.name || x.sku || '') + ' × ' + Number(x.qty)).join(', ') : '');
+        case 'refund_canceled': return esc(p.number || '');
+        case 'rma': return esc(p.number || '')
+            + (p.to ? ' · ' + (p.from ? esc(({ new: "<%= i18n.__('orders.returns.s.new') %>", awaiting: "<%= i18n.__('orders.returns.s.awaiting') %>", received: "<%= i18n.__('orders.returns.s.received') %>", checked: "<%= i18n.__('orders.returns.s.checked') %>", refunded: "<%= i18n.__('orders.returns.s.refunded') %>", exchanged: "<%= i18n.__('orders.returns.s.exchanged') %>", rejected: "<%= i18n.__('orders.returns.s.rejected') %>", closed: "<%= i18n.__('orders.returns.s.closed') %>", canceled: "<%= i18n.__('orders.returns.s.canceled') %>" })[p.from] || p.from) + ' → ' : '') + esc(({ new: "<%= i18n.__('orders.returns.s.new') %>", awaiting: "<%= i18n.__('orders.returns.s.awaiting') %>", received: "<%= i18n.__('orders.returns.s.received') %>", checked: "<%= i18n.__('orders.returns.s.checked') %>", refunded: "<%= i18n.__('orders.returns.s.refunded') %>", exchanged: "<%= i18n.__('orders.returns.s.exchanged') %>", rejected: "<%= i18n.__('orders.returns.s.rejected') %>", closed: "<%= i18n.__('orders.returns.s.closed') %>", canceled: "<%= i18n.__('orders.returns.s.canceled') %>" })[p.to] || p.to) : '')
+            + (p.ttn ? ' · ' + esc(p.ttn) : '')
+            + (p.id_exchange ? ' · <a href="/orders/' + Number(p.id_exchange) + '/">' + esc(p.exchange_reference || '#' + p.id_exchange) + '</a>' : '')
+            + (p.exchange_of ? ' · ' + "<%= i18n.__('orders.returns.exchange_order') %>" + ' ← <a href="/orders/' + Number(p.exchange_of) + '/">' + esc(p.exchange_of_reference || '#' + p.exchange_of) + '</a>' : '');
+        case 'taken': return p.from_name ? "<%= i18n.__('orders.events.taken_from') %>" + ' ' + esc(p.from_name) : '';
+        case 'ttn_created': case 'ttn_deleted': return p.number ? esc(p.number) : '';
+        case 'assigned': return esc(p.from_name || '—') + ' → ' + esc(p.to_name || '—');
+        case 'merged': return (p.orders || []).map((o) => '<a href="/orders/' + Number(o.id) + '/">' + esc(o.reference || '#' + o.id) + '</a>').join(', ');
+        case 'merged_into': return '<a href="/orders/' + Number(p.id) + '/">' + esc(p.reference || '#' + p.id) + '</a>';
+        case 'created': return p.via ? esc(p.via) : '';
+        default: {
+            const t = JSON.stringify(p);
+            return t && t !== '{}' ? '<small class="text-muted">' + esc(t.length > 300 ? t.slice(0, 300) + '…' : t) + '</small>' : '';
+        }
+    }
+}
+
+// ── RAW PAYLOAD (ліниво) ──
+var rawLoaded = false;
+function loadRaw() {
+    if (rawLoaded) return; rawLoaded = true;
+    fetch('/api/orders/' + ORDER_ID + '/raw/', { method: 'POST' })
+        .then(r => r.json()).then(function(d) {
+            document.getElementById('raw-box').textContent = d.payload
+                ? JSON.stringify(d.payload, null, 2)
+                : "<%= i18n.__('orders.page.no_raw') %>";
+        });
+}
+
+// ============================================================
+// КЛІЄНТ У ЗАМОВЛЕННІ
+// ============================================================
+const confBadge = { high: 'text-bg-success', medium: 'text-bg-warning', low: 'text-bg-secondary' };
+const confText  = { high: "<%= i18n.__('orders.page.conf_high') %>", medium: "<%= i18n.__('orders.page.conf_medium') %>", low: "<%= i18n.__('orders.page.conf_low') %>" };
+const reasonMap = {
+    email: 'email', phone: "<%= i18n.__('orders.page.r_phone') %>", name: "<%= i18n.__('orders.page.r_name') %>",
+    same_phone: "<%= i18n.__('orders.page.r_phone') %>", same_email: 'email', same_telegram: 'Telegram', same_instagram: 'Instagram',
+    same_external_site: "<%= i18n.__('orders.page.r_site') %>", same_edrpou: "<%= i18n.__('orders.page.r_edrpou') %>", same_tax_id: "<%= i18n.__('orders.page.r_tax') %>"
+};
+
+const money2 = (v, cur) => money(v, cur || '');
+
+// Один рядок кандидата/результату пошуку з кнопкою «Привʼязати»
+function clientRow(c, withReasons) {
+    let meta = [];
+    if (c.company) meta.push(esc(c.company));
+    if (c.orders_count != null) meta.push(c.orders_count + ' ' + "<%= i18n.__('orders.page.orders_short') %>");
+    if (c.total_spent != null) meta.push('LTV ' + MONEY.format(Number(c.total_spent) || 0));
+    let reasons = '';
+    if (withReasons && c.reasons && c.reasons.length) {
+        reasons = ' ' + c.reasons.map(r => '<span class="badge rounded-0 text-bg-light border">' + (reasonMap[r] || r) + '</span>').join(' ');
+    }
+    let conf = '';
+    if (withReasons && c.confidence) {
+        conf = '<span class="badge rounded-0 ' + (confBadge[c.confidence] || 'text-bg-secondary') + '">' + (confText[c.confidence] || '') + '</span>';
+    }
+    return '<div class="d-flex justify-content-between align-items-center border-bottom py-2">'
+         + '<div><div class="fw-semibold">' + esc(c.display_name || ((c.firstname||'') + ' ' + (c.lastname||''))) + ' '
+         + (c.is_vip ? '<i class="fa-solid fa-star text-warning" title="VIP"></i>' : '') + '</div>'
+         + '<div class="small text-muted">' + esc(c.phone || '') + (c.email ? ' · ' + esc(c.email) : '') + '</div>'
+         + (meta.length ? '<div class="small text-muted">' + meta.join(' · ') + '</div>' : '')
+         + (reasons ? '<div class="mt-1">' + conf + reasons + '</div>' : '')
+         + '</div>'
+         + '<button class="btn btn-sm btn-primary rounded-0" data-action="link-client" data-id="' + c.id + '">' + "<%= i18n.__('orders.page.link') %>" + '</button>'
+         + '</div>';
+}
+
+// Завантаження стану блоку клієнта
+function loadClient() {
+    document.getElementById('client-body').innerHTML = '<div class="spinner-wrap"><span class="spinner-border spinner-border-sm"></span></div>';
+    fetch('/orders/' + ORDER_ID + '/client/', { method: 'POST' })
+        .then(r => r.json())
+        .then(function(d) {
+            // Снапшот — завжди
+            renderSnapshot(d.snapshot || {});
+
+            if (d.linked && d.client) {
+                renderLinkedClient(d.client);
+            } else {
+                renderUnlinked(d.candidates || []);
+            }
+        })
+        .catch(() => {
+            document.getElementById('client-body').innerHTML = '<div class="text-danger small p-2">' + "<%= i18n.__('orders.page.load_error') %>" + '</div>';
+        });
+}
+
+// Снапшот контакту з замовлення
+function renderSnapshot(s) {
+    const rows = [
+        ["<%= i18n.__('orders.page.f_name') %>", [s.firstname, s.lastname].filter(Boolean).join(' ')],
+        ["<%= i18n.__('orders.page.f_company') %>", s.company],
+        ["<%= i18n.__('orders.page.f_phone') %>", s.phone],
+        ['Email', s.email],
+    ].filter(r => r[1]);
+    document.getElementById('snapshot-body').innerHTML = rows.length
+        ? '<table class="table table-sm table-borderless kv mb-0">' + rows.map(r =>
+            '<tr><td class="k">' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>').join('') + '</table>'
+        : '<span class="text-muted small">' + "<%= i18n.__('orders.page.no_contact') %>" + '</span>';
+}
+
+// Стан: клієнт прив'язаний → жива картка
+function renderLinkedClient(c) {
+    document.getElementById('client-badge').innerHTML =
+        '<span class="badge rounded-0 text-bg-success">' + "<%= i18n.__('orders.page.linked') %>" + '</span>';
+    const orders = (c.orders_valid_count || 0) + (c.orders_count !== c.orders_valid_count ? ' / ' + (c.orders_count || 0) : '');
+    document.getElementById('client-body').innerHTML =
+        '<div class="d-flex justify-content-between align-items-start">'
+      + '<div><div class="fw-semibold fs-6">' + esc(c.display_name) + ' '
+      + (c.is_vip ? '<i class="fa-solid fa-crown text-warning" title="VIP"></i>' : '') + '</div>'
+      + '<div class="small text-muted">' + esc(c.phone || '') + (c.email ? ' · ' + esc(c.email) : '') + '</div></div>'
+      + '<a href="/clients/' + c.id + '/" class="btn btn-sm btn-outline-primary rounded-0" title="' + "<%= i18n.__('orders.page.client_card') %>" + '"><i class="fa-solid fa-up-right-from-square"></i></a>'
+      + '</div>'
+      + '<table class="table table-sm table-borderless kv mt-2 mb-2">'
+      + (c.group_name ? '<tr><td class="k">' + "<%= i18n.__('orders.page.price_group') %>" + '</td><td>' + esc(c.group_name) + '</td></tr>' : '')
+      + '<tr><td class="k">' + "<%= i18n.__('orders.page.orders_count') %>" + '</td><td>' + orders + '</td></tr>'
+      + '<tr><td class="k">' + "<%= i18n.__('orders.page.revenue') %>" + '</td><td>' + money2(c.total_spent, c.balance_currency) + '</td></tr>'
+      + '</table>'
+      + '<button class="btn btn-sm btn-outline-danger rounded-0 w-100" data-action="unlink-client">'
+      + '<i class="fa-solid fa-link-slash me-1"></i>' + "<%= i18n.__('orders.page.unlink') %>" + '</button>';
+}
+
+// Стан: не прив'язаний → автозбіги + дії
+function renderUnlinked(candidates) {
+    document.getElementById('client-badge').innerHTML =
+        '<span class="badge rounded-0 text-bg-secondary">' + "<%= i18n.__('orders.page.guest') %>" + '</span>';
+
+    let html = '';
+    if (candidates.length) {
+        html += '<div class="section-title">' + "<%= i18n.__('orders.page.similar') %>" + '</div>';
+        html += candidates.map(c => clientRow(c, true)).join('');
+    } else {
+        html += '<p class="text-muted small mb-2">' + "<%= i18n.__('orders.page.no_matches') %>" + '</p>';
+    }
+    html += '<div class="d-flex gap-2 mt-3">'
+          + '<button class="btn btn-sm btn-outline-secondary rounded-0 flex-fill" data-action="open-client-search"><i class="fa-solid fa-magnifying-glass me-1"></i>' + "<%= i18n.__('orders.page.find') %>" + '</button>'
+          + '<button class="btn btn-sm btn-primary rounded-0 flex-fill" data-action="create-client"><i class="fa-solid fa-user-plus me-1"></i>' + "<%= i18n.__('orders.page.create') %>" + '</button>'
+          + '</div>';
+    document.getElementById('client-body').innerHTML = html;
+}
+
+// Дія: прив'язати
+function linkClient(id_client) {
+    fetch('/api/orders/' + ORDER_ID + '/client/link/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_client })
+    }).then(r => r.json()).then(function(d) {
+        if (d.status === 'success') {
+            bootstrap.Modal.getInstance(document.getElementById('client-search-modal'))?.hide();
+            loadClient();
+        } else alert(d.message || "<%= i18n.__('orders.page.error') %>");
+    });
+}
+
+// Дія: відв'язати
+function unlinkClient() {
+    if (!confirm("<%= i18n.__('orders.page.unlink_q') %>")) return;
+    fetch('/api/orders/' + ORDER_ID + '/client/unlink/', { method: 'POST' })
+        .then(r => r.json()).then(function(d) {
+            if (d.status === 'success') loadClient(); else alert(d.message || "<%= i18n.__('orders.page.error') %>");
+        });
+}
+
+// Дія: створити зі снапшоту (з обробкою дубля 409)
+function createClient() {
+    fetch('/api/orders/' + ORDER_ID + '/client/create/', { method: 'POST' })
+        .then(async r => ({ ok: r.ok, status: r.status, data: await r.json() }))
+        .then(function(res) {
+            if (res.data.status === 'success') { loadClient(); return; }
+            if (res.status === 409 && res.data.candidates) {
+                // Дубль знайдено — пропонуємо прив'язати наявного
+                const list = res.data.candidates.map(c => clientRow(c, false)).join('');
+                document.getElementById('client-body').innerHTML =
+                    '<div class="alert alert-warning rounded-0 small mb-2">' + esc(res.data.message) + '</div>' + list
+                  + '<button class="btn btn-sm btn-outline-secondary rounded-0 w-100 mt-2" data-action="load-client">' + "<%= i18n.__('orders.page.back') %>" + '</button>';
+            } else alert(res.data.message || "<%= i18n.__('orders.page.error') %>");
+        });
+}
+
+// Ручний пошук
+function openClientSearch() {
+    const modal = new bootstrap.Modal(document.getElementById('client-search-modal'));
+    modal.show();
+    document.getElementById('client-search-input').value = '';
+    document.getElementById('client-search-results').innerHTML = '<p class="text-muted small mb-0">' + "<%= i18n.__('orders.page.min2') %>" + '</p>';
+    setTimeout(() => document.getElementById('client-search-input').focus(), 300);
+}
+
+let searchTimer = null;
+document.getElementById('client-search-input').addEventListener('input', function() {
+    const q = this.value.trim();
+    clearTimeout(searchTimer);
+    if (q.length < 2) {
+        document.getElementById('client-search-results').innerHTML = '<p class="text-muted small mb-0">' + "<%= i18n.__('orders.page.min2') %>" + '</p>';
+        return;
+    }
+    searchTimer = setTimeout(function() {
+        fetch('/api/orders/clients/search/', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ q })
+        }).then(r => r.json()).then(function(rows) {
+            document.getElementById('client-search-results').innerHTML = rows.length
+                ? rows.map(c => clientRow(c, false)).join('')
+                : '<p class="text-muted small mb-0">' + "<%= i18n.__('orders.page.nothing') %>" + '</p>';
+        });
+    }, 300); // debounce
+});
+
+loadClient(); // старт
+</script>
+<script>
+/* ─── Склад замовлення ─── */
+(function () {
+    "use strict";
+    const OID = <%= Number(order.id) %>;
+    const T = {
+        state: {
+            none: ["secondary", "<%= i18n.__('catalog.order_stock.state.none') %>"],
+            ok: ["success", "<%= i18n.__('catalog.order_stock.state.ok') %>"],
+            warning: ["warning", "<%= i18n.__('catalog.order_stock.state.warning') %>"],
+            error: ["danger", "<%= i18n.__('catalog.order_stock.state.error') %>"],
+        },
+        msg: {
+            unmapped_items: "<%= i18n.__('catalog.order_stock.msg.unmapped_items') %>",
+            no_warehouse: "<%= i18n.__('catalog.order_stock.msg.no_warehouse') %>",
+            insufficient_to_reserve: "<%= i18n.__('catalog.order_stock.msg.insufficient_to_reserve') %>",
+            insufficient_to_ship: "<%= i18n.__('catalog.order_stock.msg.insufficient_to_ship') %>",
+            variant_required: "<%= i18n.__('catalog.order_stock.msg.variant_required') %>",
+            exception: "<%= i18n.__('catalog.order_stock.msg.exception') %>",
+        },
+        src: {
+            manual: "<%= i18n.__('catalog.order_stock.src.manual') %>",
+            link: "<%= i18n.__('catalog.order_stock.src.link') %>",
+            sku: "<%= i18n.__('catalog.order_stock.src.sku') %>",
+        },
+        default_wh: "<%= i18n.__('catalog.order_stock.default_warehouse') %>",
+        not_mapped: "<%= i18n.__('catalog.order_stock.not_mapped') %>",
+        map: "<%= i18n.__('catalog.order_stock.map') %>",
+        reserved: "<%= i18n.__('catalog.order_stock.reserved') %>",
+        shipped: "<%= i18n.__('catalog.order_stock.shipped') %>",
+        error: "<%= i18n.__('catalog.common.error') %>",
+    };
+    const e = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+    const num = (v) => Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 3 });
+
+    async function api(url, body) {
+        const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || json.ok === false) throw json;
+        return json;
+    }
+    const fail = (err) => alert((err && (err.error || err.message)) || T.error);
+
+    let data = null;
+    const whSel = document.getElementById("os-warehouse");
+
+    function render(d) {
+        data = d;
+        const st = T.state[d.order.stock_state] || T.state.none;
+        const badge = document.getElementById("os-state");
+        badge.className = "badge rounded-0 ms-1 text-bg-" + st[0];
+        badge.textContent = st[1];
+
+        whSel.innerHTML = `<option value="">${e(T.default_wh)}</option>` + d.warehouses.map((w) => `<option value="${w.id}">${e(w.name)}${w.id === d.id_default_warehouse ? " ★" : ""}</option>`).join("");
+        whSel.value = d.order.id_warehouse || "";
+
+        document.getElementById("os-messages").innerHTML = (d.messages || [])
+            .map((m) => `<div class="text-${["insufficient_to_ship", "no_warehouse", "exception"].includes(m.code) ? "danger" : "warning"}"><i class="fa-solid fa-triangle-exclamation"></i> ${e(T.msg[m.code] || m.code)}${m.count ? ": " + Number(m.count) : ""}${m.need ? ": " + num(m.need) : ""}${m.id_product ? " (#" + Number(m.id_product) + ")" : ""}${m.message ? " — " + e(m.message) : ""}</div>`)
+            .join("");
+
+        const sumBy = (list) => {
+            const m = new Map();
+            list.forEach((r) => m.set(r.id_product + ":" + r.id_variant, (m.get(r.id_product + ":" + r.id_variant) || 0) + Number(r.qty)));
+            return m;
+        };
+        const res = sumBy(d.reserved);
+        const shp = sumBy(d.shipped);
+
+        document.getElementById("os-body").innerHTML = d.items.length
+            ? `<table class="table table-sm mb-0 align-middle"><tbody>${d.items
+                  .map((it) => {
+                      const k = it.id_product + ":" + it.id_variant;
+                      const product = it.id_product
+                          ? `<a href="/catalog/products/${it.id_product}/" target="_blank">${e(it.product_name || "#" + it.id_product)}</a> <small class="text-muted">${e(it.variant_sku || it.product_sku || "")}</small>
+                             <span class="badge rounded-0 text-bg-light border">${e(T.src[it.map_source] || it.map_source || "")}</span>`
+                          : `<span class="badge rounded-0 text-bg-danger">${e(T.not_mapped)}</span>`;
+                      const qty = [res.get(k) ? `<span class="badge rounded-0 text-bg-info">${e(T.reserved)} ${num(res.get(k))}</span>` : "", shp.get(k) ? `<span class="badge rounded-0 text-bg-success">${e(T.shipped)} ${num(shp.get(k))}</span>` : ""].join(" ");
+                      return `<tr>
+                          <td class="ps-3"><div>${e(it.name)}</div><small class="text-muted">${e(it.sku || "")} · ×${num(it.quantity)}</small></td>
+                          <td>${product}<div>${qty}</div></td>
+                          <td class="text-end pe-3"><button type="button" class="btn btn-sm btn-outline-primary rounded-0" data-os-map="${it.id}" title="${e(T.map)}"><i class="fa-solid fa-link"></i></button></td>
+                      </tr>`;
+                  })
+                  .join("")}</tbody></table>`
+            : `<div class="p-3 text-muted small">—</div>`;
+    }
+
+    const load = () => api(`/api/orders/${OID}/stock/`).then(render).catch(() => (document.getElementById("os-body").innerHTML = `<div class="p-3 text-danger small">${e(T.error)}</div>`));
+
+    whSel.addEventListener("change", () => api(`/api/orders/${OID}/stock/warehouse/`, { id_warehouse: whSel.value ? Number(whSel.value) : null }).then(load).catch((err) => (fail(err), load())));
+    document.getElementById("os-resync").addEventListener("click", (ev) => {
+        const b = ev.currentTarget;
+        b.disabled = true;
+        api(`/api/orders/${OID}/stock/resync/`).then(load).catch(fail).finally(() => (b.disabled = false));
+    });
+
+    // ── Зіставлення позиції ──
+    const modal = new bootstrap.Modal("#os-map-modal");
+    const search = document.getElementById("os-map-search");
+    const results = document.getElementById("os-map-results");
+    const vBox = document.getElementById("os-map-variant-box");
+    const vSel = document.getElementById("os-map-variant");
+    const picked = document.getElementById("os-map-picked");
+    const saveBtn = document.getElementById("os-map-save");
+    let item = null;
+    let product = null;
+
+    document.getElementById("os-body").addEventListener("click", (ev) => {
+        const b = ev.target.closest("[data-os-map]");
+        if (!b) return;
+        item = data.items.find((x) => x.id === Number(b.dataset.osMap));
+        product = null;
+        search.value = "";
+        results.classList.add("d-none");
+        vBox.classList.add("d-none");
+        picked.textContent = item.id_product ? (item.product_name || "#" + item.id_product) : "";
+        saveBtn.disabled = true;
+        document.getElementById("os-map-item").textContent = `${item.name} · ${item.sku || "—"}${item.external_product_id ? " · ID " + item.external_product_id : ""}`;
+        document.getElementById("os-map-remember-box").classList.toggle("d-none", !item.external_product_id || !data.order.id_integration);
+        document.getElementById("os-map-clear").classList.toggle("d-none", !item.id_product);
+        modal.show();
+    });
+
+    let t;
+    search.addEventListener("input", () => {
+        clearTimeout(t);
+        const s = search.value.trim();
+        if (s.length < 2) return results.classList.add("d-none");
+        t = setTimeout(() => {
+            api("/api/catalog/products/picker/search/", { search: s })
+                .then((r) => {
+                    results.innerHTML = r.rows.map((p) => `<button type="button" class="list-group-item list-group-item-action rounded-0" data-pid="${p.id}">${e(p.name)} <small class="text-muted">${e(p.sku || "")} #${p.id}</small></button>`).join("") || `<div class="list-group-item text-muted">—</div>`;
+                    results.classList.remove("d-none");
+                })
+                .catch(fail);
+        }, 300);
+    });
+    results.addEventListener("click", async (ev) => {
+        const b = ev.target.closest("[data-pid]");
+        if (!b) return;
+        results.classList.add("d-none");
+        try {
+            product = (await api(`/api/catalog/products/picker/${b.dataset.pid}/`)).row;
+            picked.textContent = product.name + (product.sku ? " · " + product.sku : "");
+            vBox.classList.toggle("d-none", !product.variants.length);
+            vSel.innerHTML = product.variants.map((v) => `<option value="${v.id}">${e(v.label)} · ${e(v.sku || "")}</option>`).join("");
+            const same = product.variants.find((v) => item.sku && v.sku === item.sku);
+            if (same) vSel.value = same.id;
+            saveBtn.disabled = false;
+        } catch (err) {
+            fail(err);
+        }
+    });
+
+    async function saveMap(body) {
+        try {
+            await api(`/api/orders/${OID}/stock/map/`, { id_item: item.id, ...body });
+            modal.hide();
+            load();
+        } catch (err) {
+            fail(err);
+        }
+    }
+    saveBtn.addEventListener("click", () =>
+        saveMap({ id_product: product.id, id_variant: product.variants.length ? Number(vSel.value) : 0, remember: document.getElementById("os-map-remember").checked })
+    );
+    document.getElementById("os-map-clear").addEventListener("click", () => saveMap({ id_product: null }));
+
+    load();
+})();
+</script>
+<script>
+// ── Повідомлення клієнту (Viber / SMS через SMSClub): журнал, шаблони, ручна відправка ──
+(function () {
+    const B = '/api/orders/' + ORDER_ID + '/messages/';
+    const $m = (id) => document.getElementById(id);
+    const STATE = { pending: 'secondary', processing: 'info', sent: 'success', failed: 'danger' };
+    let tpl = [];
+    let loaded = false;
+
+    async function call(url, body) {
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+        const r = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(r.message || 'Error');
+        return r;
+    }
+    const state = (text, ok) => { const s = $m('msg-state'); if (s) { s.className = 'small text-' + (ok ? 'success' : 'danger'); s.textContent = text; } };
+
+    async function load() {
+        try {
+            const r = await call(B);
+            tpl = r.templates || [];
+            if ($m('msg-template') && !loaded) {
+                $m('msg-template').insertAdjacentHTML('beforeend', tpl.map((t) => '<option value="' + t.id + '">' + esc(t.name) + '</option>').join(''));
+                $m('msg-service').innerHTML = (r.services || []).map((s) => '<option value="' + s.id + '">' + esc(s.name) + '</option>').join('') || '<option value="">' + "<%= i18n.__('orders.messages.no_service') %>" + '</option>';
+            }
+            loaded = true;
+            $m('msg-list').innerHTML = r.rows.length
+                ? '<table class="table table-sm align-middle mb-0"><tbody>' + r.rows.map((m) =>
+                    '<tr><td class="text-nowrap small text-muted" style="width:150px">' + esc(m.sent_at || m.date_add) + '</td>'
+                    + '<td style="width:120px"><span class="badge rounded-0 text-bg-' + (STATE[m.status] || 'secondary') + '">' + esc(({ title: "<%= i18n.__('orders.messages.title') %>", tab: "<%= i18n.__('orders.messages.tab') %>", help: "<%= i18n.__('orders.messages.help') %>", templates: "<%= i18n.__('orders.messages.templates') %>", add: "<%= i18n.__('orders.messages.add') %>", name: "<%= i18n.__('orders.messages.name') %>", trigger: "<%= i18n.__('orders.messages.trigger') %>", active: "<%= i18n.__('orders.messages.active') %>", service: "<%= i18n.__('orders.messages.service') %>", statuses: "<%= i18n.__('orders.messages.statuses') %>", sites: "<%= i18n.__('orders.messages.sites') %>", sites_hint: "<%= i18n.__('orders.messages.sites_hint') %>", text: "<%= i18n.__('orders.messages.text') %>", vars: "<%= i18n.__('orders.messages.vars') %>", tr_manual: "<%= i18n.__('orders.messages.tr_manual') %>", tr_new: "<%= i18n.__('orders.messages.tr_new') %>", tr_status: "<%= i18n.__('orders.messages.tr_status') %>", tr_ttn: "<%= i18n.__('orders.messages.tr_ttn') %>", tr_delivered: "<%= i18n.__('orders.messages.tr_delivered') %>", tr_returned: "<%= i18n.__('orders.messages.tr_returned') %>", save: "<%= i18n.__('orders.messages.save') %>", saved: "<%= i18n.__('orders.messages.saved') %>", delete: "<%= i18n.__('orders.messages.delete') %>", confirm_delete: "<%= i18n.__('orders.messages.confirm_delete') %>", no_templates: "<%= i18n.__('orders.messages.no_templates') %>", no_service: "<%= i18n.__('orders.messages.no_service') %>", own_text: "<%= i18n.__('orders.messages.own_text') %>", text_ph: "<%= i18n.__('orders.messages.text_ph') %>", preview: "<%= i18n.__('orders.messages.preview') %>", send: "<%= i18n.__('orders.messages.send') %>", confirm: "<%= i18n.__('orders.messages.confirm') %>", queued: "<%= i18n.__('orders.messages.queued') %>", empty: "<%= i18n.__('orders.messages.empty') %>", no_phone: "<%= i18n.__('orders.messages.no_phone') %>", auto: "<%= i18n.__('orders.messages.auto') %>", manual: "<%= i18n.__('orders.messages.manual') %>", quiet: "<%= i18n.__('orders.messages.quiet') %>", st_pending: "<%= i18n.__('orders.messages.st_pending') %>", st_processing: "<%= i18n.__('orders.messages.st_processing') %>", st_sent: "<%= i18n.__('orders.messages.st_sent') %>", st_failed: "<%= i18n.__('orders.messages.st_failed') %>", e_required: "<%= i18n.__('orders.messages.e_required') %>", e_order: "<%= i18n.__('orders.messages.e_order') %>", e_service: "<%= i18n.__('orders.messages.e_service') %>" })['st_' + m.status] || m.status) + '</span>'
+                    + (m.status === 'pending' && m.attempts == 0 && m.source === 'auto' ? '<div class="small text-muted">' + "<%= i18n.__('orders.messages.quiet') %>" + '</div>' : '') + '</td>'
+                    + '<td class="small" style="white-space:pre-wrap">' + esc(m.text) + (m.last_error ? '<div class="text-danger">' + esc(m.last_error) + '</div>' : '') + '</td>'
+                    + '<td class="small text-muted text-end text-nowrap">' + esc(m.template || (m.source === 'auto' ? "<%= i18n.__('orders.messages.auto') %>" : "<%= i18n.__('orders.messages.manual') %>")) + '<div>' + esc(m.user_name || '') + '</div>' + esc(m.phone || '') + '</td></tr>'
+                  ).join('') + '</tbody></table>'
+                : '<p class="text-muted mb-0">' + "<%= i18n.__('orders.messages.empty') %>" + '</p>';
+        } catch (e) {
+            $m('msg-list').innerHTML = '<p class="text-danger mb-0">' + esc(e.message) + '</p>';
+        }
+    }
+
+    document.querySelector('[data-bs-target="#tab-messages"]').addEventListener('shown.bs.tab', () => !loaded && load());
+    if (!$m('msg-send')) return;
+
+    $m('msg-template').addEventListener('change', function () {
+        const t = tpl.find((x) => String(x.id) === this.value);
+        if (t) {
+            $m('msg-text').value = t.text;
+            if (t.id_service) $m('msg-service').value = t.id_service;
+        }
+    });
+    $m('msg-preview').addEventListener('click', async () => {
+        try {
+            const r = await call(B + 'preview/', { text: $m('msg-text').value });
+            const box = $m('msg-preview-box');
+            box.firstElementChild.textContent = r.text + '\n\n→ ' + (r.phone || "<%= i18n.__('orders.messages.no_phone') %>");
+            box.classList.remove('d-none');
+        } catch (e) { state(e.message); }
+    });
+    $m('msg-send').addEventListener('click', async function () {
+        if (!$m('msg-text').value.trim() || !confirm("<%= i18n.__('orders.messages.confirm') %>")) return;
+        this.disabled = true;
+        try {
+            await call(B + 'send/', { text: $m('msg-text').value, id_template: $m('msg-template').value || null, id_service: $m('msg-service').value || null });
+            state("<%= i18n.__('orders.messages.queued') %>", true);
+            $m('msg-text').value = '';
+            $m('msg-preview-box').classList.add('d-none');
+            setTimeout(load, 3000);
+            load();
+        } catch (e) { state(e.message); }
+        finally { this.disabled = false; }
+    });
+})();
+</script>
+</body>

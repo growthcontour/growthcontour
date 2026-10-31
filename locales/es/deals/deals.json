@@ -1,0 +1,38 @@
+{
+    "audit": {
+        "action": {
+            "create": "Created",
+            "update": "Updated",
+            "delete": "Deleted",
+            "restore": "Restored",
+            "view": "Viewed",
+            "export": "Exported",
+            "stage_change": "Stage change",
+            "status_change": "Status change"
+        },
+        "entity": {
+            "deal": "Deal",
+            "quote": "Quote",
+            "contract": "Contract",
+            "invoice": "Invoice",
+            "act": "Act",
+            "activity": "Activity",
+            "task": "Task"
+        },
+        "field": {
+            "id_quote_status": "Quote status",
+            "probability": "Probability",
+            "id_stage": "Stage",
+            "id_lost_reason": "Lost reason",
+            "competitor_name": "Competitor",
+            "amount": "Amount",
+            "amount_final": "Amount with VAT",
+            "date_close_plan": "Close date (plan)",
+            "date_close_fact": "Close date (fact)",
+            "id_user": "Manager",
+            "title": "Title",
+            "description": "Description",
+            "notes": "Notes"
+        }
+    }
+}

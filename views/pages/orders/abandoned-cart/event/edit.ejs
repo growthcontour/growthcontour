@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+
+<head>
+    <%- include('../../../../partials/head'); %>
+</head>
+
+<body class="d-flex flex-column h-100">
+    <%- include('../../../../partials/header'); %>
+        <!-- Breadcrumb -->
+        <div class="breadcrumbs pt-3 pb-3">
+            <div class="container-fluid">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <span>
+                            <%= event.name %>
+                        </span>
+                        <div>
+                            <ul class="list-inline mb-0">
+                                <li class="list-inline-item">
+                                    <a href="/"><i class="fas fa-home"></i> <span>Головна</span></a>
+                                </li>
+                                <li class="list-inline-item">
+                                    <i class="fas fa-chevron-right"></i>
+                                    <%= event.name %>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- END Breadcrumb -->
+        <div class="container-fluid mt-3">
+            <div class="row">
+                <div class="col-12 mb-3">
+
+
+                    <div class="row g-3">
+
+                        <!-- Ліва колонка -->
+                        <div class="col-12 col-xl-8">
+                            <div class="card border-primary rounded-0 mb-3">
+                                <div class="card-header text-bg-primary rounded-0">
+                                    Основні налаштування
+                                </div>
+                                <div class="card-body">
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Назва події <span class="text-danger">*</span></label>
+                                        <input type="text" id="event-name" class="form-control rounded-0"
+                                            value="<%= event.name %>">
+                                    </div>
+
+                                <!-- Сайт -->
+                                <div class="mb-3">
+                                    <label class="form-label">Сайт (джерело)</label>
+                                    <select id="event-integration" class="form-select rounded-0"
+                                        data-integration-id="<%= event.id_integration != null ? event.id_integration : '' %>">
+                                        <option value="">— Усі сайти —</option>
+                                    </select>
+                                    <div class="form-text">Порожньо = подія працює для кошиків з усіх сайтів.</div>
+                                </div>
+
+                                <!-- Сервіс -->
+                                <div class="mb-3">
+                                    <label class="form-label">Сервіс відправки <span class="text-danger">*</span></label>
+                                    <select id="event-service" class="form-select rounded-0">
+                                            <option value="">— Оберіть сервіс —</option>
+                                        </select>
+                                        <div id="service-not-connected" class="form-text text-danger d-none">
+                                            <i class="fa-regular fa-triangle-exclamation"></i>
+                                            Сервіс не підключений. <a href="/abandoned-cart/services/">Підключити</a>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Затримка відправки <span
+                                                class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <input type="number" id="event-delay" class="form-control rounded-0"
+                                                value="<%= event.delay_hours %>" min="1" max="720">
+                                            <span class="input-group-text rounded-0">годин після покинення кошика</span>
+                                        </div>
+                                    </div>
+
+                                                            </div>
+                            </div>
+
+                            <!-- Розклад відправлення -->
+                            <div class="card border-primary rounded-0 mb-3">
+                                <div class="card-header text-bg-primary rounded-0">Розклад відправлення</div>
+                                <div class="card-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Додаткова затримка (хв)</label>
+                                            <input type="number" id="event-delay-min" class="form-control rounded-0"
+                                                value="<%= event.delay_minutes %>" min="0" max="59">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Мін. сума кошика</label>
+                                            <input type="number" id="event-min-amount" class="form-control rounded-0"
+                                                value="<%= event.min_cart_amount %>" min="0" step="0.01">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Відправляти з</label>
+                                            <input type="time" id="event-time-from" class="form-control rounded-0"
+                                                value="<%= String(event.send_time_from).slice(0,5) %>">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Відправляти до</label>
+                                            <input type="time" id="event-time-to" class="form-control rounded-0"
+                                                value="<%= String(event.send_time_to).slice(0,5) %>">
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label d-block">Дні відправлення</label>
+                                            <div class="btn-group flex-wrap" role="group" id="event-days">
+                                                <% const dayLabels = ['Пн','Вт','Ср','Чт','Пт','Сб','Нд']; %>
+                                                <% for (let i = 0; i < 7; i++) { %>
+                                                    <input type="checkbox" class="btn-check day-check" id="day-<%= i %>" value="<%= i %>"
+                                                        <%= (event.send_days & (1 << i)) ? 'checked' : '' %>>
+                                                    <label class="btn btn-outline-primary rounded-0" for="day-<%= i %>"><%= dayLabels[i] %></label>
+                                                <% } %>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Режим повтору</label>
+                                            <select id="event-resend-mode" class="form-select rounded-0">
+                                                <option value="once" <%= event.resend_mode === 'once' ? 'selected' : '' %>>Один раз</option>
+                                                <option value="once_repeat" <%= event.resend_mode === 'once_repeat' ? 'selected' : '' %>>Один раз + повтор</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Повтор через (год)</label>
+                                            <input type="number" id="event-repeat-hours" class="form-control rounded-0"
+                                                value="<%= event.repeat_after_hours %>" min="1" max="8760">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Шаблон повідомлення -->
+                            <div class="card border-primary rounded-0">
+                                <div
+                                    class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+                                    <span>Шаблон повідомлення</span>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <button type="button" class="btn btn-sm btn-light rounded-0 btn-placeholder"
+                                            data-placeholder="{firstname}">firstname</button>
+                                        <button type="button" class="btn btn-sm btn-light rounded-0 btn-placeholder"
+                                            data-placeholder="{lastname}">lastname</button>
+                                        <button type="button" class="btn btn-sm btn-light rounded-0 btn-placeholder"
+                                            data-placeholder="{telephone}">telephone</button>
+                                        <button type="button" class="btn btn-sm btn-light rounded-0 btn-placeholder"
+                                            data-placeholder="{total_amount}">total_amount</button>
+                                        <button type="button" class="btn btn-sm btn-light rounded-0 btn-placeholder"
+                                            data-placeholder="{currency}">currency</button>
+                                        <button type="button" class="btn btn-sm btn-light rounded-0 btn-placeholder"
+                                            data-placeholder="{items_count}">items_count</button>
+                                        <button type="button" class="btn btn-sm btn-light rounded-0 btn-placeholder"
+                                            data-placeholder="{recovery_url}">recovery_url</button>
+                                        <button type="button" class="btn btn-sm btn-light rounded-0 btn-placeholder"
+                                            data-placeholder="{products}">products</button>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <textarea id="event-message" class="form-control rounded-0"
+                                        rows="8"><%= event.message %></textarea>
+                                    <div class="form-text">
+                                        Натисніть на кнопку плейсхолдера щоб вставити його в позицію курсора.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Права колонка -->
+                        <div class="col-12 col-xl-4">
+
+                            <div class="card border-primary rounded-0 mb-3">
+                                <div class="card-header text-bg-primary rounded-0">
+                                    Збереження
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Статус</label>
+                                        <select id="event-active" class="form-select rounded-0">
+                                            <option value="1" <%=event.active==1 ? 'selected' : '' %>>Активна</option>
+                                            <option value="0" <%=event.active==0 ? 'selected' : '' %>>Вимкнена</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Порядок сортування</label>
+                                        <input type="number" id="event-sort" class="form-control rounded-0"
+                                            value="<%= event.sort_order %>" min="0">
+                                    </div>
+                                    <div id="save-error" class="alert alert-danger rounded-0 d-none"></div>
+                                    <div id="save-success" class="alert alert-success rounded-0 d-none">Збережено.</div>
+                                    <button type="button" id="btn-save" class="btn btn-primary rounded-0 mb-2 w-100">
+                                        <i class="fa-regular fa-floppy-disk me-1"></i> Зберегти
+                                    </button>
+                                    <button type="button" id="btn-run" class="btn btn-warning rounded-0 mb-2 w-100">
+                                        <i class="fa-regular fa-paper-plane me-1"></i> Запустити зараз
+                                    </button>
+                                    <a href="/orders/abandoned-cart/event/<%= event.id %>/logs/" class="btn btn-outline-secondary rounded-0 mb-2 w-100">
+                                        <i class="fa-regular fa-file-lines me-1"></i> Логи події
+                                    </a>
+                                    <div id="run-error" class="alert alert-danger  rounded-0 d-none"></div>
+                                    <div id="run-success" class="alert alert-success rounded-0 d-none"></div>
+                                </div>
+                            </div>
+
+                            <!-- Превью -->
+                            <div class="card border-secondary rounded-0 mb-3">
+                                <div class="card-header text-bg-secondary rounded-0">
+                                    Превью повідомлення
+                                </div>
+                                <div class="card-body">
+                                    <div id="message-preview" class="p-3 text-white"
+                                        style="background:#7360f2; min-height:120px; white-space:pre-wrap; font-size:14px; line-height:1.5">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Інфо -->
+                            <div class="card border-secondary rounded-0">
+                                <div class="card-header text-bg-secondary rounded-0">
+                                    Інформація
+                                </div>
+                                <div class="card-body p-0">
+                                    <table class="table table-sm table-bordered mb-0">
+                                        <tbody>
+                                            <tr>
+                                                <td class="text-muted" style="width:120px">ID</td>
+                                                <td>
+                                                    <%= event.id %>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-muted">Сервіс</td>
+                                                <td>
+                                                    <% if (event.service_logo) { %>
+                                                        <img src="<%= event.service_logo %>" style="height:16px"
+                                                            class="me-1">
+                                                        <% } %>
+                                                            <%= event.service_name %>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-muted">Date add</td>
+                                                <td>
+                                                    <%= event.date_add %>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-muted">Date edit</td>
+                                                <td>
+                                                    <%= event.date_edit %>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <%- include('../../../../partials/footer'); %>
+            <%- include('../../../../partials/script'); %>
+                <script>
+                        $(document).ready(function () {
+
+                        const currentServiceId = parseInt("<%= event.service_id %>");
+                        const currentIntegrationId = "<%= event.id_integration != null ? event.id_integration : '' %>";
+
+                        // Завантаження сервісів
+                        $.ajax({
+                            url: "/api/orders/abandoned-cart/services-list/",
+                            method: "POST",
+                            success: function (data) {
+                                const channelMap = { 1: "SMS", 2: "Email", 3: "Viber" };
+
+                                $.each(data, function (i, service) {
+                                    const selected = parseInt(service.id) === currentServiceId ? "selected" : "";
+                                    $("#event-service").append(
+                                        `<option value="${service.id}" data-is-connected="${service.is_connected}" ${selected}>
+                        ${service.name} (${channelMap[service.channel] || "—"})
+                    </option>`
+                                    );
+                                });
+                            },
+                            error: function () {
+                                console.error("Помилка завантаження сервісів.");
+                            }
+                        });
+
+
+                        // Попередження якщо сервіс не підключений
+                        $("#event-service").on("change", function () {
+                            const isConnected = parseInt($(this).find(":selected").data("is-connected"));
+                            if ($(this).val() && isConnected === 0) {
+                                $("#service-not-connected").removeClass("d-none");
+                            } else {
+                                $("#service-not-connected").addClass("d-none");
+                            }
+                        });
+
+                    });
+                </script>
+                <script>
+                (async () => {
+                    const select = document.getElementById("event-integration");
+                    if (!select) return;
+                    
+                    // Отримуємо ID з data-атрибута
+                    const selectedId = select.dataset.integrationId || "";
+                    
+                    try {
+                    const response = await fetch("/api/orders/abandoned-cart/integrations-list/", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" }
+                    });
+                    
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    
+                    const integrations = await response.json();
+                    
+                    // Використовуємо DocumentFragment для кращої продуктивності
+                    const fragment = document.createDocumentFragment();
+                    
+                    integrations.forEach(item => {
+                        const option = new Option(item.name, item.id);
+                        option.selected = String(item.id) === selectedId;
+                        fragment.appendChild(option);
+                    });
+                    
+                    select.appendChild(fragment);
+                    } catch (error) {
+                    console.error("Failed to load integrations:", error);
+                    // Можна показати повідомлення користувачу
+                    }
+                })();
+                </script>
+
+                <script>
+                    const eventId = "<%= event.id %>";
+                    // =====================================================
+                    // Плейсхолдери
+                    // =====================================================
+                    document.querySelectorAll(".btn-placeholder").forEach(btn => {
+                        btn.addEventListener("click", function () {
+                            const textarea = document.getElementById("event-message");
+                            const placeholder = this.dataset.placeholder;
+                            const start = textarea.selectionStart;
+                            const end = textarea.selectionEnd;
+
+                            textarea.value = textarea.value.slice(0, start) + placeholder + textarea.value.slice(end);
+
+                            const newPos = start + placeholder.length;
+                            textarea.setSelectionRange(newPos, newPos);
+                            textarea.focus();
+                            updatePreview();
+                        });
+                    });
+
+
+                    // =====================================================
+                    // Превью
+                    // =====================================================
+                    function updatePreview() {
+                        const text = document.getElementById("event-message").value;
+                        document.getElementById("message-preview").textContent = text || "Тут відобразиться повідомлення...";
+                    }
+
+                    document.getElementById("event-message").addEventListener("input", updatePreview);
+
+
+                    // =====================================================
+                    // Збереження
+                    // =====================================================
+                    document.getElementById("btn-save").addEventListener("click", async function () {
+                                                const name = document.getElementById("event-name").value.trim();
+                        const service_id = document.getElementById("event-service").value;
+                        const delay_hours = document.getElementById("event-delay").value;
+                        const message = document.getElementById("event-message").value;
+                        const active = document.getElementById("event-active").value;
+                        const sort_order = document.getElementById("event-sort").value;
+
+                        // поля розкладу
+                        const delay_minutes = document.getElementById("event-delay-min").value;
+                        const min_cart_amount = document.getElementById("event-min-amount").value;
+                        const send_time_from = document.getElementById("event-time-from").value;
+                        const send_time_to = document.getElementById("event-time-to").value;
+                        const send_days = Array.from(document.querySelectorAll(".day-check:checked")).map((c) => parseInt(c.value));
+                        const resend_mode = document.getElementById("event-resend-mode").value;
+                        const repeat_after_hours = document.getElementById("event-repeat-hours").value;
+
+                        const errorBox = document.getElementById("save-error");
+                        const successBox = document.getElementById("save-success");
+                        errorBox.classList.add("d-none");
+                        successBox.classList.add("d-none");
+
+                        if (!name) {
+                            errorBox.textContent = "Введіть назву події.";
+                            errorBox.classList.remove("d-none");
+                            return;
+                        }
+                        if (!service_id) {
+                            errorBox.textContent = "Оберіть сервіс.";
+                            errorBox.classList.remove("d-none");
+                            return;
+                        }
+                        if (!message.trim()) {
+                            errorBox.textContent = "Введіть текст повідомлення.";
+                            errorBox.classList.remove("d-none");
+                            return;
+                        }
+
+                        try {
+                            this.disabled = true;
+                            this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Збереження...';
+
+                            const res = await fetch("/api/orders/abandoned-cart/events-save/", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                    id: eventId,
+                                    service_id: parseInt(service_id),
+                                    id_integration: document.getElementById("event-integration").value || null,
+                                    name,
+                                    delay_hours: parseInt(delay_hours),
+                                    delay_minutes: parseInt(delay_minutes),
+                                    min_cart_amount: parseFloat(min_cart_amount),
+                                    send_time_from,
+                                    send_time_to,
+                                    send_days,
+                                    resend_mode,
+                                    repeat_after_hours: parseInt(repeat_after_hours),
+                                    message,
+                                    active: parseInt(active),
+                                    sort_order: parseInt(sort_order)
+                                })
+                            });
+
+                            const data = await res.json();
+
+                            if (!res.ok) {
+                                errorBox.textContent = data.message || "Помилка збереження.";
+                                errorBox.classList.remove("d-none");
+                                return;
+                            }
+
+                            successBox.classList.remove("d-none");
+
+                        } catch (e) {
+                            errorBox.textContent = "Помилка сервера.";
+                            errorBox.classList.remove("d-none");
+                        } finally {
+                            this.disabled = false;
+                            this.innerHTML = '<i class="fa-regular fa-floppy-disk me-1"></i> Зберегти';
+                        }
+                    });
+
+
+                    // =====================================================
+                    // Ініціалізація
+                    // =====================================================
+                    updatePreview();
+
+                    document.getElementById("btn-run").addEventListener("click", async function () {
+                        const errorBox = document.getElementById("run-error");
+                        const successBox = document.getElementById("run-success");
+                        errorBox.classList.add("d-none");
+                        successBox.classList.add("d-none");
+
+                        try {
+                            this.disabled = true;
+                            this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Відправка...';
+
+                            const res = await fetch("/api/orders/abandoned-cart/events-run/", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ event_id: eventId })
+                                // Більше нічого не передаємо — сервер сам бере кошик і телефон
+                            });
+
+                            const data = await res.json();
+
+                            if (!res.ok) {
+                                errorBox.textContent = data.message || "Помилка відправки.";
+                                errorBox.classList.remove("d-none");
+                                return;
+                            }
+
+                            successBox.innerHTML = `
+            Повідомлення відправлено.<br>
+            <small class="text-muted">
+                Отримувач: ${data.recipient}<br>
+                Кошик ID: ${data.cart_id}
+            </small>
+        `;
+                            successBox.classList.remove("d-none");
+
+                        } catch (e) {
+                            errorBox.textContent = "Помилка сервера.";
+                            errorBox.classList.remove("d-none");
+                        } finally {
+                            this.disabled = false;
+                            this.innerHTML = '<i class="fa-regular fa-paper-plane me-1"></i> Запустити зараз';
+                        }
+                    });
+                </script>
+
+</body>
+
+</html>

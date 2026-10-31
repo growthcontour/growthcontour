@@ -1,0 +1,165 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.history.batches.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('catalog.history.batches.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('catalog.history.batches.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/catalog/"><%= i18n.__('catalog.history.batches.breadcrumb.catalog') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('catalog.history.batches.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/catalog" class="btn btn-primary rounded-0">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<h1 class="h4 mb-2"><%= i18n.__('catalog.history.batches.title') %></h1>
+				<div class="form-text mt-0 mb-3"><%= i18n.__('catalog.history.batches.help') %></div>
+				<div class="card rounded-0">
+					<div class="card-body p-0 table-responsive">
+						<table class="table table-sm table-hover align-middle mb-0">
+							<thead>
+								<tr>
+									<th><%= i18n.__('catalog.history.batches.when') %></th>
+									<th><%= i18n.__('catalog.history.batches.operation') %></th>
+									<th><%= i18n.__('catalog.history.batches.who') %></th>
+									<th class="text-end"><%= i18n.__('catalog.history.batches.products') %></th>
+									<th><%= i18n.__('catalog.history.batches.state') %></th>
+									<th></th>
+								</tr>
+							</thead>
+							<tbody id="hb-rows"></tbody>
+						</table>
+					</div>
+					<div class="card-footer rounded-0 d-none" id="hb-more-wrap">
+						<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="hb-more"><%= i18n.__('catalog.history.more') %></button>
+					</div>
+				</div>
+				<div class="alert alert-warning rounded-0 mt-3 d-none" id="hb-report"></div>
+			</div>
+		</main>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const B = ({ title: "<%= i18n.__('catalog.history.batches.title') %>", breadcrumb: { home: "<%= i18n.__('catalog.history.batches.breadcrumb.home') %>", catalog: "<%= i18n.__('catalog.history.batches.breadcrumb.catalog') %>", current: "<%= i18n.__('catalog.history.batches.breadcrumb.current') %>" }, menu: "<%= i18n.__('catalog.history.batches.menu') %>", help: "<%= i18n.__('catalog.history.batches.help') %>", empty: "<%= i18n.__('catalog.history.batches.empty') %>", when: "<%= i18n.__('catalog.history.batches.when') %>", operation: "<%= i18n.__('catalog.history.batches.operation') %>", who: "<%= i18n.__('catalog.history.batches.who') %>", products: "<%= i18n.__('catalog.history.batches.products') %>", state: "<%= i18n.__('catalog.history.batches.state') %>", revert: "<%= i18n.__('catalog.history.batches.revert') %>", reverted: "<%= i18n.__('catalog.history.batches.reverted') %>", confirm: "<%= i18n.__('catalog.history.batches.confirm') %>", done: "<%= i18n.__('catalog.history.batches.done') %>", skipped: "<%= i18n.__('catalog.history.batches.skipped') %>", field_later: "<%= i18n.__('catalog.history.batches.field_later') %>", bulk_action: { status: "<%= i18n.__('catalog.history.batches.bulk_action.status') %>", visibility: "<%= i18n.__('catalog.history.batches.bulk_action.visibility') %>", featured: "<%= i18n.__('catalog.history.batches.bulk_action.featured') %>", compare_from_price: "<%= i18n.__('catalog.history.batches.bulk_action.compare_from_price') %>", price: "<%= i18n.__('catalog.history.batches.bulk_action.price') %>", brand: "<%= i18n.__('catalog.history.batches.bulk_action.brand') %>", categories: "<%= i18n.__('catalog.history.batches.bulk_action.categories') %>", delete: "<%= i18n.__('catalog.history.batches.bulk_action.delete') %>", currency: "<%= i18n.__('catalog.history.batches.bulk_action.currency') %>", fixed_price: "<%= i18n.__('catalog.history.batches.bulk_action.fixed_price') %>", formula: "<%= i18n.__('catalog.history.batches.bulk_action.formula') %>" } });
+				const EDIT = <%- perms.edit ? "true" : "false" %>;
+				const notyf = new Notyf({ duration: 5000, position: { x: "right", y: "top" } });
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s === null || s === undefined ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const when = (ts) => (ts ? new Date(ts).toLocaleString() : "");
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					let j = {};
+					try {
+						j = await res.json();
+					} catch (e) {}
+					if (!res.ok || !j.ok) throw new Error(j.error || "Error");
+					return j;
+				}
+
+				// Назва операції: джерело + дія масового редагування або ім'я файлу імпорту
+				const opName = (b) => {
+					const src = (({ card: "<%= i18n.__('catalog.history.source.card') %>", bulk: "<%= i18n.__('catalog.history.source.bulk') %>", import: "<%= i18n.__('catalog.history.source.import') %>", copy: "<%= i18n.__('catalog.history.source.copy') %>", trash: "<%= i18n.__('catalog.history.source.trash') %>", sync: "<%= i18n.__('catalog.history.source.sync') %>", api: "<%= i18n.__('catalog.history.source.api') %>", revert: "<%= i18n.__('catalog.history.source.revert') %>", schedule: "<%= i18n.__('catalog.history.source.schedule') %>", currency: "<%= i18n.__('catalog.history.source.currency') %>", formula: "<%= i18n.__('catalog.history.source.formula') %>", base_change: "<%= i18n.__('catalog.history.source.base_change') %>", receipt: "<%= i18n.__('catalog.history.source.receipt') %>" }) || {})[b.source] || b.source;
+					const what = b.source === "bulk" ? (B.bulk_action || {})[b.title] || b.title : b.title;
+					return esc(src) + (what ? ": <b>" + esc(what) + "</b>" : "");
+				};
+				const actionsText = (c) => Object.entries(c || {}).map(([a, n]) => esc((({ create: "<%= i18n.__('catalog.history.action.create') %>", update: "<%= i18n.__('catalog.history.action.update') %>", delete: "<%= i18n.__('catalog.history.action.delete') %>", restore: "<%= i18n.__('catalog.history.action.restore') %>" }) || {})[a] || a) + " " + n).join(", ");
+
+				let offset = 0;
+				const rows = new Map();
+				function row(b) {
+					rows.set(b.batch, b);
+					const state = b.reverted
+						? `<span class="badge rounded-0 text-bg-secondary">${esc(B.reverted)}</span> <span class="small text-secondary">${esc(when(b.reverted.ts))}${b.reverted.user ? " · " + esc(b.reverted.user.name || "#" + b.reverted.user.id) : ""}</span>`
+						: "";
+					const btn = EDIT && !b.reverted ? `<button type="button" class="btn btn-sm btn-outline-danger rounded-0" data-revert="${esc(b.batch)}"><i class="fa-solid fa-rotate-left"></i> ${esc(B.revert)}</button>` : "";
+					return `<tr data-batch="${esc(b.batch)}">
+						<td class="text-nowrap small">${esc(when(b.ts))}</td>
+						<td>${opName(b)}<div class="small text-secondary">${actionsText(b.counts)}</div></td>
+						<td class="small">${esc(b.user ? b.user.name || "#" + b.user.id : "<%= i18n.__('catalog.history.system') %>")}</td>
+						<td class="text-end">${b.products}</td>
+						<td>${state}</td>
+						<td class="text-end text-nowrap">${btn}</td></tr>`;
+				}
+
+				async function load(reset) {
+					if (reset) {
+						offset = 0;
+						rows.clear();
+						$("hb-rows").innerHTML = `<tr><td colspan="6" class="p-3 text-secondary"><span class="spinner-border spinner-border-sm"></span></td></tr>`;
+					}
+					try {
+						const r = await api("/api/catalog/history/batches/", { offset, limit: 30 });
+						if (reset) $("hb-rows").innerHTML = "";
+						$("hb-rows").insertAdjacentHTML("beforeend", r.rows.map(row).join(""));
+						if (!rows.size) $("hb-rows").innerHTML = `<tr><td colspan="6" class="p-3 text-secondary">${esc(B.empty)}</td></tr>`;
+						offset += 30;
+						$("hb-more-wrap").classList.toggle("d-none", !r.has_more);
+					} catch (e) {
+						$("hb-rows").innerHTML = `<tr><td colspan="6" class="p-3 text-danger">${esc(e.message)}</td></tr>`;
+					}
+				}
+				$("hb-more").addEventListener("click", () => load(false));
+
+				$("hb-rows").addEventListener("click", async (e) => {
+					const btn = e.target.closest("[data-revert]");
+					if (!btn) return;
+					const b = rows.get(btn.dataset.revert);
+					if (!confirm(B.confirm.replace("%s", (b.source === "bulk" ? (B.bulk_action || {})[b.title] || b.title : b.title) || b.source).replace("%n", b.products))) return;
+					btn.disabled = true;
+					btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+					try {
+						const r = await api(`/api/catalog/history/batches/${encodeURIComponent(b.batch)}/revert/`);
+						notyf.success(B.done.replace("%r", r.reverted).replace("%d", r.deleted).replace("%s", r.restored));
+						const rep = $("hb-report");
+						if (r.skipped.length) {
+							rep.innerHTML = `<div class="fw-semibold mb-1">${esc(B.skipped)}</div><ul class="mb-0 small">` +
+								r.skipped.map((s) => `<li><a href="/catalog/products/${Number(s.id)}/" target="_blank">#${Number(s.id)}</a> — ${esc(s.fields ? B.field_later + ": " + s.fields.join(", ") : s.error)}</li>`).join("") + "</ul>";
+							rep.classList.remove("d-none");
+						} else rep.classList.add("d-none");
+					} catch (err) {
+						notyf.error(err.message);
+					}
+					load(true);
+				});
+
+				load(true);
+			})();
+		</script>
+	</body>
+</html>

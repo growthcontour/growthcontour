@@ -1,0 +1,288 @@
+<%
+	// Активний пункт меню — за поточною адресою (res.locals.currentPath):
+	// розділ — за префіксом адреси, підпункт — найдовше посилання меню, з якого починається адреса
+	const _path = String(typeof currentPath === 'string' ? currentPath : '/').replace(/\/?$/, '/');
+	const _SECTIONS = { 'contact-center': ['/contact-center/'], orders: ['/orders/'], clients: ['/clients/', '/customers/'], leads: ['/leads/'], deals: ['/deals/'], catalog: ['/catalog/'], mailing: ['/mailing/'], analytics: ['/analytics/'], reports: ['/reports/'], users: ['/users/'], settings: ['/settings/', '/audit/', '/trash/', '/modules/'] };
+	const _inSection = (s) => (s === 'home' ? _path === '/' : (_SECTIONS[s] || []).some((x) => _path.startsWith(x)));
+	const _MENU = ['/analytics/', '/audit/', '/catalog/', '/catalog/attributes/', '/catalog/brands/', '/catalog/categories/', '/catalog/history/', '/catalog/import/', '/catalog/options/', '/catalog/products/', '/catalog/quality/', '/catalog/reports/', '/catalog/reviews/', '/catalog/settings/', '/catalog/settings/alerts/', '/catalog/settings/customer-groups/', '/catalog/settings/images/', '/catalog/settings/languages/', '/catalog/settings/seo/', '/catalog/stock/', '/catalog/stock/documents/', '/catalog/stock/movements/', '/catalog/stock/reorder/', '/catalog/stock/reservations/', '/catalog/stock/suppliers/', '/catalog/stock/warehouses/', '/catalog/sync/', '/clients/', '/clients/duplicates/', '/clients/import/', '/clients/settings/', '/contact-center/', '/contact-center/channels/', '/contact-center/comments/', '/contact-center/social/', '/contact-center/social/accounts/', '/contact-center/social/calendar/', '/contact-center/social/snippets/', '/contact-center/social/stats/', '/deals/', '/deals/settings/', '/leads/', '/leads/settings/', '/mailing/', '/mailing/automations/', '/mailing/contacts/', '/mailing/settings/', '/mailing/templates/', '/modules/', '/orders/', '/orders/abandoned-cart/', '/orders/abandoned-cart/event/', '/orders/abandoned-cart/services/', '/orders/new/', '/orders/returns/', '/orders/settings/messages/', '/orders/settings/rules/', '/orders/status/', '/reports/', '/settings/integrations/', '/settings/system/', '/settings/tokens/', '/trash/', '/users/', '/users/access', '/users/groups', '/users/profile/', '/users/profile/edit'];
+	const _best = _MENU.filter((h) => _path.startsWith(h.replace(/\/?$/, '/'))).sort((a, b) => b.length - a.length)[0] || null;
+	const _on = (h) => h === _best;
+%>
+<header>
+	<div class="container-fluid">
+		<div class="row pt-3 pb-3">
+			<div class="col-12 col-lg-4">
+				<p class="header-logo mb-0">
+					<a href="/" style="display: block">
+						<img src="/assets/images/logo/logo.png" class="img-fluid" />
+					</a>
+				</p>
+			</div>
+			<div class="col-12 col-lg-8 text-lg-end">
+				<ul class="list-inline justify-content-end mb-0">
+					<li class="list-inline-item">
+						<div class="dropdown">
+							<button class="btn btn-primary position-relative rounded-0 notification-button" type="button" data-bs-toggle="offcanvas" data-bs-target="#notification_panel" aria-controls="notification_panel">
+								<i class="fa-regular fa-bell"></i>
+							</button>
+						</div>
+					</li>
+					<li class="list-inline-item">
+						<div class="dropdown">
+							<button class="btn btn-primary rounded-0" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+								<i class="fa-solid fa-gear"></i>
+							</button>
+							<ul class="dropdown-menu dropdown-menu-end rounded-0">
+								<li>
+									<a class="dropdown-item<% if (_on('/users/profile/')) { %> active<% } %>" href="/users/profile/"> <i class="fa-regular fa-user fa-fw me-1"></i> <%= i18n.__('header.menu.profile') %> </a>
+								</li>
+								<li>
+									<a class="dropdown-item<% if (_on('/users/profile/edit')) { %> active<% } %>" href="/users/profile/edit"> <i class="fa-solid fa-shield-halved fa-fw me-1"></i> <%= i18n.__('header.menu.security') %> </a>
+								</li>
+								<li>
+									<hr class="dropdown-divider" />
+								</li>
+								<li><a class="dropdown-item" href="/logout/"> <%= i18n.__('header.menu.logout') %> </a></li>
+							</ul>
+						</div>
+					</li>
+				</ul>
+			</div>
+		</div>
+	</div>
+	<div class="header-navbar">
+		<div class="container-fluid">
+			<div class="row">
+				<div class="col-12">
+					<ul class="nav">
+						<li class="nav-item">
+							<a class="nav-link<% if (_inSection('home')) { %> active<% } %>" href="/"><%= i18n.__('header.nav.home') %></a>
+						</li>
+
+						<!-- Контакт-центр -->
+						<li class="nav-item dropdown">
+							<a class="nav-link<% if (_inSection('contact-center')) { %> active<% } %>" href="#" data-bs-toggle="dropdown" role="button" aria-expanded="false"><%= i18n.__('header.nav.contact_center') %> <i class="fa-solid fa-angle-down"></i></a>
+							<ul class="dropdown-menu rounded-0">
+								<li><a class="dropdown-item<% if (_on('/contact-center/')) { %> active<% } %>" href="/contact-center/"><%= i18n.__('header.nav.dialogs') %></a></li>
+								<li><a class="dropdown-item<% if (_on('/contact-center/channels/')) { %> active<% } %>" href="/contact-center/channels/"><%= i18n.__('contact_center.channels.title') %></a></li>
+								<% if (can('contact_center.comments')) { %>
+								<li><a class="dropdown-item<% if (_on('/contact-center/comments/')) { %> active<% } %>" href="/contact-center/comments/"><%= i18n.__('contact_center.comments.title') %></a></li>
+								<% } %>
+								<% if (can('contact_center.social')) { %>
+								<li><hr class="dropdown-divider" /></li>
+								<li><a class="dropdown-item<% if (_on('/contact-center/social/')) { %> active<% } %>" href="/contact-center/social/"><%= i18n.__('contact_center.social_posts.title') %></a></li>
+								<li><a class="dropdown-item<% if (_on('/contact-center/social/calendar/')) { %> active<% } %>" href="/contact-center/social/calendar/"><%= i18n.__('contact_center.social_calendar.title') %></a></li>
+								<li><a class="dropdown-item<% if (_on('/contact-center/social/stats/')) { %> active<% } %>" href="/contact-center/social/stats/"><%= i18n.__('contact_center.social_stats.title') %></a></li>
+								<li><a class="dropdown-item<% if (_on('/contact-center/social/snippets/')) { %> active<% } %>" href="/contact-center/social/snippets/"><%= i18n.__('contact_center.social_snippets.title') %></a></li>
+								<li><a class="dropdown-item<% if (_on('/contact-center/social/accounts/')) { %> active<% } %>" href="/contact-center/social/accounts/"><%= i18n.__('contact_center.social_accounts.title') %></a></li>
+								<% } %>
+							</ul>
+						</li>
+
+						<!-- Замовлення -->
+						<% if (can('orders.list') || can('orders.abandoned')) { %>
+						<li class="nav-item dropdown dropdown-nav">
+							<a class="nav-link dropdown-toggle<% if (_inSection('orders')) { %> active<% } %>" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false"> <%= i18n.__('header.nav.orders') %> </a>
+							<div class="dropdown-menu rounded-0">
+								<div class="row">
+									<% if (can('orders.list')) { %>
+									<div class="col-lg-3">
+										<div class="navbar-block">
+											<span><%= i18n.__('header.nav.orders') %></span>
+											<ul class="list-unstyled navbar-list">
+												<li><a<% if (_on('/orders/')) { %> class="active"<% } %> href="/orders/"><%= i18n.__('header.nav.orders_list') %></a></li>
+												<% if (can('orders.list', 'edit')) { %><li><a<% if (_on('/orders/new/')) { %> class="active"<% } %> href="/orders/new/"><%= i18n.__('header.nav.orders_new') %></a></li><% } %>
+												<li><a<% if (_on('/orders/returns/')) { %> class="active"<% } %> href="/orders/returns/"><%= i18n.__('orders.returns.menu') %></a></li>
+											</ul>
+										</div>
+									</div>
+									<% } %>
+									<% if (can('orders.settings', 'edit')) { %>
+									<div class="col-lg-3">
+										<div class="navbar-block">
+											<span><%= i18n.__('header.nav.settings') %></span>
+											<ul class="list-unstyled navbar-list">
+												<li><a<% if (_on('/orders/status/')) { %> class="active"<% } %> href="/orders/status/"><%= i18n.__('header.nav.orders_status') %></a></li>
+												<li><a<% if (_on('/orders/settings/rules/')) { %> class="active"<% } %> href="/orders/settings/rules/"><%= i18n.__('orders.rules.title') %></a></li>
+												<li><a<% if (_on('/orders/settings/messages/')) { %> class="active"<% } %> href="/orders/settings/messages/"><%= i18n.__('orders.messages.title') %></a></li>
+											</ul>
+										</div>
+									</div>
+									<% } %>
+									<% if (can('orders.abandoned')) { %>
+									<div class="col-lg-3">
+										<div class="navbar-block">
+											<span><%= i18n.__('header.nav.abandoned_cart') %></span>
+											<ul class="list-unstyled navbar-list">
+												<li><a<% if (_on('/orders/abandoned-cart/')) { %> class="active"<% } %> href="/orders/abandoned-cart/"><%= i18n.__('header.nav.carts') %></a></li>
+												<li><a<% if (_on('/orders/abandoned-cart/event/')) { %> class="active"<% } %> href="/orders/abandoned-cart/event/"><%= i18n.__('header.nav.events') %></a></li>
+												<li><a<% if (_on('/orders/abandoned-cart/services/')) { %> class="active"<% } %> href="/orders/abandoned-cart/services/"><%= i18n.__('header.nav.services') %></a></li>
+											</ul>
+										</div>
+									</div>
+									<% } %>
+								</div>
+							</div>
+						</li>
+						<% } %>
+
+						<!-- Клієнти -->
+						<% if (can('clients.list')) { %>
+						<li class="nav-item dropdown">
+							<a class="nav-link<% if (_inSection('clients')) { %> active<% } %>" href="#" data-bs-toggle="dropdown" role="button" aria-expanded="false"> <%= i18n.__('header.nav.clients') %> <i class="fa-solid fa-angle-down"></i> </a>
+							<ul class="dropdown-menu rounded-0">
+								<li><a class="dropdown-item<% if (_on('/clients/')) { %> active<% } %>" href="/clients/"><%= i18n.__('header.nav.clients') %></a></li>
+								<% if (can('clients.merge')) { %><li><a class="dropdown-item<% if (_on('/clients/duplicates/')) { %> active<% } %>" href="/clients/duplicates/"><%= i18n.__('header.nav.duplicates') %></a></li><% } %>
+								<% if (can('clients.import', 'add') || can('clients.settings', 'edit')) { %><li><hr class="dropdown-divider" /></li><% } %>
+								<% if (can('clients.import', 'add')) { %><li><a class="dropdown-item<% if (_on('/clients/import/')) { %> active<% } %>" href="/clients/import/"><%= i18n.__('header.nav.import') %></a></li><% } %>
+								<% if (can('clients.settings', 'edit')) { %><li><a class="dropdown-item<% if (_on('/clients/settings/')) { %> active<% } %>" href="/clients/settings/"><%= i18n.__('header.nav.settings') %></a></li><% } %>
+							</ul>
+						</li>
+						<% } %>
+
+						<!-- Ліди -->
+						<% if (can('leads.list')) { %>
+						<li class="nav-item dropdown">
+							<a class="nav-link<% if (_inSection('leads')) { %> active<% } %>" href="#" data-bs-toggle="dropdown" role="button" aria-expanded="false"> <%= i18n.__('header.nav.leads') %> <i class="fa-solid fa-angle-down"></i> </a>
+							<ul class="dropdown-menu rounded-0">
+								<li><a class="dropdown-item<% if (_on('/leads/')) { %> active<% } %>" href="/leads/"><%= i18n.__('header.nav.leads') %></a></li>
+								<% if (can('leads.settings', 'edit')) { %>
+								<li><hr class="dropdown-divider" /></li>
+								<li><a class="dropdown-item<% if (_on('/leads/settings/')) { %> active<% } %>" href="/leads/settings/"><%= i18n.__('header.nav.settings') %></a></li>
+								<% } %>
+							</ul>
+						</li>
+						<% } %>
+
+						<!-- Угоди -->
+						<li class="nav-item dropdown">
+							<a class="nav-link<% if (_inSection('deals')) { %> active<% } %>" href="#" data-bs-toggle="dropdown" role="button" aria-expanded="false"> <%= i18n.__('header.nav.deals') %> <i class="fa-solid fa-angle-down"></i> </a>
+							<ul class="dropdown-menu rounded-0">
+								<li><a class="dropdown-item<% if (_on('/deals/')) { %> active<% } %>" href="/deals/"><%= i18n.__('header.nav.deals') %></a></li>
+								<% if (can('deals.settings') || can('deals.settings', 'edit')) { %>
+								<li><hr class="dropdown-divider" /></li>
+								<li><a class="dropdown-item<% if (_on('/deals/settings/')) { %> active<% } %>" href="/deals/settings/"><%= i18n.__('header.nav.settings') %></a></li>
+								<% } %>
+							</ul>
+						</li>
+
+						<!-- Каталог -->
+						<% if (can('catalog') || can('products.list') || can('products.categories') || can('products.brands') || can('products.attributes') || can('products.options') || can('products.warehouses') || can('products.suppliers') || can('products.stock') || can('products.import') || can('products.sync') || can('products.settings')) { %>
+						<li class="nav-item dropdown dropdown-nav">
+							<a class="nav-link dropdown-toggle<% if (_inSection('catalog')) { %> active<% } %>" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false"> <%= i18n.__('catalog.menu.catalog') %> </a>
+							<div class="dropdown-menu rounded-0">
+								<div class="row">
+									<% if (can('products.list') || can('products.categories') || can('products.brands') || can('products.attributes') || can('products.options') || can('products.import')) { %>
+									<div class="col-lg-3">
+										<div class="navbar-block">
+											<span><a href="/catalog/" class="text-reset text-decoration-none"><%= i18n.__('catalog.menu.group_catalog') %></a></span>
+											<ul class="list-unstyled navbar-list">
+												<% if (can('products.list')) { %><li><a<% if (_on('/catalog/products/')) { %> class="active"<% } %> href="/catalog/products/"><%= i18n.__('catalog.menu.products') %></a></li><% } %>
+												<% if (can('products.categories')) { %><li><a<% if (_on('/catalog/categories/')) { %> class="active"<% } %> href="/catalog/categories/"><%= i18n.__('catalog.menu.categories') %></a></li><% } %>
+												<% if (can('products.brands')) { %><li><a<% if (_on('/catalog/brands/')) { %> class="active"<% } %> href="/catalog/brands/"><%= i18n.__('catalog.menu.brands') %></a></li><% } %>
+												<% if (can('products.attributes')) { %><li><a<% if (_on('/catalog/attributes/')) { %> class="active"<% } %> href="/catalog/attributes/"><%= i18n.__('catalog.menu.attributes') %></a></li><% } %>
+												<% if (can('products.options')) { %><li><a<% if (_on('/catalog/options/')) { %> class="active"<% } %> href="/catalog/options/"><%= i18n.__('catalog.menu.options') %></a></li><% } %>
+												<% if (can('products.list')) { %><li><a<% if (_on('/catalog/reviews/')) { %> class="active"<% } %> href="/catalog/reviews/"><%= i18n.__('catalog.menu.reviews') %></a></li><% } %>
+												<% if (can('products.list')) { %><li><a<% if (_on('/catalog/quality/')) { %> class="active"<% } %> href="/catalog/quality/"><%= i18n.__('catalog.menu.quality') %></a></li><% } %>
+												<% if (can('products.list')) { %><li><a<% if (_on('/catalog/history/')) { %> class="active"<% } %> href="/catalog/history/"><%= i18n.__('catalog.history.batches.menu') %></a></li><% } %>
+												<% if (can('products.import')) { %><li><a<% if (_on('/catalog/import/')) { %> class="active"<% } %> href="/catalog/import/"><%= i18n.__('catalog.menu.import') %></a></li><% } %>
+												<% if (can('products.sync')) { %><li><a<% if (_on('/catalog/sync/')) { %> class="active"<% } %> href="/catalog/sync/"><%= i18n.__('catalog.menu.sync') %></a></li><% } %>
+											</ul>
+										</div>
+									</div>
+									<% } %>
+									<% if (can('products.warehouses') || can('products.suppliers') || can('products.stock')) { %>
+									<div class="col-lg-3">
+										<div class="navbar-block">
+											<span><a href="/catalog/stock/" class="text-reset text-decoration-none"><%= i18n.__('catalog.menu.group_stock') %></a></span>
+											<ul class="list-unstyled navbar-list">
+												<% if (can('products.warehouses')) { %><li><a<% if (_on('/catalog/stock/warehouses/')) { %> class="active"<% } %> href="/catalog/stock/warehouses/"><%= i18n.__('catalog.menu.warehouses') %></a></li><% } %>
+												<% if (can('products.suppliers')) { %><li><a<% if (_on('/catalog/stock/suppliers/')) { %> class="active"<% } %> href="/catalog/stock/suppliers/"><%= i18n.__('catalog.menu.suppliers') %></a></li><% } %>
+												<% if (can('products.stock')) { %><li><a<% if (_on('/catalog/stock/documents/')) { %> class="active"<% } %> href="/catalog/stock/documents/"><%= i18n.__('catalog.menu.stock_documents') %></a></li><% } %>
+												<% if (can('products.stock')) { %><li><a<% if (_on('/catalog/stock/movements/')) { %> class="active"<% } %> href="/catalog/stock/movements/"><%= i18n.__('catalog.menu.stock_movements') %></a></li><% } %>
+												<% if (can('products.stock')) { %><li><a<% if (_on('/catalog/stock/reorder/')) { %> class="active"<% } %> href="/catalog/stock/reorder/"><%= i18n.__('catalog.menu.stock_reorder') %></a></li><% } %>
+												<% if (can('products.stock')) { %><li><a<% if (_on('/catalog/reports/')) { %> class="active"<% } %> href="/catalog/reports/"><%= i18n.__('catalog.menu.reports') %></a></li><% } %>
+												<% if (can('products.stock')) { %><li><a<% if (_on('/catalog/stock/reservations/')) { %> class="active"<% } %> href="/catalog/stock/reservations/"><%= i18n.__('catalog.menu.stock_reservations') %></a></li><% } %>
+											</ul>
+										</div>
+									</div>
+									<% } %>
+									<% if (can('products.settings')) { %>
+									<div class="col-lg-3">
+										<div class="navbar-block">
+											<span><a href="/catalog/settings/" class="text-reset text-decoration-none"><%= i18n.__('catalog.menu.group_settings') %></a></span>
+											<ul class="list-unstyled navbar-list">
+												<li><a<% if (_on('/catalog/settings/')) { %> class="active"<% } %> href="/catalog/settings/"><%= i18n.__('catalog.menu.settings') %></a></li>
+												<li><a<% if (_on('/catalog/settings/images/')) { %> class="active"<% } %> href="/catalog/settings/images/"><%= i18n.__('catalog.menu.images_maintenance') %></a></li>
+												<li><a<% if (_on('/catalog/settings/languages/')) { %> class="active"<% } %> href="/catalog/settings/languages/"><%= i18n.__('catalog.menu.languages') %></a></li>
+												<li><a<% if (_on('/catalog/settings/seo/')) { %> class="active"<% } %> href="/catalog/settings/seo/"><%= i18n.__('catalog.menu.seo') %></a></li>
+												<li><a<% if (_on('/catalog/settings/customer-groups/')) { %> class="active"<% } %> href="/catalog/settings/customer-groups/"><%= i18n.__('catalog.menu.customer_groups') %></a></li>
+												<li><a<% if (_on('/catalog/settings/alerts/')) { %> class="active"<% } %> href="/catalog/settings/alerts/"><%= i18n.__('catalog.menu.alerts') %></a></li>
+												<%- typeof hook === 'function' ? hook('displayCatalogMenu', { i18n, can, header }) : '' %>
+											</ul>
+										</div>
+									</div>
+									<% } %>
+								</div>
+							</div>
+						</li>
+						<% } %>
+
+						<!-- Розсилки (тут і налаштування пошти: відправники, SMTP) -->
+						<li class="nav-item dropdown">
+							<a class="nav-link<% if (_inSection('mailing')) { %> active<% } %>" href="#" data-bs-toggle="dropdown" role="button" aria-expanded="false"> <%= i18n.__('header.nav.mailing') %> <i class="fa-solid fa-angle-down"></i> </a>
+							<ul class="dropdown-menu rounded-0">
+								<li><a class="dropdown-item<% if (_on('/mailing/')) { %> active<% } %>" href="/mailing/"><%= i18n.__('header.nav.mailing_campaigns') %></a></li>
+								<li><a class="dropdown-item<% if (_on('/mailing/automations/')) { %> active<% } %>" href="/mailing/automations/"><%= i18n.__('header.nav.mailing_automations') %></a></li>
+								<li><a class="dropdown-item<% if (_on('/mailing/contacts/')) { %> active<% } %>" href="/mailing/contacts/"><%= i18n.__('header.nav.mailing_contacts') %></a></li>
+								<li><a class="dropdown-item<% if (_on('/mailing/templates/')) { %> active<% } %>" href="/mailing/templates/"><%= i18n.__('header.nav.mailing_templates') %></a></li>
+								<% if (can('mailing.settings')) { %>
+								<li><hr class="dropdown-divider" /></li>
+								<li><a class="dropdown-item<% if (_on('/mailing/settings/')) { %> active<% } %>" href="/mailing/settings/"><%= i18n.__('header.nav.mailing_settings') %></a></li>
+								<% } %>
+							</ul>
+						</li>
+
+						<!-- Аналітика й звіти -->
+						<% if (can('analytics')) { %>
+						<li class="nav-item"><a class="nav-link<% if (_inSection('analytics')) { %> active<% } %>" href="/analytics/"><%= i18n.__('analytics.menu') %></a></li>
+						<% } %>
+						<% if (can('reports')) { %>
+						<li class="nav-item"><a class="nav-link<% if (_inSection('reports')) { %> active<% } %>" href="/reports/"><%= i18n.__('reports.menu') %></a></li>
+						<% } %>
+
+						<!-- Користувачі -->
+						<% if (can('users.list') || can('users.groups')) { %>
+						<li class="nav-item dropdown">
+							<a class="nav-link<% if (_inSection('users')) { %> active<% } %>" href="#" data-bs-toggle="dropdown" role="button" aria-expanded="false"> <%= i18n.__('header.nav.users') %> <i class="fa-solid fa-angle-down"></i> </a>
+							<ul class="dropdown-menu rounded-0">
+								<% if (can('users.list')) { %><li><a class="dropdown-item<% if (_on('/users/')) { %> active<% } %>" href="/users/"><%= i18n.__('header.nav.users') %></a></li><% } %>
+								<% if (can('users.groups')) { %><li><a class="dropdown-item<% if (_on('/users/groups')) { %> active<% } %>" href="/users/groups"><%= i18n.__('header.nav.groups') %></a></li><% } %>
+								<% if (can('users.groups')) { %><li><a class="dropdown-item<% if (_on('/users/access')) { %> active<% } %>" href="/users/access"><%= i18n.__('header.nav.permissions') %></a></li><% } %>
+							</ul>
+						</li>
+						<% } %>
+
+						<!-- Налаштування системи -->
+						<% if (can('orders.settings', 'edit') || can('system.audit') || can('settings.modules') || can('system.trash')) { %>
+						<li class="nav-item dropdown">
+							<a class="nav-link<% if (_inSection('settings')) { %> active<% } %>" href="#" data-bs-toggle="dropdown" role="button" aria-expanded="false"> <%= i18n.__('header.nav.settings') %> <i class="fa-solid fa-angle-down"></i> </a>
+							<ul class="dropdown-menu rounded-0">
+								<% if (can('orders.settings', 'edit')) { %>
+								<li><a class="dropdown-item<% if (_on('/settings/integrations/')) { %> active<% } %>" href="/settings/integrations/"><%= i18n.__('header.nav.integration') %></a></li>
+								<li><a class="dropdown-item<% if (_on('/settings/tokens/')) { %> active<% } %>" href="/settings/tokens/"><%= i18n.__('header.nav.tokens') %></a></li>
+								<% } %>
+								<% if (can('settings.modules')) { %><li><a class="dropdown-item<% if (_inSection('modules')) { %> active<% } %>" href="/modules/"><%= i18n.__('header.nav.modules') %></a></li><% } %>
+								<% if (can('system.audit') || can('system.trash')) { %><li><hr class="dropdown-divider" /></li><% } %>
+								<% if (can('system.audit')) { %><li><a class="dropdown-item<% if (_on('/settings/system/')) { %> active<% } %>" href="/settings/system/"><%= i18n.__('system.title') %></a></li><% } %>
+								<% if (can('system.audit')) { %><li><a class="dropdown-item<% if (_on('/audit/')) { %> active<% } %>" href="/audit/"><%= i18n.__('header.nav.audit') %></a></li><% } %>
+								<% if (can('system.trash')) { %><li><a class="dropdown-item<% if (_on('/trash/')) { %> active<% } %>" href="/trash/"><%= i18n.__('header.nav.trash') %></a></li><% } %>
+							</ul>
+						</li>
+						<% } %>
+					</ul>
+				</div>
+			</div>
+		</div>
+	</div>
+</header>

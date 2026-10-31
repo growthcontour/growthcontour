@@ -1,0 +1,670 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('analytics.title') %></title>
+		<%- include('../../partials/head'); %>
+		<style>
+			.an-kpi { border-left: 3px solid var(--bs-primary); }
+			.an-kpi .v { font-size: 1.35rem; font-weight: 600; line-height: 1.2; }
+			.an-kpi .l { font-size: 12px; color: var(--bs-secondary-color); }
+			.an-chart { height: 340px; }
+			.an-chart.sm { height: 280px; }
+			.an-chart.lg { height: 420px; }
+			.an-table { font-size: 13px; }
+			.an-table td, .an-table th { white-space: nowrap; }
+			.an-scroll { max-height: 460px; overflow: auto; }
+			#an-sites .dropdown-menu { max-height: 360px; overflow: auto; min-width: 260px; }
+			.an-coh td { text-align: center; min-width: 54px; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('analytics.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('orders.breadcrumb.home') %></span></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= i18n.__('analytics.title') %></li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto"><a href="/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a></div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3 mb-4">
+			<!-- ═══ Фільтр ═══ -->
+			<div class="card border-primary rounded-0 mb-3">
+				<div class="card-body py-2">
+					<div class="row g-2 align-items-center">
+						<div class="col-auto">
+							<div class="btn-group btn-group-sm" id="an-ranges">
+								<button type="button" class="btn btn-outline-secondary rounded-0" data-range="1"><%= i18n.__('analytics.f.today') %></button>
+								<button type="button" class="btn btn-outline-secondary rounded-0" data-range="7"><%= i18n.__('analytics.f.d7') %></button>
+								<button type="button" class="btn btn-outline-secondary rounded-0 active" data-range="30"><%= i18n.__('analytics.f.d30') %></button>
+								<button type="button" class="btn btn-outline-secondary rounded-0" data-range="90"><%= i18n.__('analytics.f.d90') %></button>
+								<button type="button" class="btn btn-outline-secondary rounded-0" data-range="365"><%= i18n.__('analytics.f.d365') %></button>
+							</div>
+						</div>
+						<div class="col-auto"><div class="input-group input-group-sm"><span class="input-group-text rounded-0"><%= i18n.__('analytics.f.from') %></span><input type="date" class="form-control rounded-0" id="an-from" /></div></div>
+						<div class="col-auto"><div class="input-group input-group-sm"><span class="input-group-text rounded-0"><%= i18n.__('analytics.f.to') %></span><input type="date" class="form-control rounded-0" id="an-to" /></div></div>
+						<div class="col-auto">
+							<select class="form-select form-select-sm rounded-0" id="an-gran">
+								<option value="day"><%= i18n.__('analytics.f.day') %></option>
+								<option value="week"><%= i18n.__('analytics.f.week') %></option>
+								<option value="month"><%= i18n.__('analytics.f.month') %></option>
+							</select>
+						</div>
+						<div class="col-auto dropdown" id="an-sites">
+							<button type="button" class="btn btn-sm btn-outline-secondary rounded-0 dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside" id="an-sites-btn"><%= i18n.__('analytics.f.all_sites') %></button>
+							<div class="dropdown-menu rounded-0 p-2" id="an-sites-list"></div>
+						</div>
+						<div class="col-auto"><div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="an-split" /><label class="form-check-label small" for="an-split"><%= i18n.__('analytics.f.split') %></label></div></div>
+						<div class="col-auto ms-auto d-flex gap-2">
+							<button type="button" class="btn btn-sm btn-primary rounded-0" id="an-apply"><i class="fa-solid fa-rotate me-1"></i><%= i18n.__('analytics.f.apply') %></button>
+							<span class="small text-muted align-self-center" id="an-built"></span>
+							<% if (perms.edit) { %><button type="button" class="btn btn-sm btn-outline-primary rounded-0" id="an-refresh" title="<%= i18n.__('analytics.f.refresh_hint') %>"><i class="fa-solid fa-arrows-rotate me-1"></i><span><%= i18n.__('analytics.f.refresh') %></span></button><% } %>
+							<a class="btn btn-sm btn-success rounded-0" id="an-excel" href="#" title="<%= i18n.__('analytics.f.excel_hint') %>"><i class="fa-solid fa-file-excel me-1"></i><%= i18n.__('analytics.f.excel') %></a>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<ul class="nav nav-tabs mb-3" id="an-tabs">
+				<% ['sales', 'products', 'delivery', 'clients', 'managers', 'time', 'returns', 'automation', 'health'].forEach(function (t, i) { %>
+				<li class="nav-item"><button type="button" class="nav-link rounded-0<%= i === 0 ? ' active' : '' %>" data-tab="<%= t %>"><%= i18n.__('analytics.tabs.' + t) %></button></li>
+				<% }); %>
+			</ul>
+
+			<!-- ═══ Продажі ═══ -->
+			<div class="an-pane" data-pane="sales">
+				<div class="row g-2 mb-3" id="sales-kpi"></div>
+				<div class="card rounded-0 mb-3"><div class="card-header py-2 fw-semibold"><%= i18n.__('analytics.c.dynamics') %></div><div class="card-body"><div class="an-chart lg" id="ch-dynamics"></div></div></div>
+				<div class="row g-3">
+					<div class="col-xl-4"><div class="card rounded-0 h-100"><div class="card-header py-2 fw-semibold"><%= i18n.__('analytics.c.statuses') %></div><div class="card-body"><div class="an-chart" id="ch-statuses"></div></div></div></div>
+					<div class="col-xl-4"><div class="card rounded-0 h-100"><div class="card-header py-2 fw-semibold"><%= i18n.__('analytics.c.channels') %></div><div class="card-body"><div class="an-chart" id="ch-channels"></div></div></div></div>
+					<div class="col-xl-4"><div class="card rounded-0 h-100"><div class="card-header py-2 fw-semibold"><%= i18n.__('analytics.c.funnel') %></div><div class="card-body"><div class="an-chart" id="ch-funnel"></div></div></div></div>
+				</div>
+			</div>
+
+			<!-- ═══ Товари ═══ -->
+			<div class="an-pane d-none" data-pane="products">
+				<div class="row g-2 mb-3" id="products-kpi"></div>
+				<div class="row g-3 mb-3">
+					<div class="col-xl-7">
+						<div class="card rounded-0 h-100">
+							<div class="card-header py-2 fw-semibold d-flex align-items-center"><%= i18n.__('analytics.c.top') %>
+								<div class="btn-group btn-group-sm ms-auto" id="top-metric">
+									<button type="button" class="btn btn-outline-secondary rounded-0 active" data-metric="revenue"><%= i18n.__('analytics.c.by_revenue') %></button>
+									<button type="button" class="btn btn-outline-secondary rounded-0" data-metric="qty"><%= i18n.__('analytics.c.by_qty') %></button>
+								</div>
+							</div>
+							<div class="card-body"><div class="an-chart lg" id="ch-top"></div></div>
+						</div>
+					</div>
+					<div class="col-xl-5"><div class="card rounded-0 h-100"><div class="card-header py-2 fw-semibold" title="<%= i18n.__('analytics.c.abc_hint') %>"><%= i18n.__('analytics.c.abc') %> <i class="fa-regular fa-circle-question text-muted"></i></div><div class="card-body"><div class="an-chart lg" id="ch-abc"></div></div></div></div>
+				</div>
+				<div class="card rounded-0">
+					<div class="card-header py-2 fw-semibold d-flex align-items-center"><%= i18n.__('analytics.c.margin') %>
+						<select class="form-select form-select-sm rounded-0 w-auto ms-auto" id="margin-group">
+							<% ['product', 'category', 'brand', 'site'].forEach(function (g) { %><option value="<%= g %>"><%= i18n.__('analytics.c.g_' + g) %></option><% }); %>
+						</select>
+					</div>
+					<div class="card-body p-0 an-scroll"><table class="table table-sm table-hover an-table mb-0" id="tb-margin"></table></div>
+				</div>
+			</div>
+
+			<!-- ═══ Доставка ═══ -->
+			<div class="an-pane d-none" data-pane="delivery">
+				<div class="row g-2 mb-3" id="delivery-kpi"></div>
+				<div class="row g-3 mb-3">
+					<div class="col-xl-8"><div class="card rounded-0 h-100"><div class="card-header py-2 fw-semibold"><%= i18n.__('analytics.c.delivery_dynamics') %></div><div class="card-body"><div class="an-chart" id="ch-delivery"></div></div></div></div>
+					<div class="col-xl-4"><div class="card rounded-0 h-100"><div class="card-header py-2 fw-semibold"><%= i18n.__('analytics.c.payments') %></div><div class="card-body p-0 an-scroll"><table class="table table-sm an-table mb-0" id="tb-payments"></table></div></div></div>
+				</div>
+				<div class="card rounded-0"><div class="card-header py-2 fw-semibold"><%= i18n.__('analytics.c.cities') %></div><div class="card-body"><div class="an-chart lg" id="ch-cities"></div></div></div>
+			</div>
+
+			<!-- ═══ Клієнти ═══ -->
+			<div class="an-pane d-none" data-pane="clients">
+				<div class="row g-2 mb-3" id="clients-kpi"></div>
+				<div class="card rounded-0 mb-3"><div class="card-header py-2 fw-semibold"><%= i18n.__('analytics.c.clients_dynamics') %></div><div class="card-body"><div class="an-chart" id="ch-clients"></div></div></div>
+				<div class="row g-3">
+					<div class="col-xl-7"><div class="card rounded-0 h-100"><div class="card-header py-2 fw-semibold"><%= i18n.__('analytics.c.cohorts') %></div><div class="card-body p-0 an-scroll"><table class="table table-sm table-bordered an-table an-coh mb-0" id="tb-cohorts"></table></div></div></div>
+					<div class="col-xl-5"><div class="card rounded-0 h-100"><div class="card-header py-2 fw-semibold"><%= i18n.__('analytics.c.top_clients') %></div><div class="card-body p-0 an-scroll"><table class="table table-sm table-hover an-table mb-0" id="tb-top-clients"></table></div></div></div>
+				</div>
+			</div>
+
+			<!-- ═══ Менеджери ═══ -->
+			<div class="an-pane d-none" data-pane="managers">
+				<div class="row g-3">
+					<div class="col-xl-6"><div class="card rounded-0 h-100"><div class="card-header py-2 fw-semibold"><%= i18n.__('analytics.c.managers') %></div><div class="card-body"><div class="an-chart lg" id="ch-managers"></div></div></div></div>
+					<div class="col-xl-6"><div class="card rounded-0 h-100"><div class="card-header py-2 fw-semibold"><%= i18n.__('analytics.c.managers') %></div><div class="card-body p-0 an-scroll"><table class="table table-sm table-hover an-table mb-0" id="tb-managers"></table></div></div></div>
+				</div>
+			</div>
+
+			<!-- ═══ Час замовлень ═══ -->
+			<div class="an-pane d-none" data-pane="time">
+				<div class="card rounded-0"><div class="card-header py-2 fw-semibold"><%= i18n.__('analytics.c.heatmap') %></div><div class="card-body"><div class="an-chart lg" id="ch-heatmap"></div></div></div>
+			</div>
+
+			<!-- ═══ Повернення ═══ -->
+			<div class="an-pane d-none" data-pane="returns">
+				<div class="row g-2 mb-3" id="returns-kpi"></div>
+				<div class="row g-3 mb-3">
+					<div class="col-xl-6"><div class="card rounded-0 h-100"><div class="card-header py-2 fw-semibold"><%= i18n.__('analytics.c.reasons') %></div><div class="card-body"><div class="an-chart" id="ch-reasons"></div></div></div></div>
+					<div class="col-xl-6"><div class="card rounded-0 h-100"><div class="card-header py-2 fw-semibold"><%= i18n.__('analytics.c.rstatuses') %></div><div class="card-body"><div class="an-chart" id="ch-rstatuses"></div></div></div></div>
+				</div>
+				<div class="card rounded-0"><div class="card-header py-2 fw-semibold"><%= i18n.__('analytics.c.rproducts') %></div><div class="card-body p-0 an-scroll"><table class="table table-sm table-hover an-table mb-0" id="tb-rproducts"></table></div></div>
+			</div>
+
+			<!-- ═══ Повідомлення й правила ═══ -->
+			<div class="an-pane d-none" data-pane="automation">
+				<div class="row g-2 mb-3" id="automation-kpi"></div>
+				<div class="row g-3">
+					<div class="col-xl-6"><div class="card rounded-0 h-100"><div class="card-header py-2 fw-semibold"><%= i18n.__('analytics.c.templates') %></div><div class="card-body"><div class="an-chart" id="ch-templates"></div></div></div></div>
+					<div class="col-xl-6"><div class="card rounded-0 h-100"><div class="card-header py-2 fw-semibold"><%= i18n.__('analytics.c.rules') %></div><div class="card-body p-0 an-scroll"><table class="table table-sm table-hover an-table mb-0" id="tb-rules"></table></div></div></div>
+				</div>
+			</div>
+
+			<!-- ═══ Кошики й обмін ═══ -->
+			<div class="an-pane d-none" data-pane="health">
+				<div class="row g-2 mb-3" id="health-kpi"></div>
+				<div class="row g-3">
+					<div class="col-xl-4"><div class="card rounded-0 h-100"><div class="card-header py-2 fw-semibold"><%= i18n.__('analytics.c.carts') %></div><div class="card-body"><div class="an-chart" id="ch-carts"></div></div></div></div>
+					<div class="col-xl-4"><div class="card rounded-0 h-100"><div class="card-header py-2 fw-semibold"><%= i18n.__('analytics.c.health') %></div><div class="card-body"><div class="an-chart" id="ch-health"></div></div></div></div>
+					<div class="col-xl-4"><div class="card rounded-0 h-100"><div class="card-header py-2 fw-semibold"><%= i18n.__('analytics.c.tokens') %></div><div class="card-body"><div class="an-chart" id="ch-tokens"></div></div></div></div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../partials/footer'); %>
+		<%- include('../../partials/script'); %>
+		<script src="https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const L = <%- JSON.stringify(i18n.__('analytics')).replace(/</g, '\\u003c') %>;
+				const RL = <%- JSON.stringify({ r: i18n.__('orders.returns.r'), s: i18n.__('orders.returns.s') }).replace(/</g, '\\u003c') %>;
+				const LANG = <%= Number(user && user.id_lang) || 1 %>;
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const NUM = new Intl.NumberFormat("uk-UA", { maximumFractionDigits: 0 });
+				const DEC = new Intl.NumberFormat("uk-UA", { maximumFractionDigits: 2 });
+				const money = (v) => NUM.format(Number(v) || 0) + " ₴";
+				const num = (v) => NUM.format(Number(v) || 0);
+				const perc = (v) => DEC.format(Number(v) || 0) + "%";
+				const dark = () => document.documentElement.getAttribute("data-bs-theme") === "dark";
+
+				/* ─── Графіки ─── */
+				const charts = {};
+				const chart = (id) => {
+					if (!charts[id]) charts[id] = echarts.init($(id), dark() ? "dark" : null, { renderer: "canvas" });
+					return charts[id];
+				};
+				const draw = (id, option) => {
+					const c = chart(id);
+					c.setOption(Object.assign({ backgroundColor: "transparent", tooltip: { trigger: "axis" }, grid: { left: 10, right: 20, top: 40, bottom: 10, containLabel: true } }, option), true);
+					c.resize();
+				};
+				const empty = (id) => draw(id, { title: { text: L.c.empty, left: "center", top: "middle", textStyle: { fontSize: 13, fontWeight: "normal", color: "#999" } }, xAxis: { show: false }, yAxis: { show: false }, series: [] });
+				window.addEventListener("resize", () => Object.values(charts).forEach((c) => c.resize()));
+
+				const kpi = (box, items) => {
+					$(box).innerHTML = items
+						.map(
+							(k) =>
+								`<div class="col-6 col-md-4 col-xl-2"><div class="card rounded-0 an-kpi h-100"><div class="card-body py-2"><div class="l">${esc(k.l)}</div><div class="v">${k.v}</div>${
+									k.d !== undefined ? `<div class="small ${k.d > 0 === !k.inv ? "text-success" : k.d === 0 ? "text-muted" : "text-danger"}">${k.d > 0 ? "+" : ""}${DEC.format(k.d)}% ${esc(L.k.vs_prev)}</div>` : k.s ? `<div class="small text-muted">${k.s}</div>` : ""
+								}</div></div></div>`
+						)
+						.join("");
+				};
+				const table = (id, cols, rows) => {
+					$(id).innerHTML = rows.length
+						? `<thead class="table-light"><tr>${cols.map((c) => `<th class="${c.r ? "text-end" : ""}">${esc(c.t)}</th>`).join("")}</tr></thead><tbody>${rows
+								.map((r) => `<tr>${cols.map((c) => `<td class="${c.r ? "text-end" : ""}">${c.f ? c.f(r[c.k], r) : esc(r[c.k])}</td>`).join("")}</tr>`)
+								.join("")}</tbody>`
+						: `<tbody><tr><td class="text-muted p-3">${esc(L.c.empty)}</td></tr></tbody>`;
+				};
+
+				/* ─── Фільтр ─── */
+				const pad = (n) => (n < 10 ? "0" + n : "" + n);
+				const day = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+				const setRange = (days) => {
+					const to = new Date();
+					const from = new Date();
+					from.setDate(from.getDate() - (days - 1));
+					$("an-from").value = day(from);
+					$("an-to").value = day(to);
+				};
+				const sites = () => [...document.querySelectorAll("#an-sites-list input:checked")].map((x) => Number(x.value));
+				const filters = () => {
+					const s = sites();
+					return { date_from: $("an-from").value, date_to: $("an-to").value, granularity: $("an-gran").value, split_by_integration: $("an-split").checked, integrations: s.length ? s : null, id_lang: LANG };
+				};
+				const post = (url, body) =>
+					fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) }).then((r) => {
+						if (!r.ok) throw new Error(url + " " + r.status);
+						return r.json();
+					});
+				// Дані з кешу сервера: { data, built_at }. Найстаріший built_at вкладки — у підписі «Дані на …»
+				let fresh = false;
+				let builtAt = null;
+				const section = (name, extra) =>
+					post("/api/analytics/data/" + name + "/", Object.assign(filters(), extra || {}, fresh ? { fresh: true } : {})).then((r) => {
+						const t = new Date(r.built_at).getTime();
+						if (!builtAt || t < builtAt) builtAt = t;
+						$("an-built").textContent = L.f.built + " " + new Date(builtAt).toLocaleString().slice(0, -3);
+						return r.data;
+					});
+
+				post("/api/analytics/integrations/").then((d) => {
+					$("an-sites-list").innerHTML = d.items
+						.map((i) => `<div class="form-check"><input class="form-check-input" type="checkbox" value="${Number(i.id)}" id="an-site-${Number(i.id)}"><label class="form-check-label small" for="an-site-${Number(i.id)}">${esc(i.name)} <span class="text-muted">(${num(i.orders_count)})</span></label></div>`)
+						.join("");
+				});
+				$("an-sites-list").addEventListener("change", () => {
+					const n = sites().length;
+					$("an-sites-btn").textContent = n ? L.f.sites + ": " + n : L.f.all_sites;
+				});
+
+				/* ─── Розділи ─── */
+				const LOAD = {
+					sales() {
+						const f = filters();
+						return Promise.all([
+							section("summary").then((d) => {
+								const c = d.current;
+								const x = d.delta;
+								kpi("sales-kpi", [
+									{ l: L.k.revenue, v: money(c.revenue), d: x.revenue },
+									{ l: L.k.net_revenue, v: money(c.net_revenue), d: x.net_revenue },
+									{ l: L.k.orders, v: num(c.orders_count), d: x.orders_count },
+									{ l: L.k.avg_check, v: money(c.avg_check), d: x.avg_check },
+									{ l: L.k.cancel_rate, v: perc(c.cancel_rate), d: x.cancel_rate, inv: true },
+									{ l: L.k.refunded, v: money(c.refunded), d: x.refunded, inv: true },
+									{ l: L.k.items_qty, v: num(c.items_qty), d: x.items_qty },
+									{ l: L.k.new_clients, v: num(c.new_clients), d: x.new_clients },
+									{ l: L.k.discount, v: money(c.discount), d: x.discount, inv: true },
+									{ l: L.k.fees, v: money(c.fees), d: x.fees, inv: true },
+									{ l: L.k.valid, v: num(c.orders_valid), d: x.orders_valid },
+									{ l: L.k.canceled, v: num(c.orders_canceled), d: x.orders_canceled, inv: true },
+								]);
+							}),
+							section("timeseries").then((d) => {
+								const split = f.split_by_integration;
+								draw("ch-dynamics", {
+									legend: { top: 0, type: "scroll" },
+									dataZoom: [{ type: "inside" }],
+									xAxis: { type: "category", data: d.xAxis },
+									yAxis: split ? [{ type: "value" }] : [{ type: "value", name: "₴" }, { type: "value", name: L.k.orders, splitLine: { show: false } }],
+									series: d.series.map((s) => Object.assign({}, s, { showSymbol: false, areaStyle: s.metric === "revenue" && !split ? { opacity: 0.08 } : undefined })),
+								});
+							}),
+							section("statuses").then((d) =>
+								d.data.length
+									? draw("ch-statuses", { tooltip: { trigger: "item", formatter: (p) => `${esc(p.name)}<br>${num(p.value)} · ${perc(p.percent)}<br>${money(p.data.revenue)}` }, legend: { type: "scroll", bottom: 0 }, series: [{ type: "pie", radius: ["40%", "70%"], center: ["50%", "45%"], label: { show: false }, data: d.data }] })
+									: empty("ch-statuses")
+							),
+							section("channels").then((d) =>
+								d.xAxis.length
+									? draw("ch-channels", { legend: { top: 0 }, xAxis: { type: "category", data: d.xAxis }, yAxis: [{ type: "value" }, { type: "value", splitLine: { show: false } }], series: [Object.assign({}, d.series[0]), Object.assign({}, d.series[1], { yAxisIndex: 1 })] })
+									: empty("ch-channels")
+							),
+							section("funnel").then((d) =>
+								d.data.length
+									? draw("ch-funnel", {
+											tooltip: { trigger: "item", formatter: (p) => `${esc(p.name)}<br>${num(p.value)}` + (p.data.avg_hours !== null ? `<br>${DEC.format(p.data.avg_hours)} год` : "") },
+											series: [{ type: "funnel", left: "5%", width: "90%", sort: "descending", label: { formatter: (p) => p.name + (p.data.avg_hours !== null ? " · " + DEC.format(p.data.avg_hours) + " год" : "") }, data: d.data }],
+									  })
+									: empty("ch-funnel")
+							),
+						]);
+					},
+					products() {
+						const metric = document.querySelector("#top-metric .active").dataset.metric;
+						return Promise.all([
+							section("top_products", { metric, limit: 20 }).then((d) =>
+								d.yAxis.length
+									? draw("ch-top", { tooltip: { trigger: "axis", axisPointer: { type: "shadow" } }, xAxis: { type: "value" }, yAxis: { type: "category", data: d.yAxis.map((s) => (String(s).length > 40 ? String(s).slice(0, 40) + "…" : s)) }, series: d.series })
+									: empty("ch-top")
+							),
+							section("products", { group: $("margin-group").value }).then((d) => {
+								const t = d.total;
+								kpi("products-kpi", [
+									{ l: L.k.revenue, v: money(t.revenue) },
+									{ l: L.k.cost, v: money(t.cost) },
+									{ l: L.k.profit, v: money(t.profit) },
+									{ l: L.k.margin, v: t.margin === null ? "—" : perc(t.margin), s: t.no_cost ? num(t.no_cost) + " " + esc(L.k.no_cost) : "" },
+									{ l: L.k.items_qty, v: num(t.qty) },
+									...(d.dead ? [{ l: L.k.dead, v: money(d.dead.value), s: num(d.dead.count) }] : []),
+								]);
+								if (d.abc) {
+									draw("ch-abc", {
+										tooltip: { trigger: "item" },
+										legend: { bottom: 0 },
+										series: [{ type: "pie", radius: ["35%", "70%"], center: ["50%", "45%"], label: { formatter: "{b}: {c}" }, data: ["A", "B", "C"].map((k, i) => ({ name: k, value: d.abc[k], itemStyle: { color: ["#198754", "#ffc107", "#adb5bd"][i] } })) }],
+									});
+								}
+								const prod = $("margin-group").value === "product";
+								table("tb-margin", [
+									{ k: "label", t: L.c.name, f: (v, r) => esc(v || "—") + (r.sku ? ` <small class="text-muted">${esc(r.sku)}</small>` : "") },
+									...(prod ? [{ k: "abc", t: "ABC", f: (v) => (v ? `<span class="badge rounded-0 text-bg-${{ A: "success", B: "warning", C: "secondary" }[v]}">${v}</span>` : "") }] : []),
+									{ k: "qty", t: L.c.qty, r: 1, f: num },
+									{ k: "revenue", t: L.k.revenue, r: 1, f: money },
+									{ k: "cost", t: L.k.cost, r: 1, f: money },
+									{ k: "profit", t: L.k.profit, r: 1, f: money },
+									{ k: "margin", t: L.k.margin, r: 1, f: (v) => (v === null ? "—" : perc(v)) },
+									...(prod ? [{ k: "on_hand", t: L.c.on_hand, r: 1, f: (v) => (v === null ? "—" : num(v)) }, { k: "cover_days", t: L.c.cover, r: 1, f: (v) => (v === null ? "—" : num(v)) }] : []),
+								], d.rows);
+							}),
+						]);
+					},
+					delivery() {
+						return section("delivery").then((d) => {
+							const t = d.total;
+							kpi("delivery-kpi", [
+								{ l: L.k.shipments, v: num(t.shipments) },
+								{ l: L.k.buyout, v: perc(t.buyout) },
+								{ l: L.k.delivered, v: num(t.delivered) },
+								{ l: L.k.returned, v: num(t.returned), s: money(t.returned_value) },
+								{ l: L.k.in_transit, v: num(t.in_transit) },
+								{ l: L.k.avg_days, v: t.avg_days === null ? "—" : DEC.format(t.avg_days) },
+							]);
+							d.series.length
+								? draw("ch-delivery", {
+										legend: { top: 0 },
+										xAxis: { type: "category", data: d.series.map((x) => x.p) },
+										yAxis: { type: "value" },
+										series: [
+											{ name: L.k.delivered, type: "bar", stack: "s", data: d.series.map((x) => x.delivered), itemStyle: { color: "#198754" } },
+											{ name: L.k.returned, type: "bar", stack: "s", data: d.series.map((x) => x.returned), itemStyle: { color: "#dc3545" } },
+											{ name: L.k.in_transit, type: "bar", stack: "s", data: d.series.map((x) => x.in_transit), itemStyle: { color: "#0dcaf0" } },
+										],
+								  })
+								: empty("ch-delivery");
+							const cities = d.cities.slice(0, 20).reverse();
+							cities.length
+								? draw("ch-cities", {
+										tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, formatter: (p) => `${esc(p[0].name)}<br>${p.map((x) => x.marker + esc(x.seriesName) + ": " + num(x.value)).join("<br>")}<br>${esc(L.k.buyout)}: ${perc(cities[p[0].dataIndex].buyout)}` },
+										legend: { top: 0 },
+										xAxis: { type: "value" },
+										yAxis: { type: "category", data: cities.map((c) => c.city) },
+										series: [
+											{ name: L.k.delivered, type: "bar", stack: "c", data: cities.map((c) => c.delivered), itemStyle: { color: "#198754" } },
+											{ name: L.k.returned, type: "bar", stack: "c", data: cities.map((c) => c.returned), itemStyle: { color: "#dc3545" } },
+										],
+								  })
+								: empty("ch-cities");
+							table("tb-payments", [
+								{ k: "payment", t: L.c.payment },
+								{ k: "delivered", t: L.k.delivered, r: 1, f: num },
+								{ k: "returned", t: L.k.returned, r: 1, f: num },
+								{ k: "buyout", t: L.k.buyout, r: 1, f: (v) => `<b class="${v < 80 ? "text-danger" : ""}">${perc(v)}</b>` },
+							], d.payments);
+						});
+					},
+					clients() {
+						return section("clients").then((d) => {
+							const t = d.total;
+							kpi("clients-kpi", [
+								{ l: L.k.clients, v: num(t.clients) },
+								{ l: L.k.new_clients, v: num(t.new) },
+								{ l: L.k.returning, v: num(t.returning) },
+								{ l: L.k.repeat_rate, v: perc(t.repeat_rate) },
+								{ l: L.k.orders_per_client, v: DEC.format(t.orders_per_client) },
+								{ l: L.k.revenue_per_client, v: money(t.revenue_per_client), s: esc(L.k.guests) + ": " + num(t.guests) },
+							]);
+							d.series.length
+								? draw("ch-clients", {
+										legend: { top: 0 },
+										xAxis: { type: "category", data: d.series.map((x) => x.p) },
+										yAxis: { type: "value" },
+										series: [
+											{ name: L.k.new_clients, type: "bar", stack: "c", data: d.series.map((x) => x.new) },
+											{ name: L.k.returning, type: "bar", stack: "c", data: d.series.map((x) => x.returning) },
+											{ name: L.k.guests, type: "bar", stack: "c", data: d.series.map((x) => x.guests), itemStyle: { color: "#adb5bd" } },
+										],
+								  })
+								: empty("ch-clients");
+							// Когорти — теплова таблиця
+							const heat = (v) => `background: rgba(13,110,253,${Math.min(0.85, v / 40).toFixed(2)}); color: ${v > 20 ? "#fff" : "inherit"}`;
+							$("tb-cohorts").innerHTML = d.cohorts.length
+								? `<thead class="table-light"><tr><th>${esc(L.c.cohort)}</th><th>${esc(L.k.clients)}</th>${[1, 2, 3, 4, 5, 6].map((m) => `<th>+${m}</th>`).join("")}</tr></thead><tbody>${d.cohorts
+										.map((c) => `<tr><td>${esc(c.cohort)}</td><td>${num(c.size)}</td>${c.months.map((v) => `<td style="${heat(v)}">${v ? perc(v) : ""}</td>`).join("")}</tr>`)
+										.join("")}</tbody>`
+								: `<tbody><tr><td class="text-muted p-3">${esc(L.c.empty)}</td></tr></tbody>`;
+							table("tb-top-clients", [
+								{ k: "name", t: L.c.name, f: (v, r) => `<a href="/clients/${Number(r.id_client)}/">${esc(v || "#" + r.id_client)}</a>` },
+								{ k: "phone", t: L.c.phone },
+								{ k: "orders", t: L.k.orders, r: 1, f: num },
+								{ k: "revenue", t: L.k.revenue, r: 1, f: money },
+							], d.top);
+						});
+					},
+					managers() {
+						return section("managers").then((d) => {
+							const rows = d.rows.map((r) => Object.assign({}, r, { name: r.name || L.c.unassigned }));
+							rows.length
+								? draw("ch-managers", {
+										tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+										legend: { top: 0 },
+										xAxis: [{ type: "value" }, { type: "value", position: "top", splitLine: { show: false } }],
+										yAxis: { type: "category", data: rows.map((r) => r.name).reverse() },
+										series: [
+											{ name: L.k.revenue, type: "bar", data: rows.map((r) => r.revenue).reverse() },
+											{ name: L.k.orders, type: "bar", xAxisIndex: 1, data: rows.map((r) => r.orders).reverse() },
+										],
+								  })
+								: empty("ch-managers");
+							table("tb-managers", [
+								{ k: "name", t: L.c.name },
+								{ k: "orders", t: L.k.orders, r: 1, f: num },
+								{ k: "revenue", t: L.k.revenue, r: 1, f: money },
+								{ k: "avg_check", t: L.k.avg_check, r: 1, f: money },
+								{ k: "cancel_rate", t: L.k.cancel_rate, r: 1, f: perc },
+								{ k: "refunded", t: L.k.refunded, r: 1, f: money },
+								{ k: "react_min", t: L.c.react, r: 1, f: (v) => (v === null ? "—" : `<span title="${esc(L.c.react_hint)}">${num(v)}</span>`) },
+							], rows);
+						});
+					},
+					time() {
+						return section("heatmap").then((d) => {
+							const max = d.data.reduce((m, x) => Math.max(m, x[2]), 0);
+							draw("ch-heatmap", {
+								tooltip: { position: "top", formatter: (p) => `${esc(L.c.weekdays[p.data[1]])}, ${p.data[0]}:00<br>${num(p.data[2])} · ${money(p.data[3])}` },
+								grid: { left: 10, right: 20, top: 10, bottom: 60, containLabel: true },
+								xAxis: { type: "category", data: [...Array(24).keys()].map((h) => h + ":00"), splitArea: { show: true } },
+								yAxis: { type: "category", data: L.c.weekdays, inverse: true, splitArea: { show: true } },
+								visualMap: { min: 0, max: max || 1, calculable: true, orient: "horizontal", left: "center", bottom: 0 },
+								series: [{ type: "heatmap", data: d.data, label: { show: true, formatter: (p) => (p.data[2] ? p.data[2] : "") } }],
+							});
+						});
+					},
+					returns() {
+						return section("returns").then((d) => {
+							const t = d.total;
+							kpi("returns-kpi", [
+								{ l: L.k.requests, v: num(t.requests) },
+								{ l: L.k.exchanges, v: num(t.exchanges || 0) },
+								{ l: L.k.returns_qty, v: num(t.qty || 0) },
+								{ l: L.k.returns_value, v: money(t.value || 0) },
+								{ l: L.k.refunded, v: money(t.refunded || 0) },
+								{ l: L.k.defect_rate, v: perc(t.defect_rate || 0) },
+							]);
+							d.reasons.length
+								? draw("ch-reasons", { tooltip: { trigger: "item" }, legend: { type: "scroll", bottom: 0 }, series: [{ type: "pie", radius: ["40%", "70%"], center: ["50%", "45%"], data: d.reasons.map((r) => ({ name: RL.r[r.key] || r.key, value: r.value })) }] })
+								: empty("ch-reasons");
+							d.statuses.length
+								? draw("ch-rstatuses", { tooltip: { trigger: "axis", axisPointer: { type: "shadow" } }, xAxis: { type: "category", data: d.statuses.map((s) => RL.s[s.key] || s.key) }, yAxis: { type: "value" }, series: [{ type: "bar", data: d.statuses.map((s) => s.value) }] })
+								: empty("ch-rstatuses");
+							table("tb-rproducts", [
+								{ k: "name", t: L.c.product, f: (v, r) => esc(v) + (r.sku ? ` <small class="text-muted">${esc(r.sku)}</small>` : "") },
+								{ k: "qty", t: L.c.qty, r: 1, f: num },
+								{ k: "defect", t: L.k.defect_rate, r: 1, f: num },
+								{ k: "value", t: L.k.returns_value, r: 1, f: money },
+							], d.products);
+						});
+					},
+					automation() {
+						return section("automation").then((d) => {
+							const m = d.messages;
+							kpi("automation-kpi", [
+								{ l: L.k.messages, v: num(m.total) },
+								{ l: L.k.sent, v: num(m.sent), s: m.total ? perc((m.sent / m.total) * 100) : "" },
+								{ l: L.k.failed, v: num(m.failed) },
+								{ l: L.k.pending, v: num(m.pending) },
+								{ l: L.k.auto, v: num(m.auto) },
+							]);
+							d.templates.length
+								? draw("ch-templates", {
+										tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+										legend: { top: 0 },
+										xAxis: { type: "value" },
+										yAxis: { type: "category", data: d.templates.map((t) => t.name).reverse() },
+										series: [
+											{ name: L.k.sent, type: "bar", stack: "t", data: d.templates.map((t) => t.sent).reverse(), itemStyle: { color: "#198754" } },
+											{ name: L.k.failed, type: "bar", stack: "t", data: d.templates.map((t) => t.failed).reverse(), itemStyle: { color: "#dc3545" } },
+										],
+								  })
+								: empty("ch-templates");
+							table("tb-rules", [
+								{ k: "name", t: L.c.name },
+								{ k: "runs", t: L.c.runs, r: 1, f: num },
+								{ k: "ok", t: "OK", r: 1, f: num },
+								{ k: "partial", t: L.c.partial, r: 1, f: num },
+								{ k: "error", t: L.c.error, r: 1, f: (v) => (v ? `<b class="text-danger">${num(v)}</b>` : "0") },
+							], d.rules);
+						});
+					},
+					health() {
+						return Promise.all([
+							section("carts").then((d) => {
+								kpi("health-kpi", [
+									{ l: L.k.carts, v: num(d.total_carts) },
+									{ l: L.k.recovered, v: num(d.recovered_carts) },
+									{ l: L.k.recovery_rate, v: perc(d.recovery_rate) },
+									{ l: L.k.recovered_amount, v: money(d.recovered_amount) },
+									{ l: L.k.lost_amount, v: money(d.lost_amount) },
+								]);
+								d.data.length ? draw("ch-carts", { tooltip: { trigger: "item" }, legend: { bottom: 0 }, series: [{ type: "pie", radius: ["40%", "70%"], center: ["50%", "45%"], data: d.data }] }) : empty("ch-carts");
+							}),
+							section("health").then((d) => {
+								draw("ch-health", {
+									tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+									legend: { top: 0 },
+									xAxis: { type: "category", data: [L.c.inbox, L.c.outbox] },
+									yAxis: { type: "value" },
+									series: [
+										{ name: "done", type: "bar", stack: "h", data: [d.inbox.done, d.outbox.done], itemStyle: { color: "#198754" } },
+										{ name: "pending", type: "bar", stack: "h", data: [d.inbox.pending, d.outbox.pending], itemStyle: { color: "#ffc107" } },
+										{ name: "failed", type: "bar", stack: "h", data: [d.inbox.failed, d.outbox.failed], itemStyle: { color: "#dc3545" } },
+									],
+								});
+								d.token_reasons.length ? draw("ch-tokens", { tooltip: { trigger: "item" }, legend: { type: "scroll", bottom: 0 }, series: [{ type: "pie", radius: ["40%", "70%"], center: ["50%", "45%"], data: d.token_reasons }] }) : empty("ch-tokens");
+							}),
+						]);
+					},
+				};
+
+				/* ─── Вкладки: завантажуємо лише відкриту; зміна фільтра скидає решту ─── */
+				let active = "sales";
+				const loaded = new Set();
+				const load = (tab) => {
+					loaded.add(tab);
+					builtAt = null;
+					const pane = document.querySelector(`[data-pane="${tab}"]`);
+					pane.style.opacity = 0.5;
+					LOAD[tab]()
+						.catch((e) => {
+							console.error(e);
+							if (window.Notyf) new Notyf().error(L.c.error_load);
+						})
+						.finally(() => {
+							fresh = false;
+							pane.style.opacity = 1;
+							Object.values(charts).forEach((c) => c.resize());
+						});
+				};
+				const show = (tab) => {
+					active = tab;
+					document.querySelectorAll("#an-tabs .nav-link").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+					document.querySelectorAll(".an-pane").forEach((p) => p.classList.toggle("d-none", p.dataset.pane !== tab));
+					try {
+						localStorage.setItem("an.tab", tab);
+					} catch (e) {}
+					if (!loaded.has(tab)) load(tab);
+					else Object.values(charts).forEach((c) => c.resize());
+				};
+				const refresh = () => {
+					loaded.clear();
+					load(active);
+				};
+
+				$("an-tabs").addEventListener("click", (e) => {
+					const b = e.target.closest("[data-tab]");
+					if (b) show(b.dataset.tab);
+				});
+				$("an-ranges").addEventListener("click", (e) => {
+					const b = e.target.closest("[data-range]");
+					if (!b) return;
+					document.querySelectorAll("#an-ranges .btn").forEach((x) => x.classList.toggle("active", x === b));
+					setRange(Number(b.dataset.range));
+					refresh();
+				});
+				["an-from", "an-to"].forEach((id) => $(id).addEventListener("change", () => document.querySelectorAll("#an-ranges .btn").forEach((x) => x.classList.remove("active"))));
+				$("an-apply").addEventListener("click", refresh);
+				$("an-gran").addEventListener("change", refresh);
+				$("an-split").addEventListener("change", refresh);
+				$("top-metric").addEventListener("click", (e) => {
+					const b = e.target.closest("[data-metric]");
+					if (!b) return;
+					document.querySelectorAll("#top-metric .btn").forEach((x) => x.classList.toggle("active", x === b));
+					load("products");
+				});
+				$("margin-group").addEventListener("change", () => load("products"));
+				$("an-excel").addEventListener("click", (e) => {
+					e.preventDefault();
+					const f = filters();
+					const q = new URLSearchParams({ date_from: f.date_from, date_to: f.date_to, granularity: f.granularity });
+					if (f.integrations) q.set("integrations", f.integrations.join(","));
+					location.href = "/api/analytics/export/?" + q.toString();
+				});
+
+				// «Оновити дані»: перерахунок кешу на сервері (у фоні); поточна вкладка — одразу заново
+				const btnRefresh = $("an-refresh");
+				const pollWarm = () =>
+					post("/api/analytics/cache/status/").then((st) => {
+						if (st.running) {
+							btnRefresh.querySelector("span").textContent = L.f.refreshing + " " + st.done + "/" + st.total;
+							setTimeout(pollWarm, 2000);
+						} else {
+							btnRefresh.disabled = false;
+							btnRefresh.querySelector("span").textContent = L.f.refresh;
+							refresh();
+						}
+					});
+				if (btnRefresh)
+					btnRefresh.addEventListener("click", () => {
+						btnRefresh.disabled = true;
+						fresh = true;
+						refresh();
+						post("/api/analytics/cache/refresh/").then(pollWarm).catch(() => (btnRefresh.disabled = false));
+					});
+
+				setRange(30);
+				let start = "sales";
+				try {
+					const saved = localStorage.getItem("an.tab");
+					if (saved && LOAD[saved]) start = saved;
+				} catch (e) {}
+				show(start);
+			})();
+		</script>
+	</body>
+</html>

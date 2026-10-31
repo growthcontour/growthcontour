@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('contact_center.comments.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<style>
+			#comments-table .tabulator-col,
+			#comments-table .tabulator-cell { border-right: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; }
+			#comments-table .tabulator-col:last-child,
+			#comments-table .tabulator-cell:last-child { border-right: none; }
+			#comments-table .tabulator-row:last-child .tabulator-cell { border-bottom: none; }
+			#comments-table .tabulator-cell { white-space: normal; vertical-align: top; }
+			.cm-post { display: flex; gap: 8px; }
+			.cm-thumb { width: 56px; height: 56px; object-fit: cover; flex: 0 0 56px; background: #f1f3f5; }
+			.cm-author { font-weight: 600; }
+			.cm-text { white-space: pre-wrap; word-break: break-word; }
+			.cm-hidden { opacity: 0.55; }
+			.cm-replies { border-left: 2px solid #dee2e6; margin: 6px 0 0 4px; padding-left: 8px; }
+			.cm-replies .own .cm-author { color: #0d6efd; }
+			#status_tabs .nav-link { border-radius: 0; }
+		</style>
+	</head>
+
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('contact_center.comments.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('contact_center.comments.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/contact-center/"><%= i18n.__('contact_center.comments.breadcrumb.contact_center') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('contact_center.comments.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/contact-center/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3 mb-4">
+			<% if (!data.channels.length) { %>
+			<div class="alert alert-info rounded-0"><%= i18n.__('contact_center.comments.no_channels') %></div>
+			<% } %>
+			<div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+				<select class="form-select rounded-0 w-auto" id="f_channel">
+					<option value=""><%= i18n.__('contact_center.comments.all_channels') %></option>
+					<% data.channels.forEach(function (c) { %>
+					<option value="<%= c.id %>"><%= i18n.__('contact_center.social.networks.' + c.type) %> · <%= c.name %></option>
+					<% }); %>
+				</select>
+				<input type="search" class="form-control rounded-0 w-auto flex-grow-1" id="f_q" placeholder="<%= i18n.__('contact_center.comments.search') %>" />
+				<button type="button" class="btn btn-outline-primary rounded-0" id="btn_sync"><i class="fa-solid fa-rotate me-1"></i><%= i18n.__('contact_center.comments.sync') %></button>
+			</div>
+
+			<ul class="nav nav-tabs" id="status_tabs">
+				<% ['new', 'answered', 'hidden', ''].forEach(function (s, i) { %>
+				<li class="nav-item"><button type="button" class="nav-link<%= i === 0 ? ' active' : '' %>" data-status="<%= s %>"><%= i18n.__('contact_center.comments.tabs.' + (s || 'all')) %></button></li>
+				<% }); %>
+			</ul>
+			<div class="card border-primary rounded-0 border-top-0">
+				<div class="card-header text-bg-primary rounded-0"><%= i18n.__('contact_center.comments.title') %></div>
+				<div id="comments-table"></div>
+			</div>
+		</div>
+
+		<!-- Відповідь: у коментарях або в особисті -->
+		<div class="modal fade" id="replyModal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5" id="reply_title"></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<div class="small border bg-light p-2 mb-2 cm-text" id="reply_quote"></div>
+						<textarea class="form-control rounded-0" id="reply_text" rows="4" maxlength="2200"></textarea>
+						<small class="text-muted d-block mt-1" id="reply_hint"></small>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('contact_center.comments.cancel') %></button>
+						<button type="button" class="btn btn-primary rounded-0" id="reply_send"><%= i18n.__('contact_center.comments.send') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %> <%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			(function () {
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000 });
+				const CAN_EDIT = <%= data.perms.edit ? 'true' : 'false' %>;
+				const CAN_DELETE = <%= data.perms.delete ? 'true' : 'false' %>;
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const ICONS = { instagram: "fa-brands fa-instagram text-danger", facebook: "fa-brands fa-facebook text-primary" };
+				const post = (url, body) =>
+					fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) })
+						.then((r) => r.json())
+						.then((d) => {
+							if (!d.ok) throw new Error(d.error || "Error");
+							return d;
+						});
+				const fmtDate = (v) => (v ? new Date(v).toLocaleString([], { dateStyle: "short", timeStyle: "short" }) : "");
+				const author = (c) => esc(c.author_username ? "@" + c.author_username : c.author_name || "—");
+
+				let status = "new";
+				let rows = [];
+
+				const table = new Tabulator("#comments-table", {
+					layout: "fitColumns",
+					ajaxURL: "/api/contact-center/comments/list/",
+					ajaxConfig: "POST",
+					ajaxContentType: "json",
+					ajaxParams: () => ({ status, id_channel: $("f_channel").value, q: $("f_q").value.trim() }),
+					ajaxResponse: (url, params, resp) => {
+						rows = resp.data || [];
+						return resp;
+					},
+					pagination: true,
+					paginationMode: "remote",
+					paginationSize: 25,
+					placeholder: "<%= i18n.__('contact_center.comments.empty') %>",
+					columns: [
+						{
+							title: "<%= i18n.__('contact_center.comments.columns.post') %>",
+							field: "media_caption",
+							width: 260,
+							headerSort: false,
+							formatter: (c) => {
+								const d = c.getData();
+								const thumb = d.media_thumb ? '<img class="cm-thumb" src="' + esc(d.media_thumb) + '" alt="" loading="lazy" referrerpolicy="no-referrer" />' : '<div class="cm-thumb d-flex align-items-center justify-content-center text-muted"><i class="fa-regular fa-image"></i></div>';
+								const cap = d.media_caption ? esc(String(d.media_caption).slice(0, 90)) : '<span class="text-muted"><%= i18n.__('contact_center.comments.no_caption') %></span>';
+								const link = d.media_permalink ? ' <a href="' + esc(d.media_permalink) + '" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>' : "";
+								return '<div class="cm-post">' + thumb + '<div class="small"><i class="' + ICONS[d.network] + ' me-1"></i>' + esc(d.channel_name) + '<div class="text-muted">' + cap + link + "</div></div></div>";
+							},
+						},
+						{
+							title: "<%= i18n.__('contact_center.comments.columns.comment') %>",
+							field: "text",
+							widthGrow: 3,
+							headerSort: false,
+							formatter: (c) => {
+								const d = c.getData();
+								const badges =
+									(d.is_hidden ? ' <span class="badge text-bg-secondary"><%= i18n.__('contact_center.comments.badge_hidden') %></span>' : "") +
+									(d.private_replied ? ' <span class="badge text-bg-info"><%= i18n.__('contact_center.comments.badge_private') %></span>' : "") +
+									(d.status === "deleted" ? ' <span class="badge text-bg-danger"><%= i18n.__('contact_center.comments.badge_deleted') %></span>' : "");
+								const replies = (d.replies || []).length
+									? '<div class="cm-replies">' + d.replies.map((r) => '<div class="small mb-1' + (r.is_own ? " own" : "") + (r.is_hidden ? " cm-hidden" : "") + '"><span class="cm-author">' + author(r) + "</span> " + '<span class="cm-text">' + esc(r.text) + '</span> <span class="text-muted">' + esc(fmtDate(r.date_add)) + "</span></div>").join("") + "</div>"
+									: "";
+								return '<div class="' + (d.is_hidden ? "cm-hidden" : "") + '"><span class="cm-author">' + author(d) + "</span>" + badges + '<div class="cm-text">' + esc(d.text) + "</div></div>" + replies;
+							},
+						},
+						{ title: "<%= i18n.__('contact_center.comments.columns.date') %>", field: "date_add", width: 130, headerSort: false, formatter: (c) => esc(fmtDate(c.getValue())) },
+						{
+							title: "<%= i18n.__('contact_center.comments.columns.actions') %>",
+							field: "id",
+							width: 170,
+							hozAlign: "center",
+							headerSort: false,
+							formatter: (c) => {
+								const d = c.getData();
+								const id = Number(d.id);
+								if (d.status === "deleted") return "";
+								const b = (cls, icon, title, color) => '<button type="button" class="bg-transparent border-0 ' + (color || "text-primary") + " " + cls + '" data-id="' + id + '" title="' + title + '"><i class="' + icon + '"></i></button>';
+								let h = "";
+								if (CAN_EDIT) {
+									h += b("act-reply", "fa-solid fa-reply", "<%= i18n.__('contact_center.comments.act_reply') %>");
+									if (!d.private_replied) h += b("act-private", "fa-regular fa-paper-plane", "<%= i18n.__('contact_center.comments.act_private') %>");
+									h += d.is_hidden ? b("act-unhide", "fa-regular fa-eye", "<%= i18n.__('contact_center.comments.act_unhide') %>", "text-secondary") : b("act-hide", "fa-regular fa-eye-slash", "<%= i18n.__('contact_center.comments.act_hide') %>", "text-secondary");
+									h += d.status === "new" ? b("act-done", "fa-solid fa-check", "<%= i18n.__('contact_center.comments.act_done') %>", "text-success") : b("act-undone", "fa-solid fa-rotate-left", "<%= i18n.__('contact_center.comments.act_undone') %>", "text-secondary");
+								}
+								if (CAN_DELETE) h += b("act-delete", "fa-regular fa-trash-can", "<%= i18n.__('contact_center.comments.act_delete') %>", "text-danger");
+								const who = d.action_user ? '<div class="small text-muted mt-1">' + esc(d.action_user) + "</div>" : "";
+								return '<div class="d-flex justify-content-center gap-2">' + h + "</div>" + who;
+							},
+						},
+					],
+				});
+
+				const reload = () => table.setData();
+				document.querySelectorAll("#status_tabs [data-status]").forEach((t) =>
+					t.addEventListener("click", () => {
+						status = t.dataset.status;
+						document.querySelectorAll("#status_tabs .nav-link").forEach((x) => x.classList.toggle("active", x === t));
+						reload();
+					})
+				);
+				$("f_channel").addEventListener("change", reload);
+				let qT;
+				$("f_q").addEventListener("input", () => {
+					clearTimeout(qT);
+					qT = setTimeout(reload, 400);
+				});
+				// Нові коментарі приходять вебхуком — оновлюємо список
+				setInterval(() => {
+					if (!document.querySelector(".modal.show")) table.replaceData();
+				}, 30000);
+
+				$("btn_sync").addEventListener("click", () => {
+					const b = $("btn_sync");
+					b.disabled = true;
+					post("/api/contact-center/comments/sync/", { id_channel: $("f_channel").value || null })
+						.then((d) => {
+							const r = d.result;
+							notyf.success("<%= i18n.__('contact_center.comments.synced') %>".replace("{n}", r.comments));
+							r.errors.forEach((e) => notyf.error(e.error));
+							reload();
+						})
+						.catch((e) => notyf.error(e.message))
+						.finally(() => (b.disabled = false));
+				});
+
+				/* ─── Відповідь ─── */
+				const modal = new bootstrap.Modal($("replyModal"));
+				let replyTo = null;
+				let replyMode = "reply";
+				function openReply(row, mode) {
+					replyTo = row;
+					replyMode = mode;
+					$("reply_title").textContent = mode === "private" ? "<%= i18n.__('contact_center.comments.title_private') %>" : "<%= i18n.__('contact_center.comments.title_reply') %>";
+					$("reply_hint").textContent = mode === "private" ? "<%= i18n.__('contact_center.comments.hint_private') %>" : "<%= i18n.__('contact_center.comments.hint_reply') %>";
+					$("reply_quote").textContent = (row.author_username ? "@" + row.author_username : row.author_name || "") + ": " + (row.text || "");
+					$("reply_text").value = mode === "reply" && row.author_username && row.network === "instagram" ? "@" + row.author_username + " " : "";
+					modal.show();
+					setTimeout(() => $("reply_text").focus(), 300);
+				}
+				$("reply_send").addEventListener("click", () => {
+					const text = $("reply_text").value.trim();
+					if (!text) return;
+					const b = $("reply_send");
+					b.disabled = true;
+					post("/api/contact-center/comments/" + replyTo.id + "/" + (replyMode === "private" ? "private" : "reply") + "/", { text })
+						.then(() => {
+							modal.hide();
+							notyf.success(replyMode === "private" ? "<%= i18n.__('contact_center.comments.sent_private') %>" : "<%= i18n.__('contact_center.comments.sent_reply') %>");
+							table.replaceData();
+						})
+						.catch((e) => notyf.error(e.message))
+						.finally(() => (b.disabled = false));
+				});
+
+				$("comments-table").addEventListener("click", (e) => {
+					const b = e.target.closest("button[data-id]");
+					if (!b) return;
+					const id = Number(b.dataset.id);
+					const row = rows.find((r) => r.id === id);
+					if (!row) return;
+					if (b.classList.contains("act-reply")) return openReply(row, "reply");
+					if (b.classList.contains("act-private")) return openReply(row, "private");
+					let action = null;
+					let body = {};
+					if (b.classList.contains("act-hide")) action = "hide";
+					else if (b.classList.contains("act-unhide")) action = "unhide";
+					else if (b.classList.contains("act-done")) (action = "status"), (body = { status: "answered" });
+					else if (b.classList.contains("act-undone")) (action = "status"), (body = { status: "new" });
+					else if (b.classList.contains("act-delete")) {
+						if (!confirm("<%= i18n.__('contact_center.comments.confirm_delete') %>")) return;
+						action = "delete";
+					}
+					if (!action) return;
+					b.disabled = true;
+					post("/api/contact-center/comments/" + id + "/" + action + "/", body)
+						.then(() => table.replaceData())
+						.catch((err) => {
+							notyf.error(err.message);
+							b.disabled = false;
+						});
+				});
+			})();
+		</script>
+	</body>
+</html>

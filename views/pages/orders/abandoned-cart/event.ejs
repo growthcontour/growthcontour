@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+  <head>
+    <title><%= i18n.__('orders.abandoned-cart.events.title') %></title>
+    <%- include('../../../partials/head'); %>
+
+    <!-- Tabulator (таблиці) -->
+    <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+    <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+  </head>
+
+  <body class="d-flex flex-column h-100">
+    <%- include('../../../partials/header'); %>
+
+    <!-- ─── ХЛІБНІ КРИХТИ ─────────────────────────────────────────── -->
+    <div class="breadcrumbs pt-3 pb-3">
+      <div class="container-fluid">
+        <div class="row align-items-center">
+          <div class="col">
+            <span><%= i18n.__('orders.abandoned-cart.events.title') %></span>
+            <div>
+              <ul class="list-inline mb-0">
+                <li class="list-inline-item">
+                  <a href="/">
+                    <i class="fas fa-home"></i>
+                    <span><%= i18n.__('orders.abandoned-cart.events.breadcrumb.home') %></span>
+                  </a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <a href="/orders/"><%= i18n.__('orders.abandoned-cart.events.breadcrumb.orders') %></a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <a href="/orders/abandoned-cart/"><%= i18n.__('orders.abandoned-cart.events.breadcrumb.abandoned_cart') %></a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <%= i18n.__('orders.abandoned-cart.events.breadcrumb.current') %>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-auto">
+            <a href="/orders/abandoned-cart/" class="btn btn-primary rounded-0">
+              <i class="fa-solid fa-angle-left"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── ОСНОВНИЙ КОНТЕНТ ──────────────────────────────────────── -->
+    <div class="container-fluid mt-3">
+      <div class="row">
+        <div class="col-12 mb-3">
+          <!-- Кнопка додавання події -->
+          <a href="/orders/abandoned-cart/event/create/" class="btn btn-primary rounded-0 mb-3"><%= i18n.__('orders.abandoned-cart.events.add') %></a>
+
+          <!-- Таблиця подій -->
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0"><%= i18n.__('orders.abandoned-cart.events.title') %></div>
+            <div id="events-table"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%- include('../../../partials/footer'); %> <%- include('../../../partials/script'); %>
+    <script src="/assets/js/tabulator/tabulator.min.js"></script>
+
+    <script>
+      const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+      var table = new Tabulator("#events-table", {
+        layout: "fitColumns",
+        placeholder: "<%= i18n.__('orders.abandoned-cart.events.empty') %>",
+        ajaxURL: "/api/orders/abandoned-cart/events-list/",
+        ajaxConfig: "POST",
+        paginationSize: 10,
+        paginationSizeSelector: [10, 20, 30, 40],
+        pagination: true,
+        movableColumns: true,
+        columns: [
+          { title: "<%= i18n.__('orders.abandoned-cart.events.columns.id') %>", field: "id", headerSort: false, widthGrow: 0.3 },
+          { title: "<%= i18n.__('orders.abandoned-cart.events.columns.name') %>", field: "name", headerSort: false, widthGrow: 2, formatter: (cell) => esc(cell.getValue()) },
+          {
+            title: "<%= i18n.__('orders.abandoned-cart.events.columns.service') %>",
+            field: "service_name",
+            headerSort: false,
+            widthGrow: 1,
+            formatter: function (cell) {
+              const row = cell.getRow().getData();
+              const logo = row.service_logo ? `<img src="${esc(row.service_logo)}" style="height:18px;object-fit:contain" class="me-1">` : "";
+              return `${logo}${esc(row.service_name || "—")}`;
+            },
+          },
+          {
+            title: "<%= i18n.__('orders.abandoned-cart.events.columns.channel') %>",
+            field: "service_channel",
+            headerSort: false,
+            widthGrow: 0.5,
+            formatter: function (cell) {
+              const map = { 1: "SMS", 2: "Email", 3: "Viber" };
+              const colors = { 1: "text-bg-success", 2: "text-bg-primary", 3: "text-bg-info" };
+              const v = cell.getValue();
+              return `<span class="badge rounded-0 ${colors[v] || "text-bg-secondary"}">${map[v] || "—"}</span>`;
+            },
+          },
+          { title: "<%= i18n.__('orders.abandoned-cart.events.columns.delay') %>", field: "delay_hours", headerSort: false, widthGrow: 0.5, formatter: (cell) => (Number(cell.getValue()) || 0) + " <%= i18n.__('orders.abandoned-cart.events.hours') %>" },
+          {
+            title: "<%= i18n.__('orders.abandoned-cart.events.columns.status') %>",
+            field: "active",
+            headerSort: false,
+            widthGrow: 0.5,
+            formatter: (cell) => (cell.getValue() ? `<span class="badge rounded-0 text-bg-success"><%= i18n.__('orders.abandoned-cart.events.active') %></span>` : `<span class="badge rounded-0 text-bg-secondary"><%= i18n.__('orders.abandoned-cart.events.inactive') %></span>`),
+          },
+          { title: "<%= i18n.__('orders.abandoned-cart.events.columns.date_add') %>", field: "date_add", headerSort: false, widthGrow: 1 },
+          {
+            title: "",
+            field: "id",
+            headerSort: false,
+            width: 100,
+            formatter: (cell) => `<div class="d-flex justify-content-center gap-2"><a href="/orders/abandoned-cart/event/${Number(cell.getValue())}/" class="text-primary"><i class="fa-regular fa-pen-to-square"></i></a></div>`,
+          },
+        ],
+      });
+    </script>
+  </body>
+</html>
