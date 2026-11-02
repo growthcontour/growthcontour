@@ -1,0 +1,31 @@
+<%# Редактор тексту публікацій: стилі + панель кнопок для /assets/js/contact-center/social-editor.js %>
+<style>
+	.rte { border: 1px solid #ced4da; background: #fff; }
+	.rte-bar { display: flex; flex-wrap: wrap; gap: 2px; padding: 4px; border-bottom: 1px solid #ced4da; background: #f8f9fa; }
+	.rte-bar button { border: 0; background: transparent; width: 30px; height: 30px; color: #495057; }
+	.rte-bar button:hover { background: #e9ecef; }
+	.rte-bar .sep { width: 1px; background: #dee2e6; margin: 4px 3px; }
+	.rte-body { min-height: 200px; max-height: 520px; overflow-y: auto; padding: 8px 12px; outline: 0; }
+	.rte-body:empty::before { content: attr(data-ph); color: #adb5bd; }
+	.rte-body p { margin: 0 0 0.5rem; }
+	.rte-body blockquote { border-left: 3px solid #adb5bd; padding-left: 8px; margin: 0 0 0.5rem; color: #495057; }
+	.rte-body code { background: #f1f3f5; padding: 0 3px; }
+	.rte-body .tg-spoiler { background: #dee2e6; color: #495057; }
+	.rte.disabled .rte-bar { display: none; }
+</style>
+<template id="social_rte_toolbar" data-link-prompt="<%= i18n.__('contact_center.social.rte.link_prompt') %>">
+	<button type="button" data-cmd="bold" title="<%= i18n.__('contact_center.social.rte.bold') %>"><i class="fa-solid fa-bold"></i></button>
+	<button type="button" data-cmd="italic" title="<%= i18n.__('contact_center.social.rte.italic') %>"><i class="fa-solid fa-italic"></i></button>
+	<button type="button" data-cmd="underline" title="<%= i18n.__('contact_center.social.rte.underline') %>"><i class="fa-solid fa-underline"></i></button>
+	<button type="button" data-cmd="strikeThrough" title="<%= i18n.__('contact_center.social.rte.strike') %>"><i class="fa-solid fa-strikethrough"></i></button>
+	<span class="sep"></span>
+	<button type="button" data-cmd="link" title="<%= i18n.__('contact_center.social.rte.link') %>"><i class="fa-solid fa-link"></i></button>
+	<button type="button" data-cmd="code" title="<%= i18n.__('contact_center.social.rte.code') %>"><i class="fa-solid fa-code"></i></button>
+	<button type="button" data-cmd="quote" title="<%= i18n.__('contact_center.social.rte.quote') %>"><i class="fa-solid fa-quote-left"></i></button>
+	<button type="button" data-cmd="spoiler" title="<%= i18n.__('contact_center.social.rte.spoiler') %>"><i class="fa-solid fa-eye-slash"></i></button>
+	<span class="sep"></span>
+	<button type="button" data-cmd="insertUnorderedList" title="<%= i18n.__('contact_center.social.rte.ul') %>"><i class="fa-solid fa-list-ul"></i></button>
+	<button type="button" data-cmd="insertOrderedList" title="<%= i18n.__('contact_center.social.rte.ol') %>"><i class="fa-solid fa-list-ol"></i></button>
+	<span class="sep"></span>
+	<button type="button" data-cmd="removeFormat" title="<%= i18n.__('contact_center.social.rte.clear') %>"><i class="fa-solid fa-text-slash"></i></button>
+</template>

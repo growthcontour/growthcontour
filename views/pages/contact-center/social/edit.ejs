@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= data.post ? i18n.__('contact_center.social_post.title') + ' #' + data.post.id : i18n.__('contact_center.social_post.title_new') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.media-strip { display: flex; flex-wrap: wrap; gap: 8px; min-height: 40px; }
+			.media-item { position: relative; width: 110px; height: 110px; background: #f1f3f5; border: 1px solid #dee2e6; cursor: grab; }
+			.media-item img, .media-item video { width: 100%; height: 100%; object-fit: cover; display: block; }
+			.media-item .mi-tools { position: absolute; top: 2px; right: 2px; display: flex; gap: 2px; }
+			.media-item .mi-tools button { border: 0; background: rgba(0, 0, 0, 0.6); color: #fff; width: 24px; height: 24px; font-size: 12px; }
+			.media-item .mi-badge { position: absolute; left: 2px; bottom: 2px; background: rgba(0, 0, 0, 0.6); color: #fff; font-size: 11px; padding: 0 4px; }
+			.media-item.dragging { opacity: 0.4; }
+			.target-row { border: 1px solid #dee2e6; padding: 10px 12px; margin-bottom: 8px; }
+			.target-row.on { border-color: #0057b8; background: #f8fbff; }
+			.lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+			.lib-item { position: relative; aspect-ratio: 1; background: #f1f3f5; border: 2px solid transparent; cursor: pointer; }
+			.lib-item img { width: 100%; height: 100%; object-fit: cover; }
+			.lib-item.sel { border-color: #0057b8; }
+			.lib-item .lib-del { position: absolute; top: 2px; right: 2px; border: 0; background: rgba(0, 0, 0, 0.6); color: #fff; width: 24px; height: 24px; font-size: 12px; }
+			.lib-item .lib-video { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 28px; color: #6c757d; }
+			#dropzone.over { outline: 2px dashed #0057b8; outline-offset: 4px; }
+			.plain-editor { min-height: 200px; font-family: inherit; }
+			.net-preview { white-space: pre-wrap; min-height: 120px; max-height: 520px; overflow-y: auto; background: #f8f9fa; border: 1px dashed #ced4da; padding: 8px 12px; }
+			.net-preview blockquote { border-left: 3px solid #adb5bd; padding-left: 8px; margin: 0; }
+			.net-preview .tg-spoiler { background: #dee2e6; }
+			#text_tabs .nav-link { border-radius: 0; }
+			#text_tabs .badge { font-weight: 400; }
+			.history li { border-left: 2px solid #dee2e6; padding: 0 0 10px 12px; position: relative; }
+			.history li::before { content: ""; position: absolute; left: -5px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: #adb5bd; }
+			.history li.h-ok::before { background: #198754; }
+			.history li.h-err::before { background: #dc3545; }
+			.history li.h-review::before { background: #fd7e14; }
+		</style>
+	</head>
+
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+		<%- include('../../../partials/contact-center/social-editor'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= data.post ? i18n.__('contact_center.social_post.title') + ' #' + data.post.id : i18n.__('contact_center.social_post.title_new') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('contact_center.social_post.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/contact-center/"><%= i18n.__('contact_center.social_post.breadcrumb.contact_center') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/contact-center/social/"><%= i18n.__('contact_center.social_post.breadcrumb.posts') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('contact_center.social_post.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/contact-center/social/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3 mb-4">
+			<% if (!data.editable) { %>
+			<div class="alert alert-warning rounded-0"><%= i18n.__('contact_center.social_post.locked') %></div>
+			<% } %>
+			<% if (data.post && data.post.status === 'review') { %>
+			<div class="alert alert-warning rounded-0 d-flex align-items-center gap-2">
+				<i class="fa-solid fa-user-check"></i>
+				<div><%= i18n.__('contact_center.social_post.review_banner', { name: data.post.review_user_name || '—' }) %><% if (!data.canApprove) { %> <%= i18n.__('contact_center.social_post.review_wait') %><% } %></div>
+			</div>
+			<% } %>
+
+			<div class="row g-3">
+				<div class="col-xl-7">
+					<!-- Текст: спільний і окремий для кожної мережі -->
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0 d-flex align-items-center justify-content-between">
+							<span><%= i18n.__('contact_center.social_post.text') %></span>
+							<div class="btn-group btn-group-sm edit-only">
+								<button type="button" class="btn btn-light rounded-0" data-snippets="template" title="<%= i18n.__('contact_center.social_post.insert_hint') %>"><i class="fa-regular fa-file-lines me-1"></i><%= i18n.__('contact_center.social_post.insert_template') %></button>
+								<button type="button" class="btn btn-light rounded-0" data-snippets="hashtags" title="<%= i18n.__('contact_center.social_post.insert_hint') %>"><i class="fa-solid fa-hashtag me-1"></i><%= i18n.__('contact_center.social_post.insert_hashtags') %></button>
+							</div>
+						</div>
+						<div class="card-body">
+							<div class="mb-3">
+								<label class="form-label" for="p_title"><%= i18n.__('contact_center.social_post.name') %></label>
+								<input type="text" class="form-control rounded-0" id="p_title" maxlength="255" placeholder="<%= i18n.__('contact_center.social_post.name_ph') %>" value="<%= data.post ? data.post.title || '' : '' %>" />
+							</div>
+
+							<ul class="nav nav-tabs" id="text_tabs" role="tablist">
+								<li class="nav-item" role="presentation">
+									<button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab_common" type="button" role="tab"><%= i18n.__('contact_center.social_post.tab_common') %></button>
+								</li>
+								<% ['telegram', 'instagram', 'facebook', 'viber'].forEach(function (net) { if (!data.accounts.some(function (a) { return a.network === net; })) return; %>
+								<li class="nav-item" role="presentation">
+									<button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab_<%= net %>" type="button" role="tab" data-net-tab="<%= net %>">
+										<i class="<%= { instagram: 'fa-brands fa-instagram', facebook: 'fa-brands fa-facebook', telegram: 'fa-brands fa-telegram', viber: 'fa-brands fa-viber' }[net] %> me-1"></i><%= i18n.__('contact_center.social.networks.' + net) %>
+										<span class="badge text-bg-light border ms-1 net-badge"></span>
+									</button>
+								</li>
+								<% }); %>
+							</ul>
+
+							<div class="tab-content border border-top-0 p-3">
+								<!-- Спільний -->
+								<div class="tab-pane fade show active" id="tab_common" role="tabpanel">
+									<textarea class="d-none" id="p_text" data-ph="<%= i18n.__('contact_center.social_post.text_ph') %>"><%= data.post ? data.post.text || '' : '' %></textarea>
+									<div class="d-flex justify-content-between small text-muted mt-1">
+										<span><%= i18n.__('contact_center.social_post.format_note') %></span>
+										<span id="p_text_count"></span>
+									</div>
+									<label class="form-label mt-3" for="p_first_comment"><%= i18n.__('contact_center.social_post.first_comment') %></label>
+									<textarea class="form-control rounded-0" id="p_first_comment" rows="3" placeholder="<%= i18n.__('contact_center.social_post.first_comment_ph') %>"><%= data.post ? data.post.first_comment || '' : '' %></textarea>
+									<small class="text-muted"><%= i18n.__('contact_center.social_post.first_comment_hint') %></small>
+								</div>
+
+								<% ['telegram', 'instagram', 'facebook', 'viber'].forEach(function (net) { if (!data.accounts.some(function (a) { return a.network === net; })) return; %>
+								<div class="tab-pane fade" id="tab_<%= net %>" role="tabpanel" data-net="<%= net %>">
+									<div class="small text-muted mb-2"><%= i18n.__('contact_center.social_post.net_format.' + net) %></div>
+
+									<!-- Використовується спільний текст -->
+									<div class="v-inherit">
+										<div class="net-preview v-preview"></div>
+										<div class="d-flex justify-content-between align-items-center mt-2">
+											<span class="small v-count"></span>
+											<button type="button" class="btn btn-sm btn-outline-primary rounded-0 edit-only v-own-on"><i class="fa-regular fa-pen-to-square me-1"></i><%= i18n.__('contact_center.social_post.own_on') %></button>
+										</div>
+									</div>
+
+									<!-- Окремий текст -->
+									<div class="v-own d-none">
+										<% if (net === 'telegram') { %>
+										<textarea class="d-none v-text" data-ph="<%= i18n.__('contact_center.social_post.own_text_ph') %>"></textarea>
+										<% } else { %>
+										<textarea class="form-control rounded-0 plain-editor v-text" rows="10" placeholder="<%= i18n.__('contact_center.social_post.own_text_ph') %>"></textarea>
+										<% } %>
+										<div class="d-flex justify-content-between align-items-center mt-2">
+											<span class="small v-count"></span>
+											<button type="button" class="btn btn-sm btn-outline-secondary rounded-0 edit-only v-own-off"><i class="fa-solid fa-rotate-left me-1"></i><%= i18n.__('contact_center.social_post.own_off') %></button>
+										</div>
+									</div>
+
+									<% if (data.commentNetworks[net]) { %>
+									<div class="form-check mt-3">
+										<input class="form-check-input v-comment-on" type="checkbox" id="v_comment_on_<%= net %>" />
+										<label class="form-check-label" for="v_comment_on_<%= net %>"><%= i18n.__('contact_center.social_post.own_comment') %></label>
+									</div>
+									<textarea class="form-control rounded-0 mt-1 d-none v-comment" rows="3" maxlength="<%= data.commentNetworks[net] %>" placeholder="<%= i18n.__('contact_center.social_post.own_comment_ph') %>"></textarea>
+									<% if (net === 'telegram') { %><small class="text-muted d-block mt-1"><%= i18n.__('contact_center.social_post.tg_comment_hint') %></small><% } %>
+									<% } else { %>
+									<div class="small text-muted mt-3"><i class="fa-regular fa-comment-slash me-1"></i><%= i18n.__('contact_center.social_post.no_comments', { network: i18n.__('contact_center.social.networks.' + net) }) %></div>
+									<% } %>
+								</div>
+								<% }); %>
+							</div>
+						</div>
+					</div>
+
+					<!-- Медіа -->
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0 d-flex align-items-center justify-content-between">
+							<span><%= i18n.__('contact_center.social_post.media') %></span>
+							<div class="btn-group btn-group-sm">
+								<label class="btn btn-light rounded-0 mb-0 edit-only" for="p_files"><i class="fa-solid fa-upload me-1"></i><%= i18n.__('contact_center.social_post.upload') %></label>
+								<button type="button" class="btn btn-light rounded-0 edit-only" id="btn_library"><i class="fa-regular fa-images me-1"></i><%= i18n.__('contact_center.social_post.library') %></button>
+							</div>
+						</div>
+						<div class="card-body">
+							<input type="file" id="p_files" class="d-none" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/quicktime" />
+							<div id="dropzone">
+								<div class="media-strip" id="media_strip"></div>
+								<div class="small text-muted mt-2" id="upload_state"></div>
+								<div class="small text-muted mt-1"><%= i18n.__('contact_center.social_post.media_hint') %></div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="col-xl-5">
+					<!-- Куди -->
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('contact_center.social_post.targets') %></div>
+						<div class="card-body">
+							<% if (!data.accounts.length) { %>
+							<div class="text-muted"><%= i18n.__('contact_center.social_post.no_accounts') %> <a href="/contact-center/social/accounts/"><%= i18n.__('contact_center.social_post.add_account') %></a></div>
+							<% } %>
+							<% data.accounts.forEach(function (a) { %>
+							<div class="target-row" data-account="<%= a.id %>" data-network="<%= a.network %>">
+								<div class="d-flex align-items-center gap-2">
+									<input class="form-check-input mt-0 t-on" type="checkbox" id="t_on_<%= a.id %>" />
+									<label class="form-check-label flex-grow-1" for="t_on_<%= a.id %>">
+										<i class="<%= { instagram: 'fa-brands fa-instagram text-danger', facebook: 'fa-brands fa-facebook text-primary', telegram: 'fa-brands fa-telegram text-info', viber: 'fa-brands fa-viber' }[a.network] %> me-1"></i>
+										<span class="fw-semibold"><%= a.name %></span>
+										<% if (a.external_username) { %><span class="text-muted small">@<%= a.external_username %></span><% } %>
+									</label>
+									<select class="form-select form-select-sm rounded-0 w-auto t-format" aria-label="<%= i18n.__('contact_center.social_post.format') %>">
+										<% data.formats[a.network].forEach(function (f) { %>
+										<option value="<%= f %>"><%= i18n.__('contact_center.social.formats.' + f) %></option>
+										<% }); %>
+									</select>
+								</div>
+								<div class="small text-muted mt-1 t-hint d-none"></div>
+							</div>
+							<% }); %>
+						</div>
+					</div>
+
+					<!-- Погодження -->
+					<% if (data.canApprove) { %>
+					<div class="card border-warning rounded-0 mb-3">
+						<div class="card-header text-bg-warning rounded-0"><i class="fa-solid fa-user-check me-1"></i><%= i18n.__('contact_center.social_post.approval') %></div>
+						<div class="card-body">
+							<button type="button" class="btn btn-success rounded-0 me-2" id="btn_approve"><i class="fa-solid fa-check me-1"></i><%= i18n.__('contact_center.social_post.approve') %></button>
+							<button type="button" class="btn btn-outline-danger rounded-0" data-bs-toggle="collapse" data-bs-target="#reject_box"><i class="fa-solid fa-reply me-1"></i><%= i18n.__('contact_center.social_post.reject') %></button>
+							<div class="collapse mt-3" id="reject_box">
+								<textarea class="form-control rounded-0" id="reject_note" rows="3" maxlength="1000" placeholder="<%= i18n.__('contact_center.social_post.reject_ph') %>"></textarea>
+								<button type="button" class="btn btn-danger rounded-0 mt-2" id="btn_reject"><%= i18n.__('contact_center.social_post.reject_send') %></button>
+							</div>
+							<small class="text-muted d-block mt-2"><%= i18n.__('contact_center.social_post.approve_hint') %></small>
+						</div>
+					</div>
+					<% } %>
+
+					<!-- Коли -->
+					<div class="card border-primary rounded-0 mb-3 edit-only">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('contact_center.social_post.when') %></div>
+						<div class="card-body">
+							<label class="form-label" for="p_publish_at"><%= i18n.__('contact_center.social_post.publish_at') %></label>
+							<div class="input-group mb-1">
+								<input type="datetime-local" class="form-control rounded-0" id="p_publish_at" />
+								<button type="button" class="btn btn-outline-secondary rounded-0" id="btn_best_time" title="<%= i18n.__('contact_center.social_post.best_time_hint') %>"><i class="fa-solid fa-wand-magic-sparkles me-1"></i><%= i18n.__('contact_center.social_post.best_time') %></button>
+							</div>
+							<div class="small text-muted mb-3" id="best_time_note"></div>
+							<div class="d-flex flex-wrap gap-2">
+								<button type="button" class="btn btn-outline-secondary rounded-0" data-action="draft"><i class="fa-regular fa-floppy-disk me-1"></i><%= i18n.__('contact_center.social_post.save_draft') %></button>
+								<button type="button" class="btn btn-outline-warning rounded-0" data-action="review"><i class="fa-solid fa-user-check me-1"></i><%= i18n.__('contact_center.social_post.send_review') %></button>
+								<button type="button" class="btn btn-primary rounded-0" data-action="schedule"><i class="fa-regular fa-clock me-1"></i><%= i18n.__('contact_center.social_post.schedule') %></button>
+								<button type="button" class="btn btn-success rounded-0" data-action="now"><i class="fa-solid fa-paper-plane me-1"></i><%= i18n.__('contact_center.social_post.publish_now') %></button>
+							</div>
+							<small class="text-muted d-block mt-2"><%= i18n.__('contact_center.social_post.review_hint') %></small>
+						</div>
+					</div>
+
+					<% if (data.post && data.post.targets.length) { %>
+					<!-- Результат -->
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('contact_center.social_post.results') %></div>
+						<ul class="list-group list-group-flush">
+							<% data.post.targets.forEach(function (x) { %>
+							<li class="list-group-item">
+								<div class="d-flex align-items-center gap-2">
+									<span class="fw-semibold flex-grow-1"><%= x.name %> · <%= i18n.__('contact_center.social.formats.' + x.format) %></span>
+									<span class="badge <%= { published: 'text-bg-success', failed: 'text-bg-danger', canceled: 'text-bg-secondary', pending: 'text-bg-info' }[x.status] || 'text-bg-warning' %>"><%= i18n.__('contact_center.social.target_statuses.' + x.status) %></span>
+									<% if (x.permalink) { %><a href="<%= x.permalink %>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary rounded-0"><%= i18n.__('contact_center.social_post.open_link') %></a><% } %>
+									<% if (data.perms.edit && (x.status === 'failed' || x.status === 'canceled')) { %><button type="button" class="btn btn-sm btn-outline-warning rounded-0 t-retry" data-id="<%= x.id %>"><%= i18n.__('contact_center.social_post.retry') %></button><% } %>
+								</div>
+								<% if (x.error) { %><div class="small text-danger mt-1"><%= x.error %></div><% } %>
+								<% if (x.attempts) { %><div class="small text-muted"><%= i18n.__('contact_center.social_post.attempts').replace('{n}', x.attempts) %></div><% } %>
+								<% if (x.stats_at) { %>
+								<div class="small text-muted mt-1 d-flex flex-wrap gap-3">
+									<% [['likes', 'fa-regular fa-heart'], ['comments', 'fa-regular fa-comment'], ['shares', 'fa-solid fa-share'], ['saves', 'fa-regular fa-bookmark'], ['reach', 'fa-regular fa-eye'], ['views', 'fa-solid fa-play']].forEach(function (m) { if (x[m[0]] === null || x[m[0]] === undefined) return; %>
+									<span title="<%= i18n.__('contact_center.social.metrics.' + m[0]) %>"><i class="<%= m[1] %> me-1"></i><%= x[m[0]] %></span>
+									<% }); %>
+								</div>
+								<% } %>
+								<% if (x.comment_status !== 'none') { %>
+								<div class="small mt-1 <%= x.comment_status === 'failed' ? 'text-danger' : x.comment_status === 'done' ? 'text-success' : 'text-muted' %>">
+									<i class="fa-regular fa-comment me-1"></i><%= i18n.__('contact_center.social_post.comment_status.' + x.comment_status) %><% if (x.comment_error) { %>: <%= x.comment_error %><% } %>
+								</div>
+								<% } %>
+							</li>
+							<% }); %>
+						</ul>
+					</div>
+					<% } %>
+
+					<% if (data.history.length) { %>
+					<!-- Історія -->
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><i class="fa-solid fa-clock-rotate-left me-1"></i><%= i18n.__('contact_center.social_post.history') %></div>
+						<div class="card-body">
+							<ul class="list-unstyled history mb-0">
+								<% data.history.forEach(function (h) { %>
+								<li class="<%= { published: 'h-ok', approved: 'h-ok', comment_done: 'h-ok', failed: 'h-err', comment_failed: 'h-err', rejected: 'h-err', submitted: 'h-review' }[h.action] || '' %>">
+									<div class="small"><span class="fw-semibold"><%= i18n.__('contact_center.social_post.log.' + h.action) %></span><% if (h.account_name) { %> · <%= h.account_name %><% } %></div>
+									<div class="small text-muted"><%= new Date(h.date_add).toLocaleString(i18n.__('lang_iso')) %> · <%= h.user_name || i18n.__('contact_center.social_post.log_system') %></div>
+									<% if (h.note) { %><div class="small mt-1"><%= h.note %></div><% } %>
+								</li>
+								<% }); %>
+							</ul>
+						</div>
+					</div>
+					<% } %>
+				</div>
+			</div>
+		</div>
+
+		<!-- Шаблони / хештеги -->
+		<div class="modal fade" id="snippetModal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-lg modal-dialog-scrollable">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5" id="snippet_title"></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<input type="search" class="form-control rounded-0 mb-2" id="snippet_q" placeholder="<%= i18n.__('contact_center.social_post.snippet_search') %>" />
+						<div class="small text-muted mb-2" id="snippet_target"></div>
+						<div class="list-group list-group-flush" id="snippet_list"></div>
+					</div>
+					<div class="modal-footer justify-content-between">
+						<a href="/contact-center/social/snippets/" target="_blank" class="small"><%= i18n.__('contact_center.social_post.snippet_manage') %></a>
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('contact_center.social_post.close') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Медіатека -->
+		<div class="modal fade" id="libraryModal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-xl modal-dialog-scrollable">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5"><%= i18n.__('contact_center.social_post.library_title') %></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<div class="lib-grid" id="lib_grid"></div>
+						<div class="text-center mt-3"><button type="button" class="btn btn-outline-secondary rounded-0 d-none" id="lib_more">…</button></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-primary rounded-0" id="lib_add"><%= i18n.__('contact_center.social_post.library_add') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %> <%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="/assets/js/contact-center/social-editor.js"></script>
+		<script>
+			(function () {
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 5000 });
+				const POST = <%- JSON.stringify(data.post ? { id: data.post.id, status: data.post.status, publish_at: data.post.publish_at, media: data.post.media, targets: data.post.targets.map(function (x) { return { id_account: x.id_account, format: x.format }; }), variants: data.post.variants } : null) %>;
+				const EDITABLE = <%= data.editable ? 'true' : 'false' %>;
+				const LIMITS = <%- JSON.stringify(data.limits) %>;
+				const COMMENT_LIMITS = <%- JSON.stringify(data.commentNetworks) %>;
+				const COMMENT_FORMATS = <%- JSON.stringify(data.commentFormats) %>;
+				const CAN_DELETE = <%= data.perms.delete ? 'true' : 'false' %>;
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const post = (url, body) =>
+					fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) })
+						.then((r) => r.json())
+						.then((d) => {
+							if (!d.ok) throw new Error(d.error || "Error");
+							return d;
+						});
+				const charsLabel = (n, max) => (max ? "<%= i18n.__('contact_center.social_post.limit') %>".replace("{n}", max) + " · " : "") + "<%= i18n.__('contact_center.social_post.chars') %>".replace("{n}", n);
+				const hint = (net, f) =>
+					({
+						instagram_post: "<%= i18n.__('contact_center.social_post.hints.instagram_post') %>",
+						instagram_reel: "<%= i18n.__('contact_center.social_post.hints.instagram_reel') %>",
+						instagram_story: "<%= i18n.__('contact_center.social_post.hints.instagram_story') %>",
+						facebook_post: "<%= i18n.__('contact_center.social_post.hints.facebook_post') %>",
+						facebook_reel: "<%= i18n.__('contact_center.social_post.hints.facebook_reel') %>",
+						facebook_story: "<%= i18n.__('contact_center.social_post.hints.facebook_story') %>",
+						telegram_post: "<%= i18n.__('contact_center.social_post.hints.telegram_post') %>",
+						viber_post: "<%= i18n.__('contact_center.social_post.hints.viber_post') %>",
+					})[net + "_" + f] || "";
+
+				/* ─── Редактор тексту: /assets/js/contact-center/social-editor.js ─── */
+				const { toPlain, tgPreview, countTags } = SocialEditor;
+				const plainLen = (html) => toPlain(html).length;
+				const makeEditor = SocialEditor.create;
+
+				/* ─── Спільний текст ─── */
+				const text = $("p_text");
+				const commonEditor = makeEditor(text);
+				const countText = () => ($("p_text_count").textContent = "<%= i18n.__('contact_center.social_post.chars') %>".replace("{n}", plainLen(text.value)));
+				text.addEventListener("input", () => {
+					countText();
+					syncAll();
+				});
+				$("p_first_comment").addEventListener("input", syncAll);
+
+				/* ─── Окремий текст мереж ───
+				   null — спільний текст, перетворений під мережу; рядок — власний текст у форматі мережі
+				   (Telegram — HTML з редактора, решта — простий текст). */
+				const variants = {};
+				const panes = {};
+				document.querySelectorAll(".tab-pane[data-net]").forEach((pane) => {
+					const net = pane.dataset.net;
+					const saved = (POST && POST.variants && POST.variants[net]) || {};
+					variants[net] = { text: saved.text !== undefined && saved.text !== null ? saved.text : null, first_comment: saved.first_comment !== undefined && saved.first_comment !== null ? saved.first_comment : null };
+					const ta = pane.querySelector(".v-text");
+					if (variants[net].text !== null) ta.value = variants[net].text;
+					const editor = net === "telegram" ? makeEditor(ta) : null;
+					panes[net] = { pane, ta, editor };
+
+					ta.addEventListener("input", () => {
+						variants[net].text = ta.value;
+						syncNet(net);
+					});
+					pane.querySelector(".v-own-on").addEventListener("click", () => {
+						// Копія спільного тексту у форматі мережі — далі редагується незалежно
+						const start = net === "telegram" ? text.value : toPlain(text.value);
+						variants[net].text = start;
+						ta.value = start;
+						if (editor) editor.setHtml(start);
+						syncNet(net);
+					});
+					pane.querySelector(".v-own-off").addEventListener("click", () => {
+						if (variants[net].text && !confirm("<%= i18n.__('contact_center.social_post.own_off_confirm') %>")) return;
+						variants[net].text = null;
+						syncNet(net);
+					});
+					const cOn = pane.querySelector(".v-comment-on");
+					const cTa = pane.querySelector(".v-comment");
+					if (cOn) {
+						if (variants[net].first_comment !== null) {
+							cOn.checked = true;
+							cTa.value = variants[net].first_comment;
+						}
+						cOn.addEventListener("change", () => {
+							variants[net].first_comment = cOn.checked ? cTa.value || $("p_first_comment").value : null;
+							if (cOn.checked && !cTa.value) cTa.value = $("p_first_comment").value;
+							syncNet(net);
+						});
+						cTa.addEventListener("input", () => (variants[net].first_comment = cTa.value));
+					}
+				});
+
+				/** Текст, який отримає мережа (для перегляду і ліміту) */
+				function netText(net) {
+					const own = variants[net].text;
+					if (own !== null) return { html: net === "telegram" ? tgPreview(own) : null, plain: net === "telegram" ? toPlain(own) : own };
+					return { html: net === "telegram" ? tgPreview(text.value) : null, plain: toPlain(text.value) };
+				}
+
+				function selectedFormats(net) {
+					return Array.from(document.querySelectorAll('.target-row[data-network="' + net + '"]'))
+						.filter((r) => r.querySelector(".t-on").checked)
+						.map((r) => r.querySelector(".t-format").value);
+				}
+
+				function syncNet(net) {
+					const p = panes[net];
+					if (!p) return;
+					const own = variants[net].text !== null;
+					p.pane.querySelector(".v-inherit").classList.toggle("d-none", own);
+					p.pane.querySelector(".v-own").classList.toggle("d-none", !own);
+					const t = netText(net);
+					const pv = p.pane.querySelector(".v-preview");
+					if (t.html !== null) pv.innerHTML = t.html;
+					else pv.textContent = t.plain;
+					const len = t.plain.length;
+					// Instagram: не більше 30 хештегів у тексті
+					const tags = net === "instagram" ? countTags(t.plain) : 0;
+					const tagsOver = tags > 30;
+					p.pane.querySelectorAll(".v-count").forEach((c) => {
+						c.textContent = charsLabel(len, LIMITS[net]) + (net === "instagram" ? " · " + "<%= i18n.__('contact_center.social_post.tags_count') %>".replace("{n}", tags) : "");
+						c.className = "small v-count " + (len > LIMITS[net] || tagsOver ? "text-danger" : "text-muted");
+					});
+					const cTa = p.pane.querySelector(".v-comment");
+					if (cTa) cTa.classList.toggle("d-none", variants[net].first_comment === null);
+					// Вкладка: скільки акаунтів мережі обрано і чи текст окремий
+					const n = selectedFormats(net).length;
+					const badge = document.querySelector('[data-net-tab="' + net + '"] .net-badge');
+					badge.textContent = n ? n + (own ? " · <%= i18n.__('contact_center.social_post.badge_own') %>" : "") : "—";
+					badge.className = "badge ms-1 net-badge " + (n ? (len > LIMITS[net] ? "text-bg-danger" : own ? "text-bg-primary" : "text-bg-light border") : "text-bg-light border text-muted");
+				}
+				function syncAll() {
+					Object.keys(panes).forEach(syncNet);
+				}
+
+				/* ─── Медіа ─── */
+				let media = POST ? POST.media.slice() : [];
+				const strip = $("media_strip");
+				function renderMedia() {
+					strip.innerHTML = media
+						.map((m, i) => {
+							const body = m.kind === "image" ? '<img src="/contact-center/social/media/' + Number(m.id) + '/thumb/" alt="" />' : '<video src="/contact-center/social/media/' + Number(m.id) + '/file/" muted preload="metadata"></video>';
+							const size = m.width ? m.width + "×" + m.height : m.kind === "video" ? "video" : "";
+							return '<div class="media-item" draggable="' + EDITABLE + '" data-i="' + i + '">' + body + '<span class="mi-badge">' + (i + 1) + (size ? " · " + esc(size) : "") + "</span>" + (EDITABLE ? '<div class="mi-tools"><button type="button" class="mi-del" data-i="' + i + '" title="<%= i18n.__('contact_center.social_post.remove') %>"><i class="fa-solid fa-xmark"></i></button></div>' : "") + "</div>";
+						})
+						.join("");
+				}
+				renderMedia();
+				strip.addEventListener("click", (e) => {
+					const b = e.target.closest(".mi-del");
+					if (!b) return;
+					media.splice(Number(b.dataset.i), 1);
+					renderMedia();
+				});
+				// Порядок перетягуванням
+				let dragI = null;
+				strip.addEventListener("dragstart", (e) => {
+					const it = e.target.closest(".media-item");
+					if (!it) return;
+					dragI = Number(it.dataset.i);
+					it.classList.add("dragging");
+				});
+				strip.addEventListener("dragover", (e) => e.preventDefault());
+				strip.addEventListener("drop", (e) => {
+					e.preventDefault();
+					const it = e.target.closest(".media-item");
+					if (dragI === null || !it) return;
+					const to = Number(it.dataset.i);
+					const [m] = media.splice(dragI, 1);
+					media.splice(to, 0, m);
+					dragI = null;
+					renderMedia();
+				});
+				strip.addEventListener("dragend", () => {
+					dragI = null;
+					renderMedia();
+				});
+
+				function upload(files) {
+					if (!files.length) return;
+					if (media.length + files.length > 10) return notyf.error("<%= i18n.__('contact_center.social.errors.ig_carousel_max') %>");
+					const fd = new FormData();
+					Array.from(files).forEach((f) => fd.append("files", f));
+					$("upload_state").textContent = "<%= i18n.__('contact_center.social_post.uploading') %>";
+					const xhr = new XMLHttpRequest();
+					xhr.open("POST", "/api/contact-center/social/media/upload/");
+					xhr.upload.onprogress = (e) => {
+						if (e.lengthComputable) $("upload_state").textContent = "<%= i18n.__('contact_center.social_post.uploading') %> " + Math.round((e.loaded / e.total) * 100) + "%";
+					};
+					xhr.onload = () => {
+						$("upload_state").textContent = "";
+						let d = {};
+						try {
+							d = JSON.parse(xhr.responseText);
+						} catch (e) {}
+						(d.items || []).forEach((m) => media.push(m));
+						renderMedia();
+						if (d.errors && d.errors.length) notyf.error(d.errors.join("<br>"));
+						else if (!d.ok) notyf.error(d.error || "Error");
+					};
+					xhr.onerror = () => {
+						$("upload_state").textContent = "";
+						notyf.error("<%= i18n.__('contact_center.social.errors.server') %>");
+					};
+					xhr.send(fd);
+				}
+				$("p_files").addEventListener("change", (e) => {
+					upload(e.target.files);
+					e.target.value = "";
+				});
+				const dz = $("dropzone");
+				if (EDITABLE) {
+					dz.addEventListener("dragover", (e) => {
+						if (e.dataTransfer && Array.from(e.dataTransfer.types).includes("Files")) {
+							e.preventDefault();
+							dz.classList.add("over");
+						}
+					});
+					dz.addEventListener("dragleave", () => dz.classList.remove("over"));
+					dz.addEventListener("drop", (e) => {
+						dz.classList.remove("over");
+						if (e.dataTransfer && e.dataTransfer.files.length) {
+							e.preventDefault();
+							upload(e.dataTransfer.files);
+						}
+					});
+				}
+
+				/* ─── Медіатека ─── */
+				const libModal = new bootstrap.Modal($("libraryModal"));
+				let libPage = 1;
+				const libSel = new Map();
+				function postRaw(url, body) {
+					return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) }).then((r) => r.json());
+				}
+				function libLoad(reset) {
+					if (reset) {
+						libPage = 1;
+						libSel.clear();
+						$("lib_grid").innerHTML = "";
+					}
+					// Відповідь у форматі Tabulator ({ last_page, data }) — без поля ok
+					postRaw("/api/contact-center/social/media/list/", { page: libPage, size: 48 }).then((d) => {
+						const items = (d && d.data) || [];
+						if (reset && !items.length) $("lib_grid").innerHTML = '<div class="text-muted"><%= i18n.__('contact_center.social_post.library_empty') %></div>';
+						items.forEach((m) => {
+							const el = document.createElement("div");
+							el.className = "lib-item";
+							el.dataset.id = m.id;
+							el.title = m.original_name || "";
+							el.innerHTML = (m.kind === "image" ? '<img src="/contact-center/social/media/' + Number(m.id) + '/thumb/" alt="" loading="lazy" />' : '<div class="lib-video"><i class="fa-solid fa-film"></i></div>') + (CAN_DELETE ? '<button type="button" class="lib-del" title="<%= i18n.__('contact_center.social_post.library_delete') %>"><i class="fa-regular fa-trash-can"></i></button>' : "");
+							el._m = m;
+							$("lib_grid").appendChild(el);
+						});
+						$("lib_more").classList.toggle("d-none", !d || libPage >= d.last_page);
+					});
+				}
+				$("btn_library").addEventListener("click", () => {
+					libLoad(true);
+					libModal.show();
+				});
+				$("lib_more").addEventListener("click", () => {
+					libPage++;
+					libLoad(false);
+				});
+				$("lib_grid").addEventListener("click", (e) => {
+					const it = e.target.closest(".lib-item");
+					if (!it) return;
+					if (e.target.closest(".lib-del")) {
+						if (!confirm("<%= i18n.__('contact_center.social_post.confirm_media_delete') %>")) return;
+						return post("/api/contact-center/social/media/" + Number(it.dataset.id) + "/delete/")
+							.then(() => it.remove())
+							.catch((err) => notyf.error(err.message));
+					}
+					const id = Number(it.dataset.id);
+					if (libSel.has(id)) libSel.delete(id);
+					else libSel.set(id, it._m);
+					it.classList.toggle("sel", libSel.has(id));
+				});
+				$("lib_add").addEventListener("click", () => {
+					libSel.forEach((m) => {
+						if (!media.some((x) => x.id === m.id) && media.length < 10) media.push(m);
+					});
+					renderMedia();
+					libModal.hide();
+				});
+
+				/* ─── Шаблони і хештеги ───
+				   Вставляються туди, де останнім стояв курсор: спільний текст, окремий текст мережі або перший коментар. */
+				const richByBody = new Map([[commonEditor.body, commonEditor]]);
+				Object.values(panes).forEach((p) => p.editor && richByBody.set(p.editor.body, p.editor));
+				let activeField = { rich: commonEditor, label: "<%= i18n.__('contact_center.social_post.tab_common') %>" };
+				document.addEventListener("focusin", (e) => {
+					const body = e.target.closest && e.target.closest(".rte-body");
+					if (body && richByBody.has(body)) {
+						activeField = { rich: richByBody.get(body), label: fieldLabel(body) };
+						return;
+					}
+					if (e.target.matches && e.target.matches("#p_first_comment, .v-text, .v-comment")) activeField = { plain: e.target, label: fieldLabel(e.target) };
+				});
+				function fieldLabel(el) {
+					const pane = el.closest(".tab-pane");
+					const tab = pane && document.querySelector('[data-bs-target="#' + pane.id + '"]');
+					let where = "";
+					if (tab) {
+						const c = tab.cloneNode(true);
+						c.querySelectorAll(".net-badge").forEach((x) => x.remove());
+						where = c.textContent.trim();
+					}
+					const isComment = el.matches && el.matches("#p_first_comment, .v-comment");
+					return (where || "<%= i18n.__('contact_center.social_post.tab_common') %>") + (isComment ? " · <%= i18n.__('contact_center.social_post.first_comment') %>" : "");
+				}
+
+				const snippetModal = new bootstrap.Modal($("snippetModal"));
+				let snippetKind = "template";
+				let snippetItems = [];
+				function renderSnippets() {
+					const q = $("snippet_q").value.trim().toLowerCase();
+					const items = snippetItems.filter((x) => !q || x.name.toLowerCase().includes(q) || String(x.preview).toLowerCase().includes(q));
+					$("snippet_list").innerHTML = items.length
+						? items
+								.map(
+									(x) =>
+										'<button type="button" class="list-group-item list-group-item-action" data-id="' + Number(x.id) + '">' +
+										'<div class="d-flex justify-content-between"><span class="fw-semibold">' + esc(x.name) + "</span>" +
+										(x.network ? '<span class="badge text-bg-light border">' + esc(x.network) + "</span>" : "") +
+										'</div><div class="small text-muted text-truncate">' + esc(x.preview) + "</div></button>"
+								)
+								.join("")
+						: '<div class="text-muted p-2"><%= i18n.__('contact_center.social_post.snippet_empty') %></div>';
+				}
+				document.querySelectorAll("[data-snippets]").forEach((b) =>
+					b.addEventListener("click", () => {
+						snippetKind = b.dataset.snippets;
+						$("snippet_title").textContent = snippetKind === "template" ? "<%= i18n.__('contact_center.social_post.insert_template') %>" : "<%= i18n.__('contact_center.social_post.insert_hashtags') %>";
+						$("snippet_target").textContent = "<%= i18n.__('contact_center.social_post.insert_into') %>".replace("{field}", activeField.label);
+						$("snippet_q").value = "";
+						$("snippet_list").innerHTML = "";
+						snippetModal.show();
+						post("/api/contact-center/social/snippets/list/", { kind: snippetKind })
+							.then((d) => {
+								snippetItems = d.data;
+								renderSnippets();
+							})
+							.catch((e) => notyf.error(e.message));
+					})
+				);
+				$("snippet_q").addEventListener("input", renderSnippets);
+				$("snippet_list").addEventListener("click", (e) => {
+					const b = e.target.closest("[data-id]");
+					if (!b) return;
+					const x = snippetItems.find((i) => i.id === Number(b.dataset.id));
+					if (!x) return;
+					snippetModal.hide();
+					// Шаблон — HTML редактора: у редактор як є, у звичайне поле — простим текстом
+					if (activeField.rich) activeField.rich.insert(x.kind === "template" ? x.content : " " + x.content + " ", x.kind === "template");
+					else SocialEditor.insertIntoTextarea(activeField.plain, x.kind === "template" ? toPlain(x.content) : x.content);
+					post("/api/contact-center/social/snippets/" + x.id + "/used/").catch(() => {});
+				});
+
+				/* ─── Цілі ─── */
+				document.querySelectorAll(".target-row").forEach((row) => {
+					const saved = POST && POST.targets.find((x) => x.id_account === Number(row.dataset.account));
+					if (saved) {
+						row.querySelector(".t-on").checked = true;
+						row.querySelector(".t-format").value = saved.format;
+					}
+					const sync = () => {
+						const on = row.querySelector(".t-on").checked;
+						row.classList.toggle("on", on);
+						const h = row.querySelector(".t-hint");
+						h.classList.toggle("d-none", !on);
+						h.textContent = hint(row.dataset.network, row.querySelector(".t-format").value);
+						syncNet(row.dataset.network);
+					};
+					row.querySelectorAll("input, select").forEach((el) => el.addEventListener("change", sync));
+					sync();
+				});
+				countText();
+				syncAll();
+
+				/* ─── Дата ─── */
+				const pad = (n) => String(n).padStart(2, "0");
+				const toLocalInput = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
+				const DEFAULT_AT = <%- JSON.stringify(data.defaultAt || null) %>;
+				$("p_publish_at").value = toLocalInput(POST && POST.publish_at ? new Date(POST.publish_at) : DEFAULT_AT ? new Date(DEFAULT_AT) : new Date(Date.now() + 3600000));
+
+				/* ─── Найкращий час: за статистикою першого обраного акаунта Instagram / Facebook ─── */
+				$("btn_best_time").addEventListener("click", () => {
+					const row = Array.from(document.querySelectorAll(".target-row")).find((r) => r.querySelector(".t-on").checked && (r.dataset.network === "instagram" || r.dataset.network === "facebook"));
+					if (!row) return notyf.error("<%= i18n.__('contact_center.social_post.best_time_need_account') %>");
+					const name = row.querySelector(".fw-semibold").textContent;
+					post("/api/contact-center/social/stats/next-best/", { id_account: Number(row.dataset.account) })
+						.then((d) => {
+							if (!d.data.enough) {
+								$("best_time_note").textContent = "<%= i18n.__('contact_center.social_post.best_time_few') %>".replace("{name}", name).replace("{n}", d.data.posts || 0).replace("{min}", d.data.min);
+								return;
+							}
+							$("p_publish_at").value = toLocalInput(new Date(d.data.at));
+							$("best_time_note").textContent = "<%= i18n.__('contact_center.social_post.best_time_set') %>".replace("{name}", name).replace("{index}", d.data.slot.index).replace("{n}", d.data.slot.posts);
+						})
+						.catch((e) => notyf.error(e.message));
+				});
+
+				/* ─── Збереження ─── */
+				function collect(action) {
+					const targets = [];
+					document.querySelectorAll(".target-row").forEach((row) => {
+						if (row.querySelector(".t-on").checked) targets.push({ id_account: Number(row.dataset.account), format: row.querySelector(".t-format").value });
+					});
+					const at = $("p_publish_at").value ? new Date($("p_publish_at").value) : null;
+					return {
+						id: POST ? POST.id : null,
+						action,
+						title: $("p_title").value,
+						text: text.value,
+						first_comment: $("p_first_comment").value,
+						variants,
+						media: media.map((m) => m.id),
+						targets,
+						publish_at: at && !isNaN(at) ? at.toISOString() : null,
+					};
+				}
+				const ACTION_OK = {
+					draft: "<%= i18n.__('contact_center.social_post.saved') %>",
+					review: "<%= i18n.__('contact_center.social_post.sent_review') %>",
+					schedule: "<%= i18n.__('contact_center.social_post.scheduled') %>",
+					now: "<%= i18n.__('contact_center.social_post.queued') %>",
+				};
+				document.querySelectorAll("[data-action]").forEach((btn) =>
+					btn.addEventListener("click", () => {
+						const action = btn.dataset.action;
+						document.querySelectorAll("[data-action]").forEach((b) => (b.disabled = true));
+						post("/api/contact-center/social/posts/save/", collect(action))
+							.then((d) => {
+								notyf.success(ACTION_OK[action]);
+								setTimeout(() => (location.href = "/contact-center/social/" + d.id + "/"), action === "now" ? 3000 : 800);
+							})
+							.catch((e) => {
+								notyf.error(e.message);
+								document.querySelectorAll("[data-action]").forEach((b) => (b.disabled = false));
+							});
+					})
+				);
+
+				/* ─── Погодження ─── */
+				const approveBtn = $("btn_approve");
+				if (approveBtn) {
+					approveBtn.addEventListener("click", () => {
+						if (!confirm("<%= i18n.__('contact_center.social_post.approve_confirm') %>")) return;
+						approveBtn.disabled = true;
+						post("/api/contact-center/social/posts/" + POST.id + "/approve/")
+							.then(() => {
+								notyf.success("<%= i18n.__('contact_center.social_post.approved') %>");
+								setTimeout(() => location.reload(), 1500);
+							})
+							.catch((e) => {
+								notyf.error(e.message);
+								approveBtn.disabled = false;
+							});
+					});
+					$("btn_reject").addEventListener("click", () => {
+						const note = $("reject_note").value.trim();
+						if (!note) return notyf.error("<%= i18n.__('contact_center.social.errors.reject_note_required') %>");
+						post("/api/contact-center/social/posts/" + POST.id + "/reject/", { note })
+							.then(() => {
+								notyf.success("<%= i18n.__('contact_center.social_post.rejected') %>");
+								setTimeout(() => location.reload(), 1200);
+							})
+							.catch((e) => notyf.error(e.message));
+					});
+				}
+
+				// Повтор однієї цілі
+				document.querySelectorAll(".t-retry").forEach((b) =>
+					b.addEventListener("click", () => {
+						b.disabled = true;
+						post("/api/contact-center/social/posts/" + POST.id + "/retry/", { id_target: Number(b.dataset.id) })
+							.then(() => setTimeout(() => location.reload(), 2500))
+							.catch((e) => {
+								notyf.error(e.message);
+								b.disabled = false;
+							});
+					})
+				);
+
+				// Тільки перегляд
+				if (!EDITABLE) {
+					document.querySelectorAll(".edit-only").forEach((el) => el.classList.add("d-none"));
+					document.querySelectorAll("#p_title, #p_first_comment, .target-row input, .target-row select, .v-text, .v-comment, .v-comment-on").forEach((el) => (el.disabled = true));
+					commentEditorsDisable();
+				}
+				function commentEditorsDisable() {
+					commonEditor.setDisabled(true);
+					Object.values(panes).forEach((p) => p.editor && p.editor.setDisabled(true));
+				}
+
+				// Поки публікація надсилається — оновлюємо сторінку, щоб побачити результат
+				if (POST && (POST.status === "publishing" || POST.status === "scheduled") && POST.publish_at && new Date(POST.publish_at) <= new Date()) setTimeout(() => location.reload(), 15000);
+			})();
+		</script>
+	</body>
+</html>

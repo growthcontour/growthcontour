@@ -1,0 +1,378 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('modules.monobank.title') %></title>
+		<%- include('../../../views/partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../views/partials/header'); %>
+
+		<!-- Breadcrumb -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('modules.monobank.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('modules.monobank.home') %></span></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/modules/"><%= i18n.__('modules.monobank.modules') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('modules.monobank.title') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/modules/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- END Breadcrumb -->
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pt-3 pb-5">
+				<div class="d-flex align-items-start gap-3 mb-3">
+					<div class="form-text mt-0 me-auto"><%= i18n.__('modules.monobank.help') %></div>
+					<a href="/modules/monobank/payments/" class="btn btn-outline-primary rounded-0 text-nowrap"><i class="fa-solid fa-money-bill-transfer"></i> <%= i18n.__('modules.monobank.payments_link') %></a>
+				</div>
+
+				<div class="row g-3">
+					<div class="col-xl-8">
+						<div class="card rounded-0">
+							<div class="card-header fw-semibold d-flex align-items-center">
+								<span class="me-auto"><%= i18n.__('modules.monobank.accounts') %></span>
+								<% if (perms.edit) { %><button type="button" class="btn btn-sm btn-primary rounded-0" id="btn-add"><i class="fa-solid fa-plus"></i> <%= i18n.__('modules.monobank.add') %></button><% } %>
+							</div>
+							<div class="card-body p-0"><div id="acc-table"></div></div>
+						</div>
+					</div>
+					<div class="col-xl-4">
+						<div class="card rounded-0">
+							<div class="card-header fw-semibold"><%= i18n.__('modules.monobank.webhook_label') %></div>
+							<div class="card-body">
+								<code class="user-select-all d-block text-break mb-2"><%= webhook %></code>
+								<div class="form-text mt-0"><%= i18n.__('modules.monobank.webhook_help') %></div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- QR-каси акаунтів -->
+				<div class="card rounded-0 mt-3">
+					<div class="card-header fw-semibold d-flex align-items-center">
+						<span class="me-auto"><i class="fa-solid fa-qrcode me-1"></i><%= i18n.__('modules.monobank.qr_title') %></span>
+						<% if (perms.edit) { %><button type="button" class="btn btn-sm btn-outline-primary rounded-0" id="btn-qr-sync"><i class="fa-solid fa-rotate"></i> <%= i18n.__('modules.monobank.qr_sync') %></button><% } %>
+					</div>
+					<div class="card-body pb-2"><div class="form-text mt-0"><%= i18n.__('modules.monobank.qr_help') %></div></div>
+					<div id="qr-table"></div>
+				</div>
+			</div>
+		</main>
+
+		<!-- Акаунт -->
+		<div class="modal fade" id="acc-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-lg">
+				<form class="modal-content rounded-0" id="acc-form" autocomplete="off">
+					<div class="modal-header"><h5 class="modal-title"><%= i18n.__('modules.monobank.edit') %></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+					<div class="modal-body">
+						<input type="hidden" name="id" />
+						<div class="row g-3">
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.monobank.name') %></label><input class="form-control rounded-0" name="name" required maxlength="128" /></div>
+							<div class="col-md-6">
+								<label class="form-label"><%= i18n.__('modules.monobank.token') %></label>
+								<input class="form-control rounded-0" name="token" maxlength="255" autocomplete="new-password" />
+								<div class="form-text" id="f-token-keep"><%= i18n.__('modules.monobank.token_keep') %></div>
+								<div class="form-text"><%= i18n.__('modules.monobank.token_help') %></div>
+							</div>
+							<div class="col-12">
+								<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="status" id="f-status" checked /><label class="form-check-label" for="f-status"><%= i18n.__('modules.monobank.status') %></label></div>
+								<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="is_default" id="f-default" /><label class="form-check-label" for="f-default"><%= i18n.__('modules.monobank.is_default') %></label></div>
+							</div>
+							<div class="col-12">
+								<label class="form-label"><%= i18n.__('modules.monobank.stores') %></label>
+								<div>
+									<% integrations.forEach(function (it) { %>
+									<div class="form-check form-check-inline"><input class="form-check-input f-int" type="checkbox" value="<%= it.id %>" id="f-int-<%= it.id %>" /><label class="form-check-label" for="f-int-<%= it.id %>"><%= it.name %></label></div>
+									<% }); %>
+								</div>
+								<div class="form-text"><%= i18n.__('modules.monobank.stores_help') %></div>
+							</div>
+						</div>
+
+						<h6 class="mt-4 mb-2"><%= i18n.__('modules.monobank.payment') %></h6>
+						<div class="row g-3">
+							<div class="col-md-6">
+								<label class="form-label"><%= i18n.__('modules.monobank.payment_type') %></label>
+								<div class="btn-group w-100" role="group">
+									<input type="radio" class="btn-check" name="payment_type" id="f-pt-debit" value="debit" checked />
+									<label class="btn btn-outline-primary rounded-0" for="f-pt-debit"><%= i18n.__('modules.monobank.pt_debit') %></label>
+									<input type="radio" class="btn-check" name="payment_type" id="f-pt-hold" value="hold" />
+									<label class="btn btn-outline-primary rounded-0" for="f-pt-hold"><%= i18n.__('modules.monobank.pt_hold') %></label>
+								</div>
+								<div class="form-text"><%= i18n.__('modules.monobank.pt_help') %></div>
+							</div>
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.monobank.validity') %></label><input type="number" min="1" max="720" step="1" class="form-control rounded-0" name="validity_hours" /><div class="form-text"><%= i18n.__('modules.monobank.validity_help') %></div></div>
+							<div class="col-12"><label class="form-label"><%= i18n.__('modules.monobank.destination') %></label><input class="form-control rounded-0" name="destination" maxlength="280" /><div class="form-text"><%= i18n.__('modules.monobank.destination_help') %></div></div>
+							<div class="col-md-6">
+								<div class="form-check"><input class="form-check-input" type="checkbox" name="basket" id="f-basket" checked /><label class="form-check-label" for="f-basket"><%= i18n.__('modules.monobank.basket') %></label></div>
+								<div class="form-text"><%= i18n.__('modules.monobank.basket_help') %></div>
+							</div>
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.monobank.shipping_name') %></label><input class="form-control rounded-0" name="shipping_name" maxlength="128" /></div>
+							<div class="col-md-6">
+								<div class="form-check"><input class="form-check-input" type="checkbox" name="customer_email" id="f-email" checked /><label class="form-check-label" for="f-email"><%= i18n.__('modules.monobank.customer_email') %></label></div>
+								<div class="form-text"><%= i18n.__('modules.monobank.customer_email_help') %></div>
+							</div>
+							<div class="col-md-6">
+								<div class="form-check"><input class="form-check-input" type="checkbox" name="fiscal" id="f-fiscal" /><label class="form-check-label" for="f-fiscal"><%= i18n.__('modules.monobank.fiscal') %></label></div>
+								<div class="form-text"><%= i18n.__('modules.monobank.fiscal_help') %></div>
+							</div>
+							<div class="col-md-6">
+								<div class="form-check"><input class="form-check-input" type="checkbox" name="tokenization" id="f-tokenization" /><label class="form-check-label" for="f-tokenization"><%= i18n.__('modules.monobank.tokenization') %></label></div>
+								<div class="form-text"><%= i18n.__('modules.monobank.tokenization_help') %></div>
+							</div>
+							<div class="col-md-6">
+								<div class="form-check"><input class="form-check-input" type="checkbox" name="save_card" id="f-save-card" checked /><label class="form-check-label" for="f-save-card"><%= i18n.__('modules.monobank.save_card') %></label></div>
+								<div class="form-text"><%= i18n.__('modules.monobank.save_card_help') %></div>
+							</div>
+							<div class="col-12"><label class="form-label"><%= i18n.__('modules.monobank.redirect_url') %></label><input type="url" class="form-control rounded-0" name="redirect_url" maxlength="500" placeholder="https://" /><div class="form-text"><%= i18n.__('modules.monobank.redirect_url_help') %></div></div>
+						</div>
+
+						<h6 class="mt-4 mb-2"><%= i18n.__('modules.monobank.statuses') %></h6>
+						<div class="row g-3">
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.monobank.status_paid') %></label><select class="form-select rounded-0" name="status_paid"><option value=""><%= i18n.__('modules.monobank.no_change') %></option><% statuses.forEach(function (s) { %><option value="<%= s.id %>"><%= s.name %></option><% }); %></select></div>
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.monobank.status_hold') %></label><select class="form-select rounded-0" name="status_hold"><option value=""><%= i18n.__('modules.monobank.no_change') %></option><% statuses.forEach(function (s) { %><option value="<%= s.id %>"><%= s.name %></option><% }); %></select></div>
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.monobank.status_refunded') %></label><select class="form-select rounded-0" name="status_refunded"><option value=""><%= i18n.__('modules.monobank.no_change') %></option><% statuses.forEach(function (s) { %><option value="<%= s.id %>"><%= s.name %></option><% }); %></select></div>
+							<div class="col-12"><div class="form-text mt-0"><%= i18n.__('modules.monobank.statuses_help') %></div></div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('modules.monobank.cancel') %></button>
+						<% if (perms.edit) { %><button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('modules.monobank.save') %></button><% } %>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<%- include('../../../views/partials/footer'); %>
+		<%- include('../../../views/partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const INTEGRATIONS = <%- JSON.stringify(integrations).replace(/</g, '\\u003c') %>;
+				const EDIT = <%- perms.edit ? 'true' : 'false' %>;
+				const B = "/api/module/monobank";
+				const notyf = new Notyf({ duration: 4000, position: { x: "right", y: "top" } });
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s === null || s === undefined ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+				async function api(path, body) {
+					const res = await fetch(B + path, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					let j = {};
+					try {
+						j = await res.json();
+					} catch (e) {}
+					if (!res.ok || !j.ok) throw new Error(j.error || "<%= i18n.__('modules.monobank.error') %>");
+					return j;
+				}
+
+				/* ─── Список акаунтів ─── */
+				const intName = (id) => (INTEGRATIONS.find((i) => i.id === id) || {}).name || "#" + id;
+				const table = new Tabulator("#acc-table", {
+					layout: "fitColumns",
+					placeholder: "<%= i18n.__('modules.monobank.none') %>",
+					data: [],
+					columns: [
+						{
+							title: "<%= i18n.__('modules.monobank.name') %>",
+							field: "name",
+							minWidth: 200,
+							formatter: (c) => {
+								const a = c.getRow().getData();
+								return `<b>${esc(a.name)}</b>` + (a.is_default ? ` <span class="badge text-bg-primary rounded-0"><%= i18n.__('modules.monobank.is_default') %></span>` : "") + (a.status ? "" : ` <span class="badge text-bg-secondary rounded-0"><%= i18n.__('modules.monobank.inactive') %></span>`);
+							},
+						},
+						{ title: "<%= i18n.__('modules.monobank.merchant') %>", field: "merchant_name", minWidth: 180, formatter: (c) => esc(c.getValue() || "—") },
+						{ title: "<%= i18n.__('modules.monobank.token') %>", field: "token", width: 110, formatter: (c) => `<code>${esc(c.getValue())}</code>` },
+						{ title: "<%= i18n.__('modules.monobank.payment_type') %>", field: "settings", width: 170, formatter: (c) => (c.getValue().payment_type === "hold" ? "<%= i18n.__('modules.monobank.pt_hold') %>" : "<%= i18n.__('modules.monobank.pt_debit') %>") },
+						{ title: "<%= i18n.__('modules.monobank.stores') %>", field: "integrations", minWidth: 160, formatter: (c) => c.getValue().map(intName).map(esc).join(", ") || "—" },
+						{
+							title: "",
+							field: "id",
+							width: 140,
+							hozAlign: "right",
+							headerSort: false,
+							formatter: (c) =>
+								`<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-check="${c.getValue()}" title="<%= i18n.__('modules.monobank.check') %>"><i class="fa-solid fa-plug-circle-check"></i></button>
+								<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-edit="${c.getValue()}"><i class="fa-solid fa-pen"></i></button>` +
+								(EDIT ? ` <button type="button" class="btn btn-sm btn-outline-danger rounded-0" data-del="${c.getValue()}"><i class="fa-solid fa-trash"></i></button>` : ""),
+						},
+					],
+				});
+				let rows = [];
+				async function load() {
+					try {
+						rows = (await api("/accounts/")).rows;
+						table.setData(rows);
+					} catch (e) {
+						notyf.error(e.message);
+					}
+				}
+
+				$("acc-table").addEventListener("click", async (e) => {
+					const ed = e.target.closest("[data-edit]");
+					if (ed) return open(rows.find((r) => r.id === Number(ed.dataset.edit)));
+					const ch = e.target.closest("[data-check]");
+					if (ch) {
+						ch.disabled = true;
+						try {
+							const r = await api(`/accounts/${ch.dataset.check}/check/`);
+							notyf.success("<%= i18n.__('modules.monobank.check_ok', { name: '%name%' }) %>".replace("%name%", esc(r.merchant.name || r.merchant.id)));
+						} catch (err) {
+							notyf.error(err.message);
+						} finally {
+							ch.disabled = false;
+						}
+						return;
+					}
+					const del = e.target.closest("[data-del]");
+					if (del && confirm("<%= i18n.__('modules.monobank.confirm_delete') %>")) {
+						try {
+							const r = await api(`/accounts/${del.dataset.del}/delete/`);
+							notyf.success(r.disabled ? "<%= i18n.__('modules.monobank.disabled_instead') %>" : "<%= i18n.__('modules.monobank.deleted') %>");
+							load();
+						} catch (err) {
+							notyf.error(err.message);
+						}
+					}
+				});
+
+				/* ─── Форма акаунта ─── */
+				const modal = new bootstrap.Modal($("acc-modal"));
+				const form = $("acc-form");
+
+				function open(a) {
+					form.reset();
+					const s = (a && a.settings) || {};
+					form.id.value = a ? a.id : "";
+					form.name.value = a ? a.name : "";
+					form.token.value = "";
+					form.token.required = !a;
+					$("f-token-keep").classList.toggle("d-none", !a);
+					form.status.checked = a ? !!a.status : true;
+					form.is_default.checked = a ? !!a.is_default : !rows.length;
+					document.querySelectorAll(".f-int").forEach((c) => (c.checked = !!(a && a.integrations.includes(Number(c.value)))));
+					(s.payment_type === "hold" ? $("f-pt-hold") : $("f-pt-debit")).checked = true;
+					form.validity_hours.value = s.validity_hours || 24;
+					// Нове значення — з перекладу; збережене — як є
+					form.destination.value = s.destination || "<%= i18n.__('modules.monobank.destination_default') %>";
+					form.basket.checked = s.basket !== false;
+					form.shipping_name.value = s.shipping_name || "<%= i18n.__('modules.monobank.shipping_default') %>";
+					form.status_paid.value = s.status_paid || "";
+					form.status_hold.value = s.status_hold || "";
+					form.status_refunded.value = s.status_refunded || "";
+					form.customer_email.checked = s.customer_email !== false;
+					form.fiscal.checked = !!s.fiscal;
+					form.tokenization.checked = !!s.tokenization;
+					form.save_card.checked = s.save_card !== false;
+					form.redirect_url.value = s.redirect_url || "";
+					modal.show();
+				}
+				if ($("btn-add")) $("btn-add").addEventListener("click", () => open(null));
+
+				form.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					if (!EDIT) return;
+					const btn = form.querySelector("[type=submit]");
+					btn.disabled = true;
+					const body = {
+						id: form.id.value ? Number(form.id.value) : null,
+						name: form.name.value,
+						token: form.token.value.trim(),
+						status: form.status.checked,
+						is_default: form.is_default.checked,
+						integrations: [...document.querySelectorAll(".f-int:checked")].map((c) => Number(c.value)),
+						settings: {
+							payment_type: form.payment_type.value,
+							validity_hours: Number(form.validity_hours.value),
+							destination: form.destination.value,
+							basket: form.basket.checked,
+							shipping_name: form.shipping_name.value,
+							status_paid: form.status_paid.value || null,
+							status_hold: form.status_hold.value || null,
+							status_refunded: form.status_refunded.value || null,
+							customer_email: form.customer_email.checked,
+							fiscal: form.fiscal.checked,
+							tokenization: form.tokenization.checked,
+							save_card: form.save_card.checked,
+							redirect_url: form.redirect_url.value.trim(),
+						},
+					};
+					try {
+						await api("/accounts/save/", body);
+						notyf.success("<%= i18n.__('modules.monobank.saved') %>");
+						modal.hide();
+						load();
+					} catch (err) {
+						notyf.error(err.message);
+					} finally {
+						btn.disabled = false;
+					}
+				});
+
+				/* ─── QR-каси: список з банку, назви редагуються в таблиці ─── */
+				const AMOUNT_TYPE = { merchant: "<%= i18n.__('modules.monobank.qr_type_merchant') %>", client: "<%= i18n.__('modules.monobank.qr_type_client') %>", fix: "<%= i18n.__('modules.monobank.qr_type_fix') %>" };
+				const accName = (id) => (rows.find((a) => a.id === id) || {}).name || "#" + id;
+				const qrTable = new Tabulator("#qr-table", {
+					layout: "fitColumns",
+					placeholder: "<%= i18n.__('modules.monobank.qr_none') %>",
+					data: [],
+					columns: [
+						{ title: "<%= i18n.__('modules.monobank.qr_name') %>", field: "name", minWidth: 180, editor: EDIT ? "input" : false, formatter: (c) => (c.getValue() ? esc(c.getValue()) : `<span class="text-secondary"><%= i18n.__('modules.monobank.qr_name_ph') %></span>`) },
+						{ title: "ID", field: "short", width: 110, formatter: (c) => `<code>${esc(c.getValue())}</code>` },
+						{ title: "<%= i18n.__('modules.monobank.accounts') %>", field: "id_account", minWidth: 150, formatter: (c) => esc(accName(c.getValue())) },
+						{ title: "<%= i18n.__('modules.monobank.qr_amount_type') %>", field: "amount_type", width: 200, formatter: (c) => esc(AMOUNT_TYPE[c.getValue()] || c.getValue() || "—") },
+						{ title: "", field: "page_url", width: 90, headerSort: false, formatter: (c) => (c.getValue() ? `<a href="${esc(c.getValue())}" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>` : "") + (c.getRow().getData().active ? "" : ` <span class="badge text-bg-secondary rounded-0"><%= i18n.__('modules.monobank.inactive') %></span>`) },
+					],
+				});
+				qrTable.on("cellEdited", async (cell) => {
+					try {
+						await api(`/qr/${cell.getRow().getData().id}/rename/`, { name: cell.getValue() });
+						notyf.success("<%= i18n.__('modules.monobank.saved') %>");
+					} catch (e) {
+						notyf.error(e.message);
+						cell.restoreOldValue();
+					}
+				});
+				async function loadQr(sync) {
+					try {
+						qrTable.setData((await api(sync ? "/qr/sync/" : "/qr/")).rows);
+						if (sync) notyf.success("<%= i18n.__('modules.monobank.qr_synced') %>");
+					} catch (e) {
+						notyf.error(e.message);
+					}
+				}
+				if ($("btn-qr-sync"))
+					$("btn-qr-sync").addEventListener("click", async function () {
+						this.disabled = true;
+						await loadQr(true);
+						this.disabled = false;
+					});
+
+				load().then(() => loadQr(false));
+			})();
+		</script>
+	</body>
+</html>

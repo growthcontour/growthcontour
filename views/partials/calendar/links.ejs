@@ -1,0 +1,217 @@
+<%#
+  Блок «Заплановано» для будь-якої картки CRM.
+  Параметри include:
+    calType    — 'client' | 'lead' | 'order' | 'deal' | 'conversation'
+    calId      — id об'єкта
+    calManager — id відповідального (додається учасником), 0 якщо нема
+    calExtra   — додаткові прив'язки нової події, напр. [{type:'client', id: 5}]
+%>
+<% const _cal = { type: calType, id: Number(calId), manager: Number(calManager) || 0, extra: (typeof calExtra !== 'undefined' && calExtra) || [] }; %>
+<div class="card rounded-0 mb-3" id="calx-card">
+	<div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center">
+		<span><i class="fa-solid fa-calendar-check me-1"></i>Заплановано <span class="badge text-bg-danger rounded-0 d-none" id="calx-overdue"></span></span>
+		<div class="btn-group">
+			<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="calx-toggle">Виконані</button>
+			<button type="button" class="btn btn-sm btn-primary rounded-0" id="calx-add"><i class="fa-solid fa-plus"></i></button>
+		</div>
+	</div>
+	<div class="list-group list-group-flush" id="calx-list">
+		<div class="list-group-item text-center text-muted small"><span class="spinner-border spinner-border-sm"></span></div>
+	</div>
+</div>
+
+<div class="modal fade" id="calx-modal" tabindex="-1">
+	<div class="modal-dialog">
+		<div class="modal-content rounded-0">
+			<div class="modal-header text-bg-primary rounded-0">
+				<h5 class="modal-title"><i class="fa-solid fa-calendar-plus me-2"></i>Запланувати</h5>
+				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+			</div>
+			<div class="modal-body">
+				<div class="mb-2">
+					<label class="form-label">Що зробити</label>
+					<input type="text" class="form-control rounded-0" id="calx-title" maxlength="255" placeholder="Передзвонити, надіслати КП, зустріч…" />
+				</div>
+				<div class="mb-2">
+					<label class="form-label">Тип</label>
+					<select class="form-select rounded-0" id="calx-type"><option value="">—</option></select>
+				</div>
+				<div class="row g-2 mb-2">
+					<div class="col-6"><label class="form-label">Дата</label><input type="date" class="form-control rounded-0" id="calx-date" /></div>
+					<div class="col-3"><label class="form-label">Час</label><input type="time" class="form-control rounded-0" id="calx-time" /></div>
+					<div class="col-3">
+						<label class="form-label">Хв.</label>
+						<select class="form-select rounded-0" id="calx-dur">
+							<option value="15">15</option>
+							<option value="30" selected>30</option>
+							<option value="60">60</option>
+							<option value="120">120</option>
+						</select>
+					</div>
+				</div>
+				<div class="mb-2">
+					<label class="form-label">Нагадати</label>
+					<select class="form-select rounded-0" id="calx-remind">
+						<option value="">Лише в момент початку</option>
+						<option value="15" selected>За 15 хв</option>
+						<option value="60">За 1 год</option>
+						<option value="1440">За 1 день</option>
+					</select>
+				</div>
+				<div class="mb-2">
+					<label class="form-label">Опис</label>
+					<textarea class="form-control rounded-0" id="calx-desc" rows="2"></textarea>
+				</div>
+				<div class="form-check <%= _cal.manager ? '' : 'd-none' %>">
+					<input class="form-check-input" type="checkbox" id="calx-manager" checked />
+					<label class="form-check-label" for="calx-manager">Додати відповідального учасником</label>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal">Скасувати</button>
+				<button type="button" class="btn btn-primary rounded-0" id="calx-save">Зберегти</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+	(function () {
+		const CFG = <%- JSON.stringify(_cal).replace(/</g, '\\u003c') %>;
+		const list = document.getElementById("calx-list");
+		const toggle = document.getElementById("calx-toggle");
+		const overdueBadge = document.getElementById("calx-overdue");
+		let SCOPE = "upcoming";
+		let typesLoaded = false;
+
+		const $ = (id) => document.getElementById(id);
+		const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+		const pad = (n) => String(n).padStart(2, "0");
+		const local = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":00";
+		const fail = (msg) => (window.Notyf ? new Notyf().error(msg) : alert(msg));
+
+		async function post(url, data) {
+			const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data || {}) });
+			const j = await r.json().catch(() => ({}));
+			if (!r.ok) throw new Error(j.error || "Помилка сервера");
+			return j;
+		}
+
+		function item(e) {
+			const start = new Date(e.date_start);
+			const overdue = e.status === 1 && start < new Date();
+			const when = e.all_day ? start.toLocaleDateString() : start.toLocaleString([], { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+			const st = e.status === 2 ? '<span class="badge text-bg-success rounded-0">виконано</span>' : e.status === 3 ? '<span class="badge text-bg-secondary rounded-0">скасовано</span>' : "";
+			const btns = !e.is_mine
+				? ""
+				: e.status === 1
+				? '<button class="btn btn-sm btn-outline-success rounded-0" data-calx-status="2" data-id="' + e.id + '" title="Виконано"><i class="fa-solid fa-check"></i></button>' +
+				  '<button class="btn btn-sm btn-outline-secondary rounded-0" data-calx-status="3" data-id="' + e.id + '" title="Скасувати"><i class="fa-solid fa-xmark"></i></button>'
+				: '<button class="btn btn-sm btn-outline-primary rounded-0" data-calx-status="1" data-id="' + e.id + '" title="Повернути"><i class="fa-solid fa-rotate-left"></i></button>';
+			return (
+				'<div class="list-group-item' + (overdue ? " list-group-item-danger" : "") + '">' +
+				'<div class="d-flex justify-content-between gap-2">' +
+				'<div class="text-truncate"><i class="' + esc(e.type_icon || "fa-solid fa-calendar") + ' me-1" style="color:' + esc(e.type_color || "#6c757d") + '"></i>' +
+				'<a href="/?event=' + e.id + '" class="fw-semibold">' + esc(e.title) + "</a> " + st + "</div>" +
+				(btns ? '<div class="btn-group btn-group-sm flex-shrink-0">' + btns + "</div>" : "") +
+				"</div>" +
+				(e.description ? '<div class="small text-muted text-truncate">' + esc(e.description) + "</div>" : "") +
+				'<div class="small ' + (overdue ? "text-danger" : "text-muted") + '">' + esc(when) + (e.creator_name ? " · " + esc(e.creator_name) : "") + "</div>" +
+				"</div>"
+			);
+		}
+
+		async function load() {
+			try {
+				const d = await post("/api/calendar/links/list", { type: CFG.type, id: CFG.id, scope: SCOPE, limit: 50 });
+				const rows = d.rows || [];
+				list.innerHTML = rows.length ? rows.map(item).join("") : '<div class="list-group-item text-center text-muted small">' + (SCOPE === "done" ? "Виконаних немає" : "Нічого не заплановано") + "</div>";
+				const od = SCOPE === "upcoming" ? rows.filter((e) => new Date(e.date_start) < new Date()).length : 0;
+				overdueBadge.textContent = od;
+				overdueBadge.classList.toggle("d-none", !od);
+			} catch (e) {
+				list.innerHTML = '<div class="list-group-item text-danger small">' + esc(e.message) + "</div>";
+			}
+		}
+
+		toggle.addEventListener("click", () => {
+			SCOPE = SCOPE === "upcoming" ? "done" : "upcoming";
+			toggle.textContent = SCOPE === "done" ? "Заплановані" : "Виконані";
+			load();
+		});
+
+		list.addEventListener("click", async (ev) => {
+			const b = ev.target.closest("[data-calx-status]");
+			if (!b) return;
+			b.disabled = true;
+			try {
+				await post("/api/calendar/events/" + b.dataset.id + "/status", { status: parseInt(b.dataset.calxStatus, 10) });
+				load();
+			} catch (e) {
+				b.disabled = false;
+				fail(e.message);
+			}
+		});
+
+		$("calx-add").addEventListener("click", async () => {
+			const d = new Date(Date.now() + 3600000);
+			d.setMinutes(0, 0, 0);
+			$("calx-title").value = "";
+			$("calx-desc").value = "";
+			$("calx-date").value = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+			$("calx-time").value = pad(d.getHours()) + ":00";
+			if (!typesLoaded) {
+				try {
+					const types = await post("/api/calendar/event-types");
+					$("calx-type").insertAdjacentHTML("beforeend", types.filter((t) => !t.is_absence).map((t) => '<option value="' + t.id + '">' + esc(t.name || t.code) + "</option>").join(""));
+					typesLoaded = true;
+				} catch (e) {}
+			}
+			bootstrap.Modal.getOrCreateInstance($("calx-modal")).show();
+			setTimeout(() => $("calx-title").focus(), 300);
+		});
+
+		$("calx-save").addEventListener("click", async function () {
+			const btn = this;
+			const title = $("calx-title").value.trim();
+			const date = $("calx-date").value;
+			if (!title || !date) return fail("Вкажіть що зробити і дату");
+
+			const start = new Date(date + "T" + ($("calx-time").value || "09:00") + ":00");
+			const end = new Date(start.getTime() + parseInt($("calx-dur").value, 10) * 60000);
+			const remind = $("calx-remind").value;
+			const type = $("calx-type").value;
+
+			btn.disabled = true;
+			try {
+				await post("/api/calendar/events/add", {
+					title,
+					description: $("calx-desc").value.trim() || null,
+					date_start: local(start),
+					date_end: local(end),
+					all_day: 0,
+					tz_offset: -new Date().getTimezoneOffset(),
+					priority: 2,
+					status: 1,
+					visibility: 1,
+					notify_scope: 2,
+					is_busy: 1,
+					id_event_type: type ? parseInt(type, 10) : null,
+					reminder_minutes: remind === "" ? null : parseInt(remind, 10),
+					participant_ids: CFG.manager && $("calx-manager").checked ? [CFG.manager] : [],
+					links: [{ type: CFG.type, id: CFG.id }].concat(CFG.extra.filter((x) => x && x.type && x.id)),
+				});
+				bootstrap.Modal.getOrCreateInstance($("calx-modal")).hide();
+				SCOPE = "upcoming";
+				toggle.textContent = "Виконані";
+				load();
+			} catch (e) {
+				fail(e.message);
+			} finally {
+				btn.disabled = false;
+			}
+		});
+
+		load();
+	})();
+</script>

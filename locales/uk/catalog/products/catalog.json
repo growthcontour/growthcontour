@@ -1,0 +1,10 @@
+{
+	"catalog": {
+		"common": {
+			"delete": "Видалити",
+			"remove": "Прибрати",
+			"uploaded": "Файл завантажено",
+			"file_required": "Оберіть файл"
+		}
+	}
+}

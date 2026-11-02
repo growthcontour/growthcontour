@@ -1,0 +1,62 @@
+{
+    "orders": {
+        "abandoned-cart": {
+            "title": "Покинуті кошики",
+            "breadcrumb": {
+                "home": "Головна",
+                "orders": "Замовлення",
+                "current": "Покинуті кошики"
+            },
+            "columns": {
+                "id": "ID",
+                "customer": "Клієнт",
+                "products": "Товари",
+                "total": "Сума",
+                "items": "Позицій",
+                "last_activity": "Остання активність",
+                "date_add": "Дата додавання",
+                "details": "Деталі",
+                "no_data": "Покинутих кошиків не знайдено."
+            },
+            "modal": {
+                "title": "Покинутий кошик",
+                "customer": "Клієнт",
+                "customer_id": "ID клієнта",
+                "customer_name": "Ім'я",
+                "email": "Email",
+                "phone": "Телефон",
+                "products": "Товари",
+                "photo": "Фото",
+                "product_name": "Назва",
+                "sku": "SKU",
+                "quantity": "Кількість",
+                "price": "Ціна",
+                "total": "Сума",
+                "options": "Опції",
+                "items_count": "Позицій",
+                "total_amount": "Сума",
+                "utm": "UTM",
+                "utm_source": "Джерело",
+                "utm_medium": "Тип трафіку",
+                "utm_campaign": "Кампанія",
+                "technical": "Технічні дані",
+                "ip": "IP",
+                "user_agent": "User Agent",
+                "session_id": "ID сесії",
+                "first_seen": "Перша активність",
+                "last_activity": "Остання активність",
+                "date_add": "Дата додавання",
+                "guest": "Гість",
+                "close": "Закрити"
+            },
+            "delete_modal": {
+                "title": "Підтвердження видалення",
+                "confirm_text": "Ви впевнені, що хочете видалити цей покинутий кошик? Цю дію не можна скасувати.",
+                "close": "Закрити",
+                "delete": "Видалити",
+                "deleted": "Кошик успішно видалено.",
+                "server_error": "Помилка сервера. Спробуйте пізніше."
+            }
+        }
+    }
+}

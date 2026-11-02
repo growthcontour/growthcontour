@@ -1,0 +1,135 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('modules.title') %></title>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.mod-card { transition: box-shadow 0.15s; }
+			.mod-card:hover { box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.08); }
+			.mod-icon { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; background: var(--bs-light); border: 1px solid var(--bs-border-color); }
+			.mod-card.disabled-mod { opacity: 0.65; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<ol class="breadcrumb mb-0">
+					<li class="breadcrumb-item"><a href="/"><%= i18n.__('modules.home') %></a></li>
+					<li class="breadcrumb-item active"><%= i18n.__('header.nav.modules') %></li>
+				</ol>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+					<h1 class="h4 mb-0 me-auto"><%= i18n.__('modules.title') %></h1>
+					<input type="search" class="form-control rounded-0" style="max-width: 280px" id="mod-search" placeholder="<%= i18n.__('modules.search') %>" />
+				</div>
+				<div class="form-text mb-3"><%= i18n.__('modules.help') %></div>
+				<div class="row g-3" id="mod-list"><div class="col-12 text-muted"><span class="spinner-border spinner-border-sm"></span></div></div>
+			</div>
+		</main>
+
+		<%- include('../../partials/footer'); %>
+		<%- include('../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const PERMS = { edit: <%= perms.edit %>, delete: <%= perms.delete %> };
+				const notyf = new Notyf({ duration: 3000, position: { x: "right", y: "top" } });
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+				// Назва й опис — з перекладу модуля (modules.<name>.title / .description), інакше з module.json
+				const T = <%- JSON.stringify(Object.fromEntries((typeof modulesI18n !== 'undefined' ? modulesI18n : []).map((x) => [x.name, x]))).replace(/</g, "\\u003c") %>;
+
+				async function call(method, url) {
+					const res = await fetch(url, { method, credentials: "same-origin", headers: { Accept: "application/json" } });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.success === false) throw json;
+					return json;
+				}
+
+				let list = [];
+				const box = document.getElementById("mod-list");
+
+				function render() {
+					const q = document.getElementById("mod-search").value.trim().toLowerCase();
+					const rows = list.filter((m) => !q || [m.name, m.title, m.description].join(" ").toLowerCase().includes(q));
+					if (!rows.length) {
+						box.innerHTML = `<div class="col-12 text-muted"><%= i18n.__('modules.empty') %></div>`;
+						return;
+					}
+					box.innerHTML = rows
+						.map((m) => {
+							const settings = m.settingsUrl && m.isEnabled ? `<a class="btn btn-sm btn-primary rounded-0" href="${esc(m.settingsUrl)}"><i class="fa-solid fa-gear"></i> <%= i18n.__('modules.settings') %></a>` : "";
+							const noSettings = m.settingsUrl && !m.isEnabled ? `<span class="small text-muted"><%= i18n.__('modules.enable_to_configure') %></span>` : "";
+							const toggle = PERMS.edit
+								? `<div class="form-check form-switch mb-0 ms-auto" title="${m.isEnabled ? "<%= i18n.__('modules.disable') %>" : "<%= i18n.__('modules.enable') %>"}"><input class="form-check-input" type="checkbox" data-toggle="${esc(m.name)}" ${m.isEnabled ? "checked" : ""}></div>`
+								: `<span class="badge ms-auto text-bg-${m.isEnabled ? "success" : "secondary"}">${m.isEnabled ? "<%= i18n.__('modules.enabled') %>" : "<%= i18n.__('modules.disabled') %>"}</span>`;
+							const menu = PERMS.edit
+								? `<div class="dropdown"><button class="btn btn-sm btn-outline-secondary rounded-0" data-bs-toggle="dropdown"><i class="fa-solid fa-ellipsis"></i></button>
+									<ul class="dropdown-menu dropdown-menu-end rounded-0">
+										<li><button class="dropdown-item" data-act="reload" data-name="${esc(m.name)}"><i class="fa-solid fa-rotate me-1"></i> <%= i18n.__('modules.reload') %></button></li>
+										${PERMS.delete ? `<li><button class="dropdown-item text-danger" data-act="uninstall" data-name="${esc(m.name)}"><i class="fa-solid fa-trash me-1"></i> <%= i18n.__('modules.uninstall') %></button></li>` : ""}
+									</ul></div>`
+								: "";
+							return `<div class="col-md-6 col-xl-4"><div class="card rounded-0 h-100 mod-card ${m.isEnabled ? "" : "disabled-mod"}"><div class="card-body d-flex flex-column">
+								<div class="d-flex align-items-start gap-3 mb-2">
+									<div class="mod-icon"><i class="${esc(m.icon || "fa-solid fa-puzzle-piece")}"></i></div>
+									<div class="flex-grow-1">
+										<div class="fw-semibold">${m.settingsUrl && m.isEnabled ? `<a class="text-decoration-none" href="${esc(m.settingsUrl)}">${esc(m.title)}</a>` : esc(m.title)}</div>
+										<div class="small text-muted"><code>${esc(m.name)}</code> · v${esc(m.version || "—")}${m.author ? " · " + esc(m.author) : ""}</div>
+									</div>
+									${toggle}
+								</div>
+								<div class="small flex-grow-1 mb-3">${esc(m.description || "")}</div>
+								<div class="d-flex align-items-center gap-2">${settings}${noSettings}<div class="ms-auto">${menu}</div></div>
+							</div></div></div>`;
+						})
+						.join("");
+				}
+
+				async function load() {
+					const r = await call("GET", "/api/modules/");
+					list = (r.data || []).map((m) => ({ ...m, title: (T[m.name] && T[m.name].title) || m.name, description: (T[m.name] && T[m.name].description) || m.description }));
+					render();
+				}
+				load().catch((e) => notyf.error((e && e.error) || "<%= i18n.__('modules.error') %>"));
+				document.getElementById("mod-search").addEventListener("input", render);
+
+				box.addEventListener("change", async (e) => {
+					const cb = e.target.closest("[data-toggle]");
+					if (!cb) return;
+					cb.disabled = true;
+					try {
+						await call("POST", `/api/modules/${encodeURIComponent(cb.dataset.toggle)}/${cb.checked ? "enable" : "disable"}`);
+						notyf.success(cb.checked ? "<%= i18n.__('modules.enabled_ok') %>" : "<%= i18n.__('modules.disabled_ok') %>");
+						await load();
+					} catch (err) {
+						cb.checked = !cb.checked;
+						cb.disabled = false;
+						notyf.error((err && err.error) || "<%= i18n.__('modules.error') %>");
+					}
+				});
+				box.addEventListener("click", async (e) => {
+					const b = e.target.closest("[data-act]");
+					if (!b) return;
+					const name = b.dataset.name;
+					try {
+						if (b.dataset.act === "uninstall" && !confirm("<%= i18n.__('modules.confirm_uninstall') %>".replace("%s", name))) return;
+						await call("POST", `/api/modules/${encodeURIComponent(name)}/${b.dataset.act}`);
+						notyf.success("<%= i18n.__('modules.done') %>");
+						await load();
+					} catch (err) {
+						notyf.error((err && err.error) || "<%= i18n.__('modules.error') %>");
+					}
+				});
+			})();
+		</script>
+	</body>
+</html>

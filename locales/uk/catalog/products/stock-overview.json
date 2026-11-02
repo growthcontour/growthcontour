@@ -1,0 +1,12 @@
+{
+	"catalog": {
+		"stock_overview": {
+			"title": "Огляд складу",
+			"breadcrumb": {
+				"home": "Головна",
+				"catalog": "Каталог",
+				"current": "Склад"
+			}
+		}
+	}
+}

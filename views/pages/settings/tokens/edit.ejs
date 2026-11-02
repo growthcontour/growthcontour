@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+  <head>
+    <% const isNew = !tokenId; const pageTitle = i18n.__(isNew ? 'orders.tokens.generate_modal.title' : 'orders.tokens.edit_modal.title'); %>
+    <title><%= pageTitle %><%= isNew ? '' : ' #' + tokenId %></title>
+    <%- include('../../../partials/head'); %>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+    <% if (!isNew) { %>
+    <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+    <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+    <% } %>
+    <style>
+      .token-reveal { font-family: monospace; font-size: 15px; word-break: break-all;
+                      background: #f8f9fa; border: 1px dashed #0d6efd; padding: 12px; }
+      .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase;
+                       color: #6c757d; letter-spacing: .5px; margin-bottom: 4px; }
+    </style>
+  </head>
+  <body class="d-flex flex-column h-100">
+    <%- include('../../../partials/header'); %>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumbs pt-3 pb-3">
+      <div class="container-fluid">
+        <div class="row align-items-center">
+          <div class="col">
+            <span><%= pageTitle %><%= isNew ? '' : ' #' + tokenId %></span>
+            <div>
+              <ul class="list-inline mb-0">
+                <li class="list-inline-item">
+                  <a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('orders.tokens.breadcrumb.home') %></span></a>
+                </li>
+                <li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= i18n.__('header.nav.settings') %></li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <a href="/settings/tokens/"><%= i18n.__('orders.tokens.breadcrumb.current') %></a>
+                </li>
+                <li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= pageTitle %></li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-auto">
+            <a href="/settings/tokens/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- END Breadcrumb -->
+
+    <div class="container-fluid mt-3 mb-4">
+      <!-- Показ сирого токена (разово, після створення) -->
+      <div class="card border-warning rounded-0 mb-3 d-none" id="tk-result">
+        <div class="card-body">
+          <div class="alert alert-warning rounded-0 mb-3">
+            <i class="fa-solid fa-triangle-exclamation me-1"></i><%= i18n.__('orders.tokens.generate_modal.copy_warning') %>
+          </div>
+          <div class="token-reveal mb-3" id="tk-token-value"></div>
+          <button type="button" class="btn btn-outline-primary rounded-0" id="btn-copy-token">
+            <i class="fa-regular fa-copy me-1"></i><%= i18n.__('orders.tokens.generate_modal.copy') %>
+          </button>
+          <a href="/settings/tokens/" class="btn btn-primary rounded-0"><%= i18n.__('orders.tokens.generate_modal.done') %></a>
+        </div>
+      </div>
+
+      <div id="tk-form">
+        <!-- ═══ Загальне ═══ -->
+        <div class="card border-primary rounded-0 mb-3">
+          <div class="card-header text-bg-primary rounded-0 d-flex align-items-center justify-content-between">
+            <span><%= i18n.__('orders.tokens.cards.general') %></span>
+            <% if (!isNew) { %><span class="badge text-bg-light rounded-0">#<%= tokenId %></span><% } %>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-12 col-md-6 mb-3">
+                <label class="form-label"><%= i18n.__('orders.tokens.fields.name') %></label>
+                <input type="text" class="form-control rounded-0" id="tk_name" />
+              </div>
+              <div class="col-12 col-md-6 mb-3">
+                <% if (isNew) { %>
+                <label class="form-label"><%= i18n.__('orders.tokens.fields.environment') %></label>
+                <select class="form-select rounded-0" id="tk_environment">
+                  <option value="live"><%= i18n.__('orders.tokens.env.live') %></option>
+                  <option value="test"><%= i18n.__('orders.tokens.env.test') %></option>
+                </select>
+                <% } else { %>
+                <label class="form-label"><%= i18n.__('orders.tokens.fields.status') %></label>
+                <select class="form-select rounded-0" id="tk_status">
+                  <option value="active"><%= i18n.__('orders.tokens.status_opt.active') %></option>
+                  <option value="disabled"><%= i18n.__('orders.tokens.status_opt.disabled') %></option>
+                </select>
+                <% } %>
+              </div>
+            </div>
+            <% if (!isNew) { %>
+            <div class="mb-3">
+              <div class="section-title"><%= i18n.__('orders.tokens.fields.key') %></div>
+              <code id="tk_key_preview" class="text-muted"></code>
+            </div>
+            <% } %>
+            <div class="mb-3">
+              <label class="form-label"><%= i18n.__('orders.tokens.fields.integration') %></label>
+              <select class="form-select rounded-0" id="tk_id_integration">
+                <option value=""><%= i18n.__('orders.tokens.integration.none') %></option>
+                <% integrations.forEach(function (i) { %>
+                <option value="<%= i.id %>"><%= i.name %><%= i.status === 'disabled' ? ' (—)' : '' %></option>
+                <% }); %>
+              </select>
+              <small class="text-muted"><%= i18n.__('orders.tokens.hint.integration') %></small>
+            </div>
+            <div class="row">
+              <div class="col-12 col-md-6 mb-3 mb-md-0">
+                <label class="form-label"><%= i18n.__('orders.tokens.fields.expires_at') %></label>
+                <input type="date" class="form-control rounded-0" id="tk_expires_at" />
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label"><%= i18n.__('orders.tokens.fields.note') %></label>
+                <input type="text" class="form-control rounded-0" id="tk_note" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ Звідки дозволено запити ═══ -->
+        <div class="card border-primary rounded-0 mb-3">
+          <div class="card-header text-bg-primary rounded-0"><%= i18n.__('orders.tokens.cards.access') %></div>
+          <div class="card-body">
+            <div class="mb-3" style="max-width: 420px">
+              <label class="form-label"><%= i18n.__('orders.tokens.fields.source_check_mode') %></label>
+              <select class="form-select rounded-0" id="tk_source_check_mode">
+                <option value="any"><%= i18n.__('orders.tokens.check_mode.any') %></option>
+                <option value="all"><%= i18n.__('orders.tokens.check_mode.all') %></option>
+                <option value="off"><%= i18n.__('orders.tokens.check_mode.off') %></option>
+              </select>
+            </div>
+            <div class="row">
+              <div class="col-12 col-md-6 mb-3 mb-md-0">
+                <label class="form-label"><%= i18n.__('orders.tokens.fields.allowed_domains') %></label>
+                <textarea class="form-control rounded-0" id="tk_allowed_domains" rows="3" placeholder="shop.com"></textarea>
+                <small class="text-muted"><%= i18n.__('orders.tokens.hint.one_per_line') %></small>
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label"><%= i18n.__('orders.tokens.fields.allowed_ips') %></label>
+                <textarea class="form-control rounded-0" id="tk_allowed_ips" rows="3" placeholder="1.2.3.4&#10;10.0.0.0/24"></textarea>
+                <small class="text-muted"><%= i18n.__('orders.tokens.hint.one_per_line') %></small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ Права ═══ -->
+        <div class="card border-primary rounded-0 mb-3">
+          <div class="card-header text-bg-primary rounded-0"><%= i18n.__('orders.tokens.fields.scopes') %></div>
+          <div class="card-body pb-1">
+            <div class="row">
+              <% const defScopes = ['can_create_orders','can_create_clients','can_import_products']; %>
+              <% ['can_create_orders','can_update_orders','can_update_status','can_create_clients','can_read','can_sync_carts','can_set_rates','can_import_products'].forEach(function (s) { %>
+              <div class="col-12 col-md-6">
+                <div class="form-check mb-2">
+                  <input type="checkbox" class="form-check-input rounded-0 tk-scope" id="tk_<%= s %>" name="<%= s %>" value="1" <%= isNew && defScopes.includes(s) ? 'checked' : '' %> />
+                  <label class="form-check-label" for="tk_<%= s %>"><%= i18n.__('orders.tokens.scopes.' + s) %></label>
+                </div>
+              </div>
+              <% }); %>
+            </div>
+          </div>
+        </div>
+
+        <% if (!isNew) { %>
+        <!-- ═══ Використання ═══ -->
+        <div class="card border-primary rounded-0 mb-3">
+          <div class="card-header text-bg-primary rounded-0"><%= i18n.__('orders.tokens.cards.stats') %></div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-4"><div class="section-title"><%= i18n.__('orders.tokens.stats.usage') %></div><span id="tk_usage_count">0</span></div>
+              <div class="col-4"><div class="section-title"><%= i18n.__('orders.tokens.stats.errors') %></div><span id="tk_error_count">0</span></div>
+              <div class="col-4"><div class="section-title"><%= i18n.__('orders.tokens.stats.last_used') %></div><span id="tk_last_used">—</span></div>
+            </div>
+          </div>
+        </div>
+        <% } %>
+
+        <div class="d-flex gap-2 mb-3">
+          <button type="button" class="btn btn-primary rounded-0" id="btn_save_token">
+            <%= i18n.__(isNew ? 'orders.tokens.generate_modal.generate' : 'orders.tokens.edit_modal.save') %>
+          </button>
+          <a href="/settings/tokens/" class="btn btn-secondary rounded-0"><%= i18n.__('orders.tokens.edit_modal.close') %></a>
+          <% if (!isNew) { %>
+          <button type="button" class="btn btn-outline-danger rounded-0 ms-auto" id="btn_revoke_token">
+            <i class="fa-solid fa-ban me-1"></i><%= i18n.__('orders.tokens.edit_modal.revoke') %>
+          </button>
+          <% } %>
+        </div>
+      </div>
+
+      <% if (!isNew) { %>
+      <!-- Журнал використань -->
+      <div class="card border-primary rounded-0 mb-3" id="log">
+        <div class="card-header text-bg-primary rounded-0 d-flex align-items-center gap-2">
+          <span class="me-auto"><%= i18n.__('orders.tokens.log_modal.title') %></span>
+          <select class="form-select form-select-sm rounded-0 w-auto" id="log_result">
+            <option value=""><%= i18n.__('orders.tokens.log.all') %></option>
+            <option value="success"><%= i18n.__('orders.tokens.log.success') %></option>
+            <option value="rejected"><%= i18n.__('orders.tokens.log.rejected') %></option>
+          </select>
+        </div>
+        <div id="log-table"></div>
+        <div class="card-footer small text-muted rounded-0"><%= i18n.__('orders.tokens.log.retention') %></div>
+      </div>
+      <% } %>
+    </div>
+
+    <% if (!isNew) { %>
+    <!-- Підтвердження відкликання -->
+    <div class="modal fade" id="modalRevokeToken" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-0">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5"><%= i18n.__('orders.tokens.revoke_modal.title') %></h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-2"><%= i18n.__('orders.tokens.revoke_modal.confirm_text') %></p>
+            <label class="form-label"><%= i18n.__('orders.tokens.revoke_modal.reason') %></label>
+            <input type="text" class="form-control rounded-0" id="revoke_reason" />
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('orders.tokens.revoke_modal.close') %></button>
+            <button type="button" class="btn btn-danger rounded-0" id="btn_confirm_revoke"><%= i18n.__('orders.tokens.revoke_modal.revoke') %></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <% } %>
+
+    <%- include('../../../partials/footer'); %> <%- include('../../../partials/script'); %>
+    <script src="/assets/js/notyf/notyf.min.js"></script>
+    <% if (!isNew) { %><script src="/assets/js/tabulator/tabulator.min.js"></script><% } %>
+    <script>
+      const TOKEN_ID = <%- JSON.stringify(tokenId || null) %>;
+      const T = <%- JSON.stringify({
+        saved: i18n.__('orders.tokens.edit_modal.saved'),
+        copied: i18n.__('orders.tokens.generate_modal.copied'),
+        revoked: i18n.__('orders.tokens.revoke_modal.revoked'),
+      }) %>;
+      const notyf = new Notyf({
+        position: { x: "right", y: "top" }, duration: 4000,
+        types: [
+          { type: "success", dismissible: true, icon: false },
+          { type: "error", background: "indianred", dismissible: true, icon: false },
+        ],
+      });
+      const $id = (id) => document.getElementById(id);
+      const FIELDS = ["name", "source_check_mode", "id_integration", "allowed_domains", "allowed_ips", "expires_at", "note"];
+
+      async function post(url, body) {
+        const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const data = await res.json().catch(() => ({}));
+        // Успіх — за HTTP-кодом: у токена є власне поле status (active / disabled), тож data.status не ознака помилки
+        if (!res.ok) throw new Error(data.message || "Error");
+        return data;
+      }
+
+      async function busy(btn, fn) {
+        if (btn.disabled) return;
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        try { await fn(); } catch (e) { notyf.error(e.message); }
+        finally { btn.disabled = false; btn.innerHTML = original; }
+      }
+
+      function lock(readonly) {
+        document.querySelectorAll("#tk-form input, #tk-form select, #tk-form textarea").forEach((el) => (el.disabled = readonly));
+        $id("btn_save_token").disabled = readonly;
+        if ($id("btn_revoke_token")) $id("btn_revoke_token").disabled = readonly;
+      }
+
+      // Завантаження токена (редагування)
+      if (TOKEN_ID) {
+        lock(true);
+        post("/api/settings/tokens/get/", { id: TOKEN_ID }).then((t) => {
+          FIELDS.forEach((f) => ($id("tk_" + f).value = f === "allowed_domains" || f === "allowed_ips" ? (t[f] || []).join("\n") : t[f] ?? ""));
+          $id("tk_status").value = t.status || "active";
+          $id("tk_key_preview").textContent = (t.prefix || "") + "…" + (t.last4 || "");
+          document.querySelectorAll(".tk-scope").forEach((cb) => (cb.checked = Number(t[cb.name]) === 1));
+          $id("tk_usage_count").textContent = t.usage_count || 0;
+          $id("tk_error_count").textContent = t.error_count || 0;
+          $id("tk_last_used").textContent = t.last_used_at || "—";
+          lock(!!t.revoked_at); // відкликаний токен — лише перегляд
+        }).catch((e) => notyf.error(e.message));
+      }
+
+      // Збереження / генерація
+      $id("btn_save_token").addEventListener("click", function () {
+        busy(this, async () => {
+          const payload = {};
+          FIELDS.forEach((f) => (payload[f] = $id("tk_" + f).value));
+          payload.id_integration = payload.id_integration || null;
+          document.querySelectorAll(".tk-scope").forEach((cb) => (payload[cb.name] = cb.checked ? 1 : 0));
+
+          if (TOKEN_ID) {
+            await post("/api/settings/tokens/update/", { id: TOKEN_ID, status: $id("tk_status").value, ...payload });
+            notyf.success(T.saved);
+            return;
+          }
+          const data = await post("/api/settings/tokens/generate/", { environment: $id("tk_environment").value, ...payload });
+          // Сирий токен показуємо один раз; адресу міняємо, щоб оновлення сторінки не створило дубль
+          $id("tk-token-value").textContent = data.token;
+          $id("tk-form").classList.add("d-none");
+          $id("tk-result").classList.remove("d-none");
+          history.replaceState(null, "", "/settings/tokens/" + data.id + "/");
+        });
+      });
+
+      $id("btn-copy-token").addEventListener("click", () => {
+        navigator.clipboard.writeText($id("tk-token-value").textContent).then(() => notyf.success(T.copied));
+      });
+
+      // Відкликання
+      if (TOKEN_ID) {
+        $id("btn_revoke_token").addEventListener("click", () => {
+          $id("revoke_reason").value = "";
+          bootstrap.Modal.getOrCreateInstance($id("modalRevokeToken")).show();
+        });
+        $id("btn_confirm_revoke").addEventListener("click", function () {
+          busy(this, async () => {
+            await post("/api/settings/tokens/revoke/", { id: TOKEN_ID, reason: $id("revoke_reason").value });
+            bootstrap.Modal.getOrCreateInstance($id("modalRevokeToken")).hide();
+            notyf.success(T.revoked);
+            lock(true);
+          });
+        });
+      }
+
+      // Журнал використань: сторінки й фільтр — на сервері
+      if (TOKEN_ID) {
+        const LG = <%- JSON.stringify({
+          empty: i18n.__('orders.tokens.log_modal.empty'),
+          result: i18n.__('orders.tokens.log.result'),
+          success: i18n.__('orders.tokens.log.success'),
+          rejected: i18n.__('orders.tokens.log.rejected'),
+          endpoint: i18n.__('orders.tokens.log.endpoint'),
+          domain: i18n.__('orders.tokens.log.domain'),
+          order: i18n.__('orders.tokens.log.order'),
+          external_id: i18n.__('orders.tokens.log.external_id'),
+          http: i18n.__('orders.tokens.log.http'),
+          message: i18n.__('orders.tokens.log.message'),
+          date: i18n.__('orders.tokens.log.date'),
+          reject: i18n.__('orders.tokens.reject'),
+        }) %>;
+        const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+        const logTable = new Tabulator("#log-table", {
+          layout: "fitColumns",
+          ajaxURL: "/api/settings/tokens/log/",
+          ajaxRequestFunc: (url, cfg, params) => post(url, { id: TOKEN_ID, result: $id("log_result").value, page: params.page, size: params.size }),
+          pagination: true,
+          paginationMode: "remote",
+          paginationSize: 20,
+          paginationSizeSelector: [20, 50, 100],
+          placeholder: LG.empty,
+          columns: [
+            { title: LG.date, field: "date_add", headerSort: false, width: 150 },
+            { title: LG.result, field: "result", headerSort: false, width: 150,
+              formatter: (c) => {
+                const r = c.getRow().getData();
+                return r.result === "success"
+                  ? '<span class="badge rounded-0 text-bg-success">' + esc(LG.success) + "</span>"
+                  : '<span class="badge rounded-0 text-bg-danger">' + esc(LG.reject[r.reject_reason] || r.reject_reason || LG.rejected) + "</span>";
+              } },
+            { title: LG.endpoint, field: "endpoint", headerSort: false, widthGrow: 2, formatter: (c) => '<code class="small">' + esc((c.getRow().getData().method || "") + " " + (c.getValue() || "")) + "</code>" },
+            { title: "IP", field: "ip", headerSort: false, width: 130 },
+            { title: LG.domain, field: "domain", headerSort: false, widthGrow: 1 },
+            { title: LG.order, field: "id_order", headerSort: false, width: 110,
+              formatter: (c) => (c.getValue() ? '<a href="/orders/' + Number(c.getValue()) + '/">#' + Number(c.getValue()) + "</a>" : esc(c.getRow().getData().external_id || "—")) },
+            { title: LG.http, field: "http_status", headerSort: false, width: 70 },
+            { title: LG.message, field: "message", headerSort: false, widthGrow: 2, formatter: (c) => esc(c.getValue() || "") },
+          ],
+        });
+        $id("log_result").addEventListener("change", () => logTable.setData());
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,232 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('orders.rules.title') %></title>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.css" />
+		<style>
+			#rule-canvas { height: 620px; background: var(--bs-tertiary-bg); background-image: radial-gradient(var(--bs-border-color) 1px, transparent 1px); background-size: 20px 20px; position: relative; overflow: hidden; }
+			#rule-canvas .drawflow-node { width: 260px; border-radius: 0; border: 1px solid var(--bs-border-color); background: var(--bs-body-bg); padding: 0; box-shadow: 0 1px 3px rgba(0, 0, 0, .08); }
+			#rule-canvas .drawflow-node.selected { border-color: var(--bs-primary); box-shadow: 0 0 0 2px rgba(13, 110, 253, .25); }
+			#rule-canvas .drawflow-node .input, #rule-canvas .drawflow-node .output { width: 14px; height: 14px; border: 2px solid var(--bs-primary); background: var(--bs-body-bg); }
+			#rule-canvas .drawflow .connection .main-path { stroke: var(--bs-primary); stroke-width: 3px; }
+			#rule-canvas .drawflow-delete { background: var(--bs-danger); border: 0; line-height: 30px; }
+			.rn-head { font-size: 12px; font-weight: 600; padding: 4px 8px; color: #fff; }
+			.rn-body { padding: 8px; }
+			.rn-trigger .rn-head { background: #198754; }
+			.rn-cond .rn-head { background: #fd7e14; }
+			.rn-act .rn-head { background: #0d6efd; }
+			.rule-item.active { background: var(--bs-primary-bg-subtle); }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+
+		<!-- ─── хлібні крихти ─────────────────────────────────────────── -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('orders.rules.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('orders.rules.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/orders/"><%= i18n.__('orders.rules.breadcrumb.orders') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('orders.rules.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/orders/" class="btn btn-primary rounded-0">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3 mb-4">
+			<div class="form-text mt-0 mb-3"><%= i18n.__('orders.rules.help') %></div>
+			<div class="row g-3">
+				<!-- ═══ Список правил ═══ -->
+				<div class="col-xl-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0 d-flex align-items-center">
+							<span class="me-auto"><%= i18n.__('orders.rules.list') %></span>
+							<button type="button" class="btn btn-sm btn-light rounded-0" id="rule-new"><i class="fa-solid fa-plus me-1"></i><%= i18n.__('orders.rules.add') %></button>
+						</div>
+						<div class="list-group list-group-flush" id="rule-list"></div>
+					</div>
+				</div>
+
+				<!-- ═══ Редактор ═══ -->
+				<div class="col-xl-9">
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0 d-flex flex-wrap align-items-center gap-2">
+							<input class="form-control form-control-sm rounded-0 w-auto flex-grow-1" id="rule-name" maxlength="128" placeholder="<%= i18n.__('orders.rules.name') %>" />
+							<div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="rule-status" checked /><label class="form-check-label" for="rule-status"><%= i18n.__('orders.rules.active') %></label></div>
+							<button type="button" class="btn btn-sm btn-light rounded-0" id="rule-save"><i class="fa-solid fa-floppy-disk me-1"></i><%= i18n.__('orders.rules.save') %></button>
+							<button type="button" class="btn btn-sm btn-outline-light rounded-0 d-none" id="rule-delete"><i class="fa-regular fa-trash-can"></i></button>
+						</div>
+						<div class="card-body border-bottom py-2 d-flex flex-wrap gap-1" id="rule-palette">
+							<button type="button" class="btn btn-sm btn-success rounded-0" data-add="trigger"><i class="fa-solid fa-bolt me-1"></i><%= i18n.__('orders.rules.n.trigger') %></button>
+							<% conditions.forEach(function (c) { %><button type="button" class="btn btn-sm btn-outline-warning rounded-0" data-add="<%= c %>"><%= i18n.__('orders.rules.n.' + c) %></button><% }); %>
+							<% actions.forEach(function (a) { %><button type="button" class="btn btn-sm btn-outline-primary rounded-0" data-add="<%= a %>"><%= i18n.__('orders.rules.n.' + a) %></button><% }); %>
+						</div>
+						<div id="rule-canvas"></div>
+						<div class="card-footer small text-muted rounded-0"><%= i18n.__('orders.rules.canvas_hint') %></div>
+					</div>
+
+					<div class="card border-primary rounded-0 d-none" id="rule-log-card">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('orders.rules.log') %></div>
+						<div class="card-body p-0"><div id="rule-log"></div></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../partials/footer'); %>
+		<%- include('../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const D = <%- JSON.stringify({ statuses, integrations, users, templates, events }).replace(/</g, '\\u003c') %>;
+				const notyf = new Notyf({ duration: 4000, position: { x: "right", y: "top" }, types: [{ type: "error", background: "indianred" }] });
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const opts = (list, empty) => (empty !== undefined ? `<option value="">${esc(empty)}</option>` : "") + list.map((x) => `<option value="${esc(x.id)}">${esc(x.name || "#" + x.id)}</option>`).join("");
+				const sel = (key, html) => `<select class="form-select form-select-sm rounded-0" df-${key}>${html}</select>`;
+				const inp = (key, type, ph) => `<input type="${type}" class="form-control form-control-sm rounded-0" df-${key} placeholder="${esc(ph || "")}" />`;
+
+				// Вузли: колір групи, входи / виходи, поля (df-* — дані вузла в Drawflow)
+				const NODES = {
+					trigger: { kind: "trigger", ins: 0, body: () => sel("event", D.events.map((e) => `<option value="${e}">${esc(({ new: "<%= i18n.__('orders.rules.ev.new') %>", status: "<%= i18n.__('orders.rules.ev.status') %>", paid: "<%= i18n.__('orders.rules.ev.paid') %>", ttn: "<%= i18n.__('orders.rules.ev.ttn') %>", delivered: "<%= i18n.__('orders.rules.ev.delivered') %>", returned: "<%= i18n.__('orders.rules.ev.returned') %>" })[e])}</option>`).join("")) + `<div class="mt-1">${sel("status", opts(D.statuses, "<%= i18n.__('orders.rules.any_status') %>"))}</div>`, data: { event: "new", status: "" } },
+					cond_site: { kind: "cond", body: () => sel("site", opts(D.integrations)), data: { site: "" } },
+					cond_status: { kind: "cond", body: () => sel("status", opts(D.statuses)), data: { status: "" } },
+					cond_total: { kind: "cond", body: () => `<div class="input-group input-group-sm">${sel("op", `<option value="gte">≥</option><option value="lte">≤</option>`)}${inp("value", "number", "0")}</div>`, data: { op: "gte", value: "" } },
+					cond_payment: { kind: "cond", body: () => inp("text", "text", "<%= i18n.__('orders.rules.contains') %>"), data: { text: "" } },
+					cond_delivery: { kind: "cond", body: () => inp("text", "text", "<%= i18n.__('orders.rules.contains') %>"), data: { text: "" } },
+					cond_risk: { kind: "cond", body: () => sel("level", `<option value="warn"><%= i18n.__('orders.rules.risk_warn') %></option><option value="high"><%= i18n.__('orders.rules.risk_high') %></option>`), data: { level: "warn" } },
+					cond_first: { kind: "cond", body: () => `<div class="small text-muted"><%= i18n.__('orders.rules.first_hint') %></div>`, data: {} },
+					act_status: { kind: "act", body: () => sel("status", opts(D.statuses)), data: { status: "" } },
+					act_manager: { kind: "act", body: () => sel("user", opts(D.users, "<%= i18n.__('orders.rules.unassign') %>")), data: { user: "" } },
+					act_message: { kind: "act", body: () => sel("template", opts(D.templates)), data: { template: "" } },
+					act_note: { kind: "act", body: () => inp("text", "text", "<%= i18n.__('orders.rules.note_ph') %>"), data: { text: "" } },
+				};
+				const nodeHtml = (name) => `<div class="rn-${NODES[name].kind}"><div class="rn-head">${esc(({ trigger: "<%= i18n.__('orders.rules.n.trigger') %>", cond_site: "<%= i18n.__('orders.rules.n.cond_site') %>", cond_status: "<%= i18n.__('orders.rules.n.cond_status') %>", cond_total: "<%= i18n.__('orders.rules.n.cond_total') %>", cond_payment: "<%= i18n.__('orders.rules.n.cond_payment') %>", cond_delivery: "<%= i18n.__('orders.rules.n.cond_delivery') %>", cond_risk: "<%= i18n.__('orders.rules.n.cond_risk') %>", cond_first: "<%= i18n.__('orders.rules.n.cond_first') %>", act_status: "<%= i18n.__('orders.rules.n.act_status') %>", act_manager: "<%= i18n.__('orders.rules.n.act_manager') %>", act_message: "<%= i18n.__('orders.rules.n.act_message') %>", act_note: "<%= i18n.__('orders.rules.n.act_note') %>" })[name])}</div><div class="rn-body">${NODES[name].body()}</div></div>`;
+
+				const editor = new Drawflow($("rule-canvas"));
+				editor.reroute = true;
+				editor.start();
+				// Тригер — один на правило
+				editor.on("nodeCreated", (id) => {
+					const all = Object.values(editor.export().drawflow.Home.data);
+					if (editor.getNodeFromId(id).name === "trigger" && all.filter((n) => n.name === "trigger").length > 1) {
+						editor.removeNodeId("node-" + id);
+						notyf.error("<%= i18n.__('orders.rules.e_trigger') %>");
+					}
+				});
+
+				let added = 0;
+				function addNode(name, x, y) {
+					const def = NODES[name];
+					editor.addNode(name, def.ins === 0 ? 0 : 1, 1, x ?? 40 + (added % 4) * 290, y ?? 40 + Math.floor(added / 4) * 160, name, { ...def.data }, nodeHtml(name));
+					added++;
+				}
+				$("rule-palette").addEventListener("click", (e) => {
+					const b = e.target.closest("[data-add]");
+					if (b) addNode(b.dataset.add);
+				});
+
+				// Імпорт збереженої схеми: HTML вузлів будуємо заново (актуальні довідники), значення — з даних
+				function loadGraph(graph) {
+					editor.clear();
+					added = 0;
+					if (!graph) return addNode("trigger", 40, 60);
+					const data = graph.drawflow.Home.data;
+					Object.values(data).forEach((n) => NODES[n.name] && (n.html = nodeHtml(n.name)));
+					editor.import(graph);
+					added = Object.keys(data).length;
+				}
+
+				let current = null;
+				async function call(url, body) {
+					const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+					const r = await res.json().catch(() => ({}));
+					if (!res.ok) throw new Error(r.message || "Error");
+					return r;
+				}
+
+				async function loadList() {
+					const r = await call("/api/orders/settings/rules/list/");
+					$("rule-list").innerHTML = r.rows.length
+						? r.rows.map((x) => `<button type="button" class="list-group-item list-group-item-action rounded-0 rule-item ${x.id === current ? "active" : ""} ${x.status ? "" : "text-muted"}" data-id="${x.id}">
+							<div class="fw-semibold">${esc(x.name)}</div><div class="small text-muted">${esc(({ new: "<%= i18n.__('orders.rules.ev.new') %>", status: "<%= i18n.__('orders.rules.ev.status') %>", paid: "<%= i18n.__('orders.rules.ev.paid') %>", ttn: "<%= i18n.__('orders.rules.ev.ttn') %>", delivered: "<%= i18n.__('orders.rules.ev.delivered') %>", returned: "<%= i18n.__('orders.rules.ev.returned') %>" })[x.trigger_event] || "")} · <%= i18n.__('orders.rules.runs') %>: ${Number(x.runs)}</div></button>`).join("")
+						: `<div class="list-group-item small text-muted"><%= i18n.__('orders.rules.empty') %></div>`;
+				}
+
+				async function open(id) {
+					current = id;
+					$("rule-delete").classList.toggle("d-none", !id);
+					$("rule-log-card").classList.toggle("d-none", !id);
+					if (!id) {
+						$("rule-name").value = "";
+						$("rule-status").checked = true;
+						loadGraph(null);
+						return loadList();
+					}
+					const r = await call(`/api/orders/settings/rules/${id}/`);
+					$("rule-name").value = r.rule.name;
+					$("rule-status").checked = !!r.rule.status;
+					loadGraph(r.rule.graph);
+					$("rule-log").innerHTML = r.log.length
+						? '<table class="table table-sm mb-0 small"><tbody>' + r.log.map((l) => `<tr><td class="text-nowrap text-muted">${esc(l.date_add)}</td><td><a href="/orders/${l.id_order}/" target="_blank">${esc(l.reference || "#" + l.id_order)}</a></td>
+							<td><span class="badge rounded-0 text-bg-${l.result === "ok" ? "success" : l.result === "partial" ? "warning" : "danger"}">${esc(({ title: "<%= i18n.__('orders.rules.title') %>", help: "<%= i18n.__('orders.rules.help') %>", list: "<%= i18n.__('orders.rules.list') %>", add: "<%= i18n.__('orders.rules.add') %>", name: "<%= i18n.__('orders.rules.name') %>", active: "<%= i18n.__('orders.rules.active') %>", save: "<%= i18n.__('orders.rules.save') %>", saved: "<%= i18n.__('orders.rules.saved') %>", confirm_delete: "<%= i18n.__('orders.rules.confirm_delete') %>", empty: "<%= i18n.__('orders.rules.empty') %>", runs: "<%= i18n.__('orders.rules.runs') %>", canvas_hint: "<%= i18n.__('orders.rules.canvas_hint') %>", log: "<%= i18n.__('orders.rules.log') %>", log_empty: "<%= i18n.__('orders.rules.log_empty') %>", res_ok: "<%= i18n.__('orders.rules.res_ok') %>", res_partial: "<%= i18n.__('orders.rules.res_partial') %>", res_error: "<%= i18n.__('orders.rules.res_error') %>", act_ok: "<%= i18n.__('orders.rules.act_ok') %>", act_skip: "<%= i18n.__('orders.rules.act_skip') %>", act_error: "<%= i18n.__('orders.rules.act_error') %>", any_status: "<%= i18n.__('orders.rules.any_status') %>", contains: "<%= i18n.__('orders.rules.contains') %>", risk_warn: "<%= i18n.__('orders.rules.risk_warn') %>", risk_high: "<%= i18n.__('orders.rules.risk_high') %>", first_hint: "<%= i18n.__('orders.rules.first_hint') %>", unassign: "<%= i18n.__('orders.rules.unassign') %>", note_ph: "<%= i18n.__('orders.rules.note_ph') %>", ev: { new: "<%= i18n.__('orders.rules.ev.new') %>", status: "<%= i18n.__('orders.rules.ev.status') %>", paid: "<%= i18n.__('orders.rules.ev.paid') %>", ttn: "<%= i18n.__('orders.rules.ev.ttn') %>", delivered: "<%= i18n.__('orders.rules.ev.delivered') %>", returned: "<%= i18n.__('orders.rules.ev.returned') %>" }, n: { trigger: "<%= i18n.__('orders.rules.n.trigger') %>", cond_site: "<%= i18n.__('orders.rules.n.cond_site') %>", cond_status: "<%= i18n.__('orders.rules.n.cond_status') %>", cond_total: "<%= i18n.__('orders.rules.n.cond_total') %>", cond_payment: "<%= i18n.__('orders.rules.n.cond_payment') %>", cond_delivery: "<%= i18n.__('orders.rules.n.cond_delivery') %>", cond_risk: "<%= i18n.__('orders.rules.n.cond_risk') %>", cond_first: "<%= i18n.__('orders.rules.n.cond_first') %>", act_status: "<%= i18n.__('orders.rules.n.act_status') %>", act_manager: "<%= i18n.__('orders.rules.n.act_manager') %>", act_message: "<%= i18n.__('orders.rules.n.act_message') %>", act_note: "<%= i18n.__('orders.rules.n.act_note') %>" }, e_name: "<%= i18n.__('orders.rules.e_name') %>", e_empty: "<%= i18n.__('orders.rules.e_empty') %>", e_trigger: "<%= i18n.__('orders.rules.e_trigger') %>", e_event: "<%= i18n.__('orders.rules.e_event') %>", e_actions: "<%= i18n.__('orders.rules.e_actions') %>", e_cycle: "<%= i18n.__('orders.rules.e_cycle') %>", e_node: "<%= i18n.__('orders.rules.e_node') %>", e_orphan: "<%= i18n.__('orders.rules.e_orphan') %>", e_not_found: "<%= i18n.__('orders.rules.e_not_found') %>" })["res_" + l.result] || l.result)}</span></td>
+							<td>${esc(l.actions.map((a) => ({ trigger: "<%= i18n.__('orders.rules.n.trigger') %>", cond_site: "<%= i18n.__('orders.rules.n.cond_site') %>", cond_status: "<%= i18n.__('orders.rules.n.cond_status') %>", cond_total: "<%= i18n.__('orders.rules.n.cond_total') %>", cond_payment: "<%= i18n.__('orders.rules.n.cond_payment') %>", cond_delivery: "<%= i18n.__('orders.rules.n.cond_delivery') %>", cond_risk: "<%= i18n.__('orders.rules.n.cond_risk') %>", cond_first: "<%= i18n.__('orders.rules.n.cond_first') %>", act_status: "<%= i18n.__('orders.rules.n.act_status') %>", act_manager: "<%= i18n.__('orders.rules.n.act_manager') %>", act_message: "<%= i18n.__('orders.rules.n.act_message') %>", act_note: "<%= i18n.__('orders.rules.n.act_note') %>" })[a.type] + ": " + (({ title: "<%= i18n.__('orders.rules.title') %>", help: "<%= i18n.__('orders.rules.help') %>", list: "<%= i18n.__('orders.rules.list') %>", add: "<%= i18n.__('orders.rules.add') %>", name: "<%= i18n.__('orders.rules.name') %>", active: "<%= i18n.__('orders.rules.active') %>", save: "<%= i18n.__('orders.rules.save') %>", saved: "<%= i18n.__('orders.rules.saved') %>", confirm_delete: "<%= i18n.__('orders.rules.confirm_delete') %>", empty: "<%= i18n.__('orders.rules.empty') %>", runs: "<%= i18n.__('orders.rules.runs') %>", canvas_hint: "<%= i18n.__('orders.rules.canvas_hint') %>", log: "<%= i18n.__('orders.rules.log') %>", log_empty: "<%= i18n.__('orders.rules.log_empty') %>", res_ok: "<%= i18n.__('orders.rules.res_ok') %>", res_partial: "<%= i18n.__('orders.rules.res_partial') %>", res_error: "<%= i18n.__('orders.rules.res_error') %>", act_ok: "<%= i18n.__('orders.rules.act_ok') %>", act_skip: "<%= i18n.__('orders.rules.act_skip') %>", act_error: "<%= i18n.__('orders.rules.act_error') %>", any_status: "<%= i18n.__('orders.rules.any_status') %>", contains: "<%= i18n.__('orders.rules.contains') %>", risk_warn: "<%= i18n.__('orders.rules.risk_warn') %>", risk_high: "<%= i18n.__('orders.rules.risk_high') %>", first_hint: "<%= i18n.__('orders.rules.first_hint') %>", unassign: "<%= i18n.__('orders.rules.unassign') %>", note_ph: "<%= i18n.__('orders.rules.note_ph') %>", ev: { new: "<%= i18n.__('orders.rules.ev.new') %>", status: "<%= i18n.__('orders.rules.ev.status') %>", paid: "<%= i18n.__('orders.rules.ev.paid') %>", ttn: "<%= i18n.__('orders.rules.ev.ttn') %>", delivered: "<%= i18n.__('orders.rules.ev.delivered') %>", returned: "<%= i18n.__('orders.rules.ev.returned') %>" }, n: { trigger: "<%= i18n.__('orders.rules.n.trigger') %>", cond_site: "<%= i18n.__('orders.rules.n.cond_site') %>", cond_status: "<%= i18n.__('orders.rules.n.cond_status') %>", cond_total: "<%= i18n.__('orders.rules.n.cond_total') %>", cond_payment: "<%= i18n.__('orders.rules.n.cond_payment') %>", cond_delivery: "<%= i18n.__('orders.rules.n.cond_delivery') %>", cond_risk: "<%= i18n.__('orders.rules.n.cond_risk') %>", cond_first: "<%= i18n.__('orders.rules.n.cond_first') %>", act_status: "<%= i18n.__('orders.rules.n.act_status') %>", act_manager: "<%= i18n.__('orders.rules.n.act_manager') %>", act_message: "<%= i18n.__('orders.rules.n.act_message') %>", act_note: "<%= i18n.__('orders.rules.n.act_note') %>" }, e_name: "<%= i18n.__('orders.rules.e_name') %>", e_empty: "<%= i18n.__('orders.rules.e_empty') %>", e_trigger: "<%= i18n.__('orders.rules.e_trigger') %>", e_event: "<%= i18n.__('orders.rules.e_event') %>", e_actions: "<%= i18n.__('orders.rules.e_actions') %>", e_cycle: "<%= i18n.__('orders.rules.e_cycle') %>", e_node: "<%= i18n.__('orders.rules.e_node') %>", e_orphan: "<%= i18n.__('orders.rules.e_orphan') %>", e_not_found: "<%= i18n.__('orders.rules.e_not_found') %>" })["act_" + a.result] || a.result)).join("; "))}${l.error ? ' <span class="text-danger">' + esc(l.error) + "</span>" : ""}</td></tr>`).join("") + "</tbody></table>"
+						: `<p class="text-muted small p-3 mb-0"><%= i18n.__('orders.rules.log_empty') %></p>`;
+					loadList();
+				}
+
+				$("rule-list").addEventListener("click", (e) => {
+					const b = e.target.closest("[data-id]");
+					if (b) open(Number(b.dataset.id)).catch((err) => notyf.error(err.message));
+				});
+				$("rule-new").addEventListener("click", () => open(null));
+				$("rule-save").addEventListener("click", async () => {
+					try {
+						const r = await call("/api/orders/settings/rules/save/", { id: current, name: $("rule-name").value, status: $("rule-status").checked ? 1 : 0, graph: editor.export() });
+						notyf.success("<%= i18n.__('orders.rules.saved') %>");
+						await open(r.id);
+					} catch (err) {
+						notyf.error(err.message);
+					}
+				});
+				$("rule-delete").addEventListener("click", async () => {
+					if (!current || !confirm("<%= i18n.__('orders.rules.confirm_delete') %>")) return;
+					try {
+						await call("/api/orders/settings/rules/delete/", { id: current });
+						open(null);
+					} catch (err) {
+						notyf.error(err.message);
+					}
+				});
+
+				open(null).catch((err) => notyf.error(err.message));
+			})();
+		</script>
+	</body>
+</html>

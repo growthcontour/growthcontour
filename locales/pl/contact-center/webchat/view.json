@@ -1,0 +1,28 @@
+{
+  "contact_center": {
+    "webchat": {
+      "back": "Back to list",
+      "tab_info": "Info",
+      "tab_actions": "Actions",
+      "product_watching": "Viewing product",
+      "view_history": "View history",
+      "current_page": "Current page",
+      "visitor_data": "Visitor data",
+      "join": "Join",
+      "finish": "Finish",
+      "delegate_chat": "Delegate chat",
+      "delete": "Delete chat",
+      "join_note": "Join the dialog to reply.",
+      "message_placeholder": "Message...",
+      "send": "Send",
+      "typing": "typing…",
+      "confirm_finish": "Are you sure you want to finish this dialog?",
+      "confirm_delete": "Are you sure you want to delete this chat?",
+      "confirm_delete_note": "Once deleted, it cannot be restored. All conversations and files will be removed.",
+      "managers_list": "Managers list",
+      "delegate": "Delegate",
+      "close": "Close",
+      "select_manager": "Select"
+    }
+  }
+}

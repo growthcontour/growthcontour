@@ -1,0 +1,43 @@
+{
+	"contact_center": {
+		"social_snippets": {
+			"title": "Шаблони і хештеги",
+			"breadcrumb": {
+				"home": "Головна",
+				"contact_center": "Контакт-центр",
+				"posts": "Публікації",
+				"current": "Шаблони і хештеги"
+			},
+			"templates": "Шаблони тексту",
+			"hashtags": "Групи хештегів",
+			"add_template": "Новий шаблон",
+			"add_hashtags": "Нова група хештегів",
+			"search": "Пошук за назвою або текстом",
+			"empty": "Ще нічого немає",
+			"columns": {
+				"name": "Назва",
+				"content": "Вміст",
+				"network": "Мережа",
+				"used": "Використано",
+				"actions": "Дії"
+			},
+			"modal_template": "Шаблон тексту",
+			"modal_hashtags": "Група хештегів",
+			"name": "Назва",
+			"network": "Для мережі",
+			"network_all": "Усі мережі",
+			"content": "Текст",
+			"template_ph": "Текст шаблону",
+			"template_hint": "Форматування збережеться в Telegram; в Instagram, Facebook і Viber шаблон вставиться простим текстом.",
+			"tags": "Хештеги",
+			"tags_ph": "Через пробіл або кому, можна без #: акція знижки київ",
+			"tags_count": "Хештегів: {n} (Instagram — до {max})",
+			"tags_n": "хештегів: {n}",
+			"save": "Зберегти",
+			"cancel": "Скасувати",
+			"saved": "Збережено",
+			"deleted": "Видалено",
+			"confirm_delete": "Видалити? У вже створених публікаціях текст залишиться."
+		}
+	}
+}

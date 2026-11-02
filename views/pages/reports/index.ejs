@@ -1,0 +1,366 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('reports.title') %></title>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<style>
+			.rp-item { cursor: pointer; }
+			.rp-item:hover { background: var(--bs-tertiary-bg); }
+			.rp-item .d { font-size: 12px; color: var(--bs-secondary-color); }
+			.rp-group { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--bs-secondary-color); padding: 10px 12px 4px; }
+			.rp-multi { max-height: 180px; overflow: auto; border: 1px solid var(--bs-border-color); padding: 6px 8px; }
+			#pv-table { font-size: 12px; }
+			#pv-wrap { max-height: 65vh; overflow: auto; }
+			.tabulator .tabulator-cell { font-size: 13px; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('reports.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('orders.breadcrumb.home') %></span></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= i18n.__('reports.title') %></li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto"><a href="/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a></div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3 mb-4">
+			<div class="row g-3">
+				<!-- ═══ Каталог ═══ -->
+				<div class="col-xl-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><i class="fa-solid fa-book me-1"></i><%= i18n.__('reports.catalog') %></div>
+						<div class="small text-muted px-3 pt-2"><%= i18n.__('reports.catalog_hint') %></div>
+						<div id="rp-catalog" class="pb-2"></div>
+					</div>
+				</div>
+
+				<!-- ═══ Сформовані ═══ -->
+				<div class="col-xl-9">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0 d-flex flex-wrap align-items-center gap-2">
+							<span class="me-auto"><i class="fa-solid fa-file-excel me-1"></i><%= i18n.__('reports.results') %></span>
+							<div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="f-mine" /><label class="form-check-label small" for="f-mine"><%= i18n.__('reports.mine') %></label></div>
+							<select class="form-select form-select-sm rounded-0 w-auto" id="f-report"><option value=""><%= i18n.__('reports.all_reports') %></option></select>
+							<select class="form-select form-select-sm rounded-0 w-auto" id="f-status">
+								<option value=""><%= i18n.__('reports.all_states') %></option>
+								<% ['queued', 'running', 'done', 'failed'].forEach(function (s) { %><option value="<%= s %>"><%= i18n.__('reports.st.' + s) %></option><% }); %>
+							</select>
+						</div>
+						<div class="card-body p-0"><div id="rp-table"></div></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Параметри звіту -->
+		<div class="modal fade" id="m-form" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-lg">
+				<form class="modal-content rounded-0" id="rp-form">
+					<div class="modal-header">
+						<div><h5 class="modal-title mb-0" id="rp-title"></h5><div class="small text-muted" id="rp-desc"></div></div>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body"><div class="row g-3" id="rp-fields"></div></div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('reports.cancel') %></button>
+						<button type="submit" class="btn btn-primary rounded-0" id="rp-submit"><i class="fa-solid fa-play me-1"></i><%= i18n.__('reports.submit') %></button>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<!-- Перегляд -->
+		<div class="modal fade" id="m-preview" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-xl modal-dialog-scrollable">
+				<div class="modal-content rounded-0">
+					<div class="modal-header"><h5 class="modal-title" id="pv-title"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+					<div class="modal-body">
+						<div class="small text-muted mb-2" id="pv-info"></div>
+						<div id="pv-wrap"><table class="table table-sm table-striped table-bordered mb-0" id="pv-table"></table></div>
+					</div>
+					<div class="modal-footer"><a class="btn btn-success rounded-0" id="pv-download" href="#"><i class="fa-solid fa-download me-1"></i><%= i18n.__('reports.download') %></a></div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../partials/footer'); %>
+		<%- include('../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const L = <%- JSON.stringify(i18n.__('reports')).replace(/</g, '\\u003c') %>;
+				const CATALOG = <%- JSON.stringify(catalog).replace(/</g, '\\u003c') %>;
+				const GROUPS = <%- JSON.stringify(groups) %>;
+				const D = <%- JSON.stringify(dicts).replace(/</g, '\\u003c') %>;
+				const notyf = new Notyf({ duration: 4000, position: { x: "right", y: "top" }, types: [{ type: "error", background: "indianred" }] });
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const dt = (v) => (v ? new Date(v).toLocaleString().slice(0, -3) : "");
+				const bytes = (n) => { n = Number(n) || 0; const u = ["B", "KB", "MB", "GB"]; let i = 0; while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; } return n.toFixed(i ? 1 : 0) + " " + u[i]; };
+				const fill = (s, v) => String(s).replace(/\{(\w+)\}/g, (m, k) => (v[k] !== undefined ? v[k] : m));
+				const BY_KEY = Object.fromEntries(CATALOG.map((r) => [r.key, r]));
+				const nameOf = (list, id) => (list.find((x) => Number(x.id) === Number(id)) || {}).name || "#" + id;
+				const pad = (n) => String(n).padStart(2, "0");
+				const day = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+
+				async function post(url, body) {
+					const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+					const r = await res.json().catch(() => ({}));
+					if (!res.ok || r.ok === false) throw new Error(r.error || L.error);
+					return r;
+				}
+
+				/* ─── Каталог ─── */
+				$("rp-catalog").innerHTML = CATALOG.length
+					? GROUPS.filter((g) => CATALOG.some((r) => r.group === g))
+							.map((g) => `<div class="rp-group">${esc(L.g[g])}</div>` + CATALOG.filter((r) => r.group === g).map((r) => `<div class="rp-item px-3 py-2 border-bottom" data-report="${r.key}"><div class="fw-semibold small">${esc(L.r[r.key].title)}</div><div class="d">${esc(L.r[r.key].desc)}</div></div>`).join(""))
+							.join("")
+					: `<div class="p-3 text-muted small">${esc(L.empty_catalog)}</div>`;
+				$("f-report").insertAdjacentHTML("beforeend", CATALOG.map((r) => `<option value="${r.key}">${esc(L.r[r.key].title)}</option>`).join(""));
+
+				/* ─── Форма параметрів ─── */
+				let current = null;
+				const opt = (v) => L.p.o[v] || v;
+				const multi = (name, list, allLabel) =>
+					`<div class="rp-multi" data-multi="${name}">${list.map((x) => `<div class="form-check"><input class="form-check-input" type="checkbox" value="${Number(x.id)}" id="m-${name}-${Number(x.id)}"><label class="form-check-label small" for="m-${name}-${Number(x.id)}">${esc(x.name || "#" + x.id)}</label></div>`).join("")}</div><div class="form-text">${esc(allLabel)}</div>`;
+				const RANGES = {
+					7: () => [-6, 0],
+					30: () => [-29, 0],
+					90: () => [-89, 0],
+				};
+				function setRange(k) {
+					const now = new Date();
+					let from, to;
+					if (RANGES[k]) {
+						from = new Date(now); from.setDate(from.getDate() + RANGES[k]()[0]); to = now;
+					} else if (k === "month") { from = new Date(now.getFullYear(), now.getMonth(), 1); to = now; }
+					else if (k === "prev_month") { from = new Date(now.getFullYear(), now.getMonth() - 1, 1); to = new Date(now.getFullYear(), now.getMonth(), 0); }
+					else if (k === "year") { from = new Date(now.getFullYear(), 0, 1); to = now; }
+					$("p-date_from").value = day(from);
+					$("p-date_to").value = day(to);
+				}
+				function field(f) {
+					const lbl = (t) => `<label class="form-label small mb-1">${esc(t)}</label>`;
+					switch (f.type) {
+						case "period":
+							return `<div class="col-12">${lbl(L.p.period)}<div class="d-flex flex-wrap gap-2 align-items-center">
+								<input type="date" class="form-control form-control-sm rounded-0 w-auto" id="p-date_from" required> —
+								<input type="date" class="form-control form-control-sm rounded-0 w-auto" id="p-date_to" required>
+								<div class="btn-group btn-group-sm">${Object.keys(L.ranges).map((k) => `<button type="button" class="btn btn-outline-secondary rounded-0" data-range="${k}">${esc(L.ranges[k])}</button>`).join("")}</div></div></div>`;
+						case "sites":
+							return `<div class="col-md-6">${lbl(L.p.sites)}${multi(f.name, D.sites, L.p.sites_all)}</div>`;
+						case "statuses":
+							return `<div class="col-md-6">${lbl(L.p.statuses)}${multi(f.name, D.statuses, L.p.statuses_all)}</div>`;
+						case "site":
+							return `<div class="col-md-6">${lbl(L.p.site)}<select class="form-select form-select-sm rounded-0" id="p-${f.name}"><option value="">${esc(L.p.sites_all)}</option>${D.sites.map((s) => `<option value="${Number(s.id)}">${esc(s.name)}</option>`).join("")}</select></div>`;
+						case "manager":
+							return `<div class="col-md-6">${lbl(L.p.manager)}<select class="form-select form-select-sm rounded-0" id="p-${f.name}"><option value="">${esc(L.p.manager_all)}</option>${D.managers.map((s) => `<option value="${Number(s.id)}">${esc(s.name || "#" + s.id)}</option>`).join("")}</select></div>`;
+						case "number":
+							return `<div class="col-md-4">${lbl(L.p[f.name] || f.name)}<input type="number" class="form-control form-control-sm rounded-0" id="p-${f.name}" min="${f.min}" max="${f.max}" value="${f.default}"></div>`;
+						case "select":
+							return `<div class="col-md-4">${lbl(L.p[f.name] || f.name)}<select class="form-select form-select-sm rounded-0" id="p-${f.name}">${f.options.map((o) => `<option value="${o}"${o === f.default ? " selected" : ""}>${esc(opt(o))}</option>`).join("")}</select></div>`;
+						case "bool":
+							return `<div class="col-md-6 d-flex align-items-end"><div class="form-check"><input class="form-check-input" type="checkbox" id="p-${f.name}"${f.default ? " checked" : ""}><label class="form-check-label small" for="p-${f.name}">${esc(L.p[f.name] || f.name)}</label></div></div>`;
+					}
+					return "";
+				}
+				function openForm(key, values) {
+					current = BY_KEY[key];
+					if (!current) return;
+					$("rp-title").textContent = L.r[key].title;
+					$("rp-desc").textContent = L.r[key].desc;
+					$("rp-fields").innerHTML =
+						current.params.map(field).join("") +
+						`<div class="col-md-6"><label class="form-label small mb-1">${esc(L.p.title)}</label><input class="form-control form-control-sm rounded-0" id="p-__title" maxlength="255" placeholder="${esc(L.p.title_ph)}"></div>
+						 <div class="col-md-3"><label class="form-label small mb-1">${esc(L.p.format)}</label><select class="form-select form-select-sm rounded-0" id="p-__format"><option value="xlsx">Excel (.xlsx)</option><option value="csv">CSV</option></select></div>
+						 <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" id="p-__shared" checked><label class="form-check-label small" for="p-__shared">${esc(L.p.shared)}</label></div></div>`;
+					if (current.params.some((f) => f.type === "period")) setRange("30");
+					if (values) applyValues(values);
+					bootstrap.Modal.getOrCreateInstance($("m-form")).show();
+				}
+				function applyValues(v) {
+					for (const f of current.params) {
+						if (f.type === "period") {
+							if (v.date_from) $("p-date_from").value = v.date_from;
+							if (v.date_to) $("p-date_to").value = v.date_to;
+						} else if (f.type === "sites" || f.type === "statuses") {
+							(v[f.name] || []).forEach((id) => { const el = $(`m-${f.name}-${id}`); if (el) el.checked = true; });
+						} else if (f.type === "bool") $("p-" + f.name).checked = !!v[f.name];
+						else if (v[f.name] !== undefined && v[f.name] !== null) $("p-" + f.name).value = v[f.name];
+					}
+				}
+				function collect() {
+					const p = {};
+					for (const f of current.params) {
+						if (f.type === "period") { p.date_from = $("p-date_from").value; p.date_to = $("p-date_to").value; }
+						else if (f.type === "sites" || f.type === "statuses") p[f.name] = [...document.querySelectorAll(`[data-multi="${f.name}"] input:checked`)].map((x) => Number(x.value));
+						else if (f.type === "bool") p[f.name] = $("p-" + f.name).checked;
+						else p[f.name] = $("p-" + f.name).value;
+					}
+					return p;
+				}
+				$("rp-catalog").addEventListener("click", (e) => { const it = e.target.closest("[data-report]"); if (it) openForm(it.dataset.report); });
+				$("rp-fields").addEventListener("click", (e) => { const b = e.target.closest("[data-range]"); if (b) setRange(b.dataset.range); });
+				$("rp-form").addEventListener("submit", async (e) => {
+					e.preventDefault();
+					const btn = $("rp-submit");
+					btn.disabled = true;
+					try {
+						await post("/api/reports/create/", { report: current.key, params: collect(), title: $("p-__title").value, format: $("p-__format").value, is_shared: $("p-__shared").checked });
+						bootstrap.Modal.getInstance($("m-form")).hide();
+						notyf.success(L.queued_ok);
+						table.setData();
+					} catch (err) {
+						notyf.error(err.message);
+					} finally {
+						btn.disabled = false;
+					}
+				});
+
+				/* ─── Опис параметрів у таблиці ─── */
+				function summary(key, p) {
+					const def = BY_KEY[key];
+					if (!def || !p) return "";
+					const out = [];
+					for (const f of def.params) {
+						if (f.type === "period") out.push(p.date_from + " — " + p.date_to);
+						else if (f.type === "sites" && p.sites && p.sites.length) out.push(p.sites.map((id) => nameOf(D.sites, id)).join(", "));
+						else if (f.type === "statuses" && p.statuses && p.statuses.length) out.push(p.statuses.map((id) => nameOf(D.statuses, id)).join(", "));
+						else if ((f.type === "site" || f.type === "manager") && p[f.name]) out.push(nameOf(f.type === "site" ? D.sites : D.managers, p[f.name]));
+						else if (f.type === "select" && p[f.name] !== f.default) out.push((L.p[f.name] || f.name) + ": " + opt(p[f.name]));
+						else if (f.type === "number" && Number(p[f.name]) !== f.default) out.push((L.p[f.name] || f.name) + ": " + p[f.name]);
+						else if (f.type === "bool" && !!p[f.name] !== !!f.default) out.push((p[f.name] ? "✓ " : "✗ ") + (L.p[f.name] || f.name));
+					}
+					return out.join(" · ");
+				}
+				const took = (a, b) => { if (!a || !b) return ""; const s = Math.max(0, Math.round((new Date(b) - new Date(a)) / 1000)); return s < 60 ? s + " с" : Math.floor(s / 60) + " хв " + (s % 60) + " с"; };
+				const ST = { queued: "secondary", running: "info", done: "success", failed: "danger" };
+
+				/* ─── Таблиця ─── */
+				const table = new Tabulator("#rp-table", {
+					layout: "fitColumns",
+					ajaxURL: "/api/reports/jobs/",
+					ajaxRequestFunc: (url, cfg, p) =>
+						fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mine: $("f-mine").checked, report: $("f-report").value, status: $("f-status").value, page: p.page, size: p.size }) })
+							.then((r) => r.json())
+							.then((r) => { schedule(r.data); return r; }),
+					pagination: true,
+					paginationMode: "remote",
+					paginationSize: 50,
+					columns: [
+						{ title: "#", field: "id", width: 70 },
+						{
+							title: L.col.report,
+							field: "report",
+							minWidth: 220,
+							formatter: (c) => {
+								const d = c.getData();
+								return `<div class="fw-semibold">${esc((L.r[d.report] || {}).title || d.report)}</div>${d.title ? `<div class="small">${esc(d.title)}</div>` : ""}<div class="small text-muted text-wrap">${esc(summary(d.report, d.params))}</div>`;
+							},
+						},
+						{ title: L.col.author, field: "author", width: 150, formatter: (c) => esc(c.getValue() || "") + (c.getData().is_shared ? ` <span class="badge text-bg-light border rounded-0">${esc(L.shared_badge)}</span>` : "") },
+						{
+							title: L.col.state,
+							field: "status",
+							width: 130,
+							formatter: (c) => {
+								const v = c.getValue();
+								const d = c.getData();
+								return `<span class="badge rounded-0 text-bg-${ST[v]}">${v === "running" ? '<span class="spinner-border spinner-border-sm me-1" style="width:.7rem;height:.7rem"></span>' : ""}${esc(L.st[v])}</span>${v === "failed" && d.error ? `<div class="small text-danger text-wrap">${esc(d.error)}</div>` : ""}`;
+							},
+						},
+						{ title: L.col.rows, field: "rows_count", width: 90, hozAlign: "right", formatter: (c) => (c.getValue() === null ? "" : Number(c.getValue()).toLocaleString("uk-UA")) },
+						{ title: L.col.size, field: "size", width: 90, hozAlign: "right", formatter: (c) => (c.getValue() ? bytes(c.getValue()) + " · " + String(c.getData().format).toUpperCase() : "") },
+						{ title: L.col.created, field: "date_add", width: 140, formatter: (c) => `<span class="small">${esc(dt(c.getValue()))}</span><div class="small text-muted">${esc(took(c.getData().started_at, c.getData().finished_at))}</div>` },
+						{ title: L.col.expires, field: "expires_at", width: 120, formatter: (c) => `<span class="small text-muted">${esc(dt(c.getValue()).slice(0, 10))}</span>` },
+						{
+							title: "",
+							field: "id",
+							width: 150,
+							headerSort: false,
+							hozAlign: "right",
+							formatter: (c) => {
+								const d = c.getData();
+								return (
+									(d.status === "done"
+										? `<a class="btn btn-sm btn-success rounded-0 py-0" href="/api/reports/jobs/${Number(d.id)}/download/" title="${esc(L.download)}"><i class="fa-solid fa-download"></i></a> <button type="button" class="btn btn-sm btn-outline-secondary rounded-0 py-0" data-act="preview" title="${esc(L.preview)}"><i class="fa-regular fa-eye"></i></button> `
+										: "") +
+									`<button type="button" class="btn btn-sm btn-outline-primary rounded-0 py-0" data-act="repeat" title="${esc(L.repeat)}"><i class="fa-solid fa-rotate-right"></i></button>` +
+									(d.can_delete && d.status !== "running" ? ` <button type="button" class="btn btn-sm btn-outline-danger rounded-0 py-0" data-act="delete" title="${esc(L.delete)}"><i class="fa-regular fa-trash-can"></i></button>` : "")
+								);
+							},
+							cellClick: (e, c) => {
+								const b = e.target.closest("[data-act]");
+								if (b) action(b.dataset.act, c.getData());
+							},
+						},
+					],
+				});
+				// Поки щось у черзі / формується — оновлюємо кожні 4 с
+				let poll = null;
+				function schedule(rows) {
+					clearTimeout(poll);
+					if ((rows || []).some((r) => r.status === "queued" || r.status === "running")) poll = setTimeout(() => document.visibilityState === "visible" ? table.replaceData() : schedule(rows), 4000);
+				}
+				["f-mine", "f-report", "f-status"].forEach((id) => $(id).addEventListener("change", () => table.setData()));
+
+				async function action(act, d) {
+					try {
+						if (act === "preview") return preview(d);
+						if (act === "repeat") {
+							if (!BY_KEY[d.report]) return;
+							openForm(d.report, d.params);
+							$("p-__title").value = d.title || "";
+							$("p-__format").value = d.format;
+							return;
+						}
+						if (act === "delete") {
+							if (!confirm(L.delete_q)) return;
+							await post(`/api/reports/jobs/${Number(d.id)}/delete/`);
+							table.replaceData();
+						}
+					} catch (e) {
+						notyf.error(e.message);
+					}
+				}
+				async function preview(d) {
+					const r = await post(`/api/reports/jobs/${Number(d.id)}/preview/`);
+					const pv = r.preview;
+					if (!pv) return;
+					const fmt = new Intl.NumberFormat("uk-UA", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+					$("pv-title").textContent = ((L.r[d.report] || {}).title || d.report) + (d.title ? " · " + d.title : "");
+					$("pv-info").textContent = (pv.sheets.length > 1 ? pv.sheets.map((s) => s.title + ": " + s.rows).join(" · ") + " — " : "") + (pv.total > pv.rows.length ? fill(L.preview_more, { n: pv.rows.length, total: pv.total }) : "");
+					$("pv-table").innerHTML = `<thead class="table-light"><tr>${pv.columns.map((c) => `<th class="text-nowrap">${esc(c.title)}</th>`).join("")}</tr></thead><tbody>${pv.rows
+						.map((row) => `<tr>${pv.columns.map((c) => `<td class="${c.money ? "text-end text-nowrap" : ""}">${esc(c.money && row[c.key] !== "" && row[c.key] !== null ? fmt.format(row[c.key]) : row[c.key])}</td>`).join("")}</tr>`)
+						.join("")}</tbody>`;
+					$("pv-download").href = `/api/reports/jobs/${Number(d.id)}/download/`;
+					bootstrap.Modal.getOrCreateInstance($("m-preview")).show();
+				}
+
+				// Перехід зі сповіщення: /reports/?job=ID — одразу перегляд
+				const jobId = Number(new URLSearchParams(location.search).get("job"));
+				if (jobId) table.on("dataProcessed", function once() {
+					table.off("dataProcessed", once);
+					const row = table.getData().find((x) => x.id === jobId);
+					if (row && row.status === "done") preview(row).catch(() => {});
+				});
+			})();
+		</script>
+	</body>
+</html>

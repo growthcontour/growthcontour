@@ -1,0 +1,471 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('modules.checkbox.title') %></title>
+		<%- include('../../../views/partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../views/partials/header'); %>
+
+		<!-- Breadcrumb -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('modules.checkbox.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('modules.checkbox.breadcrumb.home') %></span></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/modules/"><%= i18n.__('modules.checkbox.breadcrumb.modules') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('modules.checkbox.title') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/modules/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- END Breadcrumb -->
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pt-3 pb-5">
+				<div class="d-flex align-items-start gap-3 mb-3">
+					<div class="form-text mt-0 me-auto"><%= i18n.__('modules.checkbox.help') %></div>
+					<a href="/modules/checkbox/receipts/" class="btn btn-outline-primary rounded-0 text-nowrap"><i class="fa-solid fa-receipt"></i> <%= i18n.__('modules.checkbox.receipts_link') %></a>
+				</div>
+				<div class="card rounded-0">
+					<div class="card-header fw-semibold d-flex align-items-center">
+						<span class="me-auto"><%= i18n.__('modules.checkbox.registers') %></span>
+						<% if (perms.edit) { %><button type="button" class="btn btn-sm btn-primary rounded-0" id="btn-add"><i class="fa-solid fa-plus"></i> <%= i18n.__('modules.checkbox.add') %></button><% } %>
+					</div>
+					<div id="reg-table"></div>
+				</div>
+			</div>
+		</main>
+
+		<!-- Каса -->
+		<div class="modal fade" id="reg-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-lg">
+				<form class="modal-content rounded-0" id="reg-form" autocomplete="off">
+					<div class="modal-header"><h5 class="modal-title"><%= i18n.__('modules.checkbox.edit') %></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+					<div class="modal-body">
+						<input type="hidden" name="id" />
+						<div class="row g-3">
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.checkbox.name') %></label><input class="form-control rounded-0" name="name" required maxlength="128" /></div>
+							<div class="col-md-6 d-flex align-items-end">
+								<div class="form-check"><input class="form-check-input" type="checkbox" name="test" id="f-test" /><label class="form-check-label" for="f-test"><%= i18n.__('modules.checkbox.test') %></label></div>
+							</div>
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.checkbox.license') %></label><input class="form-control rounded-0" name="license" maxlength="128" autocomplete="new-password" /><div class="form-text"><%= i18n.__('modules.checkbox.license_help') %></div></div>
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.checkbox.pin') %></label><input class="form-control rounded-0" name="pin" maxlength="32" autocomplete="new-password" /><div class="form-text"><%= i18n.__('modules.checkbox.pin_help') %></div></div>
+							<div class="col-12"><div class="form-text mt-0" id="f-keep"><%= i18n.__('modules.checkbox.keep_secret') %></div></div>
+							<div class="col-12">
+								<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="status" id="f-status" checked /><label class="form-check-label" for="f-status"><%= i18n.__('modules.checkbox.status') %></label></div>
+								<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="is_default" id="f-default" /><label class="form-check-label" for="f-default"><%= i18n.__('modules.checkbox.is_default') %></label></div>
+							</div>
+							<div class="col-12">
+								<label class="form-label"><%= i18n.__('modules.checkbox.stores') %></label>
+								<div>
+									<% integrations.forEach(function (it) { %>
+									<div class="form-check form-check-inline"><input class="form-check-input f-int" type="checkbox" value="<%= it.id %>" id="f-int-<%= it.id %>" /><label class="form-check-label" for="f-int-<%= it.id %>"><%= it.name %></label></div>
+									<% }); %>
+								</div>
+								<div class="form-text"><%= i18n.__('modules.checkbox.stores_help') %></div>
+							</div>
+						</div>
+
+						<h6 class="mt-4 mb-2"><%= i18n.__('modules.checkbox.receipt') %></h6>
+						<div class="row g-3">
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.checkbox.tax_codes') %></label><input class="form-control rounded-0" name="tax_codes" maxlength="40" /><div class="form-text"><%= i18n.__('modules.checkbox.tax_codes_help') %> <a href="#" id="f-taxes" class="d-none"><%= i18n.__('modules.checkbox.taxes_load') %></a></div><div class="small" id="f-taxes-list"></div></div>
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.checkbox.shipping_tax_codes') %></label><input class="form-control rounded-0" name="shipping_tax_codes" maxlength="40" /></div>
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.checkbox.shipping_name') %></label><input class="form-control rounded-0" name="shipping_name" maxlength="128" /></div>
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.checkbox.cashless_label') %></label><input class="form-control rounded-0" name="cashless_label" maxlength="128" /><div class="form-text"><%= i18n.__('modules.checkbox.cashless_label_help') %></div></div>
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.checkbox.header') %></label><textarea class="form-control rounded-0" name="header" rows="2" maxlength="500"></textarea></div>
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.checkbox.footer') %></label><textarea class="form-control rounded-0" name="footer" rows="2" maxlength="500"></textarea></div>
+							<div class="col-12">
+								<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="send_email" id="f-email" checked /><label class="form-check-label" for="f-email"><%= i18n.__('modules.checkbox.send_email') %></label></div>
+								<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="send_sms" id="f-sms" /><label class="form-check-label" for="f-sms"><%= i18n.__('modules.checkbox.send_sms') %></label></div>
+								<div class="form-text"><%= i18n.__('modules.checkbox.send_help') %></div>
+							</div>
+						</div>
+
+						<h6 class="mt-4 mb-2"><%= i18n.__('modules.checkbox.shift') %></h6>
+						<div class="row g-3">
+							<div class="col-md-6">
+								<div class="form-check"><input class="form-check-input" type="checkbox" name="auto_shift" id="f-auto-shift" checked /><label class="form-check-label" for="f-auto-shift"><%= i18n.__('modules.checkbox.auto_shift') %></label></div>
+								<div class="form-text"><%= i18n.__('modules.checkbox.auto_shift_help') %></div>
+							</div>
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.checkbox.shift_close') %></label><input type="time" class="form-control rounded-0" name="shift_close" /><div class="form-text"><%= i18n.__('modules.checkbox.shift_close_help') %></div></div>
+						</div>
+
+						<h6 class="mt-4 mb-2"><%= i18n.__('modules.checkbox.auto') %></h6>
+						<div class="form-text mt-0 mb-2"><%= i18n.__('modules.checkbox.auto_help') %></div>
+						<div class="row g-3">
+							<div class="col-md-6">
+								<div class="form-check"><input class="form-check-input" type="checkbox" name="auto_monobank" id="f-auto-mono" /><label class="form-check-label" for="f-auto-mono"><%= i18n.__('modules.checkbox.auto_monobank') %></label></div>
+								<div class="form-text"><%= i18n.__('modules.checkbox.auto_monobank_help') %></div>
+							</div>
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.checkbox.monobank_label') %></label><input class="form-control rounded-0" name="monobank_label" maxlength="128" /></div>
+							<div class="col-md-8">
+								<label class="form-label"><%= i18n.__('modules.checkbox.auto_statuses') %></label>
+								<div class="border p-2" style="max-height: 160px; overflow: auto">
+									<% statuses.forEach(function (st) { %>
+									<div class="form-check"><input class="form-check-input f-st" type="checkbox" value="<%= st.id %>" id="f-st-<%= st.id %>" /><label class="form-check-label" for="f-st-<%= st.id %>"><%= st.name %></label></div>
+									<% }); %>
+								</div>
+								<div class="form-text"><%= i18n.__('modules.checkbox.auto_statuses_help') %></div>
+							</div>
+							<div class="col-md-4">
+								<label class="form-label"><%= i18n.__('modules.checkbox.auto_payment') %></label>
+								<select class="form-select rounded-0" name="auto_payment"><option value="CASHLESS"><%= i18n.__('modules.checkbox.pay_cashless') %></option><option value="CASH"><%= i18n.__('modules.checkbox.pay_cash') %></option></select>
+							</div>
+							<div class="col-12">
+								<div class="form-check"><input class="form-check-input" type="checkbox" name="auto_return" id="f-auto-return" /><label class="form-check-label" for="f-auto-return"><%= i18n.__('modules.checkbox.auto_return') %></label></div>
+								<div class="form-text"><%= i18n.__('modules.checkbox.auto_return_help') %></div>
+							</div>
+						</div>
+
+						<h6 class="mt-4 mb-2"><%= i18n.__('modules.checkbox.notify_users') %></h6>
+						<div class="form-text mt-0 mb-2"><%= i18n.__('modules.checkbox.notify_users_help') %></div>
+						<div class="border p-2 mb-2" style="max-height: 160px; overflow: auto">
+							<% users.forEach(function (u) { %>
+							<div class="form-check form-check-inline"><input class="form-check-input f-user" type="checkbox" value="<%= u.id %>" id="f-user-<%= u.id %>" /><label class="form-check-label" for="f-user-<%= u.id %>"><%= u.name %></label></div>
+							<% }); %>
+						</div>
+
+						<h6 class="mt-4 mb-2"><%= i18n.__('modules.checkbox.ettn') %></h6>
+						<div class="form-text mt-0 mb-2"><%= i18n.__('modules.checkbox.ettn_help') %></div>
+						<div class="row g-3">
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('modules.checkbox.ettn_sender_phone') %></label><input class="form-control rounded-0" name="ettn_sender_phone" maxlength="20" placeholder="380XXXXXXXXX" /></div>
+							<div class="col-md-6">
+								<div class="form-check"><input class="form-check-input" type="checkbox" name="ettn_auto" id="f-ettn-auto" /><label class="form-check-label" for="f-ettn-auto"><%= i18n.__('modules.checkbox.ettn_auto') %></label></div>
+								<div class="form-check"><input class="form-check-input" type="checkbox" name="ettn_sms" id="f-ettn-sms" checked /><label class="form-check-label" for="f-ettn-sms"><%= i18n.__('modules.checkbox.ettn_sms') %></label></div>
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('modules.checkbox.cancel') %></button>
+						<% if (perms.edit) { %><button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('modules.checkbox.save') %></button><% } %>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<!-- X-звіт -->
+		<div class="modal fade" id="report-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content rounded-0">
+					<div class="modal-header"><h5 class="modal-title"><%= i18n.__('modules.checkbox.x_report') %></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+					<div class="modal-body"><pre class="small mb-0" id="report-text" style="white-space: pre-wrap"></pre></div>
+					<div class="modal-footer"><button type="button" class="btn btn-outline-secondary rounded-0" id="report-print"><i class="fa-solid fa-print me-1"></i><%= i18n.__('modules.checkbox.print') %></button></div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../../views/partials/footer'); %>
+		<%- include('../../../views/partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const INTEGRATIONS = <%- JSON.stringify(integrations).replace(/</g, '\\u003c') %>;
+				const EDIT = <%- perms.edit ? 'true' : 'false' %>;
+				const B = "/api/module/checkbox";
+				const notyf = new Notyf({ duration: 5000, position: { x: "right", y: "top" } });
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s === null || s === undefined ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const SHIFT = {
+					OPENED: "<%= i18n.__('modules.checkbox.shift_opened') %>",
+					OPENING: "<%= i18n.__('modules.checkbox.shift_opening') %>",
+					CREATED: "<%= i18n.__('modules.checkbox.shift_opening') %>",
+					CLOSING: "<%= i18n.__('modules.checkbox.shift_closing') %>",
+					CLOSED: "<%= i18n.__('modules.checkbox.shift_closed') %>",
+				};
+
+				async function api(path, body) {
+					const res = await fetch(B + path, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					let j = {};
+					try {
+						j = await res.json();
+					} catch (e) {}
+					if (!res.ok || !j.ok) throw new Error(j.error || "<%= i18n.__('modules.checkbox.error') %>");
+					return j;
+				}
+
+				/* ─── Каси й стан зміни ─── */
+				const shiftState = {};
+				const intName = (id) => (INTEGRATIONS.find((i) => i.id === id) || {}).name || "#" + id;
+				function shiftCell(d) {
+					const s = shiftState[d.id];
+					if (s === undefined) return `<span class="spinner-border spinner-border-sm text-secondary"></span>`;
+					if (s && s.error) return `<span class="text-danger small">${esc(s.error)}</span>`;
+					const st = s ? s.status : "CLOSED";
+					let h = `<span class="badge rounded-0 text-bg-${st === "OPENED" ? "success" : "secondary"}">${esc(SHIFT[st] || st)}</span>`;
+					if (s && s.opened_at) h += `<div class="small text-secondary">#${esc(s.serial)} · ${esc(new Date(s.opened_at).toLocaleString())}</div>`;
+					if (s && s.balance !== null) h += `<div class="small"><%= i18n.__('modules.checkbox.cash') %>: ${Number(s.balance).toFixed(2)}</div>`;
+					// Режим каси: онлайн / офлайн, запас офлайн-кодів
+					const m = modeState[d.id];
+					if (m && !m.error) {
+						h += `<div class="mt-1"><span class="badge rounded-0 text-bg-${m.offline ? "warning" : "light border"}">${m.offline ? (m.manual ? "<%= i18n.__('modules.checkbox.offline_manual') %>" : "<%= i18n.__('modules.checkbox.offline_auto') %>") : "<%= i18n.__('modules.checkbox.online') %>"}</span>`;
+						if (m.going_online) h += ` <span class="badge rounded-0 text-bg-info"><%= i18n.__('modules.checkbox.going_online') %></span>`;
+						if (m.codes) h += ` <span class="small ${m.codes.available < m.codes.minimal ? "text-danger" : "text-secondary"}"><%= i18n.__('modules.checkbox.codes') %>: ${m.codes.available}</span>`;
+						h += `</div>`;
+					}
+					return h;
+				}
+				const modeState = {};
+				const table = new Tabulator("#reg-table", {
+					layout: "fitColumns",
+					placeholder: "<%= i18n.__('modules.checkbox.none') %>",
+					data: [],
+					columns: [
+						{
+							title: "<%= i18n.__('modules.checkbox.name') %>",
+							field: "name",
+							minWidth: 200,
+							formatter: (c) => {
+								const d = c.getRow().getData();
+								return (
+									`<b>${esc(d.name)}</b>` +
+									(d.is_default ? ` <span class="badge text-bg-primary rounded-0"><%= i18n.__('modules.checkbox.is_default') %></span>` : "") +
+									(d.test ? ` <span class="badge text-bg-warning rounded-0"><%= i18n.__('modules.checkbox.test_badge') %></span>` : "") +
+									(d.status ? "" : ` <span class="badge text-bg-secondary rounded-0"><%= i18n.__('modules.checkbox.inactive') %></span>`) +
+									(d.status ? ` <span class="badge rounded-0 ${d.webhook ? "text-bg-success" : "text-bg-light border"}" title="<%= i18n.__('modules.checkbox.webhook_help') %>"><%= i18n.__('modules.checkbox.webhook') %>${d.webhook ? "" : " ✕"}</span>` : "") +
+									`<div class="small text-secondary">${esc(d.fiscal_number || "")}${d.cashier_name ? " · " + esc(d.cashier_name) : ""}</div>`
+								);
+							},
+						},
+						{ title: "<%= i18n.__('modules.checkbox.stores') %>", field: "integrations", minWidth: 150, formatter: (c) => c.getValue().map(intName).map(esc).join(", ") || "—" },
+						{ title: "<%= i18n.__('modules.checkbox.shift') %>", field: "id", minWidth: 180, headerSort: false, formatter: (c) => shiftCell(c.getRow().getData()) },
+						{
+							title: "",
+							field: "status",
+							width: 300,
+							hozAlign: "right",
+							headerSort: false,
+							formatter: (c) => {
+								const d = c.getRow().getData();
+								const s = shiftState[d.id];
+								const opened = s && s.status === "OPENED";
+								let h = "";
+								if (EDIT && d.status) h += opened ? `<button type="button" class="btn btn-sm btn-outline-danger rounded-0" data-act="close" data-id="${d.id}" title="<%= i18n.__('modules.checkbox.shift_close_btn') %>"><i class="fa-solid fa-lock"></i> Z</button> ` : `<button type="button" class="btn btn-sm btn-outline-success rounded-0" data-act="open" data-id="${d.id}"><i class="fa-solid fa-lock-open"></i> <%= i18n.__('modules.checkbox.shift_open_btn') %></button> `;
+								if (opened) h += `<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-act="x" data-id="${d.id}">X</button> `;
+								if (EDIT && opened) h += `<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-act="service" data-id="${d.id}" title="<%= i18n.__('modules.checkbox.service') %>"><i class="fa-solid fa-money-bill-transfer"></i></button> `;
+								const m = modeState[d.id];
+								if (EDIT && d.status && m && !m.error) h += m.offline ? `<button type="button" class="btn btn-sm btn-outline-success rounded-0" data-act="online" data-id="${d.id}" title="<%= i18n.__('modules.checkbox.go_online') %>"><i class="fa-solid fa-wifi"></i></button> ` : `<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-act="offline" data-id="${d.id}" title="<%= i18n.__('modules.checkbox.go_offline') %>"><i class="fa-solid fa-plane"></i></button> <button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-act="codes" data-id="${d.id}" title="<%= i18n.__('modules.checkbox.ask_codes') %>"><i class="fa-solid fa-barcode"></i></button> `;
+								if (EDIT && d.status) h += `<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-act="webhook" data-id="${d.id}" title="<%= i18n.__('modules.checkbox.webhook_connect') %>"><i class="fa-solid fa-satellite-dish"></i></button> `;
+								h += `<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-act="edit" data-id="${d.id}"><i class="fa-solid fa-pen"></i></button>`;
+								if (EDIT) h += ` <button type="button" class="btn btn-sm btn-outline-danger rounded-0" data-act="del" data-id="${d.id}"><i class="fa-solid fa-trash"></i></button>`;
+								return h;
+							},
+						},
+					],
+				});
+				let rows = [];
+				async function load() {
+					try {
+						rows = (await api("/registers/")).rows;
+						table.setData(rows);
+						rows.filter((r) => r.status).forEach(loadShift);
+					} catch (e) {
+						notyf.error(e.message);
+					}
+				}
+				async function loadShift(r) {
+					try {
+						shiftState[r.id] = (await api(`/registers/${r.id}/shift/`)).shift;
+					} catch (e) {
+						shiftState[r.id] = { error: e.message };
+					}
+					try {
+						modeState[r.id] = (await api(`/registers/${r.id}/mode/`)).mode;
+					} catch (e) {
+						modeState[r.id] = { error: e.message };
+					}
+					const row = table.getRow(r.id);
+					if (row) row.reformat();
+				}
+
+				$("reg-table").addEventListener("click", async (e) => {
+					const b = e.target.closest("[data-act]");
+					if (!b) return;
+					const id = Number(b.dataset.id);
+					const r = rows.find((x) => x.id === id);
+					const act = b.dataset.act;
+					if (act === "edit") return open(r);
+					if (act === "del" && !confirm("<%= i18n.__('modules.checkbox.confirm_delete') %>")) return;
+					if (act === "close" && !confirm("<%= i18n.__('modules.checkbox.confirm_close') %>")) return;
+					if (act === "offline" && !confirm("<%= i18n.__('modules.checkbox.confirm_offline') %>")) return;
+					let amount = null;
+					if (act === "service") {
+						const v = prompt("<%= i18n.__('modules.checkbox.service_prompt') %>", "");
+						if (v === null || !v.trim()) return;
+						amount = Number(v.replace(",", "."));
+						if (!amount) return notyf.error("<%= i18n.__('modules.checkbox.error') %>");
+					}
+					b.disabled = true;
+					try {
+						if (act === "del") {
+							const res = await api(`/registers/${id}/delete/`);
+							notyf.success(res.disabled ? "<%= i18n.__('modules.checkbox.disabled_instead') %>" : "<%= i18n.__('modules.checkbox.deleted') %>");
+							return load();
+						}
+						if (act === "open") {
+							await api(`/registers/${id}/shift/open/`);
+							notyf.success("<%= i18n.__('modules.checkbox.shift_opened') %>");
+						} else if (act === "close") {
+							await api(`/registers/${id}/shift/close/`);
+							notyf.success("<%= i18n.__('modules.checkbox.shift_closed') %>");
+						} else if (act === "x") {
+							$("report-text").textContent = (await api(`/registers/${id}/x-report/`)).text;
+							bootstrap.Modal.getOrCreateInstance($("report-modal")).show();
+						} else if (act === "offline") {
+							await api(`/registers/${id}/go-offline/`);
+							notyf.success("<%= i18n.__('modules.checkbox.offline_done') %>");
+						} else if (act === "online") {
+							await api(`/registers/${id}/go-online/`);
+							notyf.success("<%= i18n.__('modules.checkbox.online_started') %>");
+						} else if (act === "codes") {
+							await api(`/registers/${id}/ask-codes/`);
+							notyf.success("<%= i18n.__('modules.checkbox.codes_asked') %>");
+						} else if (act === "webhook") {
+							await api(`/registers/${id}/webhook/`);
+							const w = (await api(`/registers/${id}/webhook-info/`)).info;
+							notyf.success("<%= i18n.__('modules.checkbox.webhook_done') %>" + (w && w.last_error_message ? " · " + w.last_error_message : ""));
+							return load();
+						} else if (act === "service") {
+							await api(`/registers/${id}/service/`, { amount });
+							notyf.success("<%= i18n.__('modules.checkbox.service_done') %>");
+						}
+						await loadShift(r);
+					} catch (err) {
+						notyf.error(err.message);
+					} finally {
+						if (b.isConnected) b.disabled = false;
+					}
+				});
+				$("report-print").addEventListener("click", () => {
+					const w = window.open("", "_blank");
+					if (!w) return;
+					w.document.write(`<pre style="font:12px monospace">${esc($("report-text").textContent)}</pre>`);
+					w.document.close();
+					w.print();
+				});
+
+				/* ─── Форма каси ─── */
+				const modal = new bootstrap.Modal($("reg-modal"));
+				const form = $("reg-form");
+				function open(r) {
+					form.reset();
+					const s = (r && r.settings) || {};
+					form.id.value = r ? r.id : "";
+					form.name.value = r ? r.name : "";
+					form.test.checked = !!(r && r.test);
+					form.license.required = form.pin.required = !r;
+					$("f-keep").classList.toggle("d-none", !r);
+					form.status.checked = r ? !!r.status : true;
+					form.is_default.checked = r ? !!r.is_default : !rows.length;
+					document.querySelectorAll(".f-int").forEach((c) => (c.checked = !!(r && r.integrations.includes(Number(c.value)))));
+					form.tax_codes.value = (s.tax_codes || []).join(", ");
+					form.shipping_tax_codes.value = (s.shipping_tax_codes || []).join(", ");
+					// Нове значення — з перекладу; збережене — як є
+					form.shipping_name.value = s.shipping_name || "<%= i18n.__('modules.checkbox.shipping_default') %>";
+					form.cashless_label.value = s.cashless_label || "";
+					form.header.value = s.header || "";
+					form.footer.value = s.footer || "";
+					form.send_email.checked = s.send_email !== false;
+					form.send_sms.checked = !!s.send_sms;
+					form.auto_shift.checked = s.auto_shift !== false;
+					form.shift_close.value = s.shift_close || "23:50";
+					form.ettn_sender_phone.value = s.ettn_sender_phone || "";
+					form.ettn_auto.checked = !!s.ettn_auto;
+					form.ettn_sms.checked = s.ettn_sms !== false;
+					form.auto_monobank.checked = !!s.auto_monobank;
+					form.monobank_label.value = s.monobank_label || "<%= i18n.__('modules.checkbox.monobank_label_default') %>";
+					document.querySelectorAll(".f-st").forEach((c) => (c.checked = (s.auto_statuses || []).includes(Number(c.value))));
+					form.auto_payment.value = s.auto_payment === "CASH" ? "CASH" : "CASHLESS";
+					form.auto_return.checked = !!s.auto_return;
+					document.querySelectorAll(".f-user").forEach((c) => (c.checked = (s.notify_users || []).includes(Number(c.value))));
+					$("f-taxes").classList.toggle("d-none", !r);
+					$("f-taxes-list").innerHTML = "";
+					modal.show();
+				}
+				if ($("btn-add")) $("btn-add").addEventListener("click", () => open(null));
+				$("f-taxes").addEventListener("click", async (e) => {
+					e.preventDefault();
+					try {
+						const r = await api(`/registers/${form.id.value}/taxes/`);
+						$("f-taxes-list").innerHTML = r.taxes.length
+							? r.taxes.map((t) => `<div><code>${esc(t.code)}</code> ${esc(t.symbol)} — ${esc(t.label)} ${esc(t.rate)}%${t.no_vat ? " (<%= i18n.__('modules.checkbox.no_vat') %>)" : ""}</div>`).join("")
+							: `<span class="text-secondary"><%= i18n.__('modules.checkbox.no_taxes') %></span>`;
+					} catch (err) {
+						notyf.error(err.message);
+					}
+				});
+
+				form.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					if (!EDIT) return;
+					const btn = form.querySelector("[type=submit]");
+					btn.disabled = true;
+					const body = {
+						id: form.id.value ? Number(form.id.value) : null,
+						name: form.name.value,
+						test: form.test.checked,
+						license: form.license.value.trim(),
+						pin: form.pin.value.trim(),
+						status: form.status.checked,
+						is_default: form.is_default.checked,
+						integrations: [...document.querySelectorAll(".f-int:checked")].map((c) => Number(c.value)),
+						settings: {
+							tax_codes: form.tax_codes.value,
+							shipping_tax_codes: form.shipping_tax_codes.value,
+							shipping_name: form.shipping_name.value,
+							cashless_label: form.cashless_label.value,
+							header: form.header.value,
+							footer: form.footer.value,
+							send_email: form.send_email.checked,
+							send_sms: form.send_sms.checked,
+							auto_shift: form.auto_shift.checked,
+							shift_close: form.shift_close.value,
+							ettn_sender_phone: form.ettn_sender_phone.value,
+							ettn_auto: form.ettn_auto.checked,
+							ettn_sms: form.ettn_sms.checked,
+							auto_monobank: form.auto_monobank.checked,
+							monobank_label: form.monobank_label.value,
+							auto_statuses: [...document.querySelectorAll(".f-st:checked")].map((c) => Number(c.value)),
+							auto_payment: form.auto_payment.value,
+							auto_return: form.auto_return.checked,
+							notify_users: [...document.querySelectorAll(".f-user:checked")].map((c) => Number(c.value)),
+						},
+					};
+					try {
+						await api("/registers/save/", body);
+						notyf.success("<%= i18n.__('modules.checkbox.saved') %>");
+						modal.hide();
+						load();
+					} catch (err) {
+						notyf.error(err.message);
+					} finally {
+						btn.disabled = false;
+					}
+				});
+
+				load();
+			})();
+		</script>
+	</body>
+</html>

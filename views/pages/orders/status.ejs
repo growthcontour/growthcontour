@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+  <head>
+    <title><%= i18n.__('orders.statuses.title') %></title>
+    <%- include('../../partials/head'); %>
+
+    <!-- Сторонні бібліотеки -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/monolith.min.css" />
+
+    <!-- Tabulator (таблиці) -->
+    <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+    <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+
+    <!-- Локальні стилі -->
+    <style>
+      /* Стилі для таблиці статусів */
+      #statuses-table .tabulator-col,
+      #statuses-table .tabulator-cell {
+        border-right: 1px solid #dee2e6;
+        border-bottom: 1px solid #dee2e6;
+      }
+
+      #statuses-table .tabulator-col:last-child,
+      #statuses-table .tabulator-cell:last-child {
+        border-right: none;
+      }
+
+      #statuses-table .tabulator-row:last-child .tabulator-cell {
+        border-bottom: none;
+      }
+
+      /* Стилі для мовних блоків */
+      .lang-block .invalid-feedback {
+        display: block;
+      }
+
+      /* Стилі для колірного пікера */
+      .pickr .pcr-button {
+        border: 1px solid #eee;
+        border-radius: 0;
+      }
+    </style>
+  </head>
+
+  <body class="d-flex flex-column h-100">
+    <%- include('../../partials/header'); %>
+
+    <!-- ─── ХЛІБНІ КРИХТИ ─────────────────────────────────────────── -->
+    <div class="breadcrumbs pt-3 pb-3">
+      <div class="container-fluid">
+        <div class="row align-items-center">
+          <div class="col">
+            <span><%= i18n.__('orders.statuses.title') %></span>
+            <div>
+              <ul class="list-inline mb-0">
+                <li class="list-inline-item">
+                  <a href="/">
+                    <i class="fas fa-home"></i>
+                    <span><%= i18n.__('orders.statuses.breadcrumb.home') %></span>
+                  </a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <a href="/orders"><%= i18n.__('orders.statuses.breadcrumb.orders') %></a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <%= i18n.__('orders.statuses.breadcrumb.current') %>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-auto">
+            <a href="/orders" class="btn btn-primary rounded-0">
+              <i class="fa-solid fa-angle-left"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── ОСНОВНИЙ КОНТЕНТ ──────────────────────────────────────── -->
+    <div class="container-fluid mt-3">
+      <div class="row">
+        <div class="col-12 mb-3">
+          <!-- Кнопка додавання статусу -->
+          <button type="button" class="btn btn-primary rounded-0 mb-3" data-bs-toggle="modal" data-bs-target="#modalAddStatus"><%= i18n.__('orders.statuses.add_modal.button') %></button>
+
+          <!-- Таблиця статусів -->
+          <div class="card border-primary rounded-0">
+            <div class="card-header text-bg-primary rounded-0"><%= i18n.__('orders.statuses.title') %></div>
+            <div id="statuses-table"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- МОДАЛЬНЕ ВІКНО РЕДАГУВАННЯ СТАТУСУ -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="modal fade" id="modalEditStatus" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-0">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5">
+              <%= i18n.__('orders.statuses.edit_modal.title') %>
+              <span class="text-muted">#<span id="edit_status_id"></span></span>
+            </h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+
+          <div class="modal-body">
+            <!-- Назва статусу (багатомовні поля) -->
+            <div class="mb-3">
+              <label class="form-label"><%= i18n.__('orders.statuses.edit_modal.name') %></label>
+              <% languages.forEach(function(lang, i) { %>
+              <div class="lang-block <%= i === 0 ? '' : 'd-none' %>" data-lang="<%= lang.id %>">
+                <input type="text" class="form-control rounded-0 lang-name" name="name_<%= lang.iso %>" data-id-lang="<%= lang.id %>" />
+              </div>
+              <% }); %>
+            </div>
+
+            <div class="row">
+              <!-- Колір тексту -->
+              <div class="col-12 col-md-4 mb-3">
+                <label class="form-label"><%= i18n.__('orders.statuses.edit_modal.color_text') %></label>
+                <div class="pickr-color" data-target="edit_color_text"></div>
+                <input type="hidden" name="color_text" id="edit_color_text" />
+              </div>
+
+              <!-- Колір фону -->
+              <div class="col-12 col-md-4 mb-3">
+                <label class="form-label"><%= i18n.__('orders.statuses.edit_modal.color_background') %></label>
+                <div class="pickr-color" data-target="edit_color_background"></div>
+                <input type="hidden" name="color_background" id="edit_color_background" />
+              </div>
+
+              <!-- Іконка -->
+              <div class="col-12 col-md-4 mb-3">
+                <label class="form-label d-block"><%= i18n.__('orders.statuses.edit_modal.icon') %></label>
+                <button type="button" class="btn btn-outline-secondary rounded-0 icon-trigger" data-target="edit_icon">
+                  <i class="fa-regular fa-circle-question icon-preview"></i>
+                </button>
+                <input type="hidden" name="icon" id="edit_icon" />
+              </div>
+            </div>
+
+            <!-- Прапорці налаштувань -->
+            <div class="row">
+              <% const flags = ['logable','invoice','hidden','send_email','pdf_invoice','pdf_delivery','shipped','paid','delivery']; %> <% flags.forEach(function(f) { %>
+              <div class="col-12 col-md-6">
+                <div class="form-check mb-2">
+                  <input type="checkbox" class="form-check-input rounded-0 status-flag" id="flag_<%= f %>" name="<%= f %>" value="1" />
+                  <label class="form-check-label" for="flag_<%= f %>"> <%= i18n.__('orders.statuses.flags.' + f) %> </label>
+                </div>
+              </div>
+              <% }); %>
+            </div>
+
+            <!-- Прапорці аналітики -->
+            <hr class="my-3" />
+            <div class="row">
+              <div class="col-12 mb-2">
+                <span class="fw-semibold">Аналітика</span>
+              </div>
+              <% const analyticsFlags = ['count_in_revenue','is_final','is_negative']; %> <% analyticsFlags.forEach(function(f) { %>
+              <div class="col-12 col-md-6">
+                <div class="form-check mb-2">
+                  <input type="checkbox" class="form-check-input rounded-0 status-flag" id="flag_<%= f %>" name="<%= f %>" value="1" />
+                  <label class="form-check-label" for="flag_<%= f %>"> <%= i18n.__('orders.statuses.flags.' + f) %> </label>
+                </div>
+              </div>
+              <% }); %>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <!-- Перемикач мов -->
+            <div class="dropdown me-auto">
+              <button class="btn btn-secondary rounded-0 dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <span class="lang-current"><%= languages[0] ? languages[0].name : '' %></span>
+              </button>
+              <ul class="dropdown-menu rounded-0">
+                <% languages.forEach(function(lang, i) { %>
+                <li>
+                  <a class="dropdown-item lang-switch <%= i === 0 ? 'active' : '' %>" href="#" data-lang="<%= lang.id %>"> <%= lang.name %> </a>
+                </li>
+                <% }); %>
+              </ul>
+            </div>
+
+            <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('orders.statuses.edit_modal.close') %></button>
+            <button type="button" class="btn btn-primary rounded-0" id="btn_save_status"><%= i18n.__('orders.statuses.edit_modal.save') %></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- МОДАЛЬНЕ ВІКНО ДОДАВАННЯ СТАТУСУ -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="modal fade" id="modalAddStatus" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-0">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5"><%= i18n.__('orders.statuses.add_modal.title') %></h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+
+          <div class="modal-body">
+            <!-- Назва статусу (багатомовні поля) -->
+            <div class="mb-3">
+              <label class="form-label"><%= i18n.__('orders.statuses.add_modal.name') %></label>
+              <% languages.forEach(function(lang, i) { %>
+              <div class="lang-block <%= i === 0 ? '' : 'd-none' %>" data-lang="<%= lang.id %>">
+                <input type="text" class="form-control rounded-0 lang-name" name="name_<%= lang.iso %>" data-id-lang="<%= lang.id %>" />
+              </div>
+              <% }); %>
+            </div>
+
+            <div class="row">
+              <!-- Колір тексту -->
+              <div class="col-12 col-md-4 mb-3">
+                <label class="form-label"><%= i18n.__('orders.statuses.add_modal.color_text') %></label>
+                <div class="pickr-color" data-target="add_color_text"></div>
+                <input type="hidden" name="color_text" id="add_color_text" />
+              </div>
+
+              <!-- Колір фону -->
+              <div class="col-12 col-md-4 mb-3">
+                <label class="form-label"><%= i18n.__('orders.statuses.add_modal.color_background') %></label>
+                <div class="pickr-color" data-target="add_color_background"></div>
+                <input type="hidden" name="color_background" id="add_color_background" />
+              </div>
+
+              <!-- Іконка -->
+              <div class="col-12 col-md-4 mb-3">
+                <label class="form-label d-block"><%= i18n.__('orders.statuses.add_modal.icon') %></label>
+                <button type="button" class="btn btn-outline-secondary rounded-0 icon-trigger" data-target="add_icon">
+                  <i class="fa-regular fa-circle-question icon-preview"></i>
+                </button>
+                <input type="hidden" name="icon" id="add_icon" />
+              </div>
+            </div>
+
+            <!-- Прапорці налаштувань -->
+            <div class="row">
+              <% const addFlags = ['logable','invoice','hidden','send_email','pdf_invoice','pdf_delivery','shipped','paid','delivery']; %> <% addFlags.forEach(function(f) { %>
+              <div class="col-12 col-md-6">
+                <div class="form-check mb-2">
+                  <input type="checkbox" class="form-check-input rounded-0 add-status-flag" id="add_flag_<%= f %>" name="<%= f %>" value="1" />
+                  <label class="form-check-label" for="add_flag_<%= f %>"> <%= i18n.__('orders.statuses.flags.' + f) %> </label>
+                </div>
+              </div>
+              <% }); %>
+            </div>
+
+            <!-- Прапорці аналітики -->
+            <hr class="my-3" />
+            <div class="row">
+              <div class="col-12 mb-2">
+                <span class="fw-semibold">Аналітика</span>
+              </div>
+              <% const addAnalyticsFlags = ['count_in_revenue','is_final','is_negative']; %> <% addAnalyticsFlags.forEach(function(f) { %>
+              <div class="col-12 col-md-6">
+                <div class="form-check mb-2">
+                  <input type="checkbox" class="form-check-input rounded-0 add-status-flag" id="add_flag_<%= f %>" name="<%= f %>" value="1" />
+                  <label class="form-check-label" for="add_flag_<%= f %>"> <%= i18n.__('orders.statuses.flags.' + f) %> </label>
+                </div>
+              </div>
+              <% }); %>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <!-- Перемикач мов -->
+            <div class="dropdown me-auto">
+              <button class="btn btn-secondary rounded-0 dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <span class="lang-current"><%= languages[0] ? languages[0].name : '' %></span>
+              </button>
+              <ul class="dropdown-menu rounded-0">
+                <% languages.forEach(function(lang, i) { %>
+                <li>
+                  <a class="dropdown-item lang-switch <%= i === 0 ? 'active' : '' %>" href="#" data-lang="<%= lang.id %>"> <%= lang.name %> </a>
+                </li>
+                <% }); %>
+              </ul>
+            </div>
+
+            <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('orders.statuses.add_modal.close') %></button>
+            <button type="button" class="btn btn-primary rounded-0" id="btn_add_status"><%= i18n.__('orders.statuses.add_modal.save') %></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- МОДАЛЬНЕ ВІКНО ВИДАЛЕННЯ СТАТУСУ -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="modal fade" id="modalDeleteStatus" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-0">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5"><%= i18n.__('orders.statuses.delete_modal.title') %></h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0"><%= i18n.__('orders.statuses.delete_modal.confirm_text') %></p>
+            <p class="mb-0">
+              <strong>ID: <span id="delete_status_id"></span></strong>
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('orders.statuses.delete_modal.close') %></button>
+            <button type="button" class="btn btn-danger rounded-0" id="btn_confirm_delete_status"><%= i18n.__('orders.statuses.delete_modal.delete') %></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+
+    <!-- Пікер іконок -->
+    <div id="iconPickerPopup" class="border bg-white p-2 shadow-sm" style="display: none; position: absolute; z-index: 2000; width: 280px; max-height: 240px; overflow-y: auto">
+      <div class="d-flex flex-wrap gap-1" id="iconPickerGrid"></div>
+    </div>
+
+    <script>
+      // ── Пікер іконок Font Awesome ────────────────────────────────────────────
+      const FA_ICONS = ["fa-solid fa-box", "fa-solid fa-boxes-stacked", "fa-solid fa-truck", "fa-solid fa-truck-fast", "fa-solid fa-check", "fa-solid fa-circle-check", "fa-solid fa-clock", "fa-solid fa-hourglass-half", "fa-solid fa-credit-card", "fa-solid fa-money-bill", "fa-solid fa-coins", "fa-solid fa-wallet", "fa-solid fa-cart-shopping", "fa-solid fa-bag-shopping", "fa-solid fa-gift", "fa-solid fa-tag", "fa-solid fa-xmark", "fa-solid fa-circle-xmark", "fa-solid fa-ban", "fa-solid fa-triangle-exclamation", "fa-solid fa-rotate-left", "fa-solid fa-arrow-rotate-left", "fa-solid fa-undo", "fa-solid fa-recycle", "fa-solid fa-envelope", "fa-solid fa-paper-plane", "fa-solid fa-file-invoice", "fa-solid fa-receipt", "fa-solid fa-warehouse", "fa-solid fa-dolly", "fa-solid fa-clipboard-check", "fa-solid fa-list-check", "fa-solid fa-hand-holding-dollar", "fa-solid fa-thumbs-up", "fa-solid fa-thumbs-down", "fa-solid fa-star", "fa-solid fa-flag", "fa-solid fa-bell", "fa-solid fa-user-check", "fa-solid fa-shield-halved"];
+
+      const DEFAULT_ICON = "fa-regular fa-circle-question";
+
+      // Наповнюємо сітку один раз
+      const iconGrid = document.getElementById("iconPickerGrid");
+      FA_ICONS.forEach((cls) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn btn-light btn-sm rounded-0 icon-choice";
+        btn.style.width = "40px";
+        btn.style.height = "40px";
+        btn.dataset.icon = cls;
+        btn.innerHTML = '<i class="' + cls + '"></i>';
+        iconGrid.appendChild(btn);
+      });
+
+      const iconPopup = document.getElementById("iconPickerPopup");
+      let activeIconTarget = null; // id прихованого input, для якого відкрито пікер
+
+      // Відкриття пікера по кліку на тригер
+      document.querySelectorAll(".icon-trigger").forEach((trigger) => {
+        trigger.addEventListener("click", function (e) {
+          e.stopPropagation();
+          activeIconTarget = this.dataset.target;
+
+          // Позиціонуємо попап під кнопкою
+          const rect = this.getBoundingClientRect();
+          iconPopup.style.top = window.scrollY + rect.bottom + 4 + "px";
+          iconPopup.style.left = window.scrollX + rect.left + "px";
+          iconPopup.style.display = "block";
+        });
+      });
+
+      // Вибір іконки
+      iconGrid.addEventListener("click", function (e) {
+        const choice = e.target.closest(".icon-choice");
+        if (!choice || !activeIconTarget) return;
+
+        const iconClass = choice.dataset.icon;
+        document.getElementById(activeIconTarget).value = iconClass;
+
+        // Оновлюємо прев'ю на тригері
+        const trigger = document.querySelector('.icon-trigger[data-target="' + activeIconTarget + '"]');
+        trigger.querySelector(".icon-preview").className = iconClass + " icon-preview";
+
+        iconPopup.style.display = "none";
+        activeIconTarget = null;
+      });
+
+      // Закриття по кліку поза попапом
+      document.addEventListener("click", function (e) {
+        if (!iconPopup.contains(e.target) && !e.target.closest(".icon-trigger")) {
+          iconPopup.style.display = "none";
+        }
+      });
+
+      // Встановлення іконки в тригер (для відкриття edit / скидання add)
+      function setIconTrigger(targetId, iconClass) {
+        const value = iconClass || DEFAULT_ICON;
+        document.getElementById(targetId).value = value;
+        const trigger = document.querySelector('.icon-trigger[data-target="' + targetId + '"]');
+        trigger.querySelector(".icon-preview").className = value + " icon-preview";
+      }
+    </script>
+    <script src="/assets/js/notyf/notyf.min.js"></script>
+    <script>
+      const notyf = new Notyf({
+        position: { x: "right", y: "top" },
+        duration: 4000,
+        types: [
+          { type: "success", dismissible: true, icon: false },
+          { type: "error", background: "indianred", dismissible: true, icon: false },
+        ],
+      });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
+    <script>
+      // ── Ініціалізація Pickr для полів кольору ────────────────────────────────
+      function initPickr(triggerSelector, inputId, defaultColor) {
+        const pickr = Pickr.create({
+          el: triggerSelector,
+          theme: "monolith",
+          default: defaultColor,
+          swatches: ["#0057b8", "#2fb25c", "#e74c3c", "#3498db", "#8e44ad", "#27ae60", "#f1c40f", "#e67e22", "#7f8c8d", "#34495e"],
+          components: {
+            preview: true,
+            opacity: false,
+            hue: true,
+            interaction: {
+              input: true,
+              save: true,
+            },
+          },
+        });
+
+        const input = document.getElementById(inputId);
+
+        // При збереженні кольору пишемо HEX (без альфи) у прихований input
+        pickr.on("save", (color) => {
+          if (color) {
+            input.value = color.toHEXA().toString(0).slice(0, 7); // #rrggbb, обрізаємо альфу
+          }
+          pickr.hide();
+        });
+
+        return pickr;
+      }
+
+      document.querySelectorAll("#modalEditStatus, #modalAddStatus").forEach((el) => {
+        bootstrap.Modal.getOrCreateInstance(el, { focus: false });
+      });
+
+      // Створюємо чотири інстанси (по два на модалку)
+      const pickrEditText = initPickr('[data-target="edit_color_text"]', "edit_color_text", "#000000");
+      const pickrEditBg = initPickr('[data-target="edit_color_background"]', "edit_color_background", "#ffffff");
+      const pickrAddText = initPickr('[data-target="add_color_text"]', "add_color_text", "#000000");
+      const pickrAddBg = initPickr('[data-target="add_color_background"]', "add_color_background", "#ffffff");
+
+      document.getElementById("edit_color_text").value = "#000000";
+      document.getElementById("edit_color_background").value = "#ffffff";
+      document.getElementById("add_color_text").value = "#000000";
+      document.getElementById("add_color_background").value = "#ffffff";
+    </script>
+
+    <!-- lang -->
+    <script>
+      // ── Перемикач мовних блоків у межах модалки (кнопка dropdown) ─────────────
+      // Працює по data-lang; кількість і склад мов приходять з БД, JS не чіпаємо.
+      $(document).on("click", ".lang-switch", function (e) {
+        e.preventDefault();
+
+        const lang = String($(this).data("lang"));
+        const $scope = $(this).closest(".modal"); // тільки поточна модалка
+
+        // Ховаємо всі мовні блоки, показуємо активний
+        $scope.find(".lang-block").addClass("d-none");
+        $scope.find('.lang-block[data-lang="' + lang + '"]').removeClass("d-none");
+
+        // Оновлюємо активний пункт і напис на кнопці цього dropdown
+        const $dropdown = $(this).closest(".dropdown");
+        $dropdown.find(".lang-switch").removeClass("active");
+        $(this).addClass("active");
+        $dropdown.find(".lang-current").text($(this).text().trim());
+      });
+
+      // Скидання перемикача мов у модалці на першу мову (програмний клік)
+      function resetLangSwitch($modal) {
+        $modal.find(".lang-switch").first().trigger("click");
+      }
+    </script>
+    <!-- END lang -->
+    <script>
+      // ── Взаємовиключення: негативний статус не формує виручку ────────────────
+      function bindNegativeRevenueLock(negId, revId) {
+        const neg = document.getElementById(negId);
+        const rev = document.getElementById(revId);
+        if (!neg || !rev) return;
+
+        const sync = () => {
+          if (neg.checked) {
+            rev.checked = false;
+            rev.disabled = true;
+          } else {
+            rev.disabled = false;
+          }
+        };
+
+        neg.addEventListener("change", sync);
+        // Викликається також при відкритті модалки — див. edit-status-btn
+        neg._syncRevenue = sync;
+      }
+
+      bindNegativeRevenueLock("flag_is_negative", "flag_count_in_revenue");
+      bindNegativeRevenueLock("add_flag_is_negative", "add_flag_count_in_revenue");
+    </script>
+    <script>
+      // ── Відкриття модалки редагування через делегування ──────────────────────
+      $(document).on("click", ".edit-status-btn", function () {
+        const statusId = $(this).data("status-id");
+        const $modal = $("#modalEditStatus");
+
+        $.ajax({
+          type: "POST",
+          url: "/api/orders/statuses/get/",
+          dataType: "json",
+          data: { id: statusId },
+          success: function (data) {
+            const modalEl = document.getElementById("modalEditStatus");
+            modalEl.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+            modalEl.querySelectorAll(".invalid-feedback").forEach((el) => el.remove());
+
+            $("#edit_status_id").text(data.id);
+
+            // Назви по мовах — читаємо id_lang з самого поля (DOM = джерело істини)
+            $modal.find(".lang-name").each(function () {
+              const idLang = $(this).data("id-lang");
+              $(this).val((data.names && data.names[idLang]) || "");
+            });
+
+            // Кольори — ставимо в Pickr і в прихований input
+            pickrEditText.setColor(data.color_text || "#000000");
+            pickrEditBg.setColor(data.color_background || "#ffffff");
+            document.getElementById("edit_color_text").value = data.color_text || "#000000";
+            document.getElementById("edit_color_background").value = data.color_background || "#ffffff";
+
+            // Іконка
+            setIconTrigger("edit_icon", data.icon || "");
+
+            // Прапорці (0/1 → checked)
+            $modal.find(".status-flag").each(function () {
+              const flag = $(this).attr("name");
+              $(this).prop("checked", Number(data[flag]) === 1);
+            });
+
+            // Застосувати блокування "виручки" для негативного статусу
+            const negEdit = document.getElementById("flag_is_negative");
+            if (negEdit && negEdit._syncRevenue) negEdit._syncRevenue();
+
+            // Перемикач мов на першу мову
+            resetLangSwitch($modal);
+
+            $modal.modal("show");
+          },
+          error: function (XHR) {
+            const res = XHR.responseJSON || {};
+            notyf.error(res.message || "<%= i18n.__('orders.statuses.edit_modal.server_error') %>");
+          },
+        });
+      });
+    </script>
+
+    <script>
+      // ── Додавання нового статусу (native fetch + JSON) ───────────────────────
+      document.getElementById("btn_add_status").addEventListener("click", async function () {
+        const modal = document.getElementById("modalAddStatus");
+        const btn = this;
+        if (btn.disabled) return;
+
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        // Назви по мовах: { id_lang: text } — id_lang читаємо з самого поля
+        const names = {};
+        modal.querySelectorAll(".lang-name").forEach((input) => {
+          names[input.dataset.idLang] = input.value;
+        });
+
+        // Прапорці: name → 0/1
+        const flags = {};
+        // Прапорці — зняти всі і зняти блокування
+        modal.querySelectorAll(".add-status-flag").forEach((cb) => {
+          cb.checked = false;
+          cb.disabled = false;
+        });
+
+        const payload = {
+          color_text: modal.querySelector('[name="color_text"]').value,
+          color_background: modal.querySelector('[name="color_background"]').value,
+          icon: modal.querySelector('[name="icon"]').value,
+          names,
+          ...flags,
+        };
+
+        try {
+          const res = await fetch("/api/orders/statuses/add/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          const data = await res.json().catch(() => ({}));
+
+          modal.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+          modal.querySelectorAll(".invalid-feedback").forEach((el) => el.remove());
+
+          if (!res.ok || data.status !== "success") {
+            if (data.status === "error" && Array.isArray(data.errors)) {
+              let firstErrorLang = null;
+
+              data.errors.forEach((item) => {
+                if (item.field === "names" && item.id_lang) {
+                  // Конкретне мовне поле по id_lang
+                  const input = modal.querySelector('.lang-name[data-id-lang="' + item.id_lang + '"]');
+                  if (input) {
+                    input.classList.add("is-invalid");
+                    input.insertAdjacentHTML("afterend", '<div class="invalid-feedback">' + item.msg + "</div>");
+                    if (firstErrorLang === null) firstErrorLang = item.id_lang;
+                  }
+                } else {
+                  modal.querySelectorAll('[name="' + item.field + '"]').forEach((input) => {
+                    input.classList.add("is-invalid");
+                    input.insertAdjacentHTML("afterend", '<div class="invalid-feedback">' + item.msg + "</div>");
+                  });
+                }
+              });
+
+              // Перемикаємо модалку на першу мову з помилкою, щоб поле було видно
+              if (firstErrorLang !== null) {
+                const langSwitch = modal.querySelector('.lang-switch[data-lang="' + firstErrorLang + '"]');
+                if (langSwitch) langSwitch.click();
+              }
+
+              return;
+            }
+            throw new Error(data.message || "<%= i18n.__('orders.statuses.edit_modal.server_error') %>");
+          }
+
+          bootstrap.Modal.getOrCreateInstance(modal).hide();
+          notyf.success("<%= i18n.__('orders.statuses.add_modal.added') %>");
+          table.replaceData(); // оновлюємо таблицю статусів
+        } catch (err) {
+          notyf.error(err.message);
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+        }
+      });
+
+      // ── Скидання модалки додавання при закритті ──────────────────────────────
+      document.getElementById("modalAddStatus").addEventListener("hidden.bs.modal", function () {
+        const modal = this;
+
+        // Текстові поля назв
+        modal.querySelectorAll(".lang-name").forEach((input) => {
+          input.value = "";
+        });
+
+        // Кольори — на дефолт (Pickr + прихований input), іконка — порожня
+        pickrAddText.setColor("#000000");
+        pickrAddBg.setColor("#ffffff");
+        document.getElementById("add_color_text").value = "#000000";
+        document.getElementById("add_color_background").value = "#ffffff";
+        setIconTrigger("add_icon", "");
+
+        // Прапорці — зняти всі
+        // Прапорці — зняти всі і зняти блокування
+        modal.querySelectorAll(".add-status-flag").forEach((cb) => {
+          cb.checked = false;
+          cb.disabled = false;
+        });
+
+        // Перемикач мов — на першу мову (програмний клік по першому пункту)
+        const firstLang = modal.querySelector(".lang-switch");
+        if (firstLang) firstLang.click();
+      });
+    </script>
+
+    <script>
+      // ── Збереження редагування статусу (native fetch + JSON) ─────────────────
+      document.getElementById("btn_save_status").addEventListener("click", async function () {
+        const modal = document.getElementById("modalEditStatus");
+        const btn = this;
+        if (btn.disabled) return;
+
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        // Назви по мовах: { id_lang: text } — id_lang читаємо з самого поля
+        const names = {};
+        modal.querySelectorAll(".lang-name").forEach((input) => {
+          names[input.dataset.idLang] = input.value;
+        });
+
+        // Прапорці: name → 0/1
+        const flags = {};
+        modal.querySelectorAll(".status-flag").forEach((cb) => {
+          flags[cb.name] = cb.checked ? 1 : 0;
+        });
+
+        const payload = {
+          id: parseInt(document.getElementById("edit_status_id").textContent, 10),
+          color_text: modal.querySelector('[name="color_text"]').value,
+          color_background: modal.querySelector('[name="color_background"]').value,
+          icon: modal.querySelector('[name="icon"]').value,
+          names,
+          ...flags,
+        };
+
+        try {
+          const res = await fetch("/api/orders/statuses/update/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          const data = await res.json().catch(() => ({}));
+
+          // Помилки валідації по полях
+          modal.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+          modal.querySelectorAll(".invalid-feedback").forEach((el) => el.remove());
+
+          if (!res.ok || data.status !== "success") {
+            if (data.status === "error" && Array.isArray(data.errors)) {
+              let firstErrorLang = null;
+
+              data.errors.forEach((item) => {
+                if (item.field === "names" && item.id_lang) {
+                  // Конкретне мовне поле по id_lang
+                  const input = modal.querySelector('.lang-name[data-id-lang="' + item.id_lang + '"]');
+                  if (input) {
+                    input.classList.add("is-invalid");
+                    input.insertAdjacentHTML("afterend", '<div class="invalid-feedback">' + item.msg + "</div>");
+                    if (firstErrorLang === null) firstErrorLang = item.id_lang;
+                  }
+                } else {
+                  modal.querySelectorAll('[name="' + item.field + '"]').forEach((input) => {
+                    input.classList.add("is-invalid");
+                    input.insertAdjacentHTML("afterend", '<div class="invalid-feedback">' + item.msg + "</div>");
+                  });
+                }
+              });
+
+              // Перемикаємо модалку на першу мову з помилкою, щоб поле було видно
+              if (firstErrorLang !== null) {
+                const langSwitch = modal.querySelector('.lang-switch[data-lang="' + firstErrorLang + '"]');
+                if (langSwitch) langSwitch.click();
+              }
+
+              return;
+            }
+            throw new Error(data.message || "<%= i18n.__('orders.statuses.edit_modal.server_error') %>");
+          }
+
+          // Ховаємо модалку через нативний Bootstrap API (без jQuery-моста)
+          bootstrap.Modal.getOrCreateInstance(modal).hide();
+          notyf.success("<%= i18n.__('orders.statuses.edit_modal.saved') %>");
+          table.replaceData(); // оновлюємо таблицю статусів
+        } catch (err) {
+          notyf.error(err.message);
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+        }
+      });
+    </script>
+
+    <script>
+      // ── Відкриття модалки видалення ──────────────────────────────────────────
+      $(document).on("click", ".delete-status-btn", function () {
+        const statusId = $(this).data("status-id");
+        document.getElementById("delete_status_id").textContent = statusId;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById("modalDeleteStatus")).show();
+      });
+
+      // ── Підтвердження видалення ──────────────────────────────────────────────
+      document.getElementById("btn_confirm_delete_status").addEventListener("click", async function () {
+        const btn = this;
+        if (btn.disabled) return;
+
+        const id = parseInt(document.getElementById("delete_status_id").textContent, 10);
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        try {
+          const res = await fetch("/api/orders/statuses/delete/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id }),
+          });
+
+          const data = await res.json().catch(() => ({}));
+
+          if (!res.ok || data.status !== "success") {
+            throw new Error(data.message || "<%= i18n.__('orders.statuses.delete_modal.server_error') %>");
+          }
+
+          bootstrap.Modal.getOrCreateInstance(document.getElementById("modalDeleteStatus")).hide();
+          notyf.success("<%= i18n.__('orders.statuses.delete_modal.deleted') %>");
+          table.replaceData();
+        } catch (err) {
+          notyf.error(err.message);
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+        }
+      });
+    </script>
+
+    <!-- tabulator -->
+    <script src="/assets/js/tabulator/tabulator.min.js"></script>
+    <script>
+      var table = new Tabulator("#statuses-table", {
+        layout: "fitColumns",
+        ajaxURL: "/api/orders/statuses/list/",
+        ajaxConfig: "POST",
+        paginationSize: 10,
+        paginationSizeSelector: [10, 20, 30, 40],
+        pagination: true,
+        movableColumns: true,
+        columns: [
+          {
+            title: "<%= i18n.__('orders.statuses.columns.id') %>",
+            field: "id",
+            sorter: "string",
+            headerSort: false,
+            widthGrow: "1",
+          },
+          {
+            title: "<%= i18n.__('orders.statuses.columns.status') %>",
+            field: "text",
+            sorter: "string",
+            headerSort: false,
+            widthGrow: "3",
+            formatter: function (cell, formatterParams, onRendered) {
+              const data = cell.getRow().getData();
+              return '<div class="badge rounded-0 text-center" style="color:' + data.color_text + ";background:" + data.color_background + '">' + (data.text || "—") + "</div>";
+            },
+          },
+          {
+            title: "<%= i18n.__('orders.statuses.columns.icon') %>",
+            field: "icon",
+            headerSort: false,
+            widthGrow: "1",
+            formatter: function (cell, formatterParams, onRendered) {
+              const icon = cell.getValue();
+              return icon ? '<div class="text-center"><i class="' + icon + '"></i></div>' : "—";
+            },
+          },
+          {
+            title: "<%= i18n.__('orders.statuses.columns.count_in_revenue') %>",
+            field: "count_in_revenue",
+            headerSort: false,
+            width: 110,
+            formatter: function (cell) {
+              const d = cell.getRow().getData();
+              if (Number(d.is_negative) === 1) {
+                return '<div class="text-center text-danger"><i class="fa-solid fa-circle-xmark"></i></div>';
+              }
+              return Number(cell.getValue()) === 1 ? '<div class="text-center text-success"><i class="fa-solid fa-circle-check"></i></div>' : '<div class="text-center text-muted">—</div>';
+            },
+          },
+          {
+            title: "<%= i18n.__('orders.statuses.columns.date_add') %>",
+            field: "date_add",
+            headerSort: false,
+            widthGrow: "2",
+          },
+          {
+            title: "<%= i18n.__('orders.statuses.columns.date_edit') %>",
+            field: "date_edit",
+            headerSort: false,
+            widthGrow: "2",
+          },
+          {
+            title: "",
+            field: "id",
+            headerSort: false,
+            width: 100,
+            formatter: function (cell) {
+              const id = cell.getRow().getData().id;
+              return '<div class="d-flex justify-content-center gap-2">' + '<button type="button" class="bg-transparent border-0 text-primary edit-status-btn" data-status-id="' + id + '">' + '<i class="fa-regular fa-pen-to-square"></i></button>' + '<button type="button" class="bg-transparent border-0 text-danger delete-status-btn" data-status-id="' + id + '">' + '<i class="fa-regular fa-trash-can"></i></button>' + "</div>";
+            },
+          },
+        ],
+      });
+    </script>
+    <!-- END tabulator -->
+  </body>
+</html>

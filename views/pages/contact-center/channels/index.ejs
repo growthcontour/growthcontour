@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('contact_center.channels.title') %></title>
+		<%- include('../../../partials/head'); %>
+
+		<!-- Сторонні бібліотеки -->
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+
+		<!-- Tabulator (таблиці) -->
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+
+		<!-- Локальні стилі -->
+		<style>
+			/* Стилі для таблиці каналів */
+			#channels-table .tabulator-col,
+			#channels-table .tabulator-cell {
+				border-right: 1px solid #dee2e6;
+				border-bottom: 1px solid #dee2e6;
+			}
+
+			#channels-table .tabulator-col:last-child,
+			#channels-table .tabulator-cell:last-child {
+				border-right: none;
+			}
+
+			#channels-table .tabulator-row:last-child .tabulator-cell {
+				border-bottom: none;
+			}
+
+			/* Картки вибору типу каналу в модалці додавання */
+			.channel-type-card {
+				cursor: pointer;
+				border: 1px solid #dee2e6;
+				transition:
+					border-color 0.15s,
+					background-color 0.15s;
+			}
+
+			.channel-type-card:hover {
+				border-color: #0057b8;
+				background-color: #f8f9fa;
+			}
+
+			.channel-type-card.selected {
+				border-color: #0057b8;
+				background-color: #f1f5f9;
+				box-shadow: inset 0 0 0 1px #0057b8;
+			}
+
+			.channel-type-card .icon {
+				font-size: 1.75rem;
+			}
+
+			/* Помилка вибору типу показується завжди, коли вставлена */
+			#channel_type_error {
+				display: block;
+			}
+		</style>
+	</head>
+
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<!-- ─── ХЛІБНІ КРИХТИ ─────────────────────────────────────────── -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('contact_center.channels.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('contact_center.channels.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/contact-center/"><%= i18n.__('contact_center.channels.breadcrumb.contact_center') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('contact_center.channels.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/contact-center/" class="btn btn-primary rounded-0">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- ─── ОСНОВНИЙ КОНТЕНТ ──────────────────────────────────────── -->
+		<div class="container-fluid mt-3">
+			<div class="row">
+				<div class="col-12 mb-3">
+					<!-- Кнопка додавання каналу -->
+					<button type="button" class="btn btn-primary rounded-0 mb-3" data-bs-toggle="modal" data-bs-target="#modalAddChannel"><%= i18n.__('contact_center.channels.add') %></button>
+
+					<!-- Таблиця каналів -->
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('contact_center.channels.card_list') %></div>
+						<div id="channels-table"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- ═══════════════════════════════════════════════════════════ -->
+		<!-- МОДАЛЬНЕ ВІКНО ДОДАВАННЯ КАНАЛУ -->
+		<!-- ═══════════════════════════════════════════════════════════ -->
+		<div class="modal fade" id="modalAddChannel" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered modal-lg">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5"><%= i18n.__('contact_center.channels.modal.title') %></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+
+					<div class="modal-body">
+						<!-- Вибір типу каналу -->
+						<div class="mb-3">
+							<label class="form-label"><%= i18n.__('contact_center.channels.modal.type') %></label>
+							<div class="row g-2">
+								<% data.types.forEach(function(type) { %>
+								<div class="col-6 col-md-4">
+									<div class="channel-type-card rounded-0 p-3 text-center h-100" data-type="<%= type.code %>">
+										<div class="icon mb-2" style="color: <%= type.color %>">
+											<i class="<%= type.icon %>"></i>
+										</div>
+										<div class="small"><%= i18n.__(type.label) %></div>
+									</div>
+								</div>
+								<% }); %>
+							</div>
+							<input type="hidden" name="type" id="add_channel_type" />
+							<div id="channel_type_error"></div>
+						</div>
+					</div>
+
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('contact_center.channels.modal.cancel') %></button>
+						<button type="button" class="btn btn-primary rounded-0" id="btn_add_channel" disabled><%= i18n.__('contact_center.channels.modal.submit') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- ═══════════════════════════════════════════════════════════ -->
+		<!-- МОДАЛЬНЕ ВІКНО ВИДАЛЕННЯ КАНАЛУ -->
+		<!-- ═══════════════════════════════════════════════════════════ -->
+		<div class="modal fade" id="modalDeleteChannel" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5"><%= i18n.__('contact_center.channels.delete.confirm_title') %></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<p class="mb-0"><%= i18n.__('contact_center.channels.delete.confirm_text') %></p>
+						<p class="mb-0">
+							<strong>ID: <span id="delete_channel_id"></span></strong>
+						</p>
+						<p class="mb-0" id="delete_channel_name"></p>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('contact_center.channels.delete.confirm_no') %></button>
+						<button type="button" class="btn btn-danger rounded-0" id="btn_confirm_delete_channel"><%= i18n.__('contact_center.channels.delete.confirm_yes') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %> <%- include('../../../partials/script'); %>
+
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			const notyf = new Notyf({
+				position: { x: "right", y: "top" },
+				duration: 4000,
+				types: [
+					{ type: "success", dismissible: true, icon: false },
+					{ type: "error", background: "indianred", dismissible: true, icon: false },
+				],
+			});
+		</script>
+
+		<script>
+			// ── Метадані типів каналів (рендеряться з реєстру на сервері) ────────────
+			// Новий тип у реєстрі з'являється тут автоматично — цей файл не правимо.
+			const CHANNEL_TYPES = {
+			  <% data.types.forEach(function(type) { %>
+			  "<%= type.code %>": { label: "<%= i18n.__(type.label) %>", icon: "<%= type.icon %>", color: "<%= type.color %>" },
+			  <% }); %>
+			};
+
+			// Екранування тексту, що прийшов з БД (назви вводить користувач)
+			function escapeHtml(str) {
+			  return String(str == null ? "" : str).replace(/[&<>"']/g, function (c) {
+			    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+			  });
+			}
+		</script>
+		<script>
+			// ── Вибір типу каналу: активує кнопку «Створити» ─────────────────────────
+			$(document).on("click", ".channel-type-card", function () {
+			  $(".channel-type-card").removeClass("selected");
+			  $(this).addClass("selected");
+			  $("#add_channel_type").val($(this).data("type"));
+			  $("#channel_type_error").empty();
+			  document.getElementById("btn_add_channel").disabled = false;
+			});
+
+			// ── Створення каналу (тип уже обрано; назву задають на сторінці) ──────────
+			document.getElementById("btn_add_channel").addEventListener("click", async function () {
+			  const btn = this;
+			  if (btn.disabled) return;
+
+			  const type = document.getElementById("add_channel_type").value;
+			  if (!type) {
+			    document.getElementById("channel_type_error").innerHTML = '<div class="invalid-feedback"><%= i18n.__('contact_center.channels.modal.type_required') %></div>';
+			    return;
+			  }
+
+			  const originalHtml = btn.innerHTML;
+			  btn.disabled = true;
+			  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+			  document.getElementById("channel_type_error").innerHTML = "";
+
+			  try {
+			    const res = await fetch("/api/contact-center/channels/create/", {
+			      method: "POST",
+			      headers: { "Content-Type": "application/json" },
+			      body: JSON.stringify({ type: type }),
+			    });
+			    const data = await res.json().catch(() => ({}));
+
+			    if (res.ok && data.status === "success") {
+			      window.location.href = "/contact-center/channels/" + data.id + "/";
+			      return;
+			    }
+
+			    if (Array.isArray(data.errors) && data.errors.length) {
+			      const typeErr = data.errors.find((e) => e.field === "type");
+			      document.getElementById("channel_type_error").innerHTML = '<div class="invalid-feedback">' + (typeErr ? typeErr.message : data.errors[0].message) + "</div>";
+			    } else {
+			      notyf.error(data.message || "<%= i18n.__('contact_center.channels.notify.error') %>");
+			    }
+			  } catch (err) {
+			    notyf.error("<%= i18n.__('contact_center.channels.notify.error') %>");
+			  } finally {
+			    btn.disabled = false;
+			    btn.innerHTML = originalHtml;
+			  }
+			});
+
+			// ── Скидання модалки при закритті ────────────────────────────────────────
+			document.getElementById("modalAddChannel").addEventListener("hidden.bs.modal", function () {
+			  this.querySelector('[name="type"]').value = "";
+			  this.querySelectorAll(".channel-type-card").forEach((el) => el.classList.remove("selected"));
+			  document.getElementById("channel_type_error").innerHTML = "";
+			  document.getElementById("btn_add_channel").disabled = true;
+			});
+		</script>
+		<script>
+			// ── Перемикач активності каналу ─────────────────────────────────────────
+			// Увімкнути можна лише налаштований канал — це перевіряється ще й у SQL.
+			$(document).on("change", ".channel-status-switch", async function () {
+				const input = this;
+				const id = parseInt(input.dataset.channelId, 10);
+				const status = input.checked ? 1 : 0;
+
+				input.disabled = true;
+
+				try {
+					const res = await fetch("/api/contact-center/channels/" + id + "/status/", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ status: status }),
+					});
+
+					const data = await res.json().catch(() => ({}));
+
+					if (!res.ok || data.status !== "success") {
+						throw new Error(data.message || "<%= i18n.__('contact_center.channels.notify.error') %>");
+					}
+
+					notyf.success(status ? "<%= i18n.__('contact_center.channels.notify.status_on') %>" : "<%= i18n.__('contact_center.channels.notify.status_off') %>");
+				} catch (err) {
+					// Відкат перемикача у попередній стан
+					input.checked = !status;
+					notyf.error(err.message);
+				} finally {
+					input.disabled = false;
+				}
+			});
+		</script>
+
+		<script>
+			// ── Відкриття модалки видалення ─────────────────────────────────────────
+			$(document).on("click", ".delete-channel-btn", function () {
+				document.getElementById("delete_channel_id").textContent = $(this).data("channel-id");
+				document.getElementById("delete_channel_name").textContent = $(this).data("channel-name") || "";
+				bootstrap.Modal.getOrCreateInstance(document.getElementById("modalDeleteChannel")).show();
+			});
+
+			// ── Підтвердження видалення ─────────────────────────────────────────────
+			document.getElementById("btn_confirm_delete_channel").addEventListener("click", async function () {
+				const btn = this;
+				if (btn.disabled) return;
+
+				const id = parseInt(document.getElementById("delete_channel_id").textContent, 10);
+				const originalHtml = btn.innerHTML;
+				btn.disabled = true;
+				btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+				try {
+					const res = await fetch("/api/contact-center/channels/" + id + "/delete/", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({}),
+					});
+
+					const data = await res.json().catch(() => ({}));
+
+					if (!res.ok || data.status !== "success") {
+						throw new Error(data.message || "<%= i18n.__('contact_center.channels.notify.error') %>");
+					}
+
+					bootstrap.Modal.getOrCreateInstance(document.getElementById("modalDeleteChannel")).hide();
+					notyf.success("<%= i18n.__('contact_center.channels.notify.deleted') %>");
+					table.replaceData();
+				} catch (err) {
+					notyf.error(err.message);
+				} finally {
+					btn.disabled = false;
+					btn.innerHTML = originalHtml;
+				}
+			});
+		</script>
+
+		<!-- tabulator -->
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			var table = new Tabulator("#channels-table", {
+			  layout: "fitColumns",
+			  ajaxURL: "/api/contact-center/channels/list/",
+			  ajaxConfig: "POST",
+			  paginationSize: 10,
+			  paginationSizeSelector: [10, 20, 30, 40],
+			  pagination: true,
+			  movableColumns: true,
+			  placeholder: "<%= i18n.__('contact_center.channels.empty') %>",
+			  columns: [
+			    {
+			      title: "<%= i18n.__('contact_center.channels.col.id') %>",
+			      field: "id",
+			      headerSort: false,
+			      widthGrow: "1",
+			    },
+			    {
+			      title: "<%= i18n.__('contact_center.channels.col.name') %>",
+			      field: "name",
+			      headerSort: false,
+			      widthGrow: "3",
+			      formatter: function (cell) {
+			        const d = cell.getRow().getData();
+			        let html = '<a href="/contact-center/channels/' + d.id + '/" class="text-decoration-none">' + escapeHtml(d.name || "—") + "</a>";
+			        if (Number(d.is_configured) !== 1) {
+			          html += '<span class="badge text-bg-warning rounded-0 ms-2" title="<%= i18n.__('contact_center.channels.not_configured_hint') %>"><%= i18n.__('contact_center.channels.not_configured') %></span>';
+			        }
+			        return html;
+			      },
+			    },
+			    {
+			      title: "<%= i18n.__('contact_center.channels.col.type') %>",
+			      field: "type",
+			      headerSort: false,
+			      widthGrow: "2",
+			      formatter: function (cell) {
+			        const meta = CHANNEL_TYPES[cell.getValue()];
+			        if (!meta) return escapeHtml(cell.getValue());
+			        return '<span style="color:' + meta.color + '" class="me-2"><i class="' + meta.icon + '"></i></span>' + meta.label;
+			      },
+			    },
+			    {
+			      title: "<%= i18n.__('contact_center.channels.col.status') %>",
+			      field: "status",
+			      headerSort: false,
+			      widthGrow: "2",
+			      formatter: function (cell) {
+			        const d = cell.getRow().getData();
+			        const checked = Number(d.status) === 1 ? " checked" : "";
+			        const disabled = Number(d.is_configured) !== 1 ? " disabled" : "";
+			        return '<div class="form-check form-switch d-flex justify-content-center mb-0">' + '<input class="form-check-input channel-status-switch" type="checkbox" data-channel-id="' + d.id + '"' + checked + disabled + "></div>";
+			      },
+			    },
+			    {
+			      title: "<%= i18n.__('contact_center.channels.col.date_add') %>",
+			      field: "date_add",
+			      headerSort: false,
+			      widthGrow: "2",
+			    },
+			    {
+			      title: "",
+			      field: "id",
+			      headerSort: false,
+			      width: 100,
+			      formatter: function (cell) {
+			        const d = cell.getRow().getData();
+			        return (
+			          '<div class="d-flex justify-content-center gap-2">' +
+			          '<a href="/contact-center/channels/' +
+			          d.id +
+			          '/" class="bg-transparent border-0 text-primary"><i class="fa-regular fa-pen-to-square"></i></a>' +
+			          '<button type="button" class="bg-transparent border-0 text-danger delete-channel-btn" data-channel-id="' +
+			          d.id +
+			          '" data-channel-name="' +
+			          escapeHtml(d.name || "") +
+			          '"><i class="fa-regular fa-trash-can"></i></button>' +
+			          "</div>"
+			        );
+			      },
+			    },
+			  ],
+			});
+		</script>
+		<!-- END tabulator -->
+	</body>
+</html>

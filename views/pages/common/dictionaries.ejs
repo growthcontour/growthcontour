@@ -1,0 +1,389 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__(module + '.settings.title') %></title>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+		<% const defLang = langs.length ? langs[0].id : 1; %>
+
+		<!-- ─── ХЛІБНІ КРИХТИ ─────────────────────────────────────────── -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__(module + '.settings.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__(module + '.settings.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="<%= back %>"><%= i18n.__(module + '.settings.breadcrumb.module') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__(module + '.settings.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="<%= back %>" class="btn btn-primary rounded-0">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- ─── ОСНОВНИЙ КОНТЕНТ ──────────────────────────────────────── -->
+		<div class="container-fluid mt-3">
+			<div class="row">
+				<div class="col-12 mb-3">
+					<% if (!dicts.length) { %>
+					<div class="alert alert-secondary rounded-0"><%= i18n.__('dicts.empty_dicts') %></div>
+					<% } else { %>
+					<!-- Довідники модуля -->
+					<ul class="nav nav-pills mb-3">
+						<% dicts.forEach(function (d) { %>
+						<li class="nav-item">
+							<a class="nav-link rounded-0<%= d.key === cur.key ? ' active' : '' %>" href="?d=<%= d.key %>"><%= i18n.__('dicts.' + module + '.' + d.key) %></a>
+						</li>
+						<% }) %>
+					</ul>
+
+					<!-- Кнопка додавання запису -->
+					<% if (canEdit) { %>
+					<button type="button" class="btn btn-primary rounded-0 mb-3" id="d-add"><%= i18n.__('dicts.add') %></button>
+					<% } %>
+
+					<!-- Таблиця записів -->
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('dicts.' + module + '.' + cur.key) %></div>
+						<div id="d-table"></div>
+					</div>
+					<div class="small text-muted mt-2"><%= i18n.__(canEdit ? 'dicts.hint_edit' : 'dicts.hint_view') %></div>
+					<% } %>
+				</div>
+			</div>
+		</div>
+
+		<% if (cur) { %>
+		<!-- ─── МОДАЛКА: ЗАПИС ДОВІДНИКА ─────────────────────────────── -->
+		<div class="modal fade" id="m-edit" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+				<form class="modal-content rounded-0" id="f-edit">
+					<div class="modal-header text-bg-primary rounded-0">
+						<h5 class="modal-title"><%= i18n.__('dicts.' + module + '.' + cur.key) %></h5>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" id="f-__id" />
+						<div class="row g-3">
+							<% cur.fields.forEach(function (f) { const dis = canEdit ? '' : ' disabled'; %>
+							<% if (f.type === 'bool') { %>
+							<div class="col-md-6">
+								<div class="form-check form-switch mt-4">
+									<input class="form-check-input" type="checkbox" id="f-<%= f.name %>" data-field="<%= f.name %>" data-type="bool"<%= dis %> />
+									<label class="form-check-label small" for="f-<%= f.name %>"><%= i18n.__('dicts.f.' + f.name) %></label>
+								</div>
+							</div>
+							<% } else if (f.type === 'color') { %>
+							<div class="col-md-3">
+								<label class="form-label small mb-1" for="f-<%= f.name %>"><%= i18n.__('dicts.f.' + f.name) %></label>
+								<input type="color" class="form-control form-control-color rounded-0 w-100" id="f-<%= f.name %>" data-field="<%= f.name %>" data-default="<%= f.name === 'color_text' ? '#ffffff' : '#6c757d' %>"<%= dis %> />
+							</div>
+							<% } else if (f.type === 'select') { %>
+							<div class="col-md-6">
+								<label class="form-label small mb-1" for="f-<%= f.name %>"><%= i18n.__('dicts.f.' + f.name) %><%= f.required ? ' *' : '' %></label>
+								<select class="form-select form-select-sm rounded-0" id="f-<%= f.name %>" data-field="<%= f.name %>"<%= dis %>>
+									<% f.options.forEach(function (o) { %><option value="<%= o %>"><%= i18n.__('dicts.o.' + o) %></option><% }) %>
+								</select>
+							</div>
+							<% } else if (f.type === 'ref') { %>
+							<div class="col-md-6">
+								<label class="form-label small mb-1" for="f-<%= f.name %>"><%= i18n.__('dicts.f.' + f.name) %><%= f.required ? ' *' : '' %></label>
+								<select class="form-select form-select-sm rounded-0" id="f-<%= f.name %>" data-field="<%= f.name %>" data-type="ref"<%= dis %>>
+									<option value="">—</option>
+									<% (refs[f.ref] || []).forEach(function (r) { %><option value="<%= r.id %>"><%= r.label %></option><% }) %>
+								</select>
+							</div>
+							<% } else if (f.type === 'number') { %>
+							<div class="col-md-3">
+								<label class="form-label small mb-1" for="f-<%= f.name %>"><%= i18n.__('dicts.f.' + f.name) %><%= f.required ? ' *' : '' %></label>
+								<input type="number" step="<%= f.step || '1' %>" class="form-control form-control-sm rounded-0" id="f-<%= f.name %>" data-field="<%= f.name %>"<%= dis %> />
+							</div>
+							<% } else if (f.type === 'date') { %>
+							<div class="col-md-3">
+								<label class="form-label small mb-1" for="f-<%= f.name %>"><%= i18n.__('dicts.f.' + f.name) %><%= f.required ? ' *' : '' %></label>
+								<input type="date" class="form-control form-control-sm rounded-0" id="f-<%= f.name %>" data-field="<%= f.name %>" data-type="date"<%= dis %> />
+							</div>
+							<% } else if (f.type === 'textarea') { %>
+							<div class="col-12">
+								<label class="form-label small mb-1" for="f-<%= f.name %>"><%= i18n.__('dicts.f.' + f.name) %><%= f.required ? ' *' : '' %></label>
+								<textarea class="form-control form-control-sm rounded-0" rows="2" id="f-<%= f.name %>" data-field="<%= f.name %>"<%= dis %>></textarea>
+							</div>
+							<% } else { %>
+							<div class="col-md-6" data-code="<%= f.name === 'code' ? 1 : 0 %>">
+								<label class="form-label small mb-1" for="f-<%= f.name %>"><%= i18n.__('dicts.f.' + f.name) %><%= f.required ? ' *' : '' %></label>
+								<input type="text" maxlength="<%= f.max || 255 %>" class="form-control form-control-sm rounded-0" id="f-<%= f.name %>" data-field="<%= f.name %>"<%= dis %> />
+							</div>
+							<% } %>
+							<% }) %>
+
+							<% if (cur.lang.length || (cur.children && cur.children.i18n)) { %>
+							<!-- Переклади -->
+							<div class="col-12">
+								<ul class="nav nav-tabs" role="tablist">
+									<% langs.forEach(function (l, i) { %>
+									<li class="nav-item"><button type="button" class="nav-link rounded-0<%= i ? '' : ' active' %>" data-bs-toggle="tab" data-bs-target="#lang-<%= l.id %>"><%= l.name || l.iso %></button></li>
+									<% }) %>
+								</ul>
+								<div class="tab-content border border-top-0 p-3">
+									<% langs.forEach(function (l, i) { %>
+									<div class="tab-pane fade<%= i ? '' : ' show active' %>" id="lang-<%= l.id %>">
+										<div class="row g-3">
+											<% cur.lang.forEach(function (f) { %>
+											<div class="<%= f.type === 'textarea' ? 'col-12' : 'col-md-6' %>">
+												<label class="form-label small mb-1" for="l<%= l.id %>-<%= f.name %>"><%= i18n.__('dicts.f.' + f.name) %><%= f.required && !i ? ' *' : '' %></label>
+												<% if (f.type === 'textarea') { %>
+												<textarea class="form-control form-control-sm rounded-0" rows="2" id="l<%= l.id %>-<%= f.name %>" data-lang="<%= l.id %>" data-field="<%= f.name %>"<%= canEdit ? '' : ' disabled' %>></textarea>
+												<% } else { %>
+												<input type="text" maxlength="<%= f.max || 255 %>" class="form-control form-control-sm rounded-0" id="l<%= l.id %>-<%= f.name %>" data-lang="<%= l.id %>" data-field="<%= f.name %>"<%= canEdit ? '' : ' disabled' %> />
+												<% } %>
+											</div>
+											<% }) %>
+											<% if (cur.children && cur.children.i18n) { %>
+											<div class="col-12">
+												<label class="form-label small mb-1" for="l<%= l.id %>-__options"><%= i18n.__('dicts.options') %></label>
+												<textarea class="form-control form-control-sm rounded-0" rows="5" id="l<%= l.id %>-__options" data-lang="<%= l.id %>" data-options="1"<%= canEdit ? '' : ' disabled' %>></textarea>
+											</div>
+											<% } %>
+										</div>
+									</div>
+									<% }) %>
+								</div>
+							</div>
+							<% } %>
+
+							<% if (cur.children && !cur.children.i18n) { %>
+							<div class="col-12">
+								<label class="form-label small mb-1" for="f-__options"><%= i18n.__('dicts.options') %></label>
+								<textarea class="form-control form-control-sm rounded-0" rows="5" id="f-__options"<%= canEdit ? '' : ' disabled' %>></textarea>
+							</div>
+							<% } %>
+							<% if (cur.children) { %>
+							<div class="col-12 form-text"><%= i18n.__('dicts.options_hint') %></div>
+							<% } %>
+
+							<% if (cur.active) { %>
+							<div class="col-12">
+								<div class="form-check form-switch">
+									<input class="form-check-input" type="checkbox" id="f-__active"<%= canEdit ? '' : ' disabled' %> />
+									<label class="form-check-label small" for="f-__active"><%= i18n.__('dicts.active') %></label>
+								</div>
+							</div>
+							<% } %>
+							<div class="col-12 small text-muted d-none" id="f-__used"><%= i18n.__('dicts.used') %>: <span></span></div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('dicts.cancel') %></button>
+						<% if (canEdit) { %><button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('dicts.save') %></button><% } %>
+					</div>
+				</form>
+			</div>
+		</div>
+		<% } %>
+
+		<%- include('../../partials/footer'); %>
+		<%- include('../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<% if (cur) { %>
+		<script>
+			(function () {
+				"use strict";
+				const API = "/api/<%= module %>/settings/dicts/<%= cur.key %>/";
+				const DEF_LANG = "<%= defLang %>";
+				const notyf = new Notyf({ duration: 4000, position: { x: "right", y: "top" }, types: [{ type: "error", background: "indianred" }] });
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const modal = () => bootstrap.Modal.getOrCreateInstance($("m-edit"));
+				// Назва запису: переклад основною мовою, інакше поле основної таблиці
+				const nameOf = (r) => {
+					const t = (r.i18n && r.i18n[DEF_LANG]) || {};
+					return t.name || t.title || t.label || r.name || r.title || r.label || r.code || "#" + r.id;
+				};
+				// Підпис посилання — з варіантів випадного списку у формі
+				const refText = (field, v) => {
+					const o = document.querySelector('#f-' + field + ' option[value="' + v + '"]');
+					return o && v ? esc(o.textContent) : "";
+				};
+
+				async function post(url, body) {
+					const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+					const r = await res.json().catch(() => ({}));
+					if (!res.ok || r.ok === false) throw new Error(r.error || "<%= i18n.__('dicts.error') %>");
+					return r;
+				}
+
+				const table = new Tabulator("#d-table", {
+					layout: "fitColumns",
+					placeholder: "<%= i18n.__('dicts.empty') %>",
+					ajaxURL: API + "list/",
+					ajaxConfig: "POST",
+					ajaxResponse: (url, params, r) => r.rows || [],
+					movableRows: <%= canEdit && cur.sort ? 'true' : 'false' %>,
+					<% if (!cur.sort) { %>pagination: true,
+					paginationSize: 20,
+					paginationSizeSelector: [20, 50, 100],<% } %>
+					columns: [
+						<% if (canEdit && cur.sort) { %>{ rowHandle: true, formatter: "handle", headerSort: false, frozen: true, width: 30, minWidth: 30 },<% } %>
+						{ title: "ID", field: "id", width: 70 },
+						{
+							title: "<%= i18n.__('dicts.name') %>",
+							field: "id",
+							formatter: (c) => {
+								const r = c.getData();
+								const bg = r.color_background || r.color || null;
+								const fg = r.color_text || "#fff";
+								return bg ? '<span class="badge rounded-0" style="background:' + esc(bg) + ";color:" + esc(fg) + '">' + (r.icon ? '<i class="' + esc(r.icon) + ' me-1"></i>' : "") + esc(nameOf(r)) + "</span>" : esc(nameOf(r));
+							},
+						},
+						<% if (cur.fields.some(function (f) { return f.name === 'code'; })) { %>{ title: "<%= i18n.__('dicts.f.code') %>", field: "code", width: 140 },<% } %>
+						<% cur.fields.filter(function (f) { return f.type === 'ref'; }).forEach(function (f) { %>{ title: "<%= i18n.__('dicts.f.' + f.name) %>", field: "<%= f.name %>", width: 160, formatter: (c) => refText("<%= f.name %>", c.getValue()) },
+						<% }) %>
+						<% if (cur.children) { %>{
+							title: "<%= i18n.__('dicts.options') %>",
+							field: "options",
+							width: 220,
+							formatter: (c) => {
+								const v = c.getValue();
+								const list = Array.isArray(v) ? v : (v && v[DEF_LANG]) || [];
+								return '<span class="small text-muted">' + esc(list.join(", ")) + "</span>";
+							},
+						},<% } %>
+						{ title: "<%= i18n.__('dicts.used') %>", field: "used", width: 110, hozAlign: "right" },
+						<% if (cur.active) { %>{ title: "<%= i18n.__('dicts.active') %>", field: "<%= cur.active %>", width: 100, hozAlign: "center", formatter: (c) => (Number(c.getValue()) ? '<i class="fa-solid fa-check text-success"></i>' : '<i class="fa-solid fa-xmark text-muted"></i>') },<% } %>
+						{
+							title: "",
+							field: "id",
+							width: 100,
+							headerSort: false,
+							hozAlign: "center",
+							formatter: (c) => {
+								const r = c.getData();
+								const sys = Number(r.is_system) === 1;
+								return (
+									'<div class="d-flex justify-content-center gap-2">' +
+									'<a href="#" class="text-primary" data-edit="' + r.id + '"><i class="fa-regular fa-pen-to-square"></i></a>' +
+									<% if (canEdit) { %>(sys ? '<i class="fa-solid fa-lock text-muted" title="<%= i18n.__('dicts.system') %>"></i>' : '<a href="#" class="text-danger" data-delete="' + r.id + '"><i class="fa-regular fa-trash-can"></i></a>') +<% } %>
+									"</div>"
+								);
+							},
+						},
+					],
+				});
+
+				<% if (canEdit && cur.sort) { %>
+				table.on("rowMoved", async () => {
+					try {
+						await post(API + "sort/", { ids: table.getData().map((r) => r.id) });
+					} catch (e) {
+						notyf.error(e.message);
+					}
+				});
+				<% } %>
+
+				// Заповнення форми: порожня — новий запис, з даними рядка — редагування
+				function fill(r) {
+					const v = r || {};
+					const sys = Number(v.is_system) === 1;
+					$("f-__id").value = r ? r.id : "";
+					document.querySelectorAll("#f-edit [data-field]:not([data-lang])").forEach((el) => {
+						const val = v[el.dataset.field];
+						if (el.dataset.type === "bool") el.checked = !!Number(val);
+						else if (el.type === "color") el.value = val || el.dataset.default;
+						else if (el.dataset.type === "date") el.value = String(val || "").slice(0, 10);
+						else if (el.tagName === "SELECT" && !r) el.selectedIndex = 0;
+						else el.value = val ?? "";
+					});
+					// Код системного запису не змінюється
+					const code = document.querySelector('#f-edit [data-code="1"]');
+					if (code) code.classList.toggle("d-none", sys);
+					document.querySelectorAll("#f-edit [data-lang][data-field]").forEach((el) => {
+						el.value = ((v.i18n || {})[el.dataset.lang] || {})[el.dataset.field] ?? "";
+					});
+					document.querySelectorAll("#f-edit [data-options]").forEach((el) => {
+						el.value = (((v.options || {})[el.dataset.lang]) || []).join("\n");
+					});
+					if ($("f-__options")) $("f-__options").value = (Array.isArray(v.options) ? v.options : []).join("\n");
+					if ($("f-__active")) $("f-__active").checked = !r || !!Number(v["<%= cur.active || 'active' %>"]);
+					$("f-__used").classList.toggle("d-none", !(r && r.used));
+					$("f-__used").querySelector("span").textContent = r && r.used ? Number(r.used) : "";
+					modal().show();
+				}
+
+				document.getElementById("d-table").addEventListener("click", async (e) => {
+					const ed = e.target.closest("[data-edit]");
+					const del = e.target.closest("[data-delete]");
+					if (!ed && !del) return;
+					e.preventDefault();
+					const id = Number((ed || del).dataset.edit || (ed || del).dataset.delete);
+					const row = table.getData().find((x) => x.id === id);
+					if (ed) return fill(row);
+					if (!confirm("<%= i18n.__('dicts.delete_q') %>")) return;
+					try {
+						await post(API + "delete/", { id });
+						notyf.success("<%= i18n.__('dicts.deleted') %>");
+						table.replaceData();
+					} catch (err) {
+						notyf.error(err.message);
+					}
+				});
+
+				<% if (canEdit) { %>
+				$("d-add").addEventListener("click", () => fill(null));
+
+				$("f-edit").addEventListener("submit", async (e) => {
+					e.preventDefault();
+					const b = { id: $("f-__id").value ? Number($("f-__id").value) : null, i18n: {} };
+					document.querySelectorAll("#f-edit [data-field]:not([data-lang])").forEach((el) => {
+						if (el.closest(".d-none")) return;
+						b[el.dataset.field] = el.dataset.type === "bool" ? el.checked : el.value;
+					});
+					document.querySelectorAll("#f-edit [data-lang][data-field]").forEach((el) => {
+						(b.i18n[el.dataset.lang] = b.i18n[el.dataset.lang] || {})[el.dataset.field] = el.value;
+					});
+					const opt = document.querySelectorAll("#f-edit [data-options]");
+					if (opt.length) {
+						b.options = {};
+						opt.forEach((el) => (b.options[el.dataset.lang] = el.value.split("\n")));
+					}
+					if ($("f-__options")) b.options = $("f-__options").value.split("\n");
+					if ($("f-__active")) b.active = $("f-__active").checked;
+					try {
+						await post(API + "save/", b);
+						modal().hide();
+						notyf.success("<%= i18n.__('dicts.saved') %>");
+						table.replaceData();
+					} catch (err) {
+						notyf.error(err.message);
+					}
+				});
+				<% } %>
+			})();
+		</script>
+		<% } %>
+	</body>
+</html>

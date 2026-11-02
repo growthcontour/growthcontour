@@ -1,0 +1,32 @@
+{
+	"catalog": {
+		"brands": {
+			"title": "Бренди",
+			"breadcrumb": {
+				"home": "Головна",
+				"catalog": "Каталог",
+				"current": "Бренди"
+			},
+			"add": "Додати бренд",
+			"edit": "Бренд",
+			"products_count": "Товарів",
+			"confirm_delete": "Видалити бренд «%s»? Його можна буде відновити з кошика.",
+			"f": {
+				"logo": "Логотип",
+				"code": "Код",
+				"website": "Сайт",
+				"country": "Країна (ISO)",
+				"sort_order": "Сортування",
+				"status": "Активний",
+				"name": "Назва",
+				"description": "Опис",
+				"meta_title": "Meta title",
+				"meta_description": "Meta description",
+				"slug": "SEO URL"
+			},
+			"hints": {
+				"slug": "Порожньо — згенерується з назви"
+			}
+		}
+	}
+}

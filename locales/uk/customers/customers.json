@@ -1,0 +1,9 @@
+{
+    "customers": {
+        "title": "Покупці",
+        "breadcrumb": {
+            "home": "Головна",
+            "current": "Покупці"
+        }
+    }
+}

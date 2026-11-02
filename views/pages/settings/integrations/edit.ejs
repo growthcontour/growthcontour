@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+<head>
+	<title><%= id ? i18n.__('orders.integrations.modal.title_edit') : i18n.__('orders.integrations.modal.title_add') %> — <%= i18n.__('orders.integrations.title') %></title>
+	<%- include('../../../partials/head'); %>
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/monolith.min.css" />
+	<style>
+		#integrations-table .tabulator-col, #integrations-table .tabulator-cell { border-right: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; }
+		#integrations-table .tabulator-col:last-child, #integrations-table .tabulator-cell:last-child { border-right: none; }
+		.src-badge { display: inline-block; padding: 2px 8px; font-size: 12px; }
+		.pickr .pcr-button { border: 1px solid #eee; border-radius: 0; }
+		.form-label.req::after { content: " *"; color: #dc3545; }
+		.mono { font-family: monospace; }
+		.save-bar { position: sticky; bottom: 0; z-index: 10; background: var(--bs-body-bg); border-top: 1px solid var(--bs-border-color); }
+	</style>
+</head>
+<body class="d-flex flex-column h-100">
+	<%- include('../../../partials/header'); %>
+
+	<!-- Breadcrumb -->
+	<div class="breadcrumbs pt-3 pb-3">
+		<div class="container-fluid">
+			<div class="row align-items-center">
+				<div class="col">
+					<span id="page_title"><%= id ? i18n.__('orders.integrations.modal.title_edit') : i18n.__('orders.integrations.modal.title_add') %></span>
+					<div>
+						<ul class="list-inline mb-0">
+							<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('orders.integrations.breadcrumb.home') %></span></a></li>
+							<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= i18n.__('header.nav.settings') %></li>
+							<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/settings/integrations/"><%= i18n.__('orders.integrations.title') %></a></li>
+							<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <span id="crumb_name"><%= id ? '#' + id : i18n.__('orders.integrations.modal.title_add') %></span></li>
+						</ul>
+					</div>
+				</div>
+				<div class="col-auto">
+					<a href="/settings/integrations/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+				</div>
+			</div>
+		</div>
+	</div>
+	<!-- END Breadcrumb -->
+
+	<main class="flex-shrink-0">
+		<div class="container-fluid mt-3">
+			<!-- ═══ Загальне ═══ -->
+			<div class="card border-primary rounded-0 mb-3">
+				<div class="card-header text-bg-primary rounded-0 d-flex align-items-center justify-content-between">
+					<span><%= i18n.__('orders.integrations.cards.general') %><span class="d-none" id="int_modal_title"></span></span>
+					<span class="badge text-bg-light rounded-0 d-none" id="int_id_wrap">#<span id="int_id_label"></span></span>
+				</div>
+				<div class="card-body">
+			<input type="hidden" id="int_id" />
+			<div class="mb-3">
+				<label class="form-label req" for="int_name"><%= i18n.__('orders.integrations.fields.name') %></label>
+				<input type="text" class="form-control rounded-0" id="int_name" maxlength="255" />
+			</div>
+
+			<div class="mb-3">
+				<label class="form-label" for="int_order_prefix"><%= i18n.__('orders.integrations.fields.order_prefix') %></label>
+				<input type="text" class="form-control rounded-0" id="int_order_prefix" maxlength="16" placeholder="ORD-" style="max-width:200px" />
+				<div class="form-text"><%= i18n.__('orders.integrations.fields.order_prefix_help') %></div>
+			</div>
+
+			<div class="row">
+				<div class="col-12 col-md-5 mb-3">
+					<label class="form-label req" for="int_platform"><%= i18n.__('orders.integrations.fields.platform') %></label>
+					<select class="form-select rounded-0" id="int_platform"></select>
+				</div>
+				<div class="col-6 col-md-3 mb-3 d-none" data-field="version">
+					<label class="form-label" for="int_platform_version">Версія</label>
+					<select class="form-select rounded-0" id="int_platform_version"></select>
+				</div>
+				<div class="col-6 col-md-4 mb-3">
+					<label class="form-label" for="int_status"><%= i18n.__('orders.integrations.fields.status') %></label>
+					<select class="form-select rounded-0" id="int_status">
+						<option value="active"><%= i18n.__('orders.integrations.status_opt.active') %></option>
+						<option value="disabled"><%= i18n.__('orders.integrations.status_opt.disabled') %></option>
+					</select>
+				</div>
+			</div>
+
+			<div class="mb-3 d-none" data-field="default_status">
+				<label class="form-label" for="int_default_status">Стартовий статус замовлення</label>
+				<select class="form-select rounded-0" id="int_default_status"><option value="">— оберіть статус —</option></select>
+				<small class="text-muted">Усі замовлення від цієї інтеграції створюються з цим статусом.</small>
+			</div>
+
+			<div class="row">
+				<div class="col-6 col-md-4 mb-3">
+					<label class="form-label"><%= i18n.__('orders.integrations.fields.color_background') %></label>
+					<div class="pickr-color" data-target="int_color_background"></div>
+					<input type="hidden" id="int_color_background" value="#607d8b" />
+				</div>
+				<div class="col-6 col-md-4 mb-3">
+					<label class="form-label"><%= i18n.__('orders.integrations.fields.color_text') %></label>
+					<div class="pickr-color" data-target="int_color_text"></div>
+					<input type="hidden" id="int_color_text" value="#ffffff" />
+				</div>
+				<div class="col-12 col-md-4 mb-3">
+					<label class="form-label"><%= i18n.__('orders.integrations.fields.preview') %></label>
+					<div><span class="src-badge" id="int_preview">example</span></div>
+				</div>
+			</div>
+
+			<div class="mb-3">
+				<label class="form-label" for="int_note"><%= i18n.__('orders.integrations.fields.note') %></label>
+				<input type="text" class="form-control rounded-0" id="int_note" maxlength="999" />
+			</div>
+		
+				</div>
+			</div>
+
+			<!-- ═══ Підключення до сайту ═══ -->
+			<div class="card border-primary rounded-0 mb-3" data-card>
+				<div class="card-header text-bg-primary rounded-0"><%= i18n.__('orders.integrations.cards.connection') %></div>
+				<div class="card-body">
+			<div class="mb-3 d-none" data-field="base_url">
+				<label class="form-label" for="int_base_url">Адреса сайту</label>
+				<input type="url" class="form-control rounded-0" id="int_base_url" placeholder="https://shop.com" maxlength="255" />
+			</div>
+
+			<div class="mb-3 d-none" data-field="callback_url">
+				<label class="form-label" for="int_callback_url">API endpoint модуля</label>
+				<div class="input-group">
+					<input type="url" class="form-control rounded-0 mono" id="int_callback_url" maxlength="512" />
+					<button type="button" class="btn btn-outline-secondary rounded-0" id="btn_fill_callback" title="Заповнити з адреси сайту"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+				</div>
+				<small class="text-muted" id="int_callback_hint"></small>
+			</div>
+
+			<div class="mb-3 d-none" data-field="outbound_token">
+				<label class="form-label" for="int_outbound_token">Ключ доступу CRM → сайт</label>
+				<div class="input-group">
+					<input type="text" class="form-control rounded-0 mono" id="int_outbound_token" maxlength="255" autocomplete="off" />
+					<button type="button" class="btn btn-outline-secondary rounded-0" id="btn_gen_token" title="Згенерувати"><i class="fa-solid fa-rotate"></i></button>
+					<button type="button" class="btn btn-outline-secondary rounded-0" id="btn_copy_token" title="Копіювати"><i class="fa-regular fa-copy"></i></button>
+				</div>
+				<small class="text-muted">Вставте цей ключ у налаштування модуля на сайті. Після зміни ключа оновіть його і там.</small>
+			</div>
+
+				</div>
+			</div>
+
+			<!-- ═══ Обмін замовленнями ═══ -->
+			<div class="card border-primary rounded-0 mb-3" data-card>
+				<div class="card-header text-bg-primary rounded-0"><%= i18n.__('orders.integrations.cards.orders') %></div>
+				<div class="card-body">
+			<div class="row d-none" data-cap="orders">
+				<div class="col-12 col-md-6 mb-3">
+					<div class="form-check">
+						<input type="checkbox" class="form-check-input rounded-0" id="int_sync_orders_out" value="1" />
+						<label class="form-check-label" for="int_sync_orders_out"><%= i18n.__('orders.integrations.fields.sync_orders_out') %></label>
+					</div>
+				</div>
+				<div class="col-12 col-md-6 mb-3">
+					<div class="form-check">
+						<input type="checkbox" class="form-check-input rounded-0" id="int_sync_status_out" value="1" />
+						<label class="form-check-label" for="int_sync_status_out"><%= i18n.__('orders.integrations.fields.sync_status_out') %></label>
+					</div>
+				</div>
+			</div>
+
+				</div>
+			</div>
+
+			<!-- ═══ Каталог: ціни, контент, залишки ═══ -->
+			<div class="card border-primary rounded-0 mb-3" data-card>
+				<div class="card-header text-bg-primary rounded-0"><%= i18n.__('orders.integrations.cards.catalog') %></div>
+				<div class="card-body">
+			<div class="mb-3 d-none" data-cap="catalog">
+				<label class="form-label" for="int_assortment_mode"><%= i18n.__('orders.integrations.fields.assortment_mode') %></label>
+				<select class="form-select rounded-0" id="int_assortment_mode">
+					<option value="all"><%= i18n.__('orders.integrations.fields.assortment_all') %></option>
+					<option value="selected"><%= i18n.__('orders.integrations.fields.assortment_selected') %></option>
+				</select>
+				<small class="text-muted"><%= i18n.__('orders.integrations.fields.assortment_hint') %></small>
+			</div>
+
+			<div class="mb-3 d-none" data-cap="catalog">
+				<label class="form-label"><%= i18n.__('orders.integrations.fields.price_rule') %></label>
+				<div class="row g-2">
+					<div class="col-6 col-md-3">
+						<select class="form-select rounded-0" id="int_pr_source" title="<%= i18n.__('orders.integrations.fields.pr_source') %>">
+							<option value="price"><%= i18n.__('orders.integrations.fields.pr_source_price') %></option>
+							<option value="wholesale_price"><%= i18n.__('orders.integrations.fields.pr_source_wholesale') %></option>
+							<option value="compare_at_price"><%= i18n.__('orders.integrations.fields.pr_source_compare') %></option>
+						</select>
+					</div>
+					<div class="col-6 col-md-3">
+						<div class="input-group">
+							<input type="number" step="0.01" min="-99" max="1000" class="form-control rounded-0" id="int_pr_percent" placeholder="0" title="<%= i18n.__('orders.integrations.fields.pr_percent') %>" />
+							<span class="input-group-text rounded-0">%</span>
+						</div>
+					</div>
+					<div class="col-6 col-md-3">
+						<select class="form-select rounded-0" id="int_pr_round" title="<%= i18n.__('orders.integrations.fields.pr_round') %>">
+							<option value="none"><%= i18n.__('orders.integrations.fields.pr_round_none') %></option>
+							<option value="int"><%= i18n.__('orders.integrations.fields.pr_round_int') %></option>
+							<option value="9"><%= i18n.__('orders.integrations.fields.pr_round_9') %></option>
+							<option value="99"><%= i18n.__('orders.integrations.fields.pr_round_99') %></option>
+							<option value="10"><%= i18n.__('orders.integrations.fields.pr_round_10') %></option>
+						</select>
+					</div>
+					<div class="col-6 col-md-3">
+						<div class="input-group">
+							<input type="number" step="0.01" min="0" class="form-control rounded-0" id="int_pr_min_margin" placeholder="<%= i18n.__('orders.integrations.fields.pr_min_margin') %>" title="<%= i18n.__('orders.integrations.fields.pr_min_margin') %>" />
+							<span class="input-group-text rounded-0">%</span>
+						</div>
+					</div>
+					<div class="col-6 col-md-3">
+						<input type="text" maxlength="3" class="form-control rounded-0 text-uppercase" id="int_pr_currency" placeholder="<%= i18n.__('orders.integrations.fields.pr_currency') %>" title="<%= i18n.__('orders.integrations.fields.pr_currency') %>" />
+					</div>
+					<div class="col-6 col-md-3">
+						<div class="input-group">
+							<span class="input-group-text rounded-0">×</span>
+							<input type="number" step="0.000001" min="0" class="form-control rounded-0" id="int_pr_rate" placeholder="<%= i18n.__('orders.integrations.fields.pr_rate') %>" title="<%= i18n.__('orders.integrations.fields.pr_rate') %>" />
+						</div>
+					</div>
+				</div>
+				<small class="text-muted"><%= i18n.__('orders.integrations.fields.price_rule_hint') %></small>
+
+				<label class="form-label mt-2"><%= i18n.__('orders.integrations.fields.pr_rules') %></label>
+				<table class="table table-sm table-bordered align-middle small mb-1">
+					<thead><tr><th><%= i18n.__('orders.integrations.fields.pr_r_brands') %></th><th><%= i18n.__('orders.integrations.fields.pr_r_categories') %></th><th style="width:110px"><%= i18n.__('orders.integrations.fields.pr_r_from') %></th><th style="width:110px"><%= i18n.__('orders.integrations.fields.pr_r_to') %></th><th style="width:100px">%</th><th style="width:40px"></th></tr></thead>
+					<tbody id="int_pr_rules"></tbody>
+				</table>
+				<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="int_pr_rule_add"><i class="fa-solid fa-plus"></i> <%= i18n.__('orders.integrations.fields.pr_r_add') %></button>
+				<div><small class="text-muted"><%= i18n.__('orders.integrations.fields.pr_rules_hint') %></small></div>
+			</div>
+
+			<div class="mb-3 d-none" data-cap="catalog">
+				<label class="form-label"><%= i18n.__('orders.integrations.fields.content_rule') %></label>
+				<ul class="nav nav-tabs small" role="tablist">
+					<li class="nav-item"><button class="nav-link rounded-0 active py-1" type="button" data-bs-toggle="tab" data-bs-target="#int_ct_all"><%= i18n.__('orders.integrations.fields.ct_all_langs') %></button></li>
+					<% contentLanguages.forEach((l) => { %>
+					<li class="nav-item"><button class="nav-link rounded-0 py-1" type="button" data-bs-toggle="tab" data-bs-target="#int_ct_<%= l.iso %>"><%= String(l.iso).toUpperCase() %></button></li>
+					<% }) %>
+				</ul>
+				<div class="tab-content border border-top-0 p-2" id="int_content">
+					<% [{ code: '*', iso: 'all' }].concat(contentLanguages).forEach((l, i) => { %>
+					<div class="tab-pane fade<%= i === 0 ? ' show active' : '' %>" id="int_ct_<%= l.iso %>" data-code="<%= l.code %>">
+						<input type="text" class="form-control form-control-sm rounded-0 mb-1" data-ct="name" maxlength="255" placeholder="<%= i18n.__('orders.integrations.fields.ct_name') %>" />
+						<textarea class="form-control form-control-sm rounded-0 mb-1" data-ct="description_before" rows="2" placeholder="<%= i18n.__('orders.integrations.fields.ct_before') %>"></textarea>
+						<textarea class="form-control form-control-sm rounded-0" data-ct="description_after" rows="2" placeholder="<%= i18n.__('orders.integrations.fields.ct_after') %>"></textarea>
+					</div>
+					<% }) %>
+				</div>
+				<small class="text-muted"><%= i18n.__('orders.integrations.fields.content_rule_hint') %></small>
+				<div class="input-group input-group-sm mt-2" style="max-width:520px">
+					<span class="input-group-text rounded-0"><%= i18n.__('orders.integrations.fields.manual_edits') %></span>
+					<select class="form-select rounded-0" id="int_manual_edits">
+						<option value="highlight"><%= i18n.__('orders.integrations.fields.manual_highlight') %></option>
+						<option value="overwrite"><%= i18n.__('orders.integrations.fields.manual_overwrite') %></option>
+					</select>
+				</div>
+			</div>
+
+			<div class="mb-3 d-none" data-cap="catalog">
+				<label class="form-label"><%= i18n.__('orders.integrations.fields.stock_rule') %></label>
+				<div class="row g-2 align-items-start">
+					<div class="col-md-8">
+						<div class="d-flex flex-wrap gap-3" id="int_stock_wh">
+							<% warehouses.forEach((w) => { %>
+							<div class="form-check">
+								<input type="checkbox" class="form-check-input rounded-0" id="int_wh_<%= w.id %>" value="<%= w.id %>" />
+								<label class="form-check-label" for="int_wh_<%= w.id %>"><%= w.code %><%= w.name ? ' — ' + w.name : '' %></label>
+							</div>
+							<% }) %>
+						</div>
+					</div>
+					<div class="col-md-4">
+						<div class="input-group">
+							<span class="input-group-text rounded-0"><%= i18n.__('orders.integrations.fields.stock_buffer') %></span>
+							<input type="number" min="0" step="1" class="form-control rounded-0" id="int_stock_buffer" placeholder="0" />
+						</div>
+					</div>
+				</div>
+				<small class="text-muted"><%= i18n.__('orders.integrations.fields.stock_rule_hint') %></small>
+			</div>
+
+			<div class="mb-3 d-none" data-cap="catalog">
+				<label class="form-label"><%= i18n.__('orders.integrations.fields.required_fields') %></label>
+				<div class="d-flex flex-wrap gap-3" id="int_required">
+					<% requiredCodes.forEach((c) => { %>
+					<div class="form-check">
+						<input type="checkbox" class="form-check-input rounded-0" id="int_req_<%= c %>" value="<%= c %>" />
+						<label class="form-check-label" for="int_req_<%= c %>"><%= i18n.__('catalog.quality.rule.' + c) %></label>
+					</div>
+					<% }) %>
+				</div>
+				<small class="text-muted"><%= i18n.__('orders.integrations.fields.required_fields_hint') %></small>
+			</div>
+
+			<div class="mb-3 d-none" data-cap="catalog">
+				<label class="form-label" for="int_alert_emails"><%= i18n.__('orders.integrations.fields.alert_emails') %></label>
+				<input type="text" class="form-control rounded-0" id="int_alert_emails" maxlength="500" placeholder="owner@example.com, manager@example.com" />
+				<small class="text-muted"><%= i18n.__('orders.integrations.fields.alert_emails_hint') %></small>
+			</div>
+
+				</div>
+			</div>
+
+			<!-- ═══ Сповіщення ═══ -->
+			<!-- ─── Сповіщення про замовлення сайту ─── -->
+			<div class="card border-primary rounded-0 mb-3">
+				<div class="card-header text-bg-primary rounded-0"><i class="fa-solid fa-bell me-1"></i><%= i18n.__('orders.integrations.notify.title') %></div>
+				<div class="card-body">
+					<div class="form-text mt-0 mb-2"><%= i18n.__('orders.integrations.notify.hint') %></div>
+					<div class="row g-3">
+						<div class="col-md-6">
+							<label class="form-label small mb-1"><%= i18n.__('orders.integrations.notify.users') %></label>
+							<div class="position-relative">
+								<input type="text" class="form-control form-control-sm rounded-0" id="nt_user_search" autocomplete="off" placeholder="<%= i18n.__('orders.integrations.notify.users_ph') %>" />
+								<div class="list-group position-absolute w-100 shadow-sm d-none" id="nt_user_results" style="z-index:1080;max-height:200px;overflow:auto"></div>
+							</div>
+							<div class="d-flex flex-wrap gap-1 mt-1" id="nt_users"></div>
+						</div>
+						<div class="col-md-6">
+							<label class="form-label small mb-1"><%= i18n.__('orders.integrations.notify.groups') %></label>
+							<select class="form-select form-select-sm rounded-0" id="nt_group_select"><option value=""><%= i18n.__('orders.integrations.notify.groups_ph') %></option></select>
+							<div class="d-flex flex-wrap gap-1 mt-1" id="nt_groups"></div>
+						</div>
+						<div class="col-12">
+							<div class="form-check"><input class="form-check-input" type="checkbox" id="nt_manager" /><label class="form-check-label" for="nt_manager"><%= i18n.__('orders.integrations.notify.manager') %></label></div>
+							<div class="form-check"><input class="form-check-input" type="checkbox" id="nt_push" /><label class="form-check-label" for="nt_push"><%= i18n.__('orders.integrations.notify.push') %></label></div>
+						</div>
+						<div class="col-12">
+							<label class="form-label small mb-1"><%= i18n.__('orders.integrations.notify.events') %></label>
+							<div class="row g-1" id="nt_events">
+								<% ['new', 'status', 'unassigned', 'paid', 'ttn', 'delivered', 'returned', 'refund', 'rma'].forEach(function (k) { %>
+								<div class="col-md-6"><div class="form-check"><input class="form-check-input" type="checkbox" data-ev="<%= k %>" id="nt_ev_<%= k %>" /><label class="form-check-label" for="nt_ev_<%= k %>"><%= i18n.__('orders.integrations.notify.ev_' + k) %></label></div></div>
+								<% }); %>
+							</div>
+						</div>
+						<div class="col-md-6" id="nt_statuses_wrap">
+							<label class="form-label small mb-1"><%= i18n.__('orders.integrations.notify.statuses') %></label>
+							<div class="border p-2" id="nt_statuses" style="max-height:150px;overflow:auto"></div>
+							<div class="form-text"><%= i18n.__('orders.integrations.notify.statuses_hint') %></div>
+						</div>
+						<div class="col-md-6">
+							<label class="form-label small mb-1" for="nt_unassigned_min"><%= i18n.__('orders.integrations.notify.unassigned_min') %></label>
+							<input type="number" min="5" max="1440" class="form-control form-control-sm rounded-0" id="nt_unassigned_min" value="15" style="max-width:120px" />
+							<label class="form-label small mb-1 mt-2" for="nt_min_total"><%= i18n.__('orders.integrations.notify.min_total') %></label>
+							<input type="number" min="0" step="0.01" class="form-control form-control-sm rounded-0" id="nt_min_total" style="max-width:160px" />
+							<label class="form-label small mb-1 mt-2" for="nt_payment"><%= i18n.__('orders.integrations.notify.payment') %></label>
+							<input type="text" maxlength="200" class="form-control form-control-sm rounded-0" id="nt_payment" placeholder="<%= i18n.__('orders.integrations.notify.payment_ph') %>" />
+							<div class="form-check mt-2"><input class="form-check-input" type="checkbox" id="nt_first" /><label class="form-check-label" for="nt_first"><%= i18n.__('orders.integrations.notify.first_order') %></label></div>
+						</div>
+						<div class="col-12"><hr class="my-1" /></div>
+						<div class="col-12">
+							<div class="form-check"><input class="form-check-input" type="checkbox" id="nt_tg_enabled" /><label class="form-check-label fw-semibold" for="nt_tg_enabled"><i class="fa-brands fa-telegram me-1"></i><%= i18n.__('orders.integrations.notify.tg') %></label></div>
+						</div>
+						<div class="col-md-5"><label class="form-label small mb-1" for="nt_tg_token"><%= i18n.__('orders.integrations.notify.tg_token') %></label><input type="password" class="form-control form-control-sm rounded-0" id="nt_tg_token" autocomplete="new-password" placeholder="123456789:AA..." /><div class="form-text" id="nt_tg_token_hint"></div></div>
+						<div class="col-md-4"><label class="form-label small mb-1" for="nt_tg_chat"><%= i18n.__('orders.integrations.notify.tg_chat') %></label><input type="text" class="form-control form-control-sm rounded-0" id="nt_tg_chat" placeholder="-1001234567890" /></div>
+						<div class="col-md-3"><label class="form-label small mb-1" for="nt_tg_thread"><%= i18n.__('orders.integrations.notify.tg_thread') %></label><input type="number" min="1" class="form-control form-control-sm rounded-0" id="nt_tg_thread" /></div>
+						<div class="col-12"><button type="button" class="btn btn-sm btn-outline-primary rounded-0" id="nt_tg_test"><i class="fa-brands fa-telegram"></i> <%= i18n.__('orders.integrations.notify.tg_test') %></button></div>
+					</div>
+				</div>
+			</div>
+
+			<div class="save-bar py-2 mb-3 d-flex gap-2">
+				<button type="button" class="btn btn-primary rounded-0" id="btn_save_integration"><%= i18n.__('orders.integrations.modal.save') %></button>
+				<a href="/settings/integrations/" class="btn btn-secondary rounded-0"><%= i18n.__('orders.integrations.modal.close') %></a>
+				<% if (id) { %>
+				<button type="button" class="btn btn-outline-primary rounded-0 d-none" id="btn_categories"><i class="fa-solid fa-sitemap me-1"></i><%= i18n.__('orders.integrations.categories.title') %></button>
+				<button type="button" class="btn btn-outline-danger rounded-0 ms-auto" id="btn_delete_integration"><i class="fa-regular fa-trash-can me-1"></i><%= i18n.__('orders.integrations.delete_modal.delete') %></button>
+				<% } %>
+			</div>
+		</div>
+	</main>
+
+	<!-- ─── МОДАЛКА: КАТЕГОРІЇ САЙТУ ─── -->
+	<div class="modal fade" id="modalCategories" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-xl modal-dialog-scrollable">
+			<div class="modal-content rounded-0">
+				<div class="modal-header">
+					<h1 class="modal-title fs-5"><%= i18n.__('orders.integrations.categories.title') %> — <span id="cm_int_name"></span></h1>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+				</div>
+				<div class="modal-body">
+					<div class="alert alert-warning rounded-0 py-2 small d-none" id="cm_module_old"></div>
+					<div class="row g-2 mb-2">
+						<div class="col-md-4">
+							<label class="form-label small mb-1"><%= i18n.__('orders.integrations.categories.mode') %></label>
+							<select class="form-select form-select-sm rounded-0" id="cm_mode">
+								<option value="system"><%= i18n.__('orders.integrations.categories.mode_system') %></option>
+								<option value="site"><%= i18n.__('orders.integrations.categories.mode_site') %></option>
+								<option value="mixed"><%= i18n.__('orders.integrations.categories.mode_mixed') %></option>
+							</select>
+						</div>
+						<div class="col-md-4 cm-site-only">
+							<label class="form-label small mb-1"><%= i18n.__('orders.integrations.categories.unmapped') %></label>
+							<select class="form-select form-select-sm rounded-0" id="cm_unmapped">
+								<option value="skip"><%= i18n.__('orders.integrations.categories.unmapped_skip') %></option>
+								<option value="default"><%= i18n.__('orders.integrations.categories.unmapped_default') %></option>
+							</select>
+						</div>
+						<div class="col-md-4 cm-site-only">
+							<label class="form-label small mb-1"><%= i18n.__('orders.integrations.categories.default') %></label>
+							<select class="form-select form-select-sm rounded-0" id="cm_default"></select>
+						</div>
+						<div class="col-md-4 cm-mixed-only">
+							<label class="form-label small mb-1"><%= i18n.__('orders.integrations.categories.root') %></label>
+							<select class="form-select form-select-sm rounded-0" id="cm_root"></select>
+						</div>
+					</div>
+					<small class="text-muted d-block mb-2" id="cm_mode_hint"></small>
+					<div>
+						<div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+							<button type="button" class="btn btn-sm btn-outline-primary rounded-0 cm-map-only" id="cm_pull"><i class="fa-solid fa-rotate"></i> <%= i18n.__('orders.integrations.categories.pull') %></button>
+							<button type="button" class="btn btn-sm btn-outline-secondary rounded-0 cm-map-only" id="cm_auto"><i class="fa-solid fa-wand-magic-sparkles"></i> <%= i18n.__('orders.integrations.categories.auto') %></button>
+							<div class="form-check form-check-inline mb-0 ms-2 cm-map-only">
+								<input type="checkbox" class="form-check-input rounded-0" id="cm_only_unmapped" />
+								<label class="form-check-label small" for="cm_only_unmapped"><%= i18n.__('orders.integrations.categories.only_unmapped') %></label>
+							</div>
+							<input type="search" class="form-control form-control-sm rounded-0" style="max-width:220px" id="cm_search" placeholder="<%= i18n.__('orders.integrations.categories.search') %>" />
+							<small class="text-muted ms-auto cm-map-only" id="cm_tree_at"></small>
+						</div>
+						<div class="small mb-2" id="cm_stats"></div>
+						<table class="table table-sm table-bordered align-middle small mb-0">
+							<thead><tr><th style="width:35%"><%= i18n.__('orders.integrations.categories.col_system') %></th><th class="cm-col-site"><%= i18n.__('orders.integrations.categories.col_site') %></th><th class="cm-col-place"><%= i18n.__('orders.integrations.categories.col_place') %></th></tr></thead>
+							<tbody id="cm_rows"></tbody>
+						</table>
+						<!-- Правила розкладу: умови → категорії сайту (за порядком) -->
+						<div class="cm-map-only mt-3">
+							<div class="fw-semibold small"><%= i18n.__('orders.integrations.categories.rules_title') %></div>
+							<small class="text-muted d-block mb-1"><%= i18n.__('orders.integrations.categories.rules_hint') %></small>
+							<div class="table-responsive">
+								<table class="table table-sm table-bordered align-middle small mb-1">
+									<thead><tr>
+										<th><%= i18n.__('orders.integrations.categories.r_brands') %></th>
+										<th><%= i18n.__('orders.integrations.categories.r_categories') %></th>
+										<th><%= i18n.__('orders.integrations.categories.r_values') %></th>
+										<th style="width:90px"><%= i18n.__('orders.integrations.categories.r_price_from') %></th>
+										<th style="width:90px"><%= i18n.__('orders.integrations.categories.r_price_to') %></th>
+										<th style="width:110px"><%= i18n.__('orders.integrations.categories.r_stock') %></th>
+										<th style="width:120px"><%= i18n.__('orders.integrations.categories.r_action') %></th>
+										<th><%= i18n.__('orders.integrations.categories.r_site') %></th>
+										<th style="width:70px"></th>
+									</tr></thead>
+									<tbody id="cm_rules"></tbody>
+								</table>
+							</div>
+							<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="cm_rule_add"><i class="fa-solid fa-plus"></i> <%= i18n.__('orders.integrations.categories.r_add') %></button>
+						</div>
+					</div>
+					<!-- Вибір категорії сайту: одне поле на всю таблицю, переноситься в рядок -->
+					<div class="border bg-white p-2 shadow-sm d-none" id="cm_picker" style="position:absolute;z-index:1060;width:360px">
+						<input type="search" class="form-control form-control-sm rounded-0 mb-1" id="cm_picker_q" placeholder="<%= i18n.__('orders.integrations.categories.search') %>" />
+						<select class="form-select form-select-sm rounded-0" size="10" id="cm_picker_list"></select>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('orders.integrations.modal.close') %></button>
+					<button type="button" class="btn btn-primary rounded-0" id="cm_save"><%= i18n.__('orders.integrations.modal.save') %></button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- ─── МОДАЛКА: ВИДАЛЕННЯ ─── -->
+	<div class="modal fade" id="modalDeleteIntegration" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered">
+			<div class="modal-content rounded-0">
+				<div class="modal-header">
+					<h1 class="modal-title fs-5"><%= i18n.__('orders.integrations.delete_modal.title') %></h1>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+				</div>
+				<div class="modal-body">
+					<p class="mb-2"><%= i18n.__('orders.integrations.delete_modal.confirm_text') %></p>
+					<p class="mb-2"><strong id="delete_int_name"></strong> <span class="text-muted">#<span id="delete_int_id"></span></span></p>
+					<small class="text-muted">Токени цієї інтеграції буде видалено разом з нею.</small>
+					<div class="alert alert-danger rounded-0 mt-3 mb-0 d-none" id="delete_int_blocked"></div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('orders.integrations.delete_modal.close') %></button>
+					<button type="button" class="btn btn-danger rounded-0" id="btn_confirm_delete_integration"><%= i18n.__('orders.integrations.delete_modal.delete') %></button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<%- include('../../../partials/footer'); %>
+	<%- include('../../../partials/script'); %>
+	<script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
+	<script src="/assets/js/notyf/notyf.min.js"></script>
+	<script>
+		const PLATFORMS = <%- JSON.stringify(platforms).replace(/</g, '\\u003c') %>;
+		const T = {
+			add: "<%= i18n.__('orders.integrations.modal.title_add') %>",
+			edit: "<%= i18n.__('orders.integrations.modal.title_edit') %>",
+			saved: "<%= i18n.__('orders.integrations.modal.saved') %>",
+			empty: "<%= i18n.__('orders.integrations.table.empty') %>",
+			active: "<%= i18n.__('orders.integrations.status_opt.active') %>",
+			disabled: "<%= i18n.__('orders.integrations.status_opt.disabled') %>",
+		};
+
+		const notyf = new Notyf({
+			position: { x: "right", y: "top" },
+			duration: 4000,
+			types: [
+				{ type: "success", dismissible: true, icon: false },
+				{ type: "error", background: "indianred", dismissible: true, icon: false },
+			],
+		});
+		const byId = (id) => document.getElementById(id);
+		const modal = (id) => bootstrap.Modal.getOrCreateInstance(byId(id));
+		const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+		async function api(url, body) {
+			const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+			const data = await res.json().catch(() => ({}));
+			if (!res.ok) throw Object.assign(new Error(data.message || "Error"), { status: res.status, data });
+			return data;
+		}
+
+		function busy(btn, on) {
+			if (on) { btn.dataset.html = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+			else { btn.disabled = false; btn.innerHTML = btn.dataset.html || btn.innerHTML; }
+		}
+
+		// ─── Кольори ───
+		function updatePreview() {
+			const el = byId("int_preview");
+			el.style.backgroundColor = byId("int_color_background").value || "#607d8b";
+			el.style.color = byId("int_color_text").value || "#ffffff";
+			el.textContent = byId("int_name").value || "example";
+		}
+		function initPickr(target, inputId, def) {
+			const pickr = Pickr.create({
+				el: '[data-target="' + target + '"]', theme: "monolith", default: def,
+				swatches: ["#0057b8", "#2fb25c", "#e74c3c", "#3498db", "#8e44ad", "#f1c40f", "#e67e22", "#7f8c8d", "#34495e", "#607d8b", "#ffffff", "#000000"],
+				components: { preview: true, opacity: false, hue: true, interaction: { input: true, save: true } },
+			});
+			pickr.on("save", (c) => { if (c) { byId(inputId).value = c.toHEXA().toString(0).slice(0, 7); updatePreview(); } pickr.hide(); });
+			return pickr;
+		}
+		const pickrBg = initPickr("int_color_background", "int_color_background", "#607d8b");
+		const pickrText = initPickr("int_color_text", "int_color_text", "#ffffff");
+		byId("int_name").addEventListener("input", updatePreview);
+
+		// ─── Статуси (стартовий статус для custom) ───
+		(async function loadStatuses() {
+			try {
+				const rows = await api("/api/orders/statuses/list/");
+				byId("int_default_status").innerHTML = '<option value="">— оберіть статус —</option>' +
+					(Array.isArray(rows) ? rows : []).map((s) => '<option value="' + s.id + '">' + esc(s.text || "#" + s.id) + "</option>").join("");
+				// Сповіщення: «перехід у статуси»
+				byId("nt_statuses").innerHTML = (Array.isArray(rows) ? rows : []).map((s) => '<div class="form-check"><input class="form-check-input" type="checkbox" value="' + s.id + '" id="nt_st_' + s.id + '"><label class="form-check-label small" for="nt_st_' + s.id + '">' + esc(s.text || "#" + s.id) + "</label></div>").join("");
+			} catch (e) { /* select лишиться порожнім */ }
+		})();
+
+		// ─── Платформа → поля ───
+		let currentPlatform = "";
+		let lastAutoCallback = "";
+
+		byId("int_platform").innerHTML = '<option value="">— оберіть —</option>' +
+			Object.entries(PLATFORMS).map(([k, pl]) => '<option value="' + esc(k) + '">' + esc(pl.label) + "</option>").join("");
+
+		function applyPlatform(key, version) {
+			const pl = PLATFORMS[key] || null;
+			currentPlatform = key;
+
+			document.querySelectorAll("[data-field]").forEach((el) => {
+				const f = el.dataset.field;
+				const mode = !pl ? false : f === "version" ? (pl.versions ? "required" : false) : pl.fields[f];
+				el.classList.toggle("d-none", !mode);
+				const lbl = el.querySelector(".form-label");
+				if (lbl) lbl.classList.toggle("req", mode === "required");
+			});
+			document.querySelectorAll("[data-cap]").forEach((el) => {
+				el.classList.toggle("d-none", !(pl && pl.caps.includes(el.dataset.cap) && pl.fields.callback_url));
+			});
+			if (byId("btn_categories")) byId("btn_categories").classList.toggle("d-none", !(pl && pl.caps.includes("catalog") && pl.fields.callback_url));
+			// Блок без жодного видимого поля для цієї платформи — ховаємо цілком
+			document.querySelectorAll("[data-card]").forEach((c) => {
+				c.classList.toggle("d-none", ![...c.querySelectorAll("[data-field], [data-cap]")].some((el) => !el.classList.contains("d-none")));
+			});
+
+			const versions = (pl && pl.versions) || [];
+			byId("int_platform_version").innerHTML = versions.map((v) => '<option value="' + esc(v) + '">' + esc(v) + "</option>").join("");
+			if (versions.length) byId("int_platform_version").value = versions.includes(version) ? version : versions[versions.length - 1];
+
+			const auto = !!(pl && pl.callback_template);
+			byId("btn_fill_callback").classList.toggle("d-none", !auto);
+			byId("int_callback_hint").textContent = auto
+				? "Формується автоматично з адреси сайту. Змінюйте лише якщо модуль встановлено за нестандартним шляхом."
+				: "Адреса, на яку CRM надсилає зміни в магазин.";
+		}
+
+		function autoCallback(force) {
+			const pl = PLATFORMS[currentPlatform];
+			if (!pl || !pl.callback_template) return;
+			const base = byId("int_base_url").value.trim().replace(/\/+$/, "");
+			if (!/^https?:\/\/[^\s/]+/i.test(base)) return;
+			const val = pl.callback_template.replace("{base_url}", base);
+			const cur = byId("int_callback_url").value.trim();
+			if (force || !cur || cur === lastAutoCallback) { byId("int_callback_url").value = val; lastAutoCallback = val; }
+		}
+
+		function genToken() {
+			const a = new Uint8Array(32);
+			crypto.getRandomValues(a);
+			return Array.from(a, (b) => b.toString(16).padStart(2, "0")).join("");
+		}
+
+		byId("int_platform").addEventListener("change", function () {
+			applyPlatform(this.value);
+			autoCallback(false);
+			const pl = PLATFORMS[this.value];
+			if (pl && pl.fields.outbound_token === "required" && !byId("int_outbound_token").value) byId("int_outbound_token").value = genToken();
+		});
+		byId("int_base_url").addEventListener("input", () => autoCallback(false));
+		byId("btn_fill_callback").addEventListener("click", () => autoCallback(true));
+		byId("btn_gen_token").addEventListener("click", () => {
+			if (byId("int_outbound_token").value && !confirm("Згенерувати новий ключ? Старий перестане працювати, доки ви не оновите його на сайті.")) return;
+			byId("int_outbound_token").value = genToken();
+		});
+		byId("btn_copy_token").addEventListener("click", () => {
+			const v = byId("int_outbound_token").value;
+			if (v) navigator.clipboard.writeText(v).then(() => notyf.success("Скопійовано"));
+		});
+
+		// ─── Сповіщення сайту: адресати (користувачі, групи), події, умови, Telegram ───
+		const NT = <%- JSON.stringify(i18n.__('orders.integrations.notify')).replace(/</g, '\\u003c') %>;
+		const ntUsers = new Map();
+		const ntGroups = new Map();
+		function ntBadges(box, map) {
+			byId(box).innerHTML = [...map].map(([id, name]) => '<span class="badge text-bg-light border rounded-0 d-inline-flex align-items-center gap-1 py-2">' + esc(name) + ' <button type="button" class="btn-close" style="font-size:.55rem" data-id="' + esc(id) + '"></button></span>').join("");
+		}
+		byId("nt_users").addEventListener("click", (e) => { const b = e.target.closest("[data-id]"); if (b) { ntUsers.delete(b.dataset.id); ntBadges("nt_users", ntUsers); } });
+		byId("nt_groups").addEventListener("click", (e) => { const b = e.target.closest("[data-id]"); if (b) { ntGroups.delete(b.dataset.id); ntBadges("nt_groups", ntGroups); } });
+		let ntTimer = null;
+		byId("nt_user_search").addEventListener("input", function () {
+			clearTimeout(ntTimer);
+			const q = this.value.trim();
+			const box = byId("nt_user_results");
+			if (q.length < 2) return box.classList.add("d-none");
+			ntTimer = setTimeout(async () => {
+				const r = await fetch("/api/calendar/users/search", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: "q=" + encodeURIComponent(q) }).then((x) => x.json()).catch(() => []);
+				box.innerHTML = (r || []).map((u) => { const n = u.user_name || [u.first_name, u.last_name].filter(Boolean).join(" ") || "#" + u.id; return '<button type="button" class="list-group-item list-group-item-action small py-1" data-id="' + u.id + '" data-name="' + esc(n) + '">' + esc(n) + "</button>"; }).join("");
+				box.classList.toggle("d-none", !(r && r.length));
+			}, 300);
+		});
+		byId("nt_user_results").addEventListener("click", (e) => {
+			const b = e.target.closest("[data-id]");
+			if (!b) return;
+			ntUsers.set(String(b.dataset.id), b.dataset.name);
+			ntBadges("nt_users", ntUsers);
+			byId("nt_user_search").value = "";
+			byId("nt_user_results").classList.add("d-none");
+		});
+		fetch("/api/users/groups/list", { method: "POST" }).then((r) => r.json()).then((r) => {
+			((r && r.data) || []).forEach((g) => byId("nt_group_select").insertAdjacentHTML("beforeend", '<option value="' + g.id + '">' + esc(g.name) + "</option>"));
+		}).catch(() => {});
+		byId("nt_group_select").addEventListener("change", function () {
+			if (!this.value) return;
+			ntGroups.set(String(this.value), this.options[this.selectedIndex].text);
+			ntBadges("nt_groups", ntGroups);
+			this.value = "";
+		});
+		const ntStatusToggle = () => byId("nt_statuses_wrap").classList.toggle("d-none", !byId("nt_ev_status").checked);
+		byId("nt_ev_status").addEventListener("change", ntStatusToggle);
+
+		function ntFill(n) {
+			n = n || { events: {}, statuses: [], tg: {}, recipients: [] };
+			ntUsers.clear();
+			ntGroups.clear();
+			(n.recipients || []).forEach((r) => (r.kind === "user" ? ntUsers : ntGroups).set(String(r.ref), r.name || "#" + r.ref));
+			ntBadges("nt_users", ntUsers);
+			ntBadges("nt_groups", ntGroups);
+			byId("nt_events").querySelectorAll("[data-ev]").forEach((c) => (c.checked = !!(n.events || {})[c.dataset.ev]));
+			byId("nt_statuses").querySelectorAll("input").forEach((c) => (c.checked = (n.statuses || []).includes(Number(c.value))));
+			byId("nt_unassigned_min").value = n.unassigned_min || 15;
+			byId("nt_min_total").value = n.min_total || "";
+			byId("nt_payment").value = n.payment_contains || "";
+			byId("nt_first").checked = !!n.first_order;
+			byId("nt_manager").checked = !!n.manager;
+			byId("nt_push").checked = !!n.push;
+			const tg = n.tg || {};
+			byId("nt_tg_enabled").checked = !!tg.enabled;
+			byId("nt_tg_token").value = "";
+			byId("nt_tg_token_hint").textContent = tg.has_token ? NT.tg_token_saved.replace("%s", tg.last4 || "") : "";
+			byId("nt_tg_chat").value = tg.chat_id || "";
+			byId("nt_tg_thread").value = tg.thread_id || "";
+			ntStatusToggle();
+		}
+		function ntRead() {
+			return {
+				recipients: [...[...ntUsers.keys()].map((ref) => ({ kind: "user", ref })), ...[...ntGroups.keys()].map((ref) => ({ kind: "group", ref }))],
+				events: Object.fromEntries([...byId("nt_events").querySelectorAll("[data-ev]")].map((c) => [c.dataset.ev, c.checked])),
+				statuses: [...byId("nt_statuses").querySelectorAll("input:checked")].map((c) => Number(c.value)),
+				unassigned_min: byId("nt_unassigned_min").value,
+				min_total: byId("nt_min_total").value,
+				payment_contains: byId("nt_payment").value,
+				first_order: byId("nt_first").checked,
+				manager: byId("nt_manager").checked,
+				push: byId("nt_push").checked,
+				tg: { enabled: byId("nt_tg_enabled").checked, token: byId("nt_tg_token").value.trim(), chat_id: byId("nt_tg_chat").value.trim(), thread_id: byId("nt_tg_thread").value },
+			};
+		}
+		byId("nt_tg_test").addEventListener("click", async function () {
+			busy(this, true);
+			try {
+				const r = await api("/api/settings/integrations/notify/test/", { id: Number(byId("int_id").value) || null, notify: ntRead() });
+				notyf.success(r.message);
+			} catch (err) {
+				notyf.error(err.message);
+			} finally {
+				busy(this, false);
+			}
+		});
+
+		// ─── Відкриття форми ───
+		function openForm(i) {
+			const isEdit = !!(i && i.id);
+			byId("int_id").value = isEdit ? i.id : "";
+			byId("int_id_label").textContent = isEdit ? i.id : "";
+			byId("int_id_wrap").classList.toggle("d-none", !isEdit);
+			byId("int_modal_title").textContent = isEdit ? T.edit : T.add;
+
+			byId("int_name").value = (i && i.name) || "";
+			byId("int_order_prefix").value = (i && i.order_prefix) || "";
+			byId("int_platform").value = (i && i.platform) || "";
+			byId("int_status").value = (i && i.status) || "active";
+			byId("int_default_status").value = (i && i.default_status_id) || "";
+			byId("int_base_url").value = (i && i.base_url) || "";
+			byId("int_callback_url").value = (i && i.callback_url) || "";
+			byId("int_outbound_token").value = (i && i.outbound_token) || "";
+			byId("int_sync_orders_out").checked = isEdit ? Number(i.sync_orders_out) === 1 : true;
+			byId("int_sync_status_out").checked = isEdit ? Number(i.sync_status_out) === 1 : true;
+			byId("int_note").value = (i && i.note) || "";
+			ntFill(i && i.notify);
+			byId("int_alert_emails").value = (i && i.alert_emails) || "";
+			byId("int_assortment_mode").value = (i && i.assortment_mode) || "all";
+			const pr = (i && i.price_rule) || {};
+			byId("int_pr_source").value = pr.source || "price";
+			byId("int_pr_percent").value = pr.percent ? pr.percent : "";
+			byId("int_pr_round").value = pr.round || "none";
+			byId("int_pr_min_margin").value = pr.min_margin === null || pr.min_margin === undefined ? "" : pr.min_margin;
+			byId("int_pr_currency").value = pr.currency || "";
+			byId("int_pr_rate").value = pr.rate || "";
+			byId("int_pr_rules").replaceChildren();
+			(pr.rules || []).forEach(addPriceRule);
+			byId("int_manual_edits").value = ((i && i.content_rule) || {}).manual_edits || "highlight";
+			const ct = ((i && i.content_rule) || {}).templates || {};
+			byId("int_content").querySelectorAll("[data-code]").forEach((pane) => {
+				const t = ct[pane.dataset.code] || {};
+				pane.querySelectorAll("[data-ct]").forEach((el) => (el.value = t[el.dataset.ct] || ""));
+			});
+			const sr = (i && i.stock_rule) || {};
+			const whs = new Set((sr.warehouses || []).map(String));
+			byId("int_stock_wh").querySelectorAll("input[type=checkbox]").forEach((c) => (c.checked = whs.has(c.value)));
+			byId("int_stock_buffer").value = sr.buffer ? sr.buffer : "";
+			const req = new Set((i && i.required_fields) || []);
+			byId("int_required").querySelectorAll("input[type=checkbox]").forEach((c) => (c.checked = req.has(c.value)));
+
+			const bg = (i && i.color_background) || "#607d8b";
+			const tc = (i && i.color_text) || "#ffffff";
+			byId("int_color_background").value = bg;
+			byId("int_color_text").value = tc;
+			pickrBg.setColor(bg);
+			pickrText.setColor(tc);
+
+			applyPlatform(byId("int_platform").value, i && i.platform_version);
+			lastAutoCallback = "";
+			updatePreview();
+		}
+
+		// ─── Збереження ───
+		byId("btn_save_integration").addEventListener("click", async function () {
+			if (this.disabled) return;
+			busy(this, true);
+			const id = byId("int_id").value;
+			const payload = {
+				id: id ? Number(id) : undefined,
+				name: byId("int_name").value,
+				order_prefix: byId("int_order_prefix").value,
+				platform: byId("int_platform").value,
+				platform_version: byId("int_platform_version").value || null,
+				status: byId("int_status").value,
+				default_status_id: byId("int_default_status").value || null,
+				base_url: byId("int_base_url").value,
+				callback_url: byId("int_callback_url").value,
+				outbound_token: byId("int_outbound_token").value,
+				sync_orders_out: byId("int_sync_orders_out").checked ? 1 : 0,
+				sync_status_out: byId("int_sync_status_out").checked ? 1 : 0,
+				color_background: byId("int_color_background").value,
+				color_text: byId("int_color_text").value,
+				note: byId("int_note").value,
+				notify: ntRead(),
+				alert_emails: byId("int_alert_emails").value,
+				assortment_mode: byId("int_assortment_mode").value,
+				required_fields: [...byId("int_required").querySelectorAll("input:checked")].map((c) => c.value),
+				content_rule: {
+					manual_edits: byId("int_manual_edits").value,
+					templates: Object.fromEntries(
+						[...byId("int_content").querySelectorAll("[data-code]")].map((pane) => [pane.dataset.code, Object.fromEntries([...pane.querySelectorAll("[data-ct]")].map((el) => [el.dataset.ct, el.value]))])
+					),
+				},
+				stock_rule: {
+					warehouses: [...byId("int_stock_wh").querySelectorAll("input:checked")].map((c) => Number(c.value)),
+					buffer: byId("int_stock_buffer").value,
+				},
+				price_rule: {
+					source: byId("int_pr_source").value,
+					percent: byId("int_pr_percent").value,
+					round: byId("int_pr_round").value,
+					min_margin: byId("int_pr_min_margin").value,
+					currency: byId("int_pr_currency").value.trim().toUpperCase() || null,
+					rate: byId("int_pr_rate").value,
+					rules: readPriceRules(),
+				},
+			};
+			try {
+				const r = await api(id ? "/api/settings/integrations/update/" : "/api/settings/integrations/add/", payload);
+				notyf.success(T.saved);
+				// Нова інтеграція — на її сторінку (далі зберігається як редагування)
+				if (!id && r.id) location.href = "/settings/integrations/" + r.id + "/";
+				else ntFill((await api("/api/settings/integrations/get/", { id: Number(id) })).notify);
+			} catch (err) {
+				notyf.error(err.message);
+			} finally {
+				busy(this, false);
+			}
+		});
+
+		// ─── Умовні правила цін: бренди / категорії / діапазон ціни → своя націнка ───
+		const PR_BRANDS = <%- JSON.stringify(priceBrands) %>;
+		const PR_CATS = <%- JSON.stringify(priceCategories) %>;
+		const prOptions = (list, sel) => list.map((o) => '<option value="' + o.id + '"' + (sel.includes(Number(o.id)) ? " selected" : "") + ">" + esc(o.name) + "</option>").join("");
+		function addPriceRule(r) {
+			r = r || {};
+			const tr = document.createElement("tr");
+			tr.innerHTML =
+				'<td><select multiple size="3" class="form-select form-select-sm rounded-0" data-r="brands">' + prOptions(PR_BRANDS, (r.brands || []).map(Number)) + "</select></td>" +
+				'<td><select multiple size="3" class="form-select form-select-sm rounded-0" data-r="categories">' + prOptions(PR_CATS, (r.categories || []).map(Number)) + "</select></td>" +
+				'<td><input type="number" step="0.01" min="0" class="form-control form-control-sm rounded-0" data-r="price_from" value="' + (r.price_from ?? "") + '"></td>' +
+				'<td><input type="number" step="0.01" min="0" class="form-control form-control-sm rounded-0" data-r="price_to" value="' + (r.price_to ?? "") + '"></td>' +
+				'<td><input type="number" step="0.01" class="form-control form-control-sm rounded-0" data-r="percent" value="' + (r.percent ?? "") + '"></td>' +
+				'<td><button type="button" class="btn btn-sm btn-outline-danger rounded-0 py-0 js-pr-del"><i class="fa-solid fa-xmark"></i></button></td>';
+			byId("int_pr_rules").appendChild(tr);
+		}
+		function readPriceRules() {
+			return [...byId("int_pr_rules").querySelectorAll("tr")].map((tr) => {
+				const g = (k) => tr.querySelector('[data-r="' + k + '"]');
+				return {
+					brands: [...g("brands").selectedOptions].map((o) => Number(o.value)),
+					categories: [...g("categories").selectedOptions].map((o) => Number(o.value)),
+					price_from: g("price_from").value,
+					price_to: g("price_to").value,
+					percent: g("percent").value,
+				};
+			});
+		}
+		byId("int_pr_rule_add").addEventListener("click", () => addPriceRule());
+		byId("int_pr_rules").addEventListener("click", (e) => e.target.closest(".js-pr-del") && e.target.closest("tr").remove());
+
+		// ─── Видалення ───
+		if (byId("btn_delete_integration")) byId("btn_delete_integration").addEventListener("click", () => {
+			byId("delete_int_id").textContent = byId("int_id").value;
+			byId("delete_int_name").textContent = byId("int_name").value;
+			byId("delete_int_blocked").classList.add("d-none");
+			modal("modalDeleteIntegration").show();
+		});
+		byId("btn_confirm_delete_integration").addEventListener("click", async function () {
+			if (this.disabled) return;
+			busy(this, true);
+			try {
+				await api("/api/settings/integrations/delete/", { id: Number(byId("int_id").value) });
+				location.href = "/settings/integrations/";
+			} catch (err) {
+				if (err.status === 409) {
+					byId("delete_int_blocked").textContent = err.message;
+					byId("delete_int_blocked").classList.remove("d-none");
+				} else notyf.error(err.message);
+				busy(this, false);
+			}
+		});
+
+		// ─── Категорії сайту: режим, дерево сайту, відповідність з успадкуванням ───
+		const CM = <%- JSON.stringify(i18n.__('orders.integrations.categories')) %>;
+		const CM_LANGS = <%- JSON.stringify(contentLanguages) %>;
+		const cm = { id: null, data: null, map: new Map(), ov: new Map(), siteById: new Map(), sitePath: new Map(), target: null, pick: "site" };
+		const norm = (s) => String(s || "").toLowerCase().replace(/[^0-9a-zа-яіїєґ]+/gi, " ").trim();
+
+		function cmBuildSite() {
+			cm.siteById = new Map(cm.data.tree.map((x) => [x.id, x]));
+			cm.sitePath = new Map();
+			const path = (id, guard = 0) => {
+				if (cm.sitePath.has(id)) return cm.sitePath.get(id);
+				const x = cm.siteById.get(id);
+				if (!x || guard > 50) return "#" + id;
+				const v = (x.parent && cm.siteById.has(x.parent) ? path(x.parent, guard + 1) + " › " : "") + x.name;
+				cm.sitePath.set(id, v);
+				return v;
+			};
+			cm.data.tree.forEach((x) => path(x.id));
+			const opts = [...cm.sitePath].sort((a, b) => a[1].localeCompare(b[1])).map(([id, p]) => '<option value="' + id + '">' + esc(p) + "</option>").join("");
+			byId("cm_default").innerHTML = '<option value="">—</option>' + opts;
+			byId("cm_root").innerHTML = '<option value="">' + esc(CM.root_none) + "</option>" + opts;
+			byId("cm_tree_at").textContent = cm.data.tree_at ? CM.tree_at + " " + new Date(cm.data.tree_at).toLocaleString() + " · " + cm.data.tree.length : CM.tree_none;
+		}
+		const siteName = (id) => cm.sitePath.get(id) || "#" + id + " " + CM.gone;
+
+		// Найближча відповідність вгору по дереву системи
+		const sysById = () => cm.sysById || (cm.sysById = new Map(cm.data.system.map((c) => [c.id, c])));
+		function cmNearest(id) {
+			for (let c = sysById().get(id), g = 0; c && g < 50; c = sysById().get(c.parent), g++) if (cm.map.has(c.id)) return { site: cm.map.get(c.id), ref: c.id };
+			return null;
+		}
+
+		function cmApplyMode() {
+			const m = byId("cm_mode").value;
+			document.querySelectorAll(".cm-site-only").forEach((el) => el.classList.toggle("d-none", m !== "site"));
+			document.querySelectorAll(".cm-mixed-only").forEach((el) => el.classList.toggle("d-none", m !== "mixed"));
+			document.querySelectorAll(".cm-map-only, .cm-col-site").forEach((el) => el.classList.toggle("d-none", m === "system"));
+			document.querySelectorAll(".cm-col-place").forEach((el) => el.classList.toggle("d-none", m === "site"));
+			byId("cm_default").disabled = byId("cm_unmapped").value !== "default";
+			byId("cm_mode_hint").textContent = CM["hint_" + m] || "";
+			if (cm.data) cmRender();
+		}
+
+		// Назва й місце категорії на сайті (система веде категорію: режими «Дерево системи» / «Змішаний»)
+		function cmPlaceCell(c) {
+			const o = cm.ov.get(c.id) || {};
+			const names = CM_LANGS.map((l) =>
+				'<input type="text" maxlength="255" class="form-control form-control-sm rounded-0 mb-1 js-cm-name" data-c="' + c.id + '" data-code="' + esc(l.code) + '" placeholder="' + esc(String(l.iso).toUpperCase() + ": " + c.name) + '" value="' + esc((o.names && o.names[l.code]) || "") + '">'
+			).join("");
+			const parent = o.parent === undefined ? CM.parent_same : o.parent === 0 ? CM.root_none : (sysById().get(o.parent) || { name: "#" + o.parent }).name;
+			return names + '<div class="d-flex align-items-center gap-1"><span class="text-muted">' + esc(CM.parent) + ':</span> <a href="#" class="js-cm-parent" data-c="' + c.id + '">' + esc(parent) + "</a>" +
+				(o.parent !== undefined ? ' <a href="#" class="text-danger js-cm-parent-reset" data-c="' + c.id + '">×</a>' : "") + "</div>";
+		}
+		function cmOvSet(c, patch) {
+			const o = { ...(cm.ov.get(c) || {}), ...patch };
+			if (o.names && !Object.keys(o.names).length) delete o.names;
+			if (o.parent === undefined) delete o.parent;
+			Object.keys(o).length ? cm.ov.set(c, o) : cm.ov.delete(c);
+		}
+
+		function cmRender() {
+			const only = byId("cm_only_unmapped").checked;
+			const q = norm(byId("cm_search").value);
+			let unmapped = 0;
+			const html = [];
+			const mode = byId("cm_mode").value;
+			for (const c of cm.data.system) {
+				if (!c.goes) continue;
+				const own = cm.map.get(c.id);
+				const near = own ? null : cmNearest(c.id);
+				if (!own && !near) unmapped++;
+				if (mode !== "system" && only && (own || near)) continue;
+				if (q && !norm(c.name).includes(q)) continue;
+				const cell = own
+					? own.map((s) => '<span class="badge text-bg-light border rounded-0 me-1 mb-1">' + esc(siteName(s)) + ' <a href="#" class="text-danger js-cm-del" data-c="' + c.id + '" data-s="' + s + '">×</a></span>').join("")
+					: near
+						? '<span class="text-muted">↳ ' + esc(near.site.map(siteName).join(", ")) + "</span>"
+						: '<span class="text-danger">' + esc(CM.not_mapped) + "</span>";
+				// У змішаному режимі назва й місце мають сенс лише для незіставлених (їх створює система)
+				const place = mode === "system" || (mode === "mixed" && !own && !near) ? cmPlaceCell(c) : '<span class="text-muted">—</span>';
+				html.push(
+					'<tr><td style="padding-left:' + (8 + c.depth * 16) + 'px">' + esc(c.name) + "</td>" +
+					(mode !== "system" ? '<td><div class="d-flex flex-wrap align-items-center">' + cell +
+					' <button type="button" class="btn btn-sm btn-link py-0 js-cm-add" data-c="' + c.id + '" title="' + esc(CM.add) + '"><i class="fa-solid fa-plus"></i></button></div></td>' : "") +
+					(mode !== "site" ? "<td>" + place + "</td>" : "") + "</tr>"
+				);
+			}
+			byId("cm_rows").innerHTML = html.join("") || '<tr><td colspan="3" class="text-muted">' + esc(CM.empty) + "</td></tr>";
+			byId("cm_stats").innerHTML = mode === "system" ? esc(CM.hint_place) :
+				(unmapped ? '<span class="text-danger">' + esc(CM.stats_unmapped.replace("%n", unmapped)) + "</span>" : '<span class="text-success">' + esc(CM.stats_ok) + "</span>") +
+				(cm.data.unmapped_products ? ' · <span class="text-muted">' + esc(CM.stats_products.replace("%n", cm.data.unmapped_products)) + "</span>" : "") +
+				(cm.data.gone ? ' · <span class="text-danger">' + esc(CM.stats_gone.replace("%n", cm.data.gone)) + "</span>" : "");
+		}
+
+		// ─── Правила розкладу ───
+		const cmOpts = (list, sel) => list.map((o) => '<option value="' + o.id + '"' + (sel.includes(Number(o.id)) ? " selected" : "") + ">" + esc(o.name) + "</option>").join("");
+		function cmRuleRow(r) {
+			r = r || {};
+			const site = [...cm.sitePath].sort((a, b) => a[1].localeCompare(b[1])).map(([id, p]) => ({ id, name: p }));
+			const ms = (k, list) => '<select multiple size="3" class="form-select form-select-sm rounded-0" data-r="' + k + '">' + cmOpts(list, (r[k] || []).map(Number)) + "</select>";
+			const tr = document.createElement("tr");
+			tr.innerHTML =
+				"<td>" + ms("brands", PR_BRANDS) + "</td><td>" + ms("categories", PR_CATS) + "</td><td>" + ms("values", cm.data.values || []) + "</td>" +
+				'<td><input type="number" step="0.01" min="0" class="form-control form-control-sm rounded-0" data-r="price_from" value="' + (r.price_from ?? "") + '"></td>' +
+				'<td><input type="number" step="0.01" min="0" class="form-control form-control-sm rounded-0" data-r="price_to" value="' + (r.price_to ?? "") + '"></td>' +
+				'<td><select class="form-select form-select-sm rounded-0" data-r="stock">' + ["any", "in", "out"].map((v) => '<option value="' + v + '"' + ((r.stock || "any") === v ? " selected" : "") + ">" + esc(CM["r_stock_" + v]) + "</option>").join("") + "</select></td>" +
+				'<td><select class="form-select form-select-sm rounded-0" data-r="action">' + ["add", "replace"].map((v) => '<option value="' + v + '"' + ((r.action || "add") === v ? " selected" : "") + ">" + esc(CM["r_action_" + v]) + "</option>").join("") + "</select></td>" +
+				"<td>" + ms("site", site) + "</td>" +
+				'<td class="text-nowrap"><button type="button" class="btn btn-sm btn-link p-0 js-cm-rule-up" title="↑"><i class="fa-solid fa-arrow-up"></i></button> ' +
+				'<button type="button" class="btn btn-sm btn-link p-0 text-danger js-cm-rule-del"><i class="fa-solid fa-xmark"></i></button></td>';
+			byId("cm_rules").appendChild(tr);
+		}
+		function cmReadRules() {
+			return [...byId("cm_rules").querySelectorAll("tr")].map((tr) => {
+				const g = (k) => tr.querySelector('[data-r="' + k + '"]');
+				const ids = (k) => [...g(k).selectedOptions].map((o) => Number(o.value));
+				return { brands: ids("brands"), categories: ids("categories"), values: ids("values"), price_from: g("price_from").value, price_to: g("price_to").value, stock: g("stock").value, action: g("action").value, site: ids("site") };
+			});
+		}
+		byId("cm_rule_add").addEventListener("click", () => (cm.data.tree.length ? cmRuleRow() : notyf.error(CM.tree_none)));
+		byId("cm_rules").addEventListener("click", (e) => {
+			const tr = e.target.closest("tr");
+			if (e.target.closest(".js-cm-rule-del")) tr.remove();
+			else if (e.target.closest(".js-cm-rule-up") && tr.previousElementSibling) tr.parentNode.insertBefore(tr, tr.previousElementSibling);
+		});
+
+		async function cmOpen(id) {
+			cm.id = id;
+			byId("cm_int_name").textContent = byId("int_name").value || "#" + id;
+			byId("cm_rows").innerHTML = '<tr><td colspan="2"><span class="spinner-border spinner-border-sm"></span></td></tr>';
+			modal("modalCategories").show();
+			try {
+				cm.data = await api("/api/settings/integrations/categories/get/", { id });
+				cm.sysById = null;
+				cm.map = new Map(Object.entries(cm.data.map).filter(([, v]) => v.site && v.site.length).map(([k, v]) => [Number(k), v.site.map(Number)]));
+				cm.ov = new Map(Object.entries(cm.data.map).filter(([, v]) => v.names || v.parent !== undefined).map(([k, v]) => [Number(k), { ...(v.names ? { names: v.names } : {}), ...(v.parent !== undefined ? { parent: v.parent } : {}) }]));
+				cmBuildSite();
+				byId("cm_rules").innerHTML = "";
+				(cm.data.rules || []).forEach(cmRuleRow);
+				byId("cm_mode").value = cm.data.mode;
+				byId("cm_unmapped").value = cm.data.unmapped;
+				byId("cm_default").value = cm.data.default || "";
+				byId("cm_root").value = cm.data.root || "";
+				const old = byId("cm_module_old");
+				old.textContent = CM.module_old.replace("%v", cm.data.module_version || "—").replace("%min", cm.data.module_min);
+				old.classList.toggle("d-none", cm.data.module_ok);
+				cmApplyMode();
+				cmRender();
+			} catch (e) {
+				notyf.error(e.message);
+			}
+		}
+
+		// Вибір категорії сайту для рядка
+		function cmPickerFill() {
+			const q = norm(byId("cm_picker_q").value);
+			// Режим «parent» — категорії системи (куди перенести на сайті); інакше — категорії сайту
+			const src = cm.pick === "parent"
+				? [[0, CM.root_none], ...cm.data.system.filter((c) => c.goes && c.id !== cm.target).map((c) => [c.id, "\u00a0".repeat(c.depth * 2) + c.name])]
+				: [...cm.sitePath];
+			if (cm.pick === "parent") {
+				byId("cm_picker_list").innerHTML = src.filter(([, p]) => !q || norm(p).includes(q)).slice(0, 1000).map(([id, p]) => '<option value="' + id + '">' + esc(p) + "</option>").join("");
+				return;
+			}
+			byId("cm_picker_list").innerHTML = src
+				.filter(([, p]) => !q || norm(p).includes(q))
+				.sort((a, b) => a[1].localeCompare(b[1]))
+				.slice(0, 500)
+				.map(([id, p]) => '<option value="' + id + '">' + esc(p) + "</option>")
+				.join("");
+		}
+		function cmPickerHide() { byId("cm_picker").classList.add("d-none"); cm.target = null; }
+		byId("cm_picker_q").addEventListener("input", cmPickerFill);
+		byId("cm_picker_list").addEventListener("change", function () {
+			const s = Number(this.value);
+			if (cm.target && cm.pick === "parent") {
+				cmOvSet(cm.target, { parent: s });
+				cmPickerHide();
+				return cmRender();
+			}
+			if (!cm.target || !s) return;
+			const cur = cm.map.get(cm.target) || [];
+			if (!cur.includes(s)) cm.map.set(cm.target, [...cur, s]);
+			cmPickerHide();
+			cmRender();
+		});
+		byId("cm_rows").addEventListener("click", (e) => {
+			const del = e.target.closest(".js-cm-del");
+			if (del) {
+				e.preventDefault();
+				const c = Number(del.dataset.c);
+				const left = (cm.map.get(c) || []).filter((s) => s !== Number(del.dataset.s));
+				left.length ? cm.map.set(c, left) : cm.map.delete(c);
+				return cmRender();
+			}
+			const reset = e.target.closest(".js-cm-parent-reset");
+			if (reset) {
+				e.preventDefault();
+				cmOvSet(Number(reset.dataset.c), { parent: undefined });
+				return cmRender();
+			}
+			const add = e.target.closest(".js-cm-add, .js-cm-parent");
+			if (!add) return;
+			e.preventDefault();
+			cm.pick = add.classList.contains("js-cm-parent") ? "parent" : "site";
+			if (cm.pick === "site" && !cm.data.tree.length) return notyf.error(CM.tree_none);
+			cm.target = Number(add.dataset.c);
+			const pk = byId("cm_picker");
+			const box = byId("modalCategories").querySelector(".modal-body");
+			const r = add.getBoundingClientRect();
+			const b = box.getBoundingClientRect();
+			pk.style.top = r.bottom - b.top + box.scrollTop + "px";
+			pk.style.left = Math.max(0, r.left - b.left - 300) + "px";
+			pk.classList.remove("d-none");
+			byId("cm_picker_q").value = "";
+			cmPickerFill();
+			byId("cm_picker_q").focus();
+		});
+		document.addEventListener("click", (e) => {
+			if (!byId("cm_picker").classList.contains("d-none") && !e.target.closest("#cm_picker") && !e.target.closest(".js-cm-add, .js-cm-parent")) cmPickerHide();
+		});
+		byId("cm_rows").addEventListener("input", (e) => {
+			const i = e.target.closest(".js-cm-name");
+			if (!i) return;
+			const c = Number(i.dataset.c);
+			const names = { ...((cm.ov.get(c) || {}).names || {}) };
+			i.value.trim() ? (names[i.dataset.code] = i.value.trim()) : delete names[i.dataset.code];
+			cmOvSet(c, { names });
+		});
+
+		// Зіставити за назвою: точний шлях, інакше єдина категорія сайту з такою назвою. Лише для незіставлених
+		byId("cm_auto").addEventListener("click", () => {
+			if (!cm.data.tree.length) return notyf.error(CM.tree_none);
+			const byPath = new Map();
+			const byName = new Map();
+			for (const [id, p] of cm.sitePath) {
+				byPath.set(p.split(" › ").map(norm).join("/"), id);
+				const n = norm(cm.siteById.get(id).name);
+				byName.set(n, byName.has(n) ? 0 : id);
+			}
+			const sysPath = (c, g = 0) => (c.parent && sysById().has(c.parent) && g < 50 ? sysPath(sysById().get(c.parent), g + 1) + "/" : "") + norm(c.name);
+			let n = 0;
+			for (const c of cm.data.system) {
+				if (!c.goes || cm.map.has(c.id)) continue;
+				const hit = byPath.get(sysPath(c)) || byName.get(norm(c.name));
+				if (hit) { cm.map.set(c.id, [hit]); n++; }
+			}
+			cmRender();
+			notyf.success(CM.auto_done.replace("%n", n));
+		});
+
+		byId("cm_pull").addEventListener("click", async function () {
+			busy(this, true);
+			try {
+				const r = await api("/api/settings/integrations/categories/tree/", { id: cm.id });
+				cm.data.tree = r.tree;
+				cm.data.tree_at = r.tree_at;
+				cmBuildSite();
+				byId("cm_default").value = cm.data.default || "";
+				byId("cm_root").value = cm.data.root || "";
+				cmRender();
+				notyf.success(CM.pulled.replace("%n", r.tree.length));
+			} catch (e) {
+				notyf.error(CM.pull_failed + ": " + e.message);
+			} finally {
+				busy(this, false);
+			}
+		});
+
+		["cm_mode", "cm_unmapped"].forEach((id) => byId(id).addEventListener("change", cmApplyMode));
+		byId("cm_only_unmapped").addEventListener("change", cmRender);
+		byId("cm_search").addEventListener("input", cmRender);
+
+		byId("cm_save").addEventListener("click", async function () {
+			busy(this, true);
+			try {
+				await api("/api/settings/integrations/categories/save/", {
+					id: cm.id,
+					mode: byId("cm_mode").value,
+					unmapped: byId("cm_unmapped").value,
+					default: Number(byId("cm_default").value) || null,
+					root: Number(byId("cm_root").value) || null,
+					map: Object.fromEntries([...new Set([...cm.map.keys(), ...cm.ov.keys()])].map((c) => [c, { site: cm.map.get(c) || [], ...(cm.ov.get(c) || {}) }])),
+					rules: cmReadRules(),
+				});
+				notyf.success(CM.saved);
+				modal("modalCategories").hide();
+			} catch (e) {
+				notyf.error(e.data && e.data.code === "module_old" ? CM.module_old.replace("%v", cm.data.module_version || "—").replace("%min", e.data.min) : e.message);
+			} finally {
+				busy(this, false);
+			}
+		});
+
+		if (byId("btn_categories")) byId("btn_categories").addEventListener("click", () => cmOpen(Number(byId("int_id").value)));
+
+		// ─── Старт: нова інтеграція або завантаження наявної ───
+		(async () => {
+			const ID = <%= Number(id) || 0 %>;
+			if (!ID) return openForm(null);
+			try {
+				const i = await api("/api/settings/integrations/get/", { id: ID });
+				openForm(i);
+				byId("crumb_name").textContent = i.name;
+			} catch (err) {
+				notyf.error(err.message);
+			}
+		})();
+	</script>
+</body>
+</html>

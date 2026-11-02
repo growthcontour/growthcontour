@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('contact_center.social_accounts.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<style>
+			#accounts-table .tabulator-col,
+			#accounts-table .tabulator-cell { border-right: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; }
+			#accounts-table .tabulator-col:last-child,
+			#accounts-table .tabulator-cell:last-child { border-right: none; }
+			#accounts-table .tabulator-row:last-child .tabulator-cell { border-bottom: none; }
+			#accounts-table .tabulator-cell { white-space: normal; }
+			.acc-avatar { width: 32px; height: 32px; object-fit: cover; }
+			.perm-badge { font-weight: 400; }
+		</style>
+	</head>
+
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('contact_center.social_accounts.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('contact_center.social_accounts.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/contact-center/"><%= i18n.__('contact_center.social_accounts.breadcrumb.contact_center') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/contact-center/social/"><%= i18n.__('contact_center.social_accounts.breadcrumb.posts') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('contact_center.social_accounts.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/contact-center/social/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3 mb-4">
+			<div class="row">
+				<div class="col-12 mb-3">
+					<% if (data.perms.edit) { %>
+					<button type="button" class="btn btn-primary rounded-0 mb-3" id="btn_add"><%= i18n.__('contact_center.social_accounts.add') %></button>
+					<% } %>
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('contact_center.social_accounts.title') %></div>
+						<div id="accounts-table"></div>
+					</div>
+				</div>
+
+				<!-- Які дозволи потрібні -->
+				<div class="col-12">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><i class="fa-solid fa-key me-1"></i><%= i18n.__('contact_center.social_accounts.perm_title') %></div>
+						<div class="card-body">
+							<p class="small text-muted"><%= i18n.__('contact_center.social_accounts.perm_intro') %></p>
+							<div class="row g-3">
+								<% Object.keys(data.permissions).forEach(function (net) { %>
+								<div class="col-12 col-lg-6 col-xxl-3">
+									<div class="border h-100 p-3">
+										<div class="fw-semibold mb-1"><%= i18n.__('contact_center.social.networks.' + net) %></div>
+										<div class="small text-muted mb-2"><%= i18n.__('contact_center.social_accounts.perm_where.' + net) %></div>
+										<ul class="list-unstyled small mb-0">
+											<% data.permissions[net].forEach(function (p) { %>
+											<li class="mb-1"><code><%= p.scope %></code> — <%= i18n.__('contact_center.social_accounts.uses.' + p.use) %></li>
+											<% }); %>
+										</ul>
+									</div>
+								</div>
+								<% }); %>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Модалка акаунта -->
+		<div class="modal fade" id="accountModal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5" id="acc_modal_title"></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" id="acc_id" />
+						<div class="mb-3">
+							<label class="form-label" for="acc_network"><%= i18n.__('contact_center.social_accounts.network') %></label>
+							<select class="form-select rounded-0" id="acc_network">
+								<% ['instagram', 'facebook', 'telegram', 'viber'].forEach(function (n) { %>
+								<option value="<%= n %>"><%= i18n.__('contact_center.social.networks.' + n) %></option>
+								<% }); %>
+							</select>
+						</div>
+						<div class="mb-3">
+							<label class="form-label" for="acc_name"><%= i18n.__('contact_center.social_accounts.name') %></label>
+							<input type="text" class="form-control rounded-0" id="acc_name" maxlength="255" placeholder="<%= i18n.__('contact_center.social_accounts.name_ph') %>" />
+						</div>
+						<div class="mb-3" id="acc_source_wrap">
+							<label class="form-label"><%= i18n.__('contact_center.social_accounts.source') %></label>
+							<div>
+								<div class="form-check form-check-inline">
+									<input class="form-check-input" type="radio" name="acc_source" id="acc_source_channel" value="channel" checked />
+									<label class="form-check-label" for="acc_source_channel"><%= i18n.__('contact_center.social_accounts.from_channel') %></label>
+								</div>
+								<div class="form-check form-check-inline">
+									<input class="form-check-input" type="radio" name="acc_source" id="acc_source_own" value="own" />
+									<label class="form-check-label" for="acc_source_own"><%= i18n.__('contact_center.social_accounts.own_token') %></label>
+								</div>
+							</div>
+						</div>
+						<div class="mb-3" id="acc_channel_wrap">
+							<label class="form-label" for="acc_channel"><%= i18n.__('contact_center.social_accounts.channel') %></label>
+							<select class="form-select rounded-0" id="acc_channel"></select>
+							<small class="text-muted d-none" id="acc_no_channels"><%= i18n.__('contact_center.social_accounts.no_channels') %></small>
+						</div>
+						<div class="mb-3" id="acc_token_wrap">
+							<label class="form-label" for="acc_token"><%= i18n.__('contact_center.social_accounts.token') %></label>
+							<textarea class="form-control rounded-0" id="acc_token" rows="3" autocomplete="off"></textarea>
+							<small class="text-muted d-none" id="acc_token_keep"><%= i18n.__('contact_center.social_accounts.token_keep') %></small>
+						</div>
+						<div class="mb-3" id="acc_target_wrap">
+							<label class="form-label" for="acc_target"><%= i18n.__('contact_center.social_accounts.target') %></label>
+							<input type="text" class="form-control rounded-0" id="acc_target" placeholder="@channel" />
+							<small class="text-muted"><%= i18n.__('contact_center.social_accounts.target_hint') %></small>
+						</div>
+						<div class="form-check form-switch">
+							<input class="form-check-input" type="checkbox" id="acc_status" checked />
+							<label class="form-check-label" for="acc_status"><%= i18n.__('contact_center.social_accounts.active') %></label>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('contact_center.social_accounts.cancel') %></button>
+						<button type="button" class="btn btn-primary rounded-0" id="acc_save"><%= i18n.__('contact_center.social_accounts.save') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %> <%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			(function () {
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000 });
+				const CHANNELS = <%- JSON.stringify(data.channels) %>;
+				const PERMISSIONS = <%- JSON.stringify(data.permissions) %>;
+				const CAN_EDIT = <%= data.perms.edit ? 'true' : 'false' %>;
+				const CAN_DELETE = <%= data.perms.delete ? 'true' : 'false' %>;
+				const ICONS = { instagram: "fa-brands fa-instagram text-danger", facebook: "fa-brands fa-facebook text-primary", telegram: "fa-brands fa-telegram text-info", viber: "fa-brands fa-viber", };
+				const NET_NAMES = { instagram: "<%= i18n.__('contact_center.social.networks.instagram') %>", facebook: "<%= i18n.__('contact_center.social.networks.facebook') %>", telegram: "<%= i18n.__('contact_center.social.networks.telegram') %>", viber: "<%= i18n.__('contact_center.social.networks.viber') %>" };
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const post = (url, body) =>
+					fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) })
+						.then((r) => r.json())
+						.then((d) => {
+							if (!d.ok) throw new Error(d.error || "Error");
+							return d;
+						});
+
+				let rows = [];
+				const table = new Tabulator("#accounts-table", {
+					layout: "fitColumns",
+					placeholder: "<%= i18n.__('contact_center.social_accounts.empty') %>",
+					columns: [
+						{
+							title: "<%= i18n.__('contact_center.social_accounts.columns.account') %>",
+							field: "name",
+							widthGrow: 3,
+							headerSort: false,
+							formatter: (c) => {
+								const d = c.getData();
+								const pic = d.external_picture ? '<img src="' + esc(d.external_picture) + '" class="acc-avatar rounded-circle me-2" alt="" />' : '<i class="' + ICONS[d.network] + ' fa-xl me-2"></i>';
+								const sub = d.external_name ? esc(d.external_name) + (d.external_username ? " · @" + esc(d.external_username) : "") : "";
+								return '<div class="d-flex align-items-center">' + pic + "<div><div class=\"fw-semibold\">" + esc(d.name) + '</div><div class="small text-muted">' + sub + "</div></div></div>";
+							},
+						},
+						{ title: "<%= i18n.__('contact_center.social_accounts.columns.network') %>", field: "network", widthGrow: 1, headerSort: false, formatter: (c) => '<i class="' + ICONS[c.getValue()] + ' me-1"></i>' + NET_NAMES[c.getValue()] },
+						{
+							title: "<%= i18n.__('contact_center.social_accounts.columns.source') %>",
+							field: "id_channel",
+							widthGrow: 2,
+							headerSort: false,
+							formatter: (c) => {
+								const d = c.getData();
+								return d.id_channel ? "<%= i18n.__('contact_center.social_accounts.source_channel') %>".replace("{name}", esc(d.channel_name || "#" + d.id_channel)) : "<%= i18n.__('contact_center.social_accounts.source_own') %>";
+							},
+						},
+						{
+							title: "<%= i18n.__('contact_center.social_accounts.columns.permissions') %>",
+							field: "scopes",
+							widthGrow: 3,
+							headerSort: false,
+							formatter: (c) => {
+								const d = c.getData();
+								if (d.last_error) return '<span class="text-danger small">' + esc(d.last_error) + "</span>";
+								return (PERMISSIONS[d.network] || [])
+									.map((p) => {
+										if (!d.scopes) return '<span class="badge text-bg-light border perm-badge me-1 mb-1" title="<%= i18n.__('contact_center.social_accounts.unknown') %>">' + esc(p.scope) + "</span>";
+										const ok = d.scopes.includes(p.scope);
+										return '<span class="badge perm-badge me-1 mb-1 ' + (ok ? "text-bg-success" : "text-bg-warning") + '" title="' + (ok ? "<%= i18n.__('contact_center.social_accounts.granted') %>" : "<%= i18n.__('contact_center.social_accounts.missing') %>") + '"><i class="fa-solid ' + (ok ? "fa-check" : "fa-xmark") + ' me-1"></i>' + esc(p.scope) + "</span>";
+									})
+									.join("");
+							},
+						},
+						{ title: "<%= i18n.__('contact_center.social_accounts.columns.checked') %>", field: "last_check", widthGrow: 1, headerSort: false, formatter: (c) => (c.getValue() ? esc(String(c.getValue()).replace("T", " ").slice(0, 16)) : "—") },
+						{ title: "<%= i18n.__('contact_center.social_accounts.columns.status') %>", field: "status", width: 100, hozAlign: "center", headerSort: false, formatter: (c) => (c.getValue() ? '<i class="fa-solid fa-circle-check text-success"></i>' : '<i class="fa-regular fa-circle text-muted"></i>') },
+						{
+							title: "<%= i18n.__('contact_center.social_accounts.columns.actions') %>",
+							field: "id",
+							width: 120,
+							hozAlign: "center",
+							headerSort: false,
+							formatter: (c) => {
+								const id = Number(c.getValue());
+								return (
+									'<div class="d-flex justify-content-center gap-2">' +
+									'<button type="button" class="bg-transparent border-0 text-secondary act-check" data-id="' + id + '" title="<%= i18n.__('contact_center.social_accounts.check') %>"><i class="fa-solid fa-rotate"></i></button>' +
+									(CAN_EDIT ? '<button type="button" class="bg-transparent border-0 text-primary act-edit" data-id="' + id + '"><i class="fa-regular fa-pen-to-square"></i></button>' : "") +
+									(CAN_DELETE ? '<button type="button" class="bg-transparent border-0 text-danger act-delete" data-id="' + id + '"><i class="fa-regular fa-trash-can"></i></button>' : "") +
+									"</div>"
+								);
+							},
+						},
+					],
+				});
+
+				function load() {
+					return post("/api/contact-center/social/accounts/list/").then((d) => {
+						rows = d.data;
+						table.replaceData(rows);
+					});
+				}
+				table.on("tableBuilt", () => load().catch((e) => notyf.error(e.message)));
+
+				/* ─── Модалка ─── */
+				const modal = new bootstrap.Modal($("accountModal"));
+				let editing = null;
+
+				function syncForm() {
+					const net = $("acc_network").value;
+					const canChannel = net !== "viber";
+					$("acc_source_wrap").classList.toggle("d-none", !canChannel);
+					if (!canChannel) $("acc_source_own").checked = true;
+					const fromChannel = canChannel && $("acc_source_channel").checked;
+					const list = CHANNELS.filter((c) => c.type === net);
+					$("acc_channel").innerHTML = list.map((c) => '<option value="' + c.id + '">' + esc(c.name) + "</option>").join("");
+					if (editing && editing.id_channel) $("acc_channel").value = editing.id_channel;
+					$("acc_no_channels").classList.toggle("d-none", !!list.length);
+					$("acc_channel_wrap").classList.toggle("d-none", !fromChannel);
+					$("acc_token_wrap").classList.toggle("d-none", fromChannel);
+					$("acc_token_keep").classList.toggle("d-none", !(editing && editing.has_token));
+					$("acc_target_wrap").classList.toggle("d-none", net !== "telegram");
+				}
+				$("acc_network").addEventListener("change", syncForm);
+				document.querySelectorAll('[name="acc_source"]').forEach((r) => r.addEventListener("change", syncForm));
+
+				function open(acc) {
+					editing = acc || null;
+					$("acc_modal_title").textContent = acc ? "<%= i18n.__('contact_center.social_accounts.modal_edit') %>" + " #" + acc.id : "<%= i18n.__('contact_center.social_accounts.modal_add') %>";
+					$("acc_id").value = acc ? acc.id : "";
+					$("acc_network").value = acc ? acc.network : "instagram";
+					$("acc_network").disabled = !!acc;
+					$("acc_name").value = acc ? acc.name : "";
+					$("acc_token").value = "";
+					$("acc_target").value = acc && acc.network === "telegram" ? acc.target || "" : "";
+					$("acc_status").checked = acc ? acc.status === 1 : true;
+					(acc && !acc.id_channel ? $("acc_source_own") : $("acc_source_channel")).checked = true;
+					syncForm();
+					modal.show();
+				}
+				const addBtn = $("btn_add");
+				if (addBtn) addBtn.addEventListener("click", () => open(null));
+
+				$("acc_save").addEventListener("click", () => {
+					const net = $("acc_network").value;
+					const fromChannel = net !== "viber" && $("acc_source_channel").checked;
+					const btn = $("acc_save");
+					btn.disabled = true;
+					post("/api/contact-center/social/accounts/save/", {
+						id: $("acc_id").value || null,
+						network: net,
+						name: $("acc_name").value.trim(),
+						id_channel: fromChannel ? $("acc_channel").value : null,
+						token: fromChannel ? "" : $("acc_token").value.trim(),
+						target: $("acc_target").value.trim(),
+						status: $("acc_status").checked ? 1 : 0,
+					})
+						.then((d) => {
+							modal.hide();
+							if (d.check && d.check.ok) notyf.success("<%= i18n.__('contact_center.social_accounts.saved') %>");
+							else notyf.error((d.check && d.check.error) || "<%= i18n.__('contact_center.social_accounts.saved') %>");
+							return load();
+						})
+						.catch((e) => notyf.error(e.message))
+						.finally(() => (btn.disabled = false));
+				});
+
+				document.getElementById("accounts-table").addEventListener("click", (e) => {
+					const b = e.target.closest("button[data-id]");
+					if (!b) return;
+					const id = Number(b.dataset.id);
+					if (b.classList.contains("act-edit")) return open(rows.find((r) => r.id === id));
+					if (b.classList.contains("act-check")) {
+						b.disabled = true;
+						return post("/api/contact-center/social/accounts/" + id + "/check/")
+							.then((d) => (d.check.ok ? notyf.success("<%= i18n.__('contact_center.social_accounts.check_ok') %>") : notyf.error(d.check.error)))
+							.then(load)
+							.catch((err) => notyf.error(err.message))
+							.finally(() => (b.disabled = false));
+					}
+					if (b.classList.contains("act-delete")) {
+						if (!confirm("<%= i18n.__('contact_center.social_accounts.confirm_delete') %>")) return;
+						post("/api/contact-center/social/accounts/" + id + "/delete/")
+							.then(() => notyf.success("<%= i18n.__('contact_center.social_accounts.deleted') %>"))
+							.then(load)
+							.catch((err) => notyf.error(err.message));
+					}
+				});
+			})();
+		</script>
+	</body>
+</html>

@@ -1,0 +1,33 @@
+<%# Ризик клієнта (невикуп, чорний список, дублі). Підключення: include('../../partials/risk', { riskUrl: '/api/orders/1/risk/' }) %>
+<div class="js-risk" data-url="<%= riskUrl %>"></div>
+<script>
+	(function () {
+		const L = <%- JSON.stringify(i18n.__('orders.risk')).replace(/</g, '\\u003c') %>;
+		const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+		const fill = (t, v) => String(t || "").replace(/\{(\w+)\}/g, (m, k) => (v[k] !== undefined ? v[k] : m));
+		const CLS = { high: "danger", warn: "warning", ok: "success" };
+
+		function render(box, r) {
+			if (!r || (r.level === "ok" && (!r.buyout || r.buyout.rate === null))) return;
+			const b = r.buyout;
+			const head = b && b.rate !== null ? `<b>${esc(fill(L.buyout, { rate: b.rate, delivered: b.delivered, total: b.delivered + b.returned }))}</b>` : "";
+			const items = r.reasons
+				.map((x) => {
+					const links = (x.links || []).map((l) => `<a href="${esc(l.href)}" target="_blank">${esc(l.label)}</a>`).join(", ");
+					return `<li class="text-${CLS[x.level]}-emphasis">${esc(fill(L["r_" + x.code], x.vars || {}))}${links ? ": " + links : ""}</li>`;
+				})
+				.join("");
+			box.innerHTML = `<div class="alert alert-${CLS[r.level]} rounded-0 py-2 px-3 mb-3 small">
+				<div class="d-flex align-items-center gap-2"><i class="fa-solid ${r.level === "ok" ? "fa-shield-halved" : "fa-triangle-exclamation"}"></i>
+				<span class="fw-semibold">${esc(L["level_" + r.level])}</span>${head ? " · " + head : ""}</div>
+				${items ? `<ul class="mb-0 mt-1 ps-3">${items}</ul>` : ""}</div>`;
+		}
+
+		document.querySelectorAll(".js-risk").forEach((box) => {
+			fetch(box.dataset.url, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" } })
+				.then((res) => (res.ok ? res.json() : null))
+				.then((r) => r && render(box, r.risk))
+				.catch(() => {});
+		});
+	})();
+</script>

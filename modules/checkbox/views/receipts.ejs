@@ -1,0 +1,291 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('modules.checkbox.receipts.title') %></title>
+		<%- include('../../../views/partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../views/partials/header'); %>
+
+		<!-- Breadcrumb -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('modules.checkbox.receipts.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('modules.checkbox.receipts.breadcrumb.home') %></span></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/modules/"><%= i18n.__('modules.checkbox.receipts.breadcrumb.modules') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/modules/checkbox/"><%= i18n.__('modules.checkbox.receipts.breadcrumb.checkbox') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('modules.checkbox.receipts.title') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/modules/checkbox/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- END Breadcrumb -->
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pt-3 pb-5">
+				<div class="card rounded-0 mb-3">
+					<div class="card-body">
+						<div class="row g-2 align-items-end">
+							<div class="col-md-2">
+								<label class="form-label small mb-1"><%= i18n.__('modules.checkbox.receipts.register') %></label>
+								<select class="form-select form-select-sm rounded-0" id="f-register">
+									<option value=""><%= i18n.__('modules.checkbox.receipts.all') %></option>
+									<% registers.forEach(function (r) { %><option value="<%= r.id %>"><%= r.name %></option><% }); %>
+								</select>
+							</div>
+							<div class="col-md-2"><label class="form-label small mb-1"><%= i18n.__('modules.checkbox.receipts.from') %></label><input type="date" class="form-control form-control-sm rounded-0" id="f-from" /></div>
+							<div class="col-md-2"><label class="form-label small mb-1"><%= i18n.__('modules.checkbox.receipts.to') %></label><input type="date" class="form-control form-control-sm rounded-0" id="f-to" /></div>
+							<div class="col-md-2 f-list">
+								<label class="form-label small mb-1"><%= i18n.__('modules.checkbox.receipts.type') %></label>
+								<select class="form-select form-select-sm rounded-0" id="f-type">
+									<option value=""><%= i18n.__('modules.checkbox.receipts.all') %></option>
+									<option value="SELL"><%= i18n.__('modules.checkbox.panel.type_SELL') %></option>
+									<option value="RETURN"><%= i18n.__('modules.checkbox.panel.type_RETURN') %></option>
+									<option value="SERVICE_IN"><%= i18n.__('modules.checkbox.panel.type_SERVICE_IN') %></option>
+									<option value="SERVICE_OUT"><%= i18n.__('modules.checkbox.panel.type_SERVICE_OUT') %></option>
+								</select>
+							</div>
+							<div class="col-md-2 f-list">
+								<label class="form-label small mb-1"><%= i18n.__('modules.checkbox.receipts.status') %></label>
+								<select class="form-select form-select-sm rounded-0" id="f-status">
+									<option value=""><%= i18n.__('modules.checkbox.receipts.all') %></option>
+									<option value="DONE"><%= i18n.__('modules.checkbox.panel.rs_DONE') %></option>
+									<option value="CREATED"><%= i18n.__('modules.checkbox.panel.rs_CREATED') %></option>
+									<option value="QUEUED"><%= i18n.__('modules.checkbox.panel.rs_QUEUED') %></option>
+									<option value="ERROR"><%= i18n.__('modules.checkbox.panel.rs_ERROR') %></option>
+								</select>
+							</div>
+							<div class="col-md-2 f-list"><label class="form-label small mb-1"><%= i18n.__('modules.checkbox.receipts.search') %></label><input type="search" class="form-control form-control-sm rounded-0" id="f-q" placeholder="<%= i18n.__('modules.checkbox.receipts.search_ph') %>" /></div>
+						</div>
+						<div class="small mt-3" id="sums"></div>
+					</div>
+				</div>
+
+				<ul class="nav nav-tabs mb-0" role="tablist">
+					<li class="nav-item"><button class="nav-link active rounded-0" data-bs-toggle="tab" data-bs-target="#tab-list" type="button" data-tab="list"><%= i18n.__('modules.checkbox.receipts.tab_list') %></button></li>
+					<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#tab-reports" type="button" data-tab="reports"><%= i18n.__('modules.checkbox.receipts.tab_reports') %></button></li>
+				</ul>
+				<div class="tab-content border border-top-0 bg-body">
+					<div class="tab-pane fade show active" id="tab-list"><div id="rc-table"></div></div>
+					<div class="tab-pane fade p-3" id="tab-reports">
+						<div class="form-text mt-0 mb-2"><%= i18n.__('modules.checkbox.receipts.reports_help') %></div>
+						<div class="d-flex flex-wrap gap-2 mb-3">
+							<button type="button" class="btn btn-sm btn-outline-primary rounded-0" id="btn-periodical"><i class="fa-solid fa-file-lines me-1"></i><%= i18n.__('modules.checkbox.receipts.periodical') %></button>
+							<button type="button" class="btn btn-sm btn-outline-primary rounded-0" id="btn-z"><i class="fa-solid fa-list me-1"></i><%= i18n.__('modules.checkbox.receipts.z_list') %></button>
+						</div>
+						<div id="z-table"></div>
+					</div>
+				</div>
+			</div>
+		</main>
+
+		<!-- Текст звіту -->
+		<div class="modal fade" id="report-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content rounded-0">
+					<div class="modal-header"><h5 class="modal-title" id="report-title"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+					<div class="modal-body"><pre class="small mb-0" id="report-text" style="white-space: pre-wrap"></pre></div>
+					<div class="modal-footer"><button type="button" class="btn btn-outline-secondary rounded-0" id="report-print"><i class="fa-solid fa-print me-1"></i><%= i18n.__('modules.checkbox.print') %></button></div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../../views/partials/footer'); %>
+		<%- include('../../../views/partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const B = "/api/module/checkbox";
+				const notyf = new Notyf({ duration: 5000, position: { x: "right", y: "top" } });
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s === null || s === undefined ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const money = (v) => Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₴";
+				const date = (v) => (v ? new Date(v).toLocaleString() : "");
+				const RB = { QUEUED: "info", CREATED: "warning", DONE: "success", ERROR: "danger" };
+				const TYPE = {
+					SELL: "<%= i18n.__('modules.checkbox.panel.type_SELL') %>",
+					RETURN: "<%= i18n.__('modules.checkbox.panel.type_RETURN') %>",
+					SERVICE_IN: "<%= i18n.__('modules.checkbox.panel.type_SERVICE_IN') %>",
+					SERVICE_OUT: "<%= i18n.__('modules.checkbox.panel.type_SERVICE_OUT') %>",
+				};
+				const STATUS = { QUEUED: "<%= i18n.__('modules.checkbox.panel.rs_QUEUED') %>", CREATED: "<%= i18n.__('modules.checkbox.panel.rs_CREATED') %>", DONE: "<%= i18n.__('modules.checkbox.panel.rs_DONE') %>", ERROR: "<%= i18n.__('modules.checkbox.panel.rs_ERROR') %>" };
+				const SOURCE = {
+					manual: "<%= i18n.__('modules.checkbox.receipts.src_manual') %>",
+					auto: "<%= i18n.__('modules.checkbox.receipts.src_auto') %>",
+					ettn: "<%= i18n.__('modules.checkbox.receipts.src_ettn') %>",
+					service: "<%= i18n.__('modules.checkbox.receipts.src_service') %>",
+				};
+
+				async function api(path, body) {
+					const res = await fetch(B + path, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					let j = {};
+					try {
+						j = await res.json();
+					} catch (e) {}
+					if (!res.ok || !j.ok) throw new Error(j.error || "<%= i18n.__('modules.checkbox.error') %>");
+					return j;
+				}
+
+				// Період за замовчуванням — поточний місяць
+				const iso = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+				const now = new Date();
+				$("f-from").value = iso(new Date(now.getFullYear(), now.getMonth(), 1));
+				$("f-to").value = iso(now);
+				const filter = () => ({ register: $("f-register").value, from: $("f-from").value, to: $("f-to").value, type: $("f-type").value, status: $("f-status").value, q: $("f-q").value.trim() });
+
+				/* ─── Чеки ─── */
+				const table = new Tabulator("#rc-table", {
+					layout: "fitColumns",
+					height: "calc(100vh - 360px)",
+					placeholder: "<%= i18n.__('modules.checkbox.receipts.empty') %>",
+					ajaxURL: B + "/receipts/list/",
+					ajaxConfig: { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" } },
+					ajaxContentType: "json",
+					ajaxParams: () => ({ filter: filter() }),
+					ajaxResponse: (url, p, r) => {
+						$("sums").innerHTML = `<%= i18n.__('modules.checkbox.receipts.found') %>: <b>${Number(r.total || 0)}</b> · <%= i18n.__('modules.checkbox.receipts.sum_sell') %>: <b>${money(r.sums && r.sums.sell)}</b> · <%= i18n.__('modules.checkbox.receipts.sum_returns') %>: <b>${money(r.sums && r.sums.returns)}</b>`;
+						return r;
+					},
+					pagination: true,
+					paginationMode: "remote",
+					paginationSize: 50,
+					paginationSizeSelector: [25, 50, 100, 200],
+					sortMode: "remote",
+					initialSort: [{ column: "date_add", dir: "desc" }],
+					columns: [
+						{ title: "<%= i18n.__('modules.checkbox.receipts.col_date') %>", field: "date_add", width: 160, formatter: (c) => esc(date(c.getRow().getData().fiscal_date || c.getValue())) },
+						{ title: "<%= i18n.__('modules.checkbox.receipts.col_type') %>", field: "type", width: 130, headerSort: false, formatter: (c) => esc(TYPE[c.getValue()] || c.getValue()) + (c.getRow().getData().chain === "pre" ? ` <span class="small text-secondary"><%= i18n.__('modules.checkbox.panel.ch_pre') %></span>` : c.getRow().getData().chain === "after" ? ` <span class="small text-secondary"><%= i18n.__('modules.checkbox.panel.ch_after') %></span>` : "") },
+						{ title: "<%= i18n.__('modules.checkbox.receipts.col_total') %>", field: "total", width: 130, hozAlign: "right", formatter: (c) => `<b>${money(c.getValue())}</b>` },
+						{ title: "<%= i18n.__('modules.checkbox.receipts.col_status') %>", field: "status", width: 130, formatter: (c) => `<span class="badge rounded-0 text-bg-${RB[c.getValue()] || "secondary"}">${esc(STATUS[c.getValue()] || c.getValue())}</span>` },
+						{ title: "<%= i18n.__('modules.checkbox.receipts.col_fiscal') %>", field: "fiscal_code", width: 170, headerSort: false, formatter: (c) => esc(c.getValue() || "—") + (c.getRow().getData().error ? `<div class="small text-danger">${esc(c.getRow().getData().error)}</div>` : "") },
+						{ title: "<%= i18n.__('modules.checkbox.receipts.col_order') %>", field: "id_order", width: 130, headerSort: false, formatter: (c) => (c.getValue() ? `<a href="/orders/${c.getValue()}/" target="_blank">${esc(c.getRow().getData().order_reference || "#" + c.getValue())}</a>` : "—") },
+						{ title: "<%= i18n.__('modules.checkbox.receipts.col_register') %>", field: "register", minWidth: 140, headerSort: false, formatter: (c) => esc(c.getValue() || "") + `<div class="small text-secondary">${esc(SOURCE[c.getRow().getData().source] || "")}${c.getRow().getData().user ? " · " + esc(c.getRow().getData().user) : ""}</div>` },
+						{
+							title: "",
+							field: "id",
+							width: 120,
+							hozAlign: "right",
+							headerSort: false,
+							formatter: (c) => {
+								const d = c.getRow().getData();
+								if (d.status !== "DONE") return "";
+								return `<a class="btn btn-sm btn-outline-secondary rounded-0" href="${B}/receipts/${d.id}/file/pdf/" target="_blank" rel="noopener" title="PDF"><i class="fa-regular fa-file-pdf"></i></a> ` + (d.tax_url ? `<a class="btn btn-sm btn-outline-secondary rounded-0" href="${esc(d.tax_url)}" target="_blank" rel="noopener" title="<%= i18n.__('modules.checkbox.panel.tax_link') %>"><i class="fa-solid fa-landmark"></i></a>` : "");
+							},
+						},
+					],
+				});
+				const reload = () => table.setData();
+
+				/* ─── Звіти: потрібна вибрана каса ─── */
+				function regOrError() {
+					const r = $("f-register").value;
+					if (!r) notyf.error("<%= i18n.__('modules.checkbox.receipts.pick_register') %>");
+					return r;
+				}
+				function showReport(title, text) {
+					$("report-title").textContent = title;
+					$("report-text").textContent = text;
+					bootstrap.Modal.getOrCreateInstance($("report-modal")).show();
+				}
+				$("report-print").addEventListener("click", () => {
+					const w = window.open("", "_blank");
+					if (!w) return;
+					w.document.write(`<pre style="font:12px monospace">${esc($("report-text").textContent)}</pre>`);
+					w.document.close();
+					w.print();
+				});
+				$("btn-periodical").addEventListener("click", async function () {
+					const r = regOrError();
+					if (!r) return;
+					this.disabled = true;
+					try {
+						showReport("<%= i18n.__('modules.checkbox.receipts.periodical') %>", (await api(`/registers/${r}/periodical/`, { from: $("f-from").value, to: $("f-to").value })).text);
+					} catch (e) {
+						notyf.error(e.message);
+					} finally {
+						this.disabled = false;
+					}
+				});
+				let zTable = null;
+				$("btn-z").addEventListener("click", async function () {
+					const r = regOrError();
+					if (!r) return;
+					this.disabled = true;
+					try {
+						const res = await api(`/registers/${r}/z-reports/`, { from: $("f-from").value, to: $("f-to").value });
+						if (!zTable)
+							zTable = new Tabulator("#z-table", {
+								layout: "fitColumns",
+								placeholder: "<%= i18n.__('modules.checkbox.receipts.z_none') %>",
+								data: [],
+								columns: [
+									{ title: "№", field: "serial", width: 90 },
+									{ title: "<%= i18n.__('modules.checkbox.receipts.col_date') %>", field: "date", formatter: (c) => esc(date(c.getValue())) },
+									{ title: "<%= i18n.__('modules.checkbox.receipts.col_fiscal') %>", field: "fiscal_code", formatter: (c) => esc(c.getValue() || "—") },
+									{ title: "<%= i18n.__('modules.checkbox.receipts.sum_sell') %>", field: "sell", hozAlign: "right", formatter: (c) => money(c.getValue()) + ` <span class="small text-secondary">(${c.getRow().getData().sell_count})</span>` },
+									{ title: "<%= i18n.__('modules.checkbox.receipts.sum_returns') %>", field: "returns", hozAlign: "right", formatter: (c) => money(c.getValue()) + ` <span class="small text-secondary">(${c.getRow().getData().return_count})</span>` },
+									{ title: "", field: "id", width: 70, headerSort: false, formatter: () => `<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-z><i class="fa-solid fa-eye"></i></button>` },
+								],
+							});
+						zTable.setData(res.rows);
+					} catch (e) {
+						notyf.error(e.message);
+					} finally {
+						this.disabled = false;
+					}
+				});
+				$("z-table").addEventListener("click", async (e) => {
+					const b = e.target.closest("[data-z]");
+					if (!b || !zTable) return;
+					const row = zTable.getRows().find((r) => r.getElement().contains(b));
+					if (!row) return;
+					try {
+						const d = row.getData();
+						showReport(`Z № ${d.serial}`, (await api(`/registers/${$("f-register").value}/report-text/`, { report: d.id })).text);
+					} catch (err) {
+						notyf.error(err.message);
+					}
+				});
+
+				/* ─── Фільтри ─── */
+				let qTimer = null;
+				document.querySelectorAll("[data-tab]").forEach((b) =>
+					b.addEventListener("shown.bs.tab", () => {
+						document.querySelectorAll(".f-list").forEach((el) => el.classList.toggle("d-none", b.dataset.tab !== "list"));
+						if (b.dataset.tab === "list") table.redraw();
+					})
+				);
+				["f-register", "f-from", "f-to", "f-type", "f-status"].forEach((id) => $(id).addEventListener("change", reload));
+				$("f-q").addEventListener("input", () => {
+					clearTimeout(qTimer);
+					qTimer = setTimeout(reload, 400);
+				});
+			})();
+		</script>
+	</body>
+</html>

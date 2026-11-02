@@ -1,0 +1,16 @@
+{
+    "orders": {
+        "abandoned-cart": {
+            "create": {
+                "title": "Нова подія",
+                "breadcrumb": {
+                    "home": "Головна",
+                    "orders": "Замовлення",
+                    "abandoned_cart": "Покинуті кошики",
+                    "events": "Події розсилок",
+                    "current": "Нова подія"
+                }
+            }
+        }
+    }
+}

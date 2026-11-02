@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('contact_center.social_posts.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<style>
+			#posts-table .tabulator-col,
+			#posts-table .tabulator-cell { border-right: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; }
+			#posts-table .tabulator-col:last-child,
+			#posts-table .tabulator-cell:last-child { border-right: none; }
+			#posts-table .tabulator-row:last-child .tabulator-cell { border-bottom: none; }
+			#posts-table .tabulator-cell { white-space: normal; }
+			.post-cover { width: 56px; height: 56px; object-fit: cover; flex: 0 0 56px; background: #f1f3f5; }
+			.tg-chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid #dee2e6; padding: 1px 6px; margin: 0 4px 4px 0; font-size: 0.8rem; }
+		</style>
+	</head>
+
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('contact_center.social_posts.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('contact_center.social_posts.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/contact-center/"><%= i18n.__('contact_center.social_posts.breadcrumb.contact_center') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('contact_center.social_posts.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/contact-center/social/calendar/" class="btn btn-outline-primary rounded-0 me-1"><i class="fa-regular fa-calendar me-1"></i><%= i18n.__('contact_center.social_posts.calendar') %></a>
+						<a href="/contact-center/social/stats/" class="btn btn-outline-primary rounded-0 me-1"><i class="fa-solid fa-chart-column me-1"></i><%= i18n.__('contact_center.social_posts.stats') %></a>
+						<a href="/contact-center/social/snippets/" class="btn btn-outline-primary rounded-0 me-1"><i class="fa-solid fa-hashtag me-1"></i><%= i18n.__('contact_center.social_posts.snippets') %></a>
+						<a href="/contact-center/social/accounts/" class="btn btn-outline-primary rounded-0"><i class="fa-solid fa-users-gear me-1"></i><%= i18n.__('contact_center.social_posts.accounts') %></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3 mb-4">
+			<% if (!data.accounts.length) { %>
+			<div class="alert alert-info rounded-0"><%= i18n.__('contact_center.social_posts.no_accounts') %></div>
+			<% } %>
+			<div class="d-flex flex-wrap gap-2 align-items-end mb-3">
+				<% if (data.perms.add) { %>
+				<a href="/contact-center/social/new/" class="btn btn-primary rounded-0"><i class="fa-solid fa-plus me-1"></i><%= i18n.__('contact_center.social_posts.add') %></a>
+				<% } %>
+				<select class="form-select rounded-0 w-auto" id="f_status">
+					<option value=""><%= i18n.__('contact_center.social_posts.filter_status') %>: <%= i18n.__('contact_center.social_posts.all') %></option>
+					<% ['draft', 'review', 'scheduled', 'publishing', 'published', 'partial', 'failed', 'canceled'].forEach(function (s) { %>
+					<option value="<%= s %>"><%= i18n.__('contact_center.social.statuses.' + s) %></option>
+					<% }); %>
+				</select>
+				<select class="form-select rounded-0 w-auto" id="f_account">
+					<option value=""><%= i18n.__('contact_center.social_posts.filter_account') %>: <%= i18n.__('contact_center.social_posts.all') %></option>
+					<% data.accounts.forEach(function (a) { %>
+					<option value="<%= a.id %>"><%= i18n.__('contact_center.social.networks.' + a.network) %> · <%= a.name %></option>
+					<% }); %>
+				</select>
+				<input type="search" class="form-control rounded-0 w-auto flex-grow-1" id="f_q" placeholder="<%= i18n.__('contact_center.social_posts.search') %>" />
+			</div>
+
+			<div class="card border-primary rounded-0">
+				<div class="card-header text-bg-primary rounded-0"><%= i18n.__('contact_center.social_posts.title') %></div>
+				<div id="posts-table"></div>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %> <%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			(function () {
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000 });
+				const CAN_EDIT = <%= data.perms.edit ? 'true' : 'false' %>;
+				const CAN_DELETE = <%= data.perms.delete ? 'true' : 'false' %>;
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const ICONS = { instagram: "fa-brands fa-instagram text-danger", facebook: "fa-brands fa-facebook text-primary", telegram: "fa-brands fa-telegram text-info", viber: "fa-brands fa-viber" };
+				const STATUS_CLASS = { draft: "text-bg-light border", review: "text-bg-warning", scheduled: "text-bg-info", publishing: "text-bg-warning", published: "text-bg-success", partial: "text-bg-warning", failed: "text-bg-danger", canceled: "text-bg-secondary", pending: "text-bg-info", processing: "text-bg-warning", waiting: "text-bg-warning" };
+				const statusName = (s) =>
+					({
+						draft: "<%= i18n.__('contact_center.social.statuses.draft') %>",
+						review: "<%= i18n.__('contact_center.social.statuses.review') %>",
+						scheduled: "<%= i18n.__('contact_center.social.statuses.scheduled') %>",
+						publishing: "<%= i18n.__('contact_center.social.statuses.publishing') %>",
+						published: "<%= i18n.__('contact_center.social.statuses.published') %>",
+						partial: "<%= i18n.__('contact_center.social.statuses.partial') %>",
+						failed: "<%= i18n.__('contact_center.social.statuses.failed') %>",
+						canceled: "<%= i18n.__('contact_center.social.statuses.canceled') %>",
+					})[s] || s;
+				const targetStatusName = (s) =>
+					({
+						pending: "<%= i18n.__('contact_center.social.target_statuses.pending') %>",
+						processing: "<%= i18n.__('contact_center.social.target_statuses.processing') %>",
+						waiting: "<%= i18n.__('contact_center.social.target_statuses.waiting') %>",
+						published: "<%= i18n.__('contact_center.social.target_statuses.published') %>",
+						failed: "<%= i18n.__('contact_center.social.target_statuses.failed') %>",
+						canceled: "<%= i18n.__('contact_center.social.target_statuses.canceled') %>",
+					})[s] || s;
+				const formatName = (f) => ({ post: "<%= i18n.__('contact_center.social.formats.post') %>", reel: "<%= i18n.__('contact_center.social.formats.reel') %>", story: "<%= i18n.__('contact_center.social.formats.story') %>" })[f] || f;
+				const post = (url, body) =>
+					fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) })
+						.then((r) => r.json())
+						.then((d) => {
+							if (!d.ok) throw new Error(d.error || "Error");
+							return d;
+						});
+
+				const table = new Tabulator("#posts-table", {
+					layout: "fitColumns",
+					ajaxURL: "/api/contact-center/social/posts/list/",
+					ajaxConfig: "POST",
+					ajaxContentType: "json",
+					ajaxParams: () => ({ status: $("f_status").value, id_account: $("f_account").value, q: $("f_q").value.trim() }),
+					pagination: true,
+					paginationMode: "remote",
+					paginationSize: 20,
+					paginationSizeSelector: [20, 50, 100],
+					sortMode: "remote",
+					placeholder: "<%= i18n.__('contact_center.social_posts.empty') %>",
+					columns: [
+						{ title: "<%= i18n.__('contact_center.social_posts.columns.id') %>", field: "id", width: 70, headerSort: true },
+						{
+							title: "<%= i18n.__('contact_center.social_posts.columns.post') %>",
+							field: "title",
+							widthGrow: 4,
+							headerSort: false,
+							formatter: (c) => {
+								const d = c.getData();
+								const cover = d.cover ? '<img class="post-cover me-2" src="/contact-center/social/media/' + Number(d.cover) + '/thumb/" alt="" loading="lazy" />' : '<div class="post-cover me-2 d-flex align-items-center justify-content-center text-muted"><i class="fa-regular fa-file-lines"></i></div>';
+								const text = d.text ? esc(d.text) : '<span class="text-muted"><%= i18n.__('contact_center.social_posts.no_text') %></span>';
+								const media = Number(d.media_count) ? ' <span class="text-muted small">· ' + "<%= i18n.__('contact_center.social_posts.media_n') %>".replace("{n}", Number(d.media_count)) + "</span>" : "";
+								return '<a href="/contact-center/social/' + Number(d.id) + '/" class="d-flex text-reset text-decoration-none">' + cover + "<div>" + (d.title ? '<div class="fw-semibold">' + esc(d.title) + "</div>" : "") + '<div class="small">' + text + media + "</div></div></a>";
+							},
+						},
+						{
+							title: "<%= i18n.__('contact_center.social_posts.columns.targets') %>",
+							field: "targets",
+							widthGrow: 3,
+							headerSort: false,
+							formatter: (c) =>
+								(c.getValue() || [])
+									.map((x) => {
+										const label = '<i class="' + ICONS[x.network] + '"></i> ' + esc(x.name) + " · " + formatName(x.format) + ' <span class="badge ' + STATUS_CLASS[x.status] + '">' + targetStatusName(x.status) + "</span>";
+										const title = x.error ? ' title="' + esc(x.error) + '"' : "";
+										return x.permalink ? '<a class="tg-chip text-reset" target="_blank" rel="noopener" href="' + esc(x.permalink) + '"' + title + ">" + label + "</a>" : '<span class="tg-chip"' + title + ">" + label + "</span>";
+									})
+									.join(""),
+						},
+						{ title: "<%= i18n.__('contact_center.social_posts.columns.publish_at') %>", field: "publish_at", width: 160, headerSort: true, formatter: (c) => (c.getValue() ? esc(new Date(c.getValue()).toLocaleString()) : "—") },
+						{ title: "<%= i18n.__('contact_center.social_posts.columns.status') %>", field: "status", width: 140, headerSort: true, formatter: (c) => '<span class="badge ' + STATUS_CLASS[c.getValue()] + '">' + statusName(c.getValue()) + "</span>" },
+						{
+							title: "<%= i18n.__('contact_center.social_posts.columns.actions') %>",
+							field: "id",
+							width: 140,
+							hozAlign: "center",
+							headerSort: false,
+							formatter: (c) => {
+								const d = c.getData();
+								const id = Number(d.id);
+								let h = '<a class="text-primary me-2" href="/contact-center/social/' + id + '/" title="<%= i18n.__('contact_center.social_posts.action_edit') %>"><i class="fa-regular fa-pen-to-square"></i></a>';
+								if (CAN_EDIT && (d.status === "failed" || d.status === "partial")) h += '<button type="button" class="bg-transparent border-0 text-warning act-retry" data-id="' + id + '" title="<%= i18n.__('contact_center.social_posts.action_retry') %>"><i class="fa-solid fa-rotate-right"></i></button>';
+								if (CAN_EDIT && (d.status === "scheduled" || d.status === "publishing" || d.status === "review")) h += '<button type="button" class="bg-transparent border-0 text-secondary act-cancel" data-id="' + id + '" title="<%= i18n.__('contact_center.social_posts.action_cancel') %>"><i class="fa-regular fa-circle-stop"></i></button>';
+								if (CAN_DELETE) h += '<button type="button" class="bg-transparent border-0 text-danger act-delete" data-id="' + id + '" title="<%= i18n.__('contact_center.social_posts.action_delete') %>"><i class="fa-regular fa-trash-can"></i></button>';
+								return '<div class="d-flex justify-content-center align-items-center gap-1">' + h + "</div>";
+							},
+						},
+					],
+				});
+
+				const reload = () => table.setData();
+				$("f_status").addEventListener("change", reload);
+				$("f_account").addEventListener("change", reload);
+				let qT;
+				$("f_q").addEventListener("input", () => {
+					clearTimeout(qT);
+					qT = setTimeout(reload, 400);
+				});
+				// Статуси змінюються у фоні (черга) — оновлюємо таблицю, поки є активні публікації
+				setInterval(() => {
+					if (table.getData().some((r) => r.status === "publishing" || r.status === "scheduled")) table.replaceData();
+				}, 20000);
+
+				document.getElementById("posts-table").addEventListener("click", (e) => {
+					const b = e.target.closest("button[data-id]");
+					if (!b) return;
+					const id = Number(b.dataset.id);
+					let req = null;
+					if (b.classList.contains("act-delete")) {
+						if (!confirm("<%= i18n.__('contact_center.social_posts.confirm_delete') %>")) return;
+						req = post("/api/contact-center/social/posts/" + id + "/delete/").then(() => notyf.success("<%= i18n.__('contact_center.social_posts.deleted') %>"));
+					} else if (b.classList.contains("act-cancel")) {
+						if (!confirm("<%= i18n.__('contact_center.social_posts.confirm_cancel') %>")) return;
+						req = post("/api/contact-center/social/posts/" + id + "/cancel/").then(() => notyf.success("<%= i18n.__('contact_center.social_posts.canceled') %>"));
+					} else if (b.classList.contains("act-retry")) {
+						req = post("/api/contact-center/social/posts/" + id + "/retry/").then(() => notyf.success("<%= i18n.__('contact_center.social_posts.retried') %>"));
+					}
+					if (req) req.then(reload).catch((err) => notyf.error(err.message));
+				});
+			})();
+		</script>
+	</body>
+</html>

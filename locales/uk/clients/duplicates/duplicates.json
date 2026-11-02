@@ -1,0 +1,35 @@
+{
+	"clients": {
+		"duplicates": {
+			"title": "Можливі дублі",
+			"breadcrumb": {
+				"home": "Головна",
+				"clients": "Клієнти",
+				"current": "Можливі дублі"
+			},
+			"card_title": "Пари на перевірку",
+			"loading": "Завантаження…",
+			"empty": "Дублів не знайдено",
+			"load_error": "Не вдалося завантажити.",
+			"error": "Помилка",
+			"no_contacts": "без контактів",
+			"orders": "Замовлень",
+			"revenue": "Виручка",
+			"compare": "Порівняти",
+			"not_duplicate": "Не дубль",
+			"reasons": {
+				"same_phone": "той самий телефон",
+				"same_email": "той самий email",
+				"same_telegram": "той самий Telegram",
+				"same_instagram": "той самий Instagram",
+				"same_edrpou": "той самий ЄДРПОУ",
+				"same_ipn": "той самий ІПН",
+				"same_tax_id": "той самий податковий номер",
+				"same_vat_ua": "той самий ПДВ-номер",
+				"same_eu_vat": "той самий VAT",
+				"same_external_site": "той самий ID на сайті",
+				"reverted_merge": "скасоване злиття"
+			}
+		}
+	}
+}
