@@ -1,0 +1,16 @@
+{
+	"name": "currencyRates",
+	"version": "1.0.0",
+	"description": "Курси валют для довідника «Валюти»: НБУ, ПриватБанк (готівковий і безготівковий), Monobank",
+	"author": "Growth Contour",
+	"hasConfig": false,
+	"config": {
+		"providers": {
+			"nbu": true,
+			"privat_cash": true,
+			"privat_card": true,
+			"monobank": true
+		},
+		"timeout_ms": 15000
+	}
+}

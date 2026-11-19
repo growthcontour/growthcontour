@@ -1,0 +1,172 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('users.access.title') %></title>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+
+		<!-- Breadcrumb -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('users.access.title') %></span>
+						<ul class="list-inline mb-0">
+							<li class="list-inline-item">
+								<a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('users.access.home') %></span></a>
+							</li>
+							<li class="list-inline-item">
+								<i class="fas fa-chevron-right"></i>
+								<a href="/users/groups"><%= i18n.__('users.access.groups') %></a>
+							</li>
+							<li class="list-inline-item">
+								<i class="fas fa-chevron-right"></i>
+								<%= i18n.__('users.access.title') %>
+							</li>
+						</ul>
+					</div>
+					<div class="col-auto">
+						<a href="/users/groups" class="btn btn-primary rounded-0" title="<%= i18n.__('users.access.back') %>">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- END Breadcrumb -->
+
+		<div class="container-fluid mt-2 mb-4">
+			<div class="row g-3">
+				<!-- Групи -->
+				<div class="col-12 col-lg-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('users.access.groups') %></div>
+						<div class="list-group list-group-flush">
+							<% groups.forEach(function (g) { %>
+							<a
+								href="/users/access?group=<%= g.id %>"
+								class="list-group-item list-group-item-action d-flex justify-content-between align-items-center <%= selectedGroup && selectedGroup.id === g.id ? 'active' : '' %>"
+							>
+								<span>
+									<%= g.name || '#' + g.id %> <% if (g.id === 1) { %>
+									<i class="fa-solid fa-lock ms-1" title="<%= i18n.__('users.access.admin_locked') %>"></i>
+									<% } %>
+								</span>
+								<% if (!g.active) { %>
+								<span class="badge text-bg-secondary"><%= i18n.__('users.access.inactive') %></span>
+								<% } %>
+							</a>
+							<% }); %>
+						</div>
+					</div>
+				</div>
+
+				<!-- Права -->
+				<div class="col-12 col-lg-9">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0">
+							<%= i18n.__('users.access.title') %>: <strong><%= selectedGroup ? selectedGroup.name : '—' %></strong>
+						</div>
+						<% if (selectedGroup && locked) { %>
+						<div class="alert alert-warning rounded-0 small mb-0">
+							<i class="fa-solid fa-lock me-1"></i>
+							<%= selectedGroup.id === 1 ? i18n.__('users.access.admin_locked') : i18n.__('users.access.own_group_locked') %>
+						</div>
+						<% } %>
+						<div class="table-responsive">
+							<table class="table table-bordered align-middle mb-0">
+								<thead class="table-light">
+									<tr>
+										<th><%= i18n.__('users.access.page') %></th>
+										<th class="text-center" style="width: 120px"><i class="fa-solid fa-eye me-1 text-primary"></i><%= i18n.__('users.access.view') %></th>
+										<th class="text-center" style="width: 120px"><i class="fa-solid fa-plus me-1 text-success"></i><%= i18n.__('users.access.add') %></th>
+										<th class="text-center" style="width: 120px"><i class="fa-solid fa-pen me-1 text-warning"></i><%= i18n.__('users.access.edit') %></th>
+										<th class="text-center" style="width: 120px"><i class="fa-solid fa-trash me-1 text-danger"></i><%= i18n.__('users.access.delete') %></th>
+									</tr>
+								</thead>
+								<tbody>
+									<% rows.forEach(function (row) { %> <% if (row.header) { %>
+									<tr class="table-secondary">
+										<td colspan="5" class="fw-semibold"><i class="fa-solid fa-folder me-2"></i><%= row.name %></td>
+									</tr>
+									<% } else { %>
+									<tr data-page="<%= row.id %>">
+										<td class="<%= row.child ? 'ps-4' : '' %>">
+											<%= row.name %>
+											<small class="text-muted d-block"><%= row.slug %></small>
+										</td>
+										<% ['view', 'add', 'edit', 'delete'].forEach(function (action) { %>
+										<td class="text-center">
+											<input
+												type="checkbox"
+												class="form-check-input perm-checkbox"
+												style="width: 1.25rem; height: 1.25rem"
+												data-action="<%= action %>"
+												<%= row[action] ? 'checked' : '' %>
+												<%= locked || !canEdit ? 'disabled' : '' %>
+											/>
+										</td>
+										<% }); %>
+									</tr>
+									<% } %> <% }); %>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../partials/footer'); %>
+		<%- include('../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const groupId = Number("<%= selectedGroup ? selectedGroup.id : 0 %>");
+
+				const notyf = new Notyf({
+					position: { x: "right", y: "top" },
+					duration: 3000,
+					types: [
+						{ type: "success", dismissible: true, icon: false },
+						{ type: "error", background: "indianred", dismissible: true, icon: false },
+					],
+				});
+
+				// Зміна одного права. Сервер сам застосовує залежності
+				// (add/edit/delete вмикають view; зняття view знімає решту) і повертає стан рядка.
+				$(document).on("change", ".perm-checkbox", function () {
+					const $checkbox = $(this);
+					const $row = $checkbox.closest("tr");
+					const $all = $row.find(".perm-checkbox").prop("disabled", true);
+
+					$.ajax({
+						url: "/api/users/access/save",
+						method: "POST",
+						contentType: "application/json",
+						data: JSON.stringify({
+							id_group: groupId,
+							id_page: Number($row.data("page")),
+							action: $checkbox.data("action"),
+							value: $checkbox.is(":checked"),
+						}),
+					})
+						.then((json) => {
+							$all.each((i, el) => $(el).prop("checked", !!json.data[$(el).data("action")]));
+							notyf.success("<%= i18n.__('users.access.saved') %>");
+						})
+						.catch((xhr) => {
+							$checkbox.prop("checked", !$checkbox.is(":checked"));
+							notyf.error((xhr.responseJSON && xhr.responseJSON.message) || "<%= i18n.__('users.access.save_error') %>");
+						})
+						.always(() => $all.prop("disabled", false));
+				});
+			})();
+		</script>
+	</body>
+</html>

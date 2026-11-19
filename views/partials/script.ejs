@@ -1,0 +1,420 @@
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
+<script src="/assets/js/jquery/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js"></script>
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script src="/assets/js/favicon/favico.js"></script>
+<!-- Tabulator: спільні налаштування всіх таблиць (порожня таблиця, помилка завантаження, підписи пагінації).
+     Застосовуються, щойно сторінка підключить tabulator.min.js — окремі таблиці можуть перевизначити будь-що. -->
+<script>
+	(function () {
+		var T = <%- JSON.stringify(i18n.__('header.table')).replace(/</g, '\\u003c') %>;
+		function apply(Tab) {
+			if (!Tab || Tab.__gcDefaults || !Tab.defaultOptions) return;
+			Tab.__gcDefaults = true;
+			Object.assign(Tab.defaultOptions, {
+				placeholder: T.empty,
+				dataLoaderLoading: '<span class="spinner-border spinner-border-sm"></span>',
+				dataLoaderError: T.error,
+				locale: "uk",
+				langs: {
+					uk: {
+						pagination: { page_size: T.page_size, page_title: T.page, first: "«", first_title: T.first, last: "»", last_title: T.last, prev: "‹", prev_title: T.prev, next: "›", next_title: T.next, all: T.all, counter: { showing: T.showing, of: T.of, rows: T.rows, pages: T.pages } },
+					},
+				},
+			});
+		}
+		if (window.Tabulator) apply(window.Tabulator);
+		else {
+			var cur;
+			Object.defineProperty(window, "Tabulator", { configurable: true, get: function () { return cur; }, set: function (v) { cur = v; apply(v); } });
+		}
+	})();
+</script>
+<!-- favicon -->
+<script>
+	var favico = new Favico({ animation: "none" });
+	var favico_count = 0;
+</script>
+<!-- io -->
+<script>
+	var audio = new Audio("/assets/mp3/new-message.mp3");
+</script>
+<script>
+	const socket = io();
+
+	socket.emit("user:online", { userId: <%= user.id %> });
+
+	setInterval(function () {
+	  socket.emit("heartbeat", { userId: <%= user.id %> });
+	}, 30000);
+
+	socket.emit("room", "io_notifications_header");
+		socket.emit("room", `io_manager_notifications_<%= user.id %>`);
+
+	socket.emit("room", `io_user_session_<%= user.id %>`);
+	socket.on(`io_user_session_<%= user.id %>`, function () {
+		fetch("/api/me/session-check", { headers: { Accept: "application/json" }, credentials: "same-origin" })
+			.then(function (r) { if (r.status === 401) location.href = "/login/"; })
+			.catch(function () {});
+	});
+
+	socket.on("io_notifications_header", function (data) {
+	  handleNotification(data);
+	});
+	socket.on(`io_manager_notifications_<%= user.id %>`, function (data) {
+	  handleNotification(data);
+	});
+
+	const TAB_LISTS = {
+	  chat: "#notification-chat-list",
+	  profile: "#notification-profile-list",
+	  personal: "#notification-personal-list",
+	  system: "#notification-system-list",
+	};
+
+	// ── Плейсхолдер "Немає повідомлень" ──────────────────────────
+	// Початкові <li> без data-event-id вважаємо плейсхолдерами й ніколи не видаляємо,
+	// тільки ховаємо/показуємо залежно від наявності реальних items.
+	function markPlaceholders() {
+	  $.each(TAB_LISTS, function (tab, sel) {
+	    $(sel).children("li").not("[data-event-id]").addClass("notif-empty");
+	  });
+	}
+
+	function refreshEmptyState(sel) {
+	  const $list = $(sel);
+	  const hasItems = $list.children("li[data-event-id]").length > 0;
+	  $list.children("li.notif-empty").toggle(!hasItems);
+	}
+
+	function refreshAllEmptyStates() {
+	  $.each(TAB_LISTS, function (tab, sel) {
+	    refreshEmptyState(sel);
+	  });
+	}
+
+	// ── Рендер одного елемента ───────────────────────────────────
+	  function renderItem(data) {
+	  const esc = function (s) { return $("<div>").text(s == null ? "" : s).html(); };
+	  const title = data.title || data.name || "<%= i18n.__('header.notifications.default_title') %>";
+	  // Лише відносний шлях усередині системи; порожній токен («…/chat//») — на список діалогів
+	  const rawUrl = String(data.url || "");
+	  const href = /^\/(?!\/)[^"'<>\s]*$/.test(rawUrl) ? rawUrl.replace(/\/contact-center\/(chat|webchat)\/\/$/, "/contact-center/") : "#";
+	  const badge = Number(data.count) > 0 ? ` <span class="badge text-bg-success">${data.count}</span>` : "";
+
+	  // Іконка залежно від каналу
+	  let iconHtml;
+	  if (data.channel === "telegram") {
+	    iconHtml = '<span class="me-2" style="background:#24a1de"><i class="fa-brands fa-telegram"></i></span>';
+	  } else {
+	    iconHtml = '<span class="me-2"><i class="fa-solid fa-bell"></i></span>';
+	  }
+
+	  // Рядок дати (якщо є)
+	  const dateHtml = data.date ? `<p class="mb-0">${esc(data.date)}</p>` : "";
+
+	  return `
+	          <div class="d-flex align-items-center justify-content-between w-100">
+	              <a class="d-flex align-items-center flex-grow-1" href="${esc(href)}">
+	                  ${iconHtml}
+	                  <div>
+	                      <p class="mb-0">${esc(title)}${badge}</p>
+	                      <p class="mb-0 notif-text">${esc(data.message || "")}</p>
+	                      ${dateHtml}
+	                  </div>
+	              </a>
+	              <button type="button" class="btn btn-sm btn-link text-secondary notif-close ms-2" aria-label="Close">
+	                  <i class="fa-solid fa-xmark"></i>
+	              </button>
+	          </div>`;
+	}
+
+	function upsertItem(data, prepend) {
+	  const sel = TAB_LISTS[data.tab] || TAB_LISTS.personal;
+	  const $list = $(sel);
+	  const key = data.collapse_key || data.event_id;
+	  const $existing = $list.find(`li[data-collapse="${key}"]`);
+	  const html = renderItem(data);
+
+	   if ($existing.length > 0) {
+	    // Подія по топіку не несе персонального лічильника —
+	    // накопичуємо його на клієнті, поки сповіщення не прочитане.
+	    if (!data.count) {
+	      const prev = parseInt($existing.attr("data-count"), 10) || 1;
+	      data = Object.assign({}, data, { count: prev + 1 });
+	    }
+	    $existing.attr("data-count", data.count || 1);
+	    $existing.html(renderItem(data));
+	    if (prepend) $existing.prependTo($list);
+	  } else {
+	     const $li = $(`<li data-collapse="${key}" data-event-id="${data.event_id}" data-count="${data.count || 1}">${html}</li>`);
+	    if (prepend) $list.prepend($li);
+	    else $list.append($li);
+	  }
+	  refreshEmptyState(sel);
+	}
+
+	function showBellDot() {
+	  if ($(".notification-button").find(".position-absolute").length === 0) {
+	    $(".notification-button").append('<span class="position-absolute top-0 start-100 translate-middle p-2 bg-danger border border-light rounded-circle"></span>');
+	  }
+	}
+
+	var seenEvents = new Set();
+
+	function handleNotification(data) {
+	  var id = data.event_id;
+	  if (id != null) {
+	    if (seenEvents.has(id)) return; // той самий пуш із іншої кімнати — ігноруємо
+	    seenEvents.add(id);
+	  }
+	  var p = audio.play();
+	  if (p && p.catch) p.catch(function () {});
+	  favico_count = favico_count === 0 ? 1 : favico_count + 1;
+	  favico.badge(favico_count);
+	  upsertItem(data, true);
+	  showBellDot();
+	}
+
+	// ── Видалення через "x" ──────────────────────────────────────
+	$(document).on("click", ".notif-close", function (e) {
+	  e.preventDefault();
+	  e.stopPropagation();
+	  const $li = $(this).closest("li");
+	  const sel = "#" + $li.closest("ul").attr("id");
+	  const eventId = $li.data("event-id");
+	  const collapseKey = $li.data("collapse");
+
+	  // Оптимістично прибираємо з UI
+	  $li.remove();
+	  refreshEmptyState(sel);
+
+	  if (!eventId && !collapseKey) return;
+
+	  $.ajax({
+	     type: "POST",
+	     url: "/api/notifications/delete/",
+	     data: { event_id: eventId, collapse_key: collapseKey },
+	     success: function () {
+	       // Якщо відкритий список діалогів контакт-центру — оновити бейджі
+	       if (/^cc_conv_\d+$/.test(String(collapseKey)) && typeof loadTab === "function") {
+	         loadTab("open", true);
+	         if (typeof loadCounters === "function") loadCounters();
+	       }
+	     },
+	     error: function (err) {
+	       console.error(err);
+	     },
+	   });
+	});
+
+	// ── Читання з БД при завантаженні ────────────────────────────
+	$(document).ready(function () {
+	  markPlaceholders();
+
+	  $.ajax({
+	    type: "POST",
+	    url: "/api/notifications/list/",
+	    success: function (data) {
+	      if (!Array.isArray(data)) {
+	        refreshAllEmptyStates();
+	        return;
+	      }
+
+	      // прибираємо тільки реальні items (плейсхолдери лишаємо)
+	      $.each(TAB_LISTS, function (tab, sel) {
+	        $(sel).children("li[data-event-id]").remove();
+	      });
+
+	      data.forEach(function (item) {
+	        const tab = TAB_LISTS[item.tab] ? item.tab : "personal";
+	        upsertItem({ ...item, tab: tab }, false);
+	      });
+
+	      refreshAllEmptyStates();
+
+	      if (
+	        data.some(function (x) {
+	          return !x.read;
+	        })
+	      )
+	        showBellDot();
+	    },
+	    error: function (e) {
+	      console.error(e);
+	      refreshAllEmptyStates();
+	    },
+	  });
+	});
+
+	$("#notification_panel").on("shown.bs.offcanvas", function () {
+	  favico.reset();
+	  favico_count = 0;
+	  $(".notification-button").find(".position-absolute").remove();
+	  $.ajax({ type: "POST", url: "/api/notifications/seen/" }).fail(function (e) {
+	    console.error(e);
+	  });
+	});
+
+	document.addEventListener("visibilitychange", function () {
+	  if (document.visibilityState === "visible") {
+	    favico.reset();
+	    favico_count = 0;
+	  }
+	});
+</script>
+<!-- END io -->
+<!-- END SIM -->
+<% if (typeof can === 'function' && can('chat')) { %>
+<!-- Чат компанії: Notyf для спливаючих повідомлень і сам чат (сторінка /chat/, панель справа, «Пульс» на головній) -->
+<script src="/assets/js/notyf/notyf.min.js"></script>
+<script src="/assets/js/chat/chat.js"></script>
+<!-- Лічильник непрочитаних у шапці, звук і сповіщення на робочому столі, термінові повідомлення й нагадування.
+     «Не турбувати» і неробочий час (quiet з /api/chat/unread/) — без звуку й сповіщень, крім термінових -->
+<script>
+	(function () {
+		var badge = document.getElementById("chat-unread-badge");
+		if (typeof socket === "undefined") return;
+		var ME = <%= Number(user.id) %>;
+		var onChatPage = location.pathname.indexOf("/chat/") === 0;
+		var panel = document.getElementById("chat_panel");
+		var panelOpen = false;
+		var total = null;
+		var lastMsg = null;
+		var timer = null;
+		var quiet = false;
+
+		function esc(s) {
+			return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+				return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+			});
+		}
+		// Notyf — та сама, що й у чаті (одна на сторінку)
+		function notyf() {
+			if (!window.gcChatNotyf)
+				window.gcChatNotyf = new Notyf({
+					duration: 4000,
+					position: { x: "right", y: "top" },
+					types: [
+						{ type: "error", background: "indianred", dismissible: true, icon: false },
+						{ type: "info", background: "#0d6efd", dismissible: true, icon: false },
+					],
+				});
+			return window.gcChatNotyf;
+		}
+		// Чат на цій сторінці: сторінка чату або панель справа (панель вмикається при першому відкритті)
+		function chatRoot() {
+			return document.querySelector('.chat-root[data-chat-mode="page"]') || (panel && panel.querySelector(".chat-root"));
+		}
+		function withChat(fn) {
+			var root = chatRoot();
+			if (!root || !window.gcChat) return;
+			if (panel && panel.contains(root)) bootstrap.Offcanvas.getOrCreateInstance(panel).show();
+			window.gcChat.boot(root).then(function (r) {
+				fn(r.chatApi);
+			});
+		}
+		// Відкрити повідомлення в чаті цієї сторінки (без переходу)
+		function openChat(d) {
+			if (!chatRoot()) return (location.href = "/chat/?room=" + encodeURIComponent(d.code || "") + "&message=" + Number(d.id_message));
+			withChat(function (api) {
+				api.open(Number(d.id_room), Number(d.id_message));
+			});
+		}
+		// Термінове (не зникає саме) і нагадування — через Notyf; клік відкриває повідомлення
+		function popup(kind, title, body, d) {
+			var n = notyf().open({ type: kind === "urgent" ? "error" : "info", message: "<strong>" + esc(title) + "</strong>" + (body ? "<br>" + esc(body) : ""), duration: kind === "urgent" ? 0 : 15000, dismissible: true });
+			n.on("click", function () {
+				notyf().dismiss(n);
+				openChat(d);
+			});
+			beep();
+			if (document.hidden && "Notification" in window && Notification.permission === "granted") {
+				var dn = new Notification(title, { body: body, tag: "chat-" + kind + "-" + d.id_message, requireInteraction: kind === "urgent" });
+				dn.onclick = function () {
+					window.focus();
+					openChat(d);
+				};
+			}
+		}
+		function beep() {
+			try {
+				audio.currentTime = 0;
+				audio.play().catch(function () {});
+			} catch (e) {}
+		}
+
+		function show(n) {
+			if (!badge) return;
+			badge.textContent = n > 99 ? "99+" : String(n);
+			badge.classList.toggle("d-none", !n);
+		}
+		// Сповіщаємо, лише якщо людина зараз не дивиться на чат
+		function alertNew() {
+			var looking = !document.hidden && (onChatPage || panelOpen);
+			if (looking || (quiet && !(lastMsg && lastMsg.urgent))) return;
+			beep();
+			if (document.hidden && lastMsg && "Notification" in window && Notification.permission === "granted") {
+				var body = lastMsg.body ? String(lastMsg.body).replace(/@\[([^\]\n]{1,100})\]\((?:[udo]:\d+|all)\)/g, "@$1").replace(/\s+/g, " ").slice(0, 160) : lastMsg.files && lastMsg.files.length ? "📎 " + lastMsg.files[0].name : "";
+				var n = new Notification((lastMsg.author && lastMsg.author.name) || "<%= i18n.__('header.chat.new_message') %>", { body: body, tag: "chat-" + lastMsg.id_room, icon: lastMsg.author && lastMsg.author.avatar ? lastMsg.author.avatar : undefined });
+				var room = lastMsg.id_room;
+				n.onclick = function () {
+					window.focus();
+					openChat({ id_room: room, id_message: 0 });
+				};
+			}
+		}
+		function refresh() {
+			fetch("/api/chat/unread/", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: "{}" })
+				.then(function (r) { return r.json(); })
+				.then(function (r) {
+					if (!r || !r.ok) return;
+					var prev = total;
+					total = r.total;
+					quiet = !!r.quiet;
+					show(total);
+					if (prev !== null && total > prev) alertNew();
+				})
+				.catch(function () {});
+		}
+		function soon() {
+			clearTimeout(timer);
+			timer = setTimeout(refresh, 400);
+		}
+		socket.on("chat:message", function (m) {
+			if (m && m.id_user !== ME && m.type !== "system") lastMsg = m;
+			soon();
+		});
+		socket.on("chat:read", soon);
+		socket.on("chat:room", soon);
+		socket.on("chat:room:remove", soon);
+		socket.on("connect", soon);
+		// Термінове — повтор, доки не прочитають (сервер шле, поки людина не відкрила повідомлення)
+		socket.on("chat:urgent", function (d) {
+			if (d) popup("urgent", "<%= i18n.__('header.chat.urgent') %>" + (d.author ? " · " + d.author : ""), d.body || "", d);
+		});
+		socket.on("chat:reminder", function (d) {
+			if (d) popup("reminder", "<%= i18n.__('header.chat.reminder') %>" + (d.note ? ": " + d.note : ""), d.body || "", d);
+		});
+
+		if (panel) {
+			panel.addEventListener("shown.bs.offcanvas", function () {
+				panelOpen = true;
+			});
+			panel.addEventListener("hide.bs.offcanvas", function () {
+				panelOpen = false;
+			});
+		}
+		// Сторінка запису: «Обговорити» в шапці панелі — вибір чатів з карткою запису
+		var share = document.getElementById("chat-share-record");
+		if (share)
+			share.addEventListener("click", function () {
+				var rec = { type: share.dataset.type, id: Number(share.dataset.id) };
+				withChat(function (api) {
+					api.share(rec);
+				});
+			});
+		refresh();
+	})();
+</script>
+<% } %>

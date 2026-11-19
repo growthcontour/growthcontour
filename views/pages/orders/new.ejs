@@ -1,0 +1,279 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('orders.new.title') %></title>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.ac { position: relative; }
+			.ac-list { position: absolute; z-index: 1060; left: 0; right: 0; max-height: 280px; overflow: auto; }
+			.form-label.req::after { content: " *"; color: #dc3545; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+
+		<!-- ─── хлібні крихти ─────────────────────────────────────────── -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('orders.new.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('orders.new.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/orders/"><%= i18n.__('orders.new.breadcrumb.orders') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('orders.new.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/orders/" class="btn btn-primary rounded-0">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3">
+			<% if (!sources.length) { %>
+			<div class="alert alert-warning rounded-0"><%- i18n.__('orders.new.no_source') %></div>
+			<% } else { %>
+			<div class="row g-3">
+				<div class="col-xl-8">
+					<!-- ═══ Джерело ═══ -->
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('orders.new.c_source') %></div>
+						<div class="card-body row g-3">
+							<div class="col-md-8">
+								<label class="form-label"><%= i18n.__('orders.new.source') %></label>
+								<select class="form-select rounded-0" id="f_source">
+									<% sources.forEach(function (s) { %><option value="<%= s.id %>"><%= s.name %><%= s.order_prefix ? ' (' + s.order_prefix + ')' : '' %></option><% }); %>
+								</select>
+								<div class="form-text"><%= i18n.__('orders.new.source_hint') %></div>
+							</div>
+							<div class="col-md-4">
+								<label class="form-label"><%= i18n.__('orders.new.currency') %></label>
+								<select class="form-select rounded-0" id="f_currency">
+									<% currencies.forEach(function (c) { %><option value="<%= c %>"><%= c %></option><% }); %>
+								</select>
+							</div>
+						</div>
+					</div>
+
+					<!-- ═══ Клієнт ═══ -->
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('orders.new.c_client') %></div>
+						<div class="card-body row g-3">
+							<div class="col-12 ac">
+								<input type="text" class="form-control rounded-0" id="f_client_q" autocomplete="off" placeholder="<%= i18n.__('orders.new.client_search') %>" />
+								<div class="ac-list list-group shadow-sm d-none" id="f_client_list"></div>
+							</div>
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('orders.new.lastname') %></label><input class="form-control rounded-0" id="f_lastname" maxlength="100" /></div>
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('orders.new.firstname') %></label><input class="form-control rounded-0" id="f_firstname" maxlength="100" /></div>
+							<div class="col-md-6"><label class="form-label req"><%= i18n.__('orders.new.phone') %></label><input class="form-control rounded-0" id="f_phone" maxlength="32" placeholder="+380" /></div>
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('orders.new.email') %></label><input type="email" class="form-control rounded-0" id="f_email" maxlength="120" /></div>
+						</div>
+					</div>
+
+					<!-- ═══ Товари ═══ -->
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('orders.new.c_items') %></div>
+						<div class="card-body">
+							<div class="d-flex gap-2 mb-2">
+								<div class="ac flex-grow-1">
+									<input type="text" class="form-control rounded-0" id="f_product_q" autocomplete="off" placeholder="<%= i18n.__('orders.new.product_search') %>" />
+									<div class="ac-list list-group shadow-sm d-none" id="f_product_list"></div>
+								</div>
+								<button type="button" class="btn btn-outline-secondary rounded-0 text-nowrap" id="btn_free_item"><i class="fa-solid fa-plus"></i> <%= i18n.__('orders.new.free_item') %></button>
+							</div>
+							<div class="table-responsive">
+								<table class="table table-sm align-middle mb-0">
+									<thead><tr>
+										<th><%= i18n.__('orders.new.item_name') %></th>
+										<th style="width:150px">SKU</th>
+										<th style="width:100px"><%= i18n.__('orders.new.qty') %></th>
+										<th style="width:130px"><%= i18n.__('orders.new.price') %></th>
+										<th style="width:120px" class="text-end"><%= i18n.__('orders.new.sum') %></th>
+										<th style="width:40px"></th>
+									</tr></thead>
+									<tbody id="f_items"><tr class="js-empty"><td colspan="6" class="text-secondary small"><%= i18n.__('orders.new.items_empty') %></td></tr></tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+
+					<!-- ═══ Доставка й оплата ═══ -->
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('orders.new.c_delivery') %></div>
+						<div class="card-body row g-3">
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('orders.new.delivery_method') %></label><input class="form-control rounded-0" id="f_delivery" maxlength="128" placeholder="<%= i18n.__('orders.new.delivery_ph') %>" /></div>
+							<div class="col-md-6"><label class="form-label"><%= i18n.__('orders.new.payment') %></label><input class="form-control rounded-0" id="f_payment" maxlength="128" placeholder="<%= i18n.__('orders.new.payment_ph') %>" /></div>
+							<div class="col-md-4"><label class="form-label"><%= i18n.__('orders.new.city') %></label><input class="form-control rounded-0" id="f_city" maxlength="128" /></div>
+							<div class="col-md-8"><label class="form-label"><%= i18n.__('orders.new.warehouse') %></label><input class="form-control rounded-0" id="f_warehouse" maxlength="255" placeholder="<%= i18n.__('orders.new.warehouse_ph') %>" /></div>
+							<div class="col-12"><label class="form-label"><%= i18n.__('orders.new.address') %></label><input class="form-control rounded-0" id="f_address" maxlength="255" /></div>
+							<div class="col-12"><label class="form-label"><%= i18n.__('orders.new.note') %></label><textarea class="form-control rounded-0" id="f_note" rows="2" maxlength="999"></textarea></div>
+						</div>
+					</div>
+				</div>
+
+				<!-- ═══ Підсумок ═══ -->
+				<div class="col-xl-4">
+					<div class="card border-primary rounded-0 mb-3 position-sticky" style="top: 1rem">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('orders.new.c_total') %></div>
+						<div class="card-body">
+							<div class="d-flex justify-content-between mb-2"><span><%= i18n.__('orders.new.subtotal') %></span><b id="t_products">0</b></div>
+							<div class="d-flex justify-content-between align-items-center mb-2"><label for="f_shipping"><%= i18n.__('orders.new.shipping') %></label><input type="number" min="0" step="0.01" class="form-control form-control-sm rounded-0 text-end" id="f_shipping" style="max-width:130px" value="0" /></div>
+							<div class="d-flex justify-content-between align-items-center mb-2"><label for="f_discount"><%= i18n.__('orders.new.discount') %></label><input type="number" min="0" step="0.01" class="form-control form-control-sm rounded-0 text-end" id="f_discount" style="max-width:130px" value="0" /></div>
+							<hr />
+							<div class="d-flex justify-content-between fs-5"><span><%= i18n.__('orders.new.total') %></span><b id="t_total">0</b></div>
+						</div>
+						<div class="card-footer rounded-0 d-flex gap-2">
+							<button type="button" class="btn btn-primary rounded-0" id="btn_create"><i class="fa-solid fa-check me-1"></i><%= i18n.__('orders.new.create') %></button>
+							<a href="/orders/" class="btn btn-secondary rounded-0"><%= i18n.__('orders.new.cancel') %></a>
+						</div>
+					</div>
+				</div>
+			</div>
+			<% } %>
+		</div>
+
+		<%- include('../../partials/footer'); %>
+		<%- include('../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				if (!document.getElementById("btn_create")) return;
+				const notyf = new Notyf({ duration: 4000, position: { x: "right", y: "top" }, types: [{ type: "error", background: "indianred" }] });
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const fmt = (v) => new Intl.NumberFormat("uk-UA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(v) || 0) + " " + $("f_currency").value;
+				const num = (v) => Math.max(0, Number(String(v || "").replace(",", ".")) || 0);
+
+				async function post(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const data = await res.json().catch(() => ({}));
+					if (!res.ok) throw new Error(data.message || "Error");
+					return data;
+				}
+
+				// Підказки пошуку: затримка + закриття кліком поза списком
+				function autocomplete(input, list, search, pick) {
+					let timer = null;
+					let rows = [];
+					input.addEventListener("input", () => {
+						clearTimeout(timer);
+						timer = setTimeout(async () => {
+							const q = input.value.trim();
+							if (q.length < 2) return list.classList.add("d-none");
+							rows = await search(q).catch(() => []);
+							list.innerHTML = rows.length
+								? rows.map((r, i) => `<button type="button" class="list-group-item list-group-item-action py-1 small" data-i="${i}">${r.html}</button>`).join("")
+								: `<div class="list-group-item small text-secondary"><%= i18n.__('orders.new.nothing') %></div>`;
+							list.classList.remove("d-none");
+						}, 300);
+					});
+					list.addEventListener("click", (e) => {
+						const b = e.target.closest("[data-i]");
+						if (!b) return;
+						pick(rows[Number(b.dataset.i)].row);
+						list.classList.add("d-none");
+					});
+					document.addEventListener("click", (e) => {
+						if (!list.contains(e.target) && e.target !== input) list.classList.add("d-none");
+					});
+				}
+
+				// ─── Клієнт: наявна картка → поля ───
+				autocomplete($("f_client_q"), $("f_client_list"),
+					async (q) => (await post("/api/orders/clients/search/", { q })).map((c) => ({ row: c, html: `<b>${esc(c.display_name || "#" + c.id)}</b> <span class="text-secondary">${esc([c.phone, c.email].filter(Boolean).join(" · "))}</span>` })),
+					(c) => {
+						const parts = String(c.display_name || "").split(/\s+/);
+						$("f_firstname").value = c.first_name || parts.slice(1).join(" ") || parts[0] || "";
+						$("f_lastname").value = c.last_name || (parts.length > 1 ? parts[0] : "");
+						$("f_phone").value = c.phone || "";
+						$("f_email").value = c.email || "";
+						$("f_client_q").value = "";
+					});
+
+				// ─── Товари ───
+				const tbody = $("f_items");
+				function addItem(it) {
+					tbody.querySelector(".js-empty")?.remove();
+					const tr = document.createElement("tr");
+					tr.innerHTML = `<td><input class="form-control form-control-sm rounded-0" data-f="name" maxlength="255" value="${esc(it.name || "")}" /></td>
+						<td><input class="form-control form-control-sm rounded-0" data-f="sku" maxlength="120" value="${esc(it.sku || "")}" /></td>
+						<td><input type="number" min="1" step="1" class="form-control form-control-sm rounded-0" data-f="quantity" value="${it.quantity || 1}" /></td>
+						<td><input type="number" min="0" step="0.01" class="form-control form-control-sm rounded-0" data-f="price" value="${it.price || 0}" /></td>
+						<td class="text-end text-nowrap" data-sum></td>
+						<td><button type="button" class="btn btn-sm btn-link text-danger p-0" data-del><i class="fa-solid fa-xmark"></i></button></td>`;
+					tbody.appendChild(tr);
+					recalc();
+					if (!it.name) tr.querySelector('[data-f="name"]').focus();
+				}
+				const readItems = () => [...tbody.querySelectorAll("tr:not(.js-empty)")].map((tr) => Object.fromEntries([...tr.querySelectorAll("[data-f]")].map((i) => [i.dataset.f, i.value])));
+				function recalc() {
+					let products = 0;
+					tbody.querySelectorAll("tr:not(.js-empty)").forEach((tr) => {
+						const s = num(tr.querySelector('[data-f="quantity"]').value) * num(tr.querySelector('[data-f="price"]').value);
+						tr.querySelector("[data-sum]").textContent = fmt(s);
+						products += s;
+					});
+					$("t_products").textContent = fmt(products);
+					$("t_total").textContent = fmt(Math.max(0, products + num($("f_shipping").value) - num($("f_discount").value)));
+				}
+				tbody.addEventListener("input", recalc);
+				tbody.addEventListener("click", (e) => {
+					if (!e.target.closest("[data-del]")) return;
+					e.target.closest("tr").remove();
+					if (!tbody.children.length) tbody.innerHTML = `<tr class="js-empty"><td colspan="6" class="text-secondary small"><%= i18n.__('orders.new.items_empty') %></td></tr>`;
+					recalc();
+				});
+				["f_shipping", "f_discount", "f_currency"].forEach((id) => $(id).addEventListener("input", recalc));
+				$("btn_free_item").addEventListener("click", () => addItem({}));
+				autocomplete($("f_product_q"), $("f_product_list"),
+					async (q) => (await post("/api/orders/products/search/", { q })).rows.map((p) => ({ row: p, html: `${esc(p.name)} <span class="text-secondary">${esc(p.sku || "")} · ${esc(fmt(p.price))}</span>` })),
+					(p) => {
+						addItem({ name: p.name, sku: p.sku, quantity: 1, price: p.price });
+						$("f_product_q").value = "";
+					});
+
+				// ─── Створення ───
+				$("btn_create").addEventListener("click", async function () {
+					const btn = this;
+					btn.disabled = true;
+					try {
+						const r = await post("/api/orders/create/", {
+							id_integration: Number($("f_source").value),
+							currency: $("f_currency").value,
+							client: { firstname: $("f_firstname").value, lastname: $("f_lastname").value, phone: $("f_phone").value, email: $("f_email").value },
+							items: readItems(),
+							delivery: { method: $("f_delivery").value, city: $("f_city").value, warehouse: $("f_warehouse").value, address: $("f_address").value, cost: $("f_shipping").value },
+							payment: $("f_payment").value,
+							discount: $("f_discount").value,
+							note: $("f_note").value,
+						});
+						location.href = "/orders/" + r.id + "/";
+					} catch (e) {
+						notyf.error(e.message);
+						btn.disabled = false;
+					}
+				});
+				recalc();
+			})();
+		</script>
+	</body>
+</html>

@@ -1,0 +1,76 @@
+<% if (data.settings.date_connected) { %>
+<div class="alert alert-success rounded-0 d-flex align-items-center gap-3">
+	<% if (data.settings.page_picture) { %><img src="<%= data.settings.page_picture %>" alt="" width="40" height="40" class="rounded-circle" /><% } %>
+	<div>
+		<div class="fw-semibold"><%= data.settings.page_name || data.settings.page_id %></div>
+		<small><%= i18n.__('contact_center.channels.facebook.connected') %></small>
+	</div>
+</div>
+<% } else if (data.settings.connection_error) { %>
+<div class="alert alert-danger rounded-0">
+	<div class="fw-semibold"><%= i18n.__('contact_center.channels.facebook.not_connected') %></div>
+	<small><%= data.settings.connection_error %></small>
+</div>
+<% } %>
+
+<div class="row">
+	<div class="col-12 col-md-6 mb-3">
+		<label for="f_page_id" class="form-label"><%= i18n.__('contact_center.channels.facebook.page_id') %></label>
+		<input type="text" class="form-control rounded-0" id="f_page_id" name="page_id" inputmode="numeric" value="<%= data.settings.page_id || '' %>" />
+		<small class="text-muted"><%= i18n.__('contact_center.channels.facebook.page_id_hint') %></small>
+	</div>
+	<div class="col-12 col-md-6 mb-3">
+		<label for="f_app_id" class="form-label"><%= i18n.__('contact_center.channels.facebook.app_id') %></label>
+		<input type="text" class="form-control rounded-0" id="f_app_id" name="app_id" inputmode="numeric" value="<%= data.settings.app_id || '' %>" />
+		<small class="text-muted"><%= i18n.__('contact_center.channels.facebook.app_id_hint') %></small>
+	</div>
+</div>
+
+<div class="mb-3">
+	<label for="f_token" class="form-label"><%= i18n.__('contact_center.channels.facebook.token') %></label>
+	<textarea class="form-control rounded-0" id="f_token" name="token" rows="3" autocomplete="off" placeholder="<%= data.settings.has_token ? data.settings.token_mask : 'EAA...' %>"></textarea>
+	<small class="text-muted"><%= data.settings.has_token ? i18n.__('contact_center.channels.facebook.token_hint_change') : i18n.__('contact_center.channels.facebook.token_hint_new') %></small>
+</div>
+
+<div class="mb-3">
+	<label for="f_app_secret" class="form-label"><%= i18n.__('contact_center.channels.facebook.app_secret') %></label>
+	<input type="password" class="form-control rounded-0" id="f_app_secret" name="app_secret" autocomplete="off" placeholder="<%= data.settings.has_app_secret ? '••••••••••••' : '' %>" />
+	<small class="text-muted d-block"><%= data.settings.has_app_secret ? i18n.__('contact_center.channels.facebook.app_secret_saved') : i18n.__('contact_center.channels.facebook.app_secret_hint') %></small>
+	<% if (data.settings.has_app_secret) { %>
+	<div class="form-check mt-1">
+		<input class="form-check-input" type="checkbox" id="f_app_secret_clear" name="app_secret_clear" value="1" />
+		<label class="form-check-label text-danger" for="f_app_secret_clear"><%= i18n.__('contact_center.channels.facebook.app_secret_clear') %></label>
+	</div>
+	<% } %>
+</div>
+
+<div class="row">
+	<div class="col-12 col-md-8 mb-3">
+		<label class="form-label"><%= i18n.__('contact_center.channels.facebook.webhook_url') %></label>
+		<div class="input-group">
+			<input type="text" class="form-control rounded-0 bg-light" id="f_webhook_url" value="<%= data.appUrl %>/api/contact-center/webhook/facebook/" readonly />
+			<button type="button" class="btn btn-outline-secondary rounded-0 copy-field" data-target="f_webhook_url"><i class="fa-regular fa-copy"></i></button>
+		</div>
+	</div>
+	<div class="col-12 col-md-4 mb-3">
+		<label class="form-label"><%= i18n.__('contact_center.channels.facebook.verify_token') %></label>
+		<div class="input-group">
+			<input type="text" class="form-control rounded-0 bg-light" id="f_verify_token" value="<%= data.settings.verify_token %>" readonly />
+			<button type="button" class="btn btn-outline-secondary rounded-0 copy-field" data-target="f_verify_token"><i class="fa-regular fa-copy"></i></button>
+		</div>
+	</div>
+</div>
+<small class="text-muted d-block mb-0"><%= i18n.__('contact_center.channels.facebook.webhook_hint') %></small>
+
+<script>
+	window.collectChannelFields = function () {
+		var clearEl = document.getElementById("f_app_secret_clear");
+		return {
+			page_id: document.getElementById("f_page_id").value.trim(),
+			token: document.getElementById("f_token").value.trim(),
+			app_id: document.getElementById("f_app_id").value.trim(),
+			app_secret: document.getElementById("f_app_secret").value.trim(),
+			app_secret_clear: clearEl && clearEl.checked ? "1" : "",
+		};
+	};
+</script>

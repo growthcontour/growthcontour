@@ -1,0 +1,1298 @@
+/* Чат компанії — один чат у трьох місцях (views/partials/chat/app.ejs):
+   .chat-root[data-chat-mode="page"]  — сторінка /chat/;
+   .chat-root[data-chat-mode="panel"] — панель справа (вузька: або список, або розмова; панелі — поверх);
+   .chat-root[data-chat-mode="pulse"] — «Пульс компанії» на головній: інформація про канал зліва, розмова справа. */
+
+/* Корінь чату — на всю ширину свого блоку (card на сторінці й на головній, панель справа) */
+.chat-root {
+	width: 100%;
+}
+.chat-root[data-chat-mode="page"] .chat-app {
+	border-top: 0;
+}
+.chat-app {
+	--chat-border: var(--bs-border-color, #dee2e6);
+	--chat-mine: #e7f1ff;
+	--chat-other: #f3f4f6;
+	display: flex;
+	width: 100%;
+	height: calc(100vh - 260px);
+	min-height: 480px;
+	border-top: 1px solid var(--chat-border);
+	background: #fff;
+	position: relative;
+}
+.chat-root[data-chat-mode="panel"] {
+	height: 100%;
+}
+.chat-root[data-chat-mode="panel"] .chat-app {
+	height: 100%;
+	min-height: 0;
+	border-top: 0;
+}
+.min-w-0 {
+	min-width: 0;
+}
+
+/* ─── Список чатів ─── */
+.chat-side {
+	width: 320px;
+	flex: 0 0 320px;
+	border-right: 1px solid var(--chat-border);
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+.chat-side-head {
+	padding: 0.5rem;
+	border-bottom: 1px solid var(--chat-border);
+}
+.chat-me .dropdown-toggle {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.chat-rooms {
+	overflow-y: auto;
+	flex: 1;
+}
+.chat-room {
+	display: flex;
+	gap: 0.6rem;
+	align-items: center;
+	width: 100%;
+	padding: 0.55rem 0.6rem;
+	border: 0;
+	background: transparent;
+	text-align: left;
+	border-bottom: 1px solid #f1f3f5;
+}
+.chat-room:hover {
+	background: #f8f9fa;
+}
+.chat-room.active {
+	background: var(--chat-mine);
+}
+.chat-room.archived {
+	opacity: 0.65;
+}
+.chat-room-main {
+	min-width: 0;
+	flex: 1;
+}
+.chat-room-top,
+.chat-room-bottom {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+}
+.chat-room-name {
+	font-weight: 600;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	flex: 1;
+}
+.chat-room-time {
+	font-size: 0.75rem;
+	color: #6c757d;
+	white-space: nowrap;
+}
+.chat-room-last {
+	font-size: 0.85rem;
+	color: #495057;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	flex: 1;
+}
+.chat-pin,
+.chat-mute {
+	font-size: 0.7rem;
+	color: #adb5bd;
+}
+
+/* ─── Аватари й присутність ─── */
+.chat-ava {
+	width: 40px;
+	height: 40px;
+	border-radius: 50%;
+	object-fit: cover;
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: #fff;
+	font-size: 0.85rem;
+	font-weight: 600;
+}
+.chat-ava.sm {
+	width: 32px;
+	height: 32px;
+	font-size: 0.75rem;
+}
+.chat-ava-icon {
+	background: #6c757d;
+}
+.chat-ava-wrap {
+	position: relative;
+	display: inline-flex;
+	flex: 0 0 auto;
+}
+.chat-dot {
+	position: absolute;
+	right: -1px;
+	bottom: -1px;
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	border: 2px solid #fff;
+	display: inline-block;
+}
+.chat-dot.position-static {
+	border: 0;
+	width: 10px;
+	height: 10px;
+	vertical-align: middle;
+}
+.st-online,
+.st-available {
+	background: #22c55e;
+}
+.st-offline {
+	background: #ced4da;
+}
+.st-away {
+	background: #f59e0b;
+}
+.st-meeting {
+	background: #8b5cf6;
+}
+.st-vacation {
+	background: #0ea5e9;
+}
+.st-dnd {
+	background: #ef4444;
+}
+
+/* ─── Розмова ─── */
+.chat-conv {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	position: relative;
+}
+.chat-empty {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.chat-conv-inner {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	position: relative;
+}
+.chat-conv-head {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	padding: 0.5rem 0.75rem;
+	border-bottom: 1px solid var(--chat-border);
+}
+.chat-back {
+	display: none;
+}
+.chat-messages {
+	flex: 1;
+	overflow-y: auto;
+	padding: 0.75rem 1rem;
+	outline: 0;
+}
+.chat-more {
+	text-align: center;
+	margin: 0.5rem 0;
+}
+.chat-day,
+.chat-new-sep {
+	text-align: center;
+	margin: 0.75rem 0;
+	position: relative;
+}
+.chat-day span,
+.chat-new-sep span {
+	background: #fff;
+	padding: 0 0.6rem;
+	font-size: 0.75rem;
+	color: #6c757d;
+	position: relative;
+}
+.chat-day::before,
+.chat-new-sep::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 50%;
+	border-top: 1px solid #e9ecef;
+}
+.chat-new-sep span {
+	color: #dc3545;
+	font-weight: 600;
+}
+.chat-new-sep::before {
+	border-color: #f5c2c7;
+}
+.chat-sys {
+	text-align: center;
+	font-size: 0.8rem;
+	color: #6c757d;
+	margin: 0.35rem 0;
+}
+.chat-msg {
+	display: flex;
+	gap: 0.5rem;
+	margin-top: 0.6rem;
+	position: relative;
+}
+.chat-msg.grouped {
+	margin-top: 0.15rem;
+}
+.chat-msg-ava {
+	width: 40px;
+	flex: 0 0 40px;
+}
+.chat-msg-main {
+	min-width: 0;
+	max-width: min(720px, 80%);
+}
+.chat-msg-author {
+	font-size: 0.8rem;
+	font-weight: 600;
+	margin-bottom: 0.1rem;
+}
+/* Бульбашка — Bootstrap alert, як у діалогах контакт-центру: свої alert-primary, інших alert-light */
+.chat-bubble {
+	word-wrap: break-word;
+	overflow-wrap: anywhere;
+	text-align: left;
+}
+.chat-msg.flash .chat-bubble {
+	box-shadow: 0 0 0 3px #ffe58f;
+}
+.chat-text p:last-child {
+	margin-bottom: 0;
+}
+.chat-text code {
+	background: rgba(0, 0, 0, 0.06);
+	padding: 0 0.25rem;
+	border-radius: 0.2rem;
+}
+.chat-pre {
+	background: #212529;
+	color: #f8f9fa;
+	padding: 0.5rem 0.65rem;
+	border-radius: 0.35rem;
+	margin: 0.3rem 0;
+	white-space: pre-wrap;
+	font-size: 0.85rem;
+}
+.chat-pre code {
+	background: transparent;
+	color: inherit;
+	padding: 0;
+}
+.chat-quote {
+	border-left: 3px solid #adb5bd;
+	padding-left: 0.5rem;
+	color: #495057;
+	margin: 0.2rem 0;
+}
+.chat-ul {
+	margin: 0.2rem 0;
+	padding-left: 1.2rem;
+}
+/* Час і галочки під бульбашкою — як .time у діалогах контакт-центру */
+.chat-meta {
+	display: block;
+	font-size: 0.75rem;
+	color: #6c757d;
+	margin-top: 0.15rem;
+}
+.msg-edited-mark {
+	font-size: 0.7rem;
+	opacity: 0.6;
+	margin-left: 4px;
+}
+.chat-ticks {
+	border: 0;
+	background: none;
+	padding: 0;
+	color: inherit;
+	line-height: 1;
+}
+.chat-fwd {
+	font-size: 0.75rem;
+	color: #6c757d;
+	margin-bottom: 0.15rem;
+}
+.chat-reply-quote {
+	display: block;
+	width: 100%;
+	text-align: left;
+	border: 0;
+	border-left: 3px solid #0d6efd;
+	background: rgba(13, 110, 253, 0.06);
+	padding: 0.2rem 0.45rem;
+	margin-bottom: 0.25rem;
+	font-size: 0.8rem;
+	border-radius: 0.2rem;
+}
+.chat-reply-quote span {
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: #495057;
+}
+/* Контекстне меню */
+.chat-ctx {
+	position: fixed;
+	z-index: 1080;
+	min-width: 230px;
+	margin: 0;
+}
+.chat-ctx.show {
+	display: block;
+}
+.chat-ctx-react {
+	display: flex;
+	padding: 0 0.35rem;
+}
+.chat-ctx-react button {
+	border: 0;
+	background: none;
+	font-size: 1.2rem;
+	width: 2rem;
+	height: 2rem;
+	border-radius: 50%;
+}
+.chat-ctx-react button:hover {
+	background: #f1f3f5;
+}
+
+/* Файли */
+.chat-files {
+	margin-top: 0.3rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+}
+.chat-imgs {
+	display: grid;
+	gap: 3px;
+	max-width: 420px;
+}
+.chat-imgs.n2,
+.chat-imgs.n4 {
+	grid-template-columns: 1fr 1fr;
+}
+.chat-imgs.n3 {
+	grid-template-columns: 1fr 1fr 1fr;
+}
+.chat-imgs img {
+	width: 100%;
+	height: auto;
+	max-height: 320px;
+	object-fit: cover;
+	border-radius: 0.3rem;
+	display: block;
+}
+.chat-imgs.n2 img,
+.chat-imgs.n3 img,
+.chat-imgs.n4 img {
+	aspect-ratio: 1;
+	max-height: 200px;
+}
+.chat-video {
+	max-width: 420px;
+	width: 100%;
+	border-radius: 0.3rem;
+}
+.chat-audio {
+	max-width: 320px;
+	width: 100%;
+}
+.chat-file {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	background: rgba(255, 255, 255, 0.7);
+	border: 1px solid var(--chat-border);
+	border-radius: 0.35rem;
+	padding: 0.35rem 0.55rem;
+	max-width: 360px;
+}
+
+.chat-jump {
+	position: absolute;
+	right: 1.25rem;
+	bottom: 8.5rem;
+	z-index: 5;
+}
+.chat-typing {
+	min-height: 1.2rem;
+	padding: 0 1rem;
+	font-size: 0.75rem;
+	color: #6c757d;
+	font-style: italic;
+}
+
+/* ─── Поле вводу ─── */
+.chat-composer {
+	position: relative;
+	border-top: 1px solid var(--chat-border);
+	padding: 0.4rem 0.75rem 0.6rem;
+}
+.chat-input {
+	resize: none;
+	max-height: 220px;
+	overflow-y: auto;
+}
+.chat-context {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	background: #f8f9fa;
+	padding: 0.3rem 0.5rem;
+	margin-bottom: 0.35rem;
+	border-left: 3px solid #0d6efd;
+}
+.chat-uploads {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.3rem;
+}
+.chat-uploads:not(:empty) {
+	margin-bottom: 0.35rem;
+}
+.chat-up {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	border: 1px solid var(--chat-border);
+	padding: 0.2rem 0.4rem;
+	max-width: 260px;
+	font-size: 0.8rem;
+}
+.chat-up.err {
+	border-color: #dc3545;
+	color: #dc3545;
+}
+.chat-readonly {
+	text-align: center;
+	color: #6c757d;
+	font-size: 0.85rem;
+	padding: 0.4rem;
+}
+.chat-emoji-panel {
+	position: absolute;
+	bottom: 100%;
+	left: 0.5rem;
+	z-index: 1070;
+	margin-bottom: 0.5rem;
+}
+.chat-drop {
+	position: absolute;
+	inset: 0;
+	background: rgba(13, 110, 253, 0.08);
+	border: 2px dashed #0d6efd;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	color: #0d6efd;
+	z-index: 10;
+	pointer-events: none;
+}
+
+/* ─── Бічні панелі: інформація про чат і тред ───
+   Широкий екран (від 1200px) — панель поруч із розмовою.
+   Вужче, у вбудованій панелі й «Пульсі» — висувна панель справа поверх розмови з затемненням (pane-open),
+   на телефоні — на всю ширину. */
+.chat-info {
+	width: 340px;
+	flex: 0 0 340px;
+	border-left: 1px solid var(--chat-border);
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	background: #fff;
+}
+.chat-info-scroll {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+}
+.chat-pane-backdrop {
+	display: none;
+}
+@keyframes chat-pane-in {
+	from {
+		transform: translateX(32px);
+		opacity: 0.4;
+	}
+}
+@media (max-width: 1199.98px) {
+	.chat-info {
+		position: absolute;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		width: min(380px, 92%);
+		z-index: 20;
+		box-shadow: -8px 0 24px rgba(0, 0, 0, 0.14);
+		animation: chat-pane-in 0.18s ease-out;
+	}
+	.chat-app.pane-open .chat-pane-backdrop {
+		display: block;
+		position: absolute;
+		inset: 0;
+		z-index: 19;
+		background: rgba(33, 37, 41, 0.28);
+	}
+}
+@media (max-width: 575.98px) {
+	.chat-info {
+		width: 100%;
+		border-left: 0;
+	}
+}
+/* Картка чату в панелі інформації */
+.chat-info-profile {
+	text-align: center;
+	padding: 1rem 1rem 0.75rem;
+}
+.chat-info-profile .chat-ava-wrap,
+.chat-info-profile > .chat-ava {
+	margin: 0 auto;
+}
+.chat-ava.lg {
+	width: 72px;
+	height: 72px;
+	font-size: 1.5rem;
+}
+.chat-info-profile .chat-ava-wrap {
+	display: inline-block;
+}
+.chat-info-actions {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+	gap: 0.25rem;
+	padding: 0 0.75rem 0.75rem;
+	border-bottom: 1px solid var(--chat-border);
+	margin-bottom: 0.5rem;
+}
+.chat-info-action {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.3rem;
+	border: 0;
+	background: #f8f9fa;
+	padding: 0.55rem 0.25rem;
+	font-size: 0.75rem;
+	line-height: 1.15;
+	color: #212529;
+}
+.chat-info-action i {
+	font-size: 1rem;
+	color: #0d6efd;
+}
+.chat-info-action.text-danger i,
+.chat-info-action.text-danger {
+	color: #dc3545;
+}
+.chat-info-action:hover {
+	background: #e9ecef;
+}
+.chat-info-tabs {
+	flex-wrap: nowrap;
+	overflow-x: auto;
+	padding: 0 0.75rem;
+	border-bottom: 1px solid var(--chat-border);
+	scrollbar-width: none;
+	position: sticky;
+	top: 0;
+	background: #fff;
+	z-index: 1;
+}
+.chat-info-tabs .nav-link {
+	white-space: nowrap;
+	font-size: 0.8rem;
+	padding: 0.5rem 0.1rem;
+}
+.chat-info-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0.6rem 0.75rem;
+	border-bottom: 1px solid var(--chat-border);
+}
+.chat-member {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.4rem 0.6rem;
+}
+.chat-media-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 3px;
+	padding: 0.4rem;
+}
+.chat-media-grid img,
+.chat-media-video {
+	width: 100%;
+	aspect-ratio: 1;
+	object-fit: cover;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: #212529;
+	color: #fff;
+}
+
+/* ─── Вузький екран і вбудована панель: або список, або розмова ─── */
+@media (max-width: 767.98px) {
+	.chat-app {
+		height: calc(100vh - 160px);
+	}
+}
+@media (max-width: 767.98px) {
+	.chat-side {
+		width: 100%;
+		flex-basis: 100%;
+		border-right: 0;
+	}
+	.chat-conv {
+		display: none;
+	}
+	.chat-app.has-room .chat-side {
+		display: none;
+	}
+	.chat-app.has-room .chat-conv {
+		display: flex;
+	}
+	.chat-back {
+		display: inline-block;
+	}
+	.chat-msg-main {
+		max-width: 88%;
+	}
+}
+.chat-root[data-chat-mode="panel"] .chat-side {
+	width: 100%;
+	flex-basis: 100%;
+	border-right: 0;
+}
+.chat-root[data-chat-mode="panel"] .chat-conv {
+	display: none;
+}
+.chat-root[data-chat-mode="panel"] .chat-app.has-room .chat-side {
+	display: none;
+}
+.chat-root[data-chat-mode="panel"] .chat-app.has-room .chat-conv {
+	display: flex;
+}
+.chat-root[data-chat-mode="panel"] .chat-back {
+	display: inline-block;
+}
+.chat-root[data-chat-mode="panel"] .chat-msg-main {
+	max-width: 88%;
+}
+.chat-root[data-chat-mode="panel"] .chat-info {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	width: min(380px, 100%);
+	z-index: 20;
+	border-left: 0;
+	box-shadow: -8px 0 24px rgba(0, 0, 0, 0.14);
+	animation: chat-pane-in 0.18s ease-out;
+}
+.chat-root[data-chat-mode="panel"] .chat-app.pane-open .chat-pane-backdrop {
+	display: block;
+	position: absolute;
+	inset: 0;
+	z-index: 19;
+	background: rgba(33, 37, 41, 0.28);
+}
+/* ═══ Етап 3: треди, реакції, згадки, закріплені, термінові, голосові ═══ */
+
+/* Поле вводу: текст + кнопки, підказка «@» над полем */
+.chat-write {
+	display: flex;
+	gap: 0.5rem;
+	align-items: flex-end;
+	position: relative;
+}
+/* Кнопки поля вводу (як у Telegram): 📎 [текст] 😊 🎤/➤ — одна висота з полем в один рядок */
+.chat-write .chat-btn {
+	flex: 0 0 auto;
+	width: 2.5rem;
+	height: calc(1.5em + 0.75rem + 2px);
+	padding: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+.chat-write .chat-input {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+.chat-write .dropup .dropdown-item {
+	cursor: pointer;
+}
+/* Позначки наступного повідомлення: терміново, потрібне підтвердження */
+.chat-flags {
+	display: flex;
+	gap: 0.35rem;
+	margin-bottom: 0.35rem;
+}
+.chat-flag {
+	display: inline-flex;
+	align-items: center;
+	font-weight: 500;
+}
+.chat-flag-urgent {
+	background: #dc3545;
+}
+.chat-flag-ack {
+	background: #198754;
+}
+.chat-flag .btn-close {
+	font-size: 0.55rem;
+}
+.chat-input-urgent {
+	border-color: #dc3545;
+	box-shadow: 0 0 0 0.15rem rgba(220, 53, 69, 0.15);
+}
+.chat-mic.active {
+	background: #dc3545;
+	color: #fff;
+}
+.chat-rec {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.85rem;
+	padding: 0.25rem 0.4rem;
+	margin-bottom: 0.35rem;
+	background: #fff5f5;
+	border-left: 3px solid #dc3545;
+}
+.chat-rec .fa-circle {
+	animation: chat-blink 1s infinite;
+	font-size: 0.6rem;
+}
+@keyframes chat-blink {
+	50% {
+		opacity: 0.2;
+	}
+}
+.chat-mentions {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: calc(100% + 4px);
+	max-height: 280px;
+	overflow-y: auto;
+	background: #fff;
+	border: 1px solid var(--chat-border);
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+	z-index: 30;
+}
+.chat-mi {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	width: 100%;
+	border: 0;
+	background: none;
+	padding: 0.35rem 0.6rem;
+	text-align: left;
+}
+.chat-mi.active,
+.chat-mi:hover {
+	background: #e7f1ff;
+}
+
+/* Згадки в тексті */
+.chat-mention {
+	color: #0d6efd;
+	background: rgba(13, 110, 253, 0.08);
+	border-radius: 0.25rem;
+	padding: 0 0.15rem;
+	font-weight: 500;
+}
+.chat-mention[data-user] {
+	cursor: pointer;
+}
+.chat-mention.me {
+	color: #842029;
+	background: #f8d7da;
+}
+.chat-msg.mentioned .chat-bubble {
+	box-shadow: inset 3px 0 0 #fd7e14;
+}
+
+/* Термінові */
+.chat-msg.urgent .chat-bubble {
+	border: 1px solid #dc3545;
+	box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.12);
+}
+.chat-urgent-tag {
+	color: #dc3545;
+	font-size: 0.72rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	margin-bottom: 0.15rem;
+}
+
+/* Реакції */
+.chat-reacts {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem;
+	margin-top: 0.2rem;
+}
+.chat-react {
+	border: 0;
+	background: rgba(13, 110, 253, 0.1);
+	color: #0d6efd;
+	border-radius: 1rem;
+	padding: 0.05rem 0.5rem;
+	font-size: 0.9rem;
+	line-height: 1.5;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+}
+.chat-react span {
+	font-size: 0.78rem;
+	font-weight: 600;
+}
+.chat-react:hover {
+	background: rgba(13, 110, 253, 0.18);
+}
+.chat-react.mine {
+	background: #0d6efd;
+	color: #fff;
+}
+.chat-react-pop {
+	position: fixed;
+	z-index: 1080;
+	background: #fff;
+	border: 1px solid var(--bs-border-color, #dee2e6);
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+	border-radius: 0.5rem;
+	padding: 0.25rem;
+	width: max-content;
+	max-width: calc(100vw - 16px);
+}
+/* Повний вибір (Emoji Mart) — замість рядка швидких реакцій */
+.chat-react-pop.expanded {
+	padding: 0;
+}
+/* Тред — нижній рядок бульбашки, на всю її ширину («39 коментарів  ›») */
+.chat-thread-link {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	width: calc(100% + 1rem);
+	margin: 0.4rem -0.5rem -0.5rem;
+	padding: 0.4rem 0.5rem;
+	border: 0;
+	border-top: 1px solid rgba(0, 0, 0, 0.08);
+	background: none;
+	font-size: 0.85rem;
+	color: #0d6efd;
+	font-weight: 500;
+}
+.chat-thread-link:hover {
+	background: rgba(13, 110, 253, 0.06);
+}
+.chat-thread-list {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+}
+.chat-thread-root {
+	border-bottom: 1px solid var(--chat-border);
+	padding-bottom: 0.4rem;
+	margin-bottom: 0.4rem;
+}
+.chat-thread-count {
+	font-size: 0.75rem;
+	color: #6c757d;
+	padding: 0 0.75rem 0.4rem;
+}
+.chat-thread-item {
+	display: block;
+	width: 100%;
+	text-align: left;
+	border: 0;
+	border-bottom: 1px solid #f1f3f5;
+	background: none;
+	padding: 0.55rem 0.75rem;
+}
+.chat-thread-item:hover {
+	background: #f8f9fa;
+}
+.chat-thread-item.unread {
+	background: #f3f8ff;
+}
+.chat-btn-badge {
+	position: absolute;
+	top: -0.35rem;
+	right: -0.35rem;
+	font-size: 0.6rem;
+}
+
+/* Закріплені */
+.chat-pinbar {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.3rem 0.75rem;
+	border-bottom: 1px solid var(--chat-border);
+	background: #fbfcfe;
+}
+.chat-pinbar:not(.d-none) {
+	display: flex;
+}
+.chat-pin-text {
+	flex: 1;
+	min-width: 0;
+	border: 0;
+	background: none;
+	text-align: left;
+	padding: 0;
+	font-size: 0.85rem;
+	border-left: 2px solid #0d6efd;
+	padding-left: 0.5rem;
+}
+.chat-pin-text strong {
+	display: block;
+	font-size: 0.72rem;
+	color: #0d6efd;
+}
+.chat-pin-text span {
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Голосові */
+.chat-voice {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+/* Коли: швидкі варіанти */
+.chat-when-presets {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 0.4rem;
+}
+.chat-when-presets .btn {
+	text-align: left;
+}
+/* ═══ Етап 4: картки записів, події системи, підписки ═══ */
+.chat-cards {
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+	margin-top: 0.35rem;
+}
+.chat-card {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	max-width: 420px;
+	padding: 0.4rem 0.6rem;
+	background: #fff;
+	border: 1px solid var(--chat-border);
+	border-left: 3px solid #0d6efd;
+	color: inherit;
+	text-decoration: none;
+}
+a.chat-card:hover {
+	background: #f8fbff;
+}
+.chat-card > i {
+	color: #0d6efd;
+	width: 1.1rem;
+	text-align: center;
+}
+.chat-card.muted {
+	border-left-color: #adb5bd;
+	color: #6c757d;
+	font-size: 0.85rem;
+}
+.chat-card.muted > i {
+	color: #adb5bd;
+}
+.chat-up-rec {
+	border-left: 3px solid #0d6efd;
+}
+.chat-msg.event .chat-bubble {
+	background: #fffbea;
+	border: 1px solid #ffe69c;
+}
+.chat-msg.event .chat-msg-author {
+	color: #997404;
+}
+.chat-event-title {
+	font-weight: 600;
+}
+.chat-event-text {
+	font-size: 0.875rem;
+	white-space: pre-line;
+}
+.chat-subs summary {
+	cursor: pointer;
+	font-size: 0.85rem;
+}
+.chat-subs-list {
+	padding: 0.3rem 0 0.3rem 0.75rem;
+}
+#chat-record-list .chat-card {
+	max-width: none;
+	border-top: 0;
+	border-right: 0;
+	border-bottom: 0;
+}
+/* ═══ Етап 5: опитування, чеклісти, підтвердження, рішення, «поки вас не було» ═══ */
+.chat-poll {
+	margin-top: 0.35rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	min-width: min(320px, 100%);
+}
+.chat-poll-opt {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 0.45rem;
+	width: 100%;
+	text-align: left;
+	border: 1px solid var(--chat-border);
+	background: #fff;
+	padding: 0.3rem 0.5rem;
+	overflow: hidden;
+}
+.chat-poll-opt:disabled {
+	cursor: default;
+	color: inherit;
+}
+.chat-poll-opt.mine {
+	border-color: #0d6efd;
+}
+.chat-poll-bar {
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	background: rgba(13, 110, 253, 0.1);
+	transition: width 0.3s;
+}
+.chat-poll-mark,
+.chat-poll-text,
+.chat-poll-n {
+	position: relative;
+}
+.chat-poll-mark {
+	color: #0d6efd;
+}
+.chat-poll-text {
+	flex: 1;
+	min-width: 0;
+}
+.chat-poll-n {
+	font-size: 0.75rem;
+	color: #495057;
+	white-space: nowrap;
+}
+.chat-poll-info {
+	font-size: 0.75rem;
+	color: #6c757d;
+}
+.chat-check {
+	margin-top: 0.35rem;
+	min-width: min(300px, 100%);
+}
+.chat-check-progress {
+	height: 4px;
+	background: #e9ecef;
+	margin-bottom: 0.25rem;
+}
+.chat-check-progress span {
+	display: block;
+	height: 100%;
+	background: #198754;
+	transition: width 0.3s;
+}
+.chat-check-item {
+	display: flex;
+	align-items: center;
+	gap: 0.45rem;
+	padding: 0.15rem 0;
+	cursor: pointer;
+}
+.chat-check-item.done span {
+	text-decoration: line-through;
+	color: #6c757d;
+}
+.chat-ack {
+	margin-top: 0.4rem;
+	font-size: 0.8rem;
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	color: #198754;
+}
+.chat-decision-tag {
+	color: #6f42c1;
+	font-size: 0.72rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	margin-bottom: 0.15rem;
+}
+.chat-catchup {
+	padding: 0.45rem 0.75rem;
+	border-bottom: 1px solid var(--chat-border);
+	background: #f3f8ff;
+}
+/* «Пульс компанії» на головній: без списку чатів; інформація про канал завжди відкрита зліва */
+.chat-root[data-chat-mode="pulse"] .chat-app {
+	height: 600px;
+	min-height: 0;
+	border-top: 0;
+}
+.chat-root[data-chat-mode="pulse"] .chat-side,
+.chat-root[data-chat-mode="pulse"] .chat-back,
+.chat-root[data-chat-mode="pulse"] #chatpulse-chat-info-toggle,
+.chat-root[data-chat-mode="pulse"] #chatpulse-chat-info-close {
+	display: none !important;
+}
+.chat-root[data-chat-mode="pulse"] .chat-conv {
+	display: flex;
+}
+.chat-root[data-chat-mode="pulse"] .chat-info:not(.chat-thread) {
+	order: -1;
+	position: static;
+	width: 320px;
+	flex: 0 0 320px;
+	border-left: 0;
+	border-right: 1px solid var(--chat-border);
+	box-shadow: none;
+	animation: none;
+}
+.chat-root[data-chat-mode="pulse"] .chat-app.pane-open .chat-pane-backdrop {
+	display: block;
+	position: absolute;
+	inset: 0;
+	z-index: 19;
+	background: rgba(33, 37, 41, 0.28);
+}
+/* Вузький екран — лише розмова */
+@media (max-width: 991.98px) {
+	.chat-root[data-chat-mode="pulse"] .chat-info:not(.chat-thread) {
+		display: none !important;
+	}
+}
+
+/* ═══ Тред — на місці розмови, на всю її ширину (як коментарі в Telegram) ═══
+   Розмова ховається, поки відкритий тред; «назад» повертає до неї. Так у всіх трьох місцях: сторінка, панель, «Пульс». */
+.chat-root .chat-app .chat-info.chat-thread {
+	position: static;
+	width: auto;
+	flex: 1 1 auto;
+	min-width: 0;
+	border-left: 0;
+	box-shadow: none;
+	animation: none;
+	overflow: hidden;
+}
+.chat-root .chat-app.has-thread .chat-conv {
+	display: none !important;
+}
+/* Повідомлення треду — як у розмові: бульбашки не розтягуються на всю ширину */
+.chat-thread-root .chat-msg,
+.chat-thread-list > .chat-msg {
+	max-width: 100%;
+}
+
+/* ═══ Розміщення повідомлень, як у Telegram: мої — справа без аватара й імені, інших — зліва ═══ */
+.chat-msg-main {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	max-width: min(640px, 75%);
+}
+.chat-msg.mine {
+	flex-direction: row-reverse;
+}
+.chat-msg.mine .chat-msg-ava,
+.chat-msg.mine .chat-msg-author {
+	display: none;
+}
+.chat-msg.mine .chat-msg-main {
+	align-items: flex-end;
+}
+.chat-msg-main > .chat-bubble {
+	max-width: 100%;
+}
+/* Особистий чат і «Збережене» — без аватарів та імен (і так зрозуміло, хто пише) */
+.chat-app.is-direct .chat-msg-ava,
+.chat-app.is-direct .chat-msg-author {
+	display: none;
+}
+@media (max-width: 767.98px) {
+	.chat-msg-main {
+		max-width: 85%;
+	}
+}
+
+/* Телефон, планшет: довге натискання на повідомлення відкриває меню дій, а не виділення тексту браузером
+   (скопіювати текст — пункт «Копіювати» в меню) */
+@media (hover: none) {
+	.chat-messages .chat-bubble {
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		user-select: none;
+	}
+	.chat-write .chat-btn {
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		user-select: none;
+	}
+}
+
+/* Мініатюра фото в полі вводу, поки вантажиться */
+.chat-up-thumb {
+	width: 28px;
+	height: 28px;
+	object-fit: cover;
+	flex-shrink: 0;
+}

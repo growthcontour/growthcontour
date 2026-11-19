@@ -1,0 +1,15 @@
+{
+    "orders": {
+        "abandoned-cart": {
+            "report": {
+                "title": "Звіт по кошиках",
+                "breadcrumb": {
+                    "home": "Головна",
+                    "orders": "Замовлення",
+                    "abandoned_cart": "Покинуті кошики",
+                    "current": "Звіт по кошиках"
+                }
+            }
+        }
+    }
+}

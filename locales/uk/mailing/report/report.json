@@ -1,0 +1,63 @@
+{
+	"mailing": {
+		"report": {
+			"title": "Звіт кампанії",
+			"breadcrumb": {
+				"home": "Головна",
+				"mailing": "Розсилки",
+				"current": "Звіт кампанії"
+			},
+			"settings": "Налаштування",
+			"resend": "Повторити",
+			"resend_not_opened": "Тим, хто не відкрив",
+			"resend_not_clicked": "Тим, хто не клікнув",
+			"tile": {
+				"total": "Отримувачів",
+				"sent": "Надіслано",
+				"delivered": "Доставлено",
+				"opened": "Відкрили",
+				"clicked": "Клікнули",
+				"unsubscribed": "Відписалися",
+				"complained": "Скарги",
+				"bounced": "Недоставлено"
+			},
+			"machine_note": "Автоматичні відкриття (захист Apple Mail, сканери) виключено з відкриттів:",
+			"variants": "Варіанти A/B",
+			"winner": "переможець",
+			"links": "Посилання",
+			"unique": "Унікальні",
+			"total_clicks": "Всього",
+			"timeline": "Відкриття / кліки по годинах",
+			"devices": "Пристрої",
+			"clients": "Поштові програми",
+			"recipients": "Отримувачі",
+			"filter": {
+				"opened": "Відкрили",
+				"not_opened": "Не відкрили",
+				"clicked": "Клікнули",
+				"bounced": "Недоставлено",
+				"unsubscribed": "Відписалися",
+				"complained": "Скарга",
+				"failed": "Помилка",
+				"skipped": "Пропущено",
+				"queued": "У черзі"
+			},
+			"device": {
+				"desktop": "Компʼютер",
+				"mobile": "Телефон",
+				"tablet": "Планшет",
+				"unknown": "Невідомо"
+			},
+			"client": {
+				"gmail": "Gmail",
+				"yahoo": "Yahoo",
+				"outlook": "Outlook",
+				"thunderbird": "Thunderbird",
+				"apple_mail": "Apple Mail",
+				"android_app": "Застосунок Android",
+				"browser": "Браузер / інше",
+				"unknown": "Невідомо"
+			}
+		}
+	}
+}

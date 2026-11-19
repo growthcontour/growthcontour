@@ -1,0 +1,780 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('company.title') %></title>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="/assets/css/tabulator/tabulator_bootstrap5.min.css" />
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.wh-day + .wh-day {
+				border-top: 1px solid var(--bs-border-color);
+			}
+			.wh-interval input[type="time"] {
+				width: 7.5rem;
+			}
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('company.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('company.breadcrumb.home') %></span></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('company.breadcrumb.users') %>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('company.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pb-5">
+				<ul class="nav nav-tabs mb-3" role="tablist">
+					<li class="nav-item" role="presentation">
+						<button class="nav-link rounded-0 active" data-bs-toggle="tab" data-bs-target="#tab-offices" type="button" role="tab"><i class="fa-solid fa-building me-1"></i> <%= i18n.__('company.tabs.offices') %></button>
+					</li>
+					<li class="nav-item" role="presentation">
+						<button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#tab-departments" type="button" role="tab"><i class="fa-solid fa-sitemap me-1"></i> <%= i18n.__('company.tabs.departments') %></button>
+					</li>
+					<li class="nav-item" role="presentation">
+						<button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#tab-people" type="button" role="tab"><i class="fa-solid fa-users me-1"></i> <%= i18n.__('company.tabs.people') %></button>
+					</li>
+				</ul>
+
+				<div class="tab-content">
+					<!-- ─── Офіси ─── -->
+					<div class="tab-pane fade show active" id="tab-offices" role="tabpanel">
+						<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+							<div class="form-check form-switch mb-0">
+								<input class="form-check-input" type="checkbox" id="of-archived" />
+								<label class="form-check-label" for="of-archived"><%= i18n.__('company.show_archived') %></label>
+							</div>
+							<% if (perms.add) { %>
+							<button class="btn btn-primary rounded-0" id="of-add"><i class="fa-solid fa-plus"></i> <%= i18n.__('company.offices.add') %></button>
+							<% } %>
+						</div>
+						<div id="of-grid"></div>
+					</div>
+
+					<!-- ─── Відділи ─── -->
+					<div class="tab-pane fade" id="tab-departments" role="tabpanel">
+						<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+							<div class="form-check form-switch mb-0">
+								<input class="form-check-input" type="checkbox" id="dp-archived" />
+								<label class="form-check-label" for="dp-archived"><%= i18n.__('company.show_archived') %></label>
+							</div>
+							<% if (perms.add) { %>
+							<button class="btn btn-primary rounded-0" id="dp-add"><i class="fa-solid fa-plus"></i> <%= i18n.__('company.departments.add') %></button>
+							<% } %>
+						</div>
+						<div id="dp-grid"></div>
+					</div>
+
+					<!-- ─── Люди ─── -->
+					<div class="tab-pane fade" id="tab-people" role="tabpanel">
+						<div class="row g-2 mb-3 align-items-center">
+							<div class="col-md-3"><input class="form-control rounded-0" id="pp-search" placeholder="<%= i18n.__('company.people.search') %>" /></div>
+							<div class="col-md-3">
+								<select class="form-select rounded-0" id="pp-office">
+									<option value=""><%= i18n.__('company.people.any_office') %></option>
+									<option value="0"><%= i18n.__('company.people.no_office') %></option>
+								</select>
+							</div>
+							<div class="col-md-3">
+								<select class="form-select rounded-0" id="pp-department">
+									<option value=""><%= i18n.__('company.people.any_department') %></option>
+									<option value="0"><%= i18n.__('company.people.no_department') %></option>
+								</select>
+							</div>
+							<div class="col-md-3">
+								<div class="form-check form-switch mb-0">
+									<input class="form-check-input" type="checkbox" id="pp-inactive" />
+									<label class="form-check-label" for="pp-inactive"><%= i18n.__('company.people.show_inactive') %></label>
+								</div>
+							</div>
+						</div>
+						<div id="pp-grid"></div>
+						<div class="form-text"><%= i18n.__('company.people.hint') %></div>
+					</div>
+				</div>
+			</div>
+		</main>
+
+		<!-- Офіс -->
+		<div class="modal fade" id="of-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-xl modal-dialog-scrollable">
+				<form class="modal-content rounded-0" id="of-form" novalidate>
+					<div class="modal-header">
+						<h5 class="modal-title" id="of-title"></h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= i18n.__('company.close') %>"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" name="id" />
+						<div class="row g-3">
+							<div class="col-md-6" data-field="name">
+								<label class="form-label"><%= i18n.__('company.offices.f.name') %> *</label>
+								<input class="form-control rounded-0" name="name" maxlength="255" required />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-2" data-field="code">
+								<label class="form-label"><%= i18n.__('company.offices.f.code') %></label>
+								<input class="form-control rounded-0 text-uppercase" name="code" maxlength="32" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="timezone">
+								<label class="form-label"><%= i18n.__('company.offices.f.timezone') %> *</label>
+								<select class="form-select rounded-0" name="timezone" required></select>
+								<div class="form-text" id="of-tz-now"></div>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="country">
+								<label class="form-label"><%= i18n.__('company.offices.f.country') %></label>
+								<select class="form-select rounded-0" name="country">
+									<option value=""><%= i18n.__('company.none') %></option>
+								</select>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="city">
+								<label class="form-label"><%= i18n.__('company.offices.f.city') %></label>
+								<input class="form-control rounded-0" name="city" maxlength="128" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="postcode">
+								<label class="form-label"><%= i18n.__('company.offices.f.postcode') %></label>
+								<input class="form-control rounded-0" name="postcode" maxlength="16" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-12" data-field="address">
+								<label class="form-label"><%= i18n.__('company.offices.f.address') %></label>
+								<input class="form-control rounded-0" name="address" maxlength="512" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="phone">
+								<label class="form-label"><%= i18n.__('company.offices.f.phone') %></label>
+								<input class="form-control rounded-0" type="tel" name="phone" maxlength="32" placeholder="+…" />
+								<div class="form-text"><%= i18n.__('company.offices.hints.phone') %></div>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="email">
+								<label class="form-label"><%= i18n.__('company.offices.f.email') %></label>
+								<input class="form-control rounded-0" type="email" name="email" maxlength="255" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-2" data-field="sort_order">
+								<label class="form-label"><%= i18n.__('company.f.sort_order') %></label>
+								<input class="form-control rounded-0" type="number" name="sort_order" data-type="int" value="0" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-2 pt-md-4" data-field="status">
+								<div class="form-check form-switch">
+									<input class="form-check-input" type="checkbox" name="status" data-type="bool" id="of-status" checked />
+									<label class="form-check-label" for="of-status"><%= i18n.__('company.f.active') %></label>
+								</div>
+								<div class="invalid-feedback"></div>
+							</div>
+
+							<div class="col-lg-7" data-field="work_hours">
+								<label class="form-label fw-bold"><%= i18n.__('company.offices.f.work_hours') %></label>
+								<div class="form-text mt-0 mb-2"><%= i18n.__('company.offices.hints.work_hours') %></div>
+								<div class="border" id="of-hours"></div>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-lg-5" data-field="holidays">
+								<div class="d-flex justify-content-between align-items-center mb-1">
+									<label class="form-label fw-bold mb-0"><%= i18n.__('company.offices.f.holidays') %></label>
+									<button type="button" class="btn btn-outline-primary btn-sm rounded-0" id="of-hol-add"><i class="fa-solid fa-plus"></i> <%= i18n.__('company.offices.holiday_add') %></button>
+								</div>
+								<div class="form-text mt-0 mb-2"><%= i18n.__('company.offices.hints.holidays') %></div>
+								<div class="border p-2" id="of-holidays"></div>
+								<div class="invalid-feedback"></div>
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('company.cancel') %></button>
+						<button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('company.save') %></button>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<!-- Відділ -->
+		<div class="modal fade" id="dp-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-lg modal-dialog-scrollable">
+				<form class="modal-content rounded-0" id="dp-form" novalidate>
+					<div class="modal-header">
+						<h5 class="modal-title" id="dp-title"></h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= i18n.__('company.close') %>"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" name="id" />
+						<div class="row g-3">
+							<div class="col-md-8" data-field="name">
+								<label class="form-label"><%= i18n.__('company.departments.f.name') %> *</label>
+								<input class="form-control rounded-0" name="name" maxlength="255" required />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4" data-field="code">
+								<label class="form-label"><%= i18n.__('company.departments.f.code') %></label>
+								<input class="form-control rounded-0 text-uppercase" name="code" maxlength="32" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-6" data-field="id_parent">
+								<label class="form-label"><%= i18n.__('company.departments.f.parent') %></label>
+								<select class="form-select rounded-0" name="id_parent" data-type="intnull">
+									<option value=""><%= i18n.__('company.departments.root') %></option>
+								</select>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-6" data-field="id_head">
+								<label class="form-label"><%= i18n.__('company.departments.f.head') %></label>
+								<select class="form-select rounded-0" name="id_head" data-type="intnull">
+									<option value=""><%= i18n.__('company.none') %></option>
+								</select>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-12" data-field="offices">
+								<label class="form-label"><%= i18n.__('company.departments.f.offices') %></label>
+								<div class="border p-2 row g-1 mx-0" id="dp-offices"></div>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-12" data-field="description">
+								<label class="form-label"><%= i18n.__('company.departments.f.description') %></label>
+								<textarea class="form-control rounded-0" name="description" rows="2" maxlength="1000"></textarea>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-3" data-field="sort_order">
+								<label class="form-label"><%= i18n.__('company.f.sort_order') %></label>
+								<input class="form-control rounded-0" type="number" name="sort_order" data-type="int" value="0" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-3 pt-md-4" data-field="status">
+								<div class="form-check form-switch">
+									<input class="form-check-input" type="checkbox" name="status" data-type="bool" id="dp-status" checked />
+									<label class="form-check-label" for="dp-status"><%= i18n.__('company.f.active') %></label>
+								</div>
+								<div class="invalid-feedback"></div>
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('company.cancel') %></button>
+						<button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('company.save') %></button>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<%- include('../../partials/footer'); %>
+		<%- include('../../partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+
+				const PERMS = <%- JSON.stringify(perms) %>;
+				const L = <%- JSON.stringify(i18n.__('company.js')).replace(/</g, '\\u003c') %>;
+				const LANG = "<%= i18n.__('lang_iso') %>";
+
+				const notyf = new Notyf({ duration: 4000, position: { x: "right", y: "top" } });
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+				const fail = (e) => notyf.error((e && e.error) || L.error);
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const json = await res.json().catch(() => ({}));
+					if (!res.ok || json.ok === false) throw json;
+					return json;
+				}
+
+				// ── Форми: читання / заповнення / помилки ───────────
+				function readForm(form) {
+					const out = {};
+					form.querySelectorAll("[name]").forEach((el) => {
+						if (el.name === "id") return;
+						const type = el.dataset.type;
+						if (type === "bool") out[el.name] = el.checked;
+						else if (type === "int") out[el.name] = el.value === "" ? 0 : parseInt(el.value, 10);
+						else if (type === "intnull") out[el.name] = el.value === "" ? null : parseInt(el.value, 10);
+						else out[el.name] = el.value.trim();
+					});
+					return out;
+				}
+				function fillForm(form, row) {
+					form.reset();
+					form.querySelectorAll("[name]").forEach((el) => {
+						const v = row[el.name];
+						if (el.dataset.type === "bool") el.checked = v === undefined ? el.defaultChecked : !!Number(v);
+						else if (v !== undefined) el.value = v == null ? "" : v;
+					});
+				}
+				function clearErrors(form) {
+					form.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+					form.querySelectorAll(".invalid-feedback").forEach((el) => {
+						el.textContent = "";
+						el.style.display = "";
+					});
+				}
+				function showErrors(form, errors) {
+					const byField = {};
+					(errors || []).forEach((e) => (byField[e.field || ""] = (byField[e.field || ""] ? byField[e.field || ""] + "; " : "") + (L.errors[e.message] || e.message)));
+					Object.keys(byField).forEach((field) => {
+						const box = form.querySelector(`[data-field="${CSS.escape(field)}"]`);
+						if (!box) return;
+						const input = box.querySelector("[name]");
+						if (input) input.classList.add("is-invalid");
+						const fb = box.querySelector(".invalid-feedback");
+						if (fb) {
+							fb.textContent = byField[field];
+							fb.style.display = "block";
+						}
+					});
+				}
+				const yesNo = (c) => (Number(c.getValue()) ? `<i class="fa-solid fa-check text-success"></i>` : `<span class="badge text-bg-secondary rounded-0">${esc(L.archived)}</span>`);
+
+				// ── Часові пояси, країни, дні тижня (через Intl — мовою інтерфейсу) ──
+				const TIMEZONES = (typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : []).concat(["UTC"]).filter((v, i, a) => a.indexOf(v) === i);
+				function tzOffset(tz, at = new Date()) {
+					try {
+						const p = new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "longOffset" }).formatToParts(at).find((x) => x.type === "timeZoneName");
+						return p ? p.value.replace("GMT", "UTC") : "";
+					} catch {
+						return "";
+					}
+				}
+				function tzNow(tz) {
+					try {
+						return new Intl.DateTimeFormat(LANG, { timeZone: tz, hour: "2-digit", minute: "2-digit", weekday: "short" }).format(new Date());
+					} catch {
+						return "";
+					}
+				}
+				const TZ_OPTIONS = TIMEZONES.map((tz) => ({ tz, label: `${tz.replace(/_/g, " ")} (${tzOffset(tz)})` }));
+				function fillTimezones(sel, value) {
+					// Поточне значення може бути псевдонімом, якого немає в списку браузера (напр. Europe/Kyiv ↔ Europe/Kiev)
+					const cur = value || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+					const list = TIMEZONES.includes(cur) ? TZ_OPTIONS : [{ tz: cur, label: `${cur.replace(/_/g, " ")} (${tzOffset(cur)})` }].concat(TZ_OPTIONS);
+					sel.innerHTML = list.map((o) => `<option value="${esc(o.tz)}">${esc(o.label)}</option>`).join("");
+					sel.value = cur;
+				}
+
+				// ISO 3166-1 alpha-2
+				const COUNTRIES = "AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS XK YE YT ZA ZM ZW".split(" ");
+				let regionNames = null;
+				try {
+					regionNames = new Intl.DisplayNames([LANG], { type: "region" });
+				} catch {
+					regionNames = null;
+				}
+				const countryName = (code) => (code ? (regionNames && regionNames.of(code)) || code : "");
+				const COUNTRY_OPTIONS = COUNTRIES.map((c) => ({ c, name: countryName(c) })).sort((a, b) => a.name.localeCompare(b.name, LANG));
+
+				// 1 = понеділок … 7 = неділя (1 січня 2024 — понеділок)
+				const DAY_NAMES = [1, 2, 3, 4, 5, 6, 7].map((d) => new Intl.DateTimeFormat(LANG, { weekday: "long", timeZone: "UTC" }).format(new Date(Date.UTC(2024, 0, d))));
+				const DEFAULT_HOURS = { 1: [["09:00", "18:00"]], 2: [["09:00", "18:00"]], 3: [["09:00", "18:00"]], 4: [["09:00", "18:00"]], 5: [["09:00", "18:00"]], 6: [], 7: [] };
+
+				// ═══ ОФІСИ ═══════════════════════════════════════
+				const ofArchived = document.getElementById("of-archived");
+				const ofActions = (c) => {
+					let html = "";
+					if (PERMS.edit) html += `<button class="btn btn-sm btn-outline-primary rounded-0 me-1" data-act="edit" title="${esc(L.edit)}"><i class="fa-solid fa-pen"></i></button>`;
+					if (PERMS.delete) html += `<button class="btn btn-sm btn-outline-danger rounded-0" data-act="delete" title="${esc(L.delete)}"><i class="fa-solid fa-trash"></i></button>`;
+					return html;
+				};
+				const ofGrid = new Tabulator("#of-grid", {
+					layout: "fitColumns",
+					columns: [
+						{ title: L.offices.name, field: "name", minWidth: 200, formatter: (c) => esc(c.getValue()) + (c.getRow().getData().code ? ` <span class="text-muted small">${esc(c.getRow().getData().code)}</span>` : "") },
+						{ title: L.offices.country, field: "country", width: 170, formatter: (c) => esc(countryName(c.getValue())) },
+						{ title: L.offices.city, field: "city", width: 150, formatter: (c) => esc(c.getValue()) },
+						{ title: L.offices.timezone, field: "timezone", width: 230, formatter: (c) => `${esc(c.getValue())}<br><small class="text-muted">${esc(tzOffset(c.getValue()))} · ${esc(tzNow(c.getValue()))}</small>` },
+						{ title: L.offices.people, field: "people", width: 100, hozAlign: "right" },
+						{ title: L.offices.departments, field: "departments", width: 100, hozAlign: "right" },
+						{ title: L.status, field: "status", width: 100, hozAlign: "center", formatter: yesNo },
+						{ title: "", field: "_a", width: 100, hozAlign: "right", headerSort: false, formatter: ofActions, cellClick: (e, cell) => ofAction(e, cell.getRow().getData()) },
+					],
+				});
+				const ofReload = () =>
+					api("/api/company/offices/list/", { archived: ofArchived.checked })
+						.then((r) => ofGrid.replaceData(r.rows))
+						.catch(fail);
+				ofGrid.on("tableBuilt", ofReload);
+				ofArchived.addEventListener("change", ofReload);
+
+				const ofModal = new bootstrap.Modal("#of-modal");
+				const ofForm = document.getElementById("of-form");
+				const tzSel = ofForm.querySelector('[name="timezone"]');
+				const countrySel = ofForm.querySelector('[name="country"]');
+				countrySel.insertAdjacentHTML("beforeend", COUNTRY_OPTIONS.map((o) => `<option value="${o.c}">${esc(o.name)} (${o.c})</option>`).join(""));
+				const tzHint = () => (document.getElementById("of-tz-now").textContent = L.local_time + ": " + tzNow(tzSel.value));
+				tzSel.addEventListener("change", tzHint);
+
+				// Робочий графік: день — перемикач і до 3 проміжків
+				const hoursBox = document.getElementById("of-hours");
+				function intervalHtml(from, to) {
+					return `<div class="wh-interval d-flex align-items-center gap-1 mb-1">
+						<input type="time" class="form-control form-control-sm rounded-0" data-from value="${esc(from)}" required>
+						<span>–</span>
+						<input type="time" class="form-control form-control-sm rounded-0" data-to value="${esc(to)}" required>
+						<button type="button" class="btn btn-sm btn-outline-danger rounded-0" data-del-interval title="${esc(L.delete)}"><i class="fa-solid fa-xmark"></i></button>
+					</div>`;
+				}
+				function renderHours(hours) {
+					hoursBox.innerHTML = DAY_NAMES.map((name, i) => {
+						const d = String(i + 1);
+						const list = (hours && hours[d]) || [];
+						return `<div class="wh-day d-flex flex-wrap align-items-start gap-2 p-2" data-day="${d}">
+							<div class="form-check form-switch mb-0" style="min-width: 11rem">
+								<input class="form-check-input" type="checkbox" id="wh-${d}" data-on ${list.length ? "checked" : ""}>
+								<label class="form-check-label" for="wh-${d}">${esc(name)}</label>
+							</div>
+							<div class="flex-grow-1" data-list>${list.map((x) => intervalHtml(x[0], x[1])).join("")}</div>
+							<button type="button" class="btn btn-sm btn-outline-primary rounded-0 ${list.length && list.length < 3 ? "" : "d-none"}" data-add-interval title="${esc(L.offices.add_interval)}"><i class="fa-solid fa-plus"></i></button>
+						</div>`;
+					}).join("");
+				}
+				function syncDay(row) {
+					const n = row.querySelectorAll(".wh-interval").length;
+					row.querySelector("[data-on]").checked = n > 0;
+					row.querySelector("[data-add-interval]").classList.toggle("d-none", !n || n >= 3);
+				}
+				hoursBox.addEventListener("change", (e) => {
+					if (!e.target.matches("[data-on]")) return;
+					const row = e.target.closest("[data-day]");
+					const list = row.querySelector("[data-list]");
+					list.innerHTML = e.target.checked ? intervalHtml("09:00", "18:00") : "";
+					syncDay(row);
+				});
+				hoursBox.addEventListener("click", (e) => {
+					const row = e.target.closest("[data-day]");
+					if (!row) return;
+					if (e.target.closest("[data-add-interval]")) {
+						const last = [...row.querySelectorAll("[data-to]")].pop();
+						const from = last ? last.value : "09:00";
+						row.querySelector("[data-list]").insertAdjacentHTML("beforeend", intervalHtml(from, from < "23:00" ? String(Math.min(23, Number(from.slice(0, 2)) + 1)).padStart(2, "0") + from.slice(2) : "23:59"));
+						syncDay(row);
+					} else if (e.target.closest("[data-del-interval]")) {
+						e.target.closest(".wh-interval").remove();
+						syncDay(row);
+					}
+				});
+				function readHours() {
+					const out = {};
+					hoursBox.querySelectorAll("[data-day]").forEach((row) => {
+						out[row.dataset.day] = [...row.querySelectorAll(".wh-interval")].map((iv) => [iv.querySelector("[data-from]").value, iv.querySelector("[data-to]").value]).filter((x) => x[0] && x[1]);
+					});
+					return out;
+				}
+
+				// Свята
+				const holBox = document.getElementById("of-holidays");
+				function holidayHtml(h) {
+					const id = "hol-" + Math.random().toString(36).slice(2, 9);
+					return `<div class="d-flex flex-wrap align-items-center gap-1 mb-1" data-holiday>
+						<input type="date" class="form-control form-control-sm rounded-0 w-auto" data-date value="${esc(h.date || "")}" required>
+						<input type="text" class="form-control form-control-sm rounded-0 flex-grow-1" style="min-width: 8rem" data-name maxlength="255" value="${esc(h.name || "")}" placeholder="${esc(L.offices.holiday_name)}" required>
+						<div class="form-check mb-0"><input class="form-check-input" type="checkbox" id="${id}" data-recurring ${h.recurring ? "checked" : ""}><label class="form-check-label small" for="${id}">${esc(L.offices.recurring)}</label></div>
+						<button type="button" class="btn btn-sm btn-outline-danger rounded-0" data-del-holiday title="${esc(L.delete)}"><i class="fa-solid fa-xmark"></i></button>
+					</div>`;
+				}
+				const renderHolidays = (list) => {
+					holBox.innerHTML = list.length ? list.map(holidayHtml).join("") : `<div class="text-muted small" data-empty>${esc(L.offices.no_holidays)}</div>`;
+				};
+				document.getElementById("of-hol-add").addEventListener("click", () => {
+					const empty = holBox.querySelector("[data-empty]");
+					if (empty) empty.remove();
+					holBox.insertAdjacentHTML("beforeend", holidayHtml({}));
+					holBox.lastElementChild.querySelector("[data-date]").focus();
+				});
+				holBox.addEventListener("click", (e) => {
+					if (!e.target.closest("[data-del-holiday]")) return;
+					e.target.closest("[data-holiday]").remove();
+					if (!holBox.querySelector("[data-holiday]")) renderHolidays([]);
+				});
+				const readHolidays = () =>
+					[...holBox.querySelectorAll("[data-holiday]")]
+						.map((row) => ({ date: row.querySelector("[data-date]").value, name: row.querySelector("[data-name]").value.trim(), recurring: row.querySelector("[data-recurring]").checked }))
+						.filter((h) => h.date || h.name);
+
+				async function openOffice(id) {
+					clearErrors(ofForm);
+					const row = id ? (await api(`/api/company/offices/${id}/get/`)).row : { status: 1, sort_order: 0 };
+					fillForm(ofForm, row);
+					ofForm.querySelector('[name="id"]').value = id || "";
+					fillTimezones(tzSel, row.timezone);
+					countrySel.value = row.country || "";
+					tzHint();
+					renderHours(id ? row.work_hours : DEFAULT_HOURS);
+					renderHolidays(row.holidays || []);
+					document.getElementById("of-title").textContent = id ? L.offices.edit + ": " + row.name : L.offices.add;
+					ofModal.show();
+				}
+
+				ofForm.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					clearErrors(ofForm);
+					const btn = ofForm.querySelector('[type="submit"]');
+					btn.disabled = true;
+					try {
+						const id = ofForm.querySelector('[name="id"]').value;
+						const data = readForm(ofForm);
+						data.work_hours = readHours();
+						data.holidays = readHolidays();
+						await api("/api/company/offices/save/", { id: id ? parseInt(id, 10) : null, data });
+						ofModal.hide();
+						notyf.success(L.saved);
+						ofReload();
+						loadOptions();
+					} catch (err) {
+						showErrors(ofForm, err.errors);
+						fail(err);
+					} finally {
+						btn.disabled = false;
+					}
+				});
+				const ofAdd = document.getElementById("of-add");
+				if (ofAdd) ofAdd.addEventListener("click", () => openOffice(null).catch(fail));
+
+				async function ofAction(e, row) {
+					const btn = e.target.closest("[data-act]");
+					try {
+						if (!btn) return PERMS.edit ? await openOffice(row.id) : undefined;
+						if (btn.dataset.act === "edit") return await openOffice(row.id);
+						if (btn.dataset.act === "delete") {
+							if (!confirm(L.offices.confirm_delete.replace("{name}", row.name))) return;
+							await api(`/api/company/offices/${row.id}/delete/`);
+							notyf.success(L.deleted);
+							ofReload();
+							loadOptions();
+						}
+					} catch (err) {
+						fail(err);
+					}
+				}
+
+				// ═══ ВІДДІЛИ ══════════════════════════════════════
+				const dpArchived = document.getElementById("dp-archived");
+				let dpRows = [];
+				function toTree(rows) {
+					const map = new Map(rows.map((r) => [r.id, { ...r, _children: [] }]));
+					const roots = [];
+					map.forEach((r) => (r.id_parent && map.has(r.id_parent) ? map.get(r.id_parent)._children.push(r) : roots.push(r)));
+					// Порожні _children прибираємо — інакше Tabulator малює стрілку розгортання
+					map.forEach((r) => {
+						if (!r._children.length) delete r._children;
+					});
+					return roots;
+				}
+				const dpActions = () => {
+					let html = "";
+					if (PERMS.add) html += `<button class="btn btn-sm btn-outline-success rounded-0 me-1" data-act="child" title="${esc(L.departments.add_child)}"><i class="fa-solid fa-plus"></i></button>`;
+					if (PERMS.edit) html += `<button class="btn btn-sm btn-outline-primary rounded-0 me-1" data-act="edit" title="${esc(L.edit)}"><i class="fa-solid fa-pen"></i></button>`;
+					if (PERMS.delete) html += `<button class="btn btn-sm btn-outline-danger rounded-0" data-act="delete" title="${esc(L.delete)}"><i class="fa-solid fa-trash"></i></button>`;
+					return html;
+				};
+				const dpGrid = new Tabulator("#dp-grid", {
+					layout: "fitColumns",
+					dataTree: true,
+					dataTreeStartExpanded: true,
+					columns: [
+						{ title: L.departments.name, field: "name", minWidth: 240, formatter: (c) => esc(c.getValue()) + (c.getRow().getData().code ? ` <span class="text-muted small">${esc(c.getRow().getData().code)}</span>` : "") },
+						{ title: L.departments.head, field: "head_name", width: 200, formatter: (c) => esc(c.getValue()) },
+						{ title: L.departments.offices, field: "offices", minWidth: 180, formatter: (c) => esc(c.getValue()) },
+						{ title: L.departments.people, field: "people", width: 100, hozAlign: "right" },
+						{ title: L.status, field: "status", width: 100, hozAlign: "center", formatter: yesNo },
+						{ title: "", field: "_a", width: 140, hozAlign: "right", headerSort: false, formatter: dpActions, cellClick: (e, cell) => dpAction(e, cell.getRow().getData()) },
+					],
+				});
+				const dpReload = () =>
+					api("/api/company/departments/list/", { archived: dpArchived.checked })
+						.then((r) => {
+							dpRows = r.rows;
+							dpGrid.replaceData(toTree(r.rows));
+						})
+						.catch(fail);
+				dpGrid.on("tableBuilt", dpReload);
+				dpArchived.addEventListener("change", dpReload);
+
+				// Довідники: офіси, відділи, люди — для форм і фільтрів
+				let OPTS = { offices: [], departments: [], users: [] };
+				async function loadOptions() {
+					try {
+						OPTS = await api("/api/company/options/");
+						fillFilterSelect(document.getElementById("pp-office"), OPTS.offices.map((o) => ({ id: o.id, name: o.name })));
+						fillFilterSelect(document.getElementById("pp-department"), OPTS.departments.map((d) => ({ id: d.id, name: d.path })));
+					} catch (err) {
+						fail(err);
+					}
+				}
+				function fillFilterSelect(sel, list) {
+					const cur = sel.value;
+					sel.querySelectorAll("option:not([value=''],[value='0'])").forEach((o) => o.remove());
+					list.forEach((x) => sel.add(new Option(x.name, x.id)));
+					sel.value = [...sel.options].some((o) => o.value === cur) ? cur : "";
+				}
+
+				const dpModal = new bootstrap.Modal("#dp-modal");
+				const dpForm = document.getElementById("dp-form");
+
+				function descendants(id) {
+					const out = new Set([id]);
+					let grew = true;
+					while (grew) {
+						grew = false;
+						dpRows.forEach((r) => {
+							if (r.id_parent && out.has(r.id_parent) && !out.has(r.id)) {
+								out.add(r.id);
+								grew = true;
+							}
+						});
+					}
+					return out;
+				}
+
+				async function openDepartment(id, parentId) {
+					clearErrors(dpForm);
+					const row = id ? (await api(`/api/company/departments/${id}/get/`)).row : { status: 1, sort_order: 0, id_parent: parentId || null, offices: [] };
+					// Батьком не може бути сам відділ чи його підвідділ
+					const banned = id ? descendants(id) : new Set();
+					const parentSel = dpForm.querySelector('[name="id_parent"]');
+					parentSel.querySelectorAll("option:not(:first-child)").forEach((o) => o.remove());
+					OPTS.departments.filter((d) => !banned.has(d.id)).forEach((d) => parentSel.add(new Option(d.path, d.id)));
+					const headSel = dpForm.querySelector('[name="id_head"]');
+					headSel.querySelectorAll("option:not(:first-child)").forEach((o) => o.remove());
+					OPTS.users.forEach((u) => headSel.add(new Option(u.name, u.id)));
+					if (row.id_head && !OPTS.users.some((u) => u.id === row.id_head)) headSel.add(new Option(row.head_name || "#" + row.id_head, row.id_head));
+					fillForm(dpForm, row);
+					dpForm.querySelector('[name="id"]').value = id || "";
+					document.getElementById("dp-offices").innerHTML = OPTS.offices.length
+						? OPTS.offices
+								.map(
+									(o) => `<div class="col-md-4"><div class="form-check">
+								<input class="form-check-input" type="checkbox" id="dpo-${o.id}" value="${o.id}" data-office ${row.offices.includes(o.id) ? "checked" : ""}>
+								<label class="form-check-label" for="dpo-${o.id}">${esc(o.name)}</label></div></div>`
+								)
+								.join("")
+						: `<div class="text-muted small">${esc(L.departments.no_offices)}</div>`;
+					document.getElementById("dp-title").textContent = id ? L.departments.edit + ": " + row.name : L.departments.add;
+					dpModal.show();
+				}
+
+				dpForm.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					clearErrors(dpForm);
+					const btn = dpForm.querySelector('[type="submit"]');
+					btn.disabled = true;
+					try {
+						const id = dpForm.querySelector('[name="id"]').value;
+						const data = readForm(dpForm);
+						data.offices = [...dpForm.querySelectorAll("[data-office]:checked")].map((x) => parseInt(x.value, 10));
+						await api("/api/company/departments/save/", { id: id ? parseInt(id, 10) : null, data });
+						dpModal.hide();
+						notyf.success(L.saved);
+						dpReload();
+						loadOptions();
+					} catch (err) {
+						showErrors(dpForm, err.errors);
+						fail(err);
+					} finally {
+						btn.disabled = false;
+					}
+				});
+				const dpAdd = document.getElementById("dp-add");
+				if (dpAdd) dpAdd.addEventListener("click", () => openDepartment(null).catch(fail));
+
+				async function dpAction(e, row) {
+					const btn = e.target.closest("[data-act]");
+					if (!btn) return;
+					try {
+						if (btn.dataset.act === "child") return await openDepartment(null, row.id);
+						if (btn.dataset.act === "edit") return await openDepartment(row.id);
+						if (btn.dataset.act === "delete") {
+							if (!confirm(L.departments.confirm_delete.replace("{name}", row.name))) return;
+							await api(`/api/company/departments/${row.id}/delete/`);
+							notyf.success(L.deleted);
+							dpReload();
+							loadOptions();
+						}
+					} catch (err) {
+						fail(err);
+					}
+				}
+
+				// ═══ ЛЮДИ ═════════════════════════════════════════
+				const ppGrid = new Tabulator("#pp-grid", {
+					layout: "fitColumns",
+					pagination: true,
+					paginationSize: 50,
+					columns: [
+						{
+							title: L.people.name,
+							field: "name",
+							minWidth: 200,
+							formatter: (c) => {
+								const r = c.getRow().getData();
+								const name = esc(c.getValue() || r.email);
+								const off = Number(r.active) === 1 ? "" : ` <span class="badge text-bg-secondary rounded-0">${esc(Number(r.active) === 3 ? L.people.invited : L.people.inactive)}</span>`;
+								return (PERMS.users ? `<a href="/users/${Number(r.id)}/">${name}</a>` : name) + off;
+							},
+						},
+						{ title: L.people.position, field: "position", width: 180, formatter: (c) => esc(c.getValue()) },
+						{ title: L.people.department, field: "department_name", width: 180, formatter: (c) => esc(c.getValue()) },
+						{ title: L.people.office, field: "office_name", width: 160, formatter: (c) => esc(c.getValue()) },
+						{ title: L.people.manager, field: "manager_name", width: 180, formatter: (c) => esc(c.getValue()) },
+						{ title: L.people.local_time, field: "timezone", width: 170, headerSort: false, formatter: (c) => (c.getValue() ? `${esc(tzNow(c.getValue()))}<br><small class="text-muted">${esc(c.getValue())}</small>` : "") },
+						{ title: L.people.email, field: "email", width: 220, formatter: (c) => esc(c.getValue()) },
+					],
+				});
+				const ppSearch = document.getElementById("pp-search");
+				const ppOffice = document.getElementById("pp-office");
+				const ppDept = document.getElementById("pp-department");
+				const ppInactive = document.getElementById("pp-inactive");
+				const ppReload = () =>
+					api("/api/company/people/list/", {
+						search: ppSearch.value.trim(),
+						id_office: ppOffice.value === "" ? null : parseInt(ppOffice.value, 10),
+						id_department: ppDept.value === "" ? null : parseInt(ppDept.value, 10),
+						inactive: ppInactive.checked,
+					})
+						.then((r) => ppGrid.replaceData(r.rows))
+						.catch(fail);
+				let ppTimer;
+				ppSearch.addEventListener("input", () => {
+					clearTimeout(ppTimer);
+					ppTimer = setTimeout(ppReload, 300);
+				});
+				[ppOffice, ppDept, ppInactive].forEach((el) => el.addEventListener("change", ppReload));
+				ppGrid.on("tableBuilt", ppReload);
+
+				// Таблиці в прихованих вкладках мають нульову ширину — перемальовуємо при показі
+				document.querySelectorAll('[data-bs-toggle="tab"]').forEach((t) =>
+					t.addEventListener("shown.bs.tab", () => {
+						[ofGrid, dpGrid, ppGrid].forEach((g) => g.redraw(true));
+						if (t.dataset.bsTarget === "#tab-people") ppReload();
+					})
+				);
+
+				loadOptions();
+			})();
+		</script>
+	</body>
+</html>

@@ -1,0 +1,11 @@
+{
+	"catalog": {
+		"card": {
+			"title": "Товар",
+			"breadcrumb": {
+				"home": "Головна",
+				"products": "Товари"
+			}
+		}
+	}
+}

@@ -1,0 +1,424 @@
+<%#
+	Чат компанії — спільна розмітка для трьох місць (скрипт — /assets/js/chat/chat.js):
+	  chatMode = 'page'  — сторінка /chat/;
+	  chatMode = 'panel' — панель справа на будь-якій сторінці (views/partials/header.ejs);
+	  chatMode = 'pulse' — «Пульс компанії» на головній (views/pages/index/index.ejs).
+	chatPrefix — префікс усіх id, щоб кілька чатів на одній сторінці не перетиналися.
+%>
+<div class="chat-root" data-chat-mode="<%= chatMode %>" data-chat-prefix="<%= chatPrefix %>">
+<!-- Розмітка чату; модальні вікна — теж усередині (панель справа переносить їх у body) -->
+	<div class="chat-app" id="<%= chatPrefix %>chat-app">
+		<!-- ─── Список чатів ─── -->
+		<aside class="chat-side" id="<%= chatPrefix %>chat-side">
+			<div class="chat-side-head">
+				<div class="dropdown chat-me">
+					<button class="btn btn-sm btn-light rounded-0 dropdown-toggle w-100 text-start" data-bs-toggle="dropdown" id="<%= chatPrefix %>chat-my-status"></button>
+					<ul class="dropdown-menu rounded-0" id="<%= chatPrefix %>chat-status-menu"></ul>
+				</div>
+				<div class="d-flex gap-1 mt-2">
+					<input type="search" class="form-control form-control-sm rounded-0" id="<%= chatPrefix %>chat-filter" placeholder="<%= i18n.__('chat.ui.filter') %>" />
+					<button class="btn btn-sm btn-light rounded-0 position-relative" id="<%= chatPrefix %>chat-threads-btn" title="<%= i18n.__('chat.ui.threads') %>"><i class="fa-regular fa-comments"></i><span class="badge rounded-pill text-bg-primary chat-btn-badge d-none" id="<%= chatPrefix %>chat-threads-badge"></span></button>
+					<button class="btn btn-sm btn-light rounded-0" id="<%= chatPrefix %>chat-reminders-btn" title="<%= i18n.__('chat.ui.reminders_title') %>"><i class="fa-regular fa-clock"></i></button>
+					<div class="dropdown">
+						<button class="btn btn-sm btn-primary rounded-0" data-bs-toggle="dropdown" title="<%= i18n.__('chat.ui.new') %>"><i class="fa-solid fa-pen-to-square"></i></button>
+						<ul class="dropdown-menu dropdown-menu-end rounded-0">
+							<li><button class="dropdown-item" data-new="direct"><i class="fa-regular fa-user fa-fw me-1"></i> <%= i18n.__('chat.ui.new_direct') %></button></li>
+							<% if (can('chat', 'add')) { %>
+							<li><button class="dropdown-item" data-new="group"><i class="fa-solid fa-users fa-fw me-1"></i> <%= i18n.__('chat.ui.new_group') %></button></li>
+							<li><button class="dropdown-item" data-new="channel"><i class="fa-solid fa-hashtag fa-fw me-1"></i> <%= i18n.__('chat.ui.new_channel') %></button></li>
+							<% } %>
+							<li><hr class="dropdown-divider" /></li>
+							<li><button class="dropdown-item" data-new="browse"><i class="fa-solid fa-magnifying-glass fa-fw me-1"></i> <%= i18n.__('chat.ui.browse_channels') %></button></li>
+							<li><button class="dropdown-item" data-new="notes"><i class="fa-regular fa-bookmark fa-fw me-1"></i> <%= i18n.__('chat.ui.notes') %></button></li>
+							<li><button class="dropdown-item" data-new="mentions"><i class="fa-solid fa-at fa-fw me-1"></i> <%= i18n.__('chat.ui.my_mentions') %></button></li>
+							<li><button class="dropdown-item" data-new="search"><i class="fa-solid fa-magnifying-glass-arrow-right fa-fw me-1"></i> <%= i18n.__('chat.ui.search_all') %></button></li>
+							<% if (chatMode === 'page' && can('chat.analytics')) { %>
+							<li><a class="dropdown-item" href="/chat/analytics/" target="_top"><i class="fa-solid fa-chart-column fa-fw me-1"></i> <%= i18n.__('chat.ui.analytics') %></a></li>
+							<% } %>
+							<li><button class="dropdown-item" data-new="notify" id="<%= chatPrefix %>chat-notify-perm"><i class="fa-regular fa-bell fa-fw me-1"></i> <%= i18n.__('chat.ui.enable_desktop') %></button></li>
+						</ul>
+					</div>
+					<% if (chatMode === 'panel') { %>
+					<a class="btn btn-sm btn-outline-secondary rounded-0" href="/chat/" title="<%= i18n.__('chat.ui.fullscreen') %>"><i class="fa-solid fa-up-right-and-down-left-from-center"></i></a>
+					<% } %>
+				</div>
+			</div>
+			<div class="chat-rooms" id="<%= chatPrefix %>chat-rooms"></div>
+		</aside>
+
+		<!-- ─── Розмова ─── -->
+		<section class="chat-conv" id="<%= chatPrefix %>chat-conv">
+			<div class="chat-empty" id="<%= chatPrefix %>chat-empty">
+				<div class="text-center text-muted">
+					<i class="fa-regular fa-comments fa-3x mb-3"></i>
+					<p class="mb-0"><%= i18n.__('chat.ui.choose') %></p>
+				</div>
+			</div>
+			<div class="chat-conv-inner d-none" id="<%= chatPrefix %>chat-conv-inner">
+				<header class="chat-conv-head">
+					<button class="btn btn-sm btn-light rounded-0 chat-back" id="<%= chatPrefix %>chat-back" title="<%= i18n.__('chat.ui.back') %>"><i class="fa-solid fa-arrow-left"></i></button>
+					<div class="chat-conv-title flex-grow-1 min-w-0" id="<%= chatPrefix %>chat-conv-title"></div>
+					<button class="btn btn-sm btn-light rounded-0 d-none" id="<%= chatPrefix %>chat-scheduled-btn" title="<%= i18n.__('chat.ui.scheduled_title') %>"><i class="fa-regular fa-clock"></i> <span></span></button>
+					<button class="btn btn-sm btn-light rounded-0" id="<%= chatPrefix %>chat-room-search" title="<%= i18n.__('chat.ui.search_here') %>"><i class="fa-solid fa-magnifying-glass"></i></button>
+					<div class="dropdown">
+						<button class="btn btn-sm btn-light rounded-0" data-bs-toggle="dropdown" id="<%= chatPrefix %>chat-room-bell" title="<%= i18n.__('chat.ui.notifications') %>"><i class="fa-regular fa-bell"></i></button>
+						<ul class="dropdown-menu dropdown-menu-end rounded-0" id="<%= chatPrefix %>chat-room-notify"></ul>
+					</div>
+					<button class="btn btn-sm btn-light rounded-0" id="<%= chatPrefix %>chat-info-toggle" title="<%= i18n.__('chat.ui.info') %>"><i class="fa-solid fa-circle-info"></i></button>
+				</header>
+				<div class="chat-pinbar d-none" id="<%= chatPrefix %>chat-pinbar"></div>
+				<div class="chat-catchup d-none" id="<%= chatPrefix %>chat-catchup"></div>
+				<div class="chat-messages" id="<%= chatPrefix %>chat-messages" tabindex="0" aria-live="polite"></div>
+				<button class="btn btn-primary rounded-pill shadow chat-jump d-none" id="<%= chatPrefix %>chat-jump"><i class="fa-solid fa-arrow-down"></i> <span id="<%= chatPrefix %>chat-jump-count"></span></button>
+				<div class="chat-typing" id="<%= chatPrefix %>chat-typing"></div>
+<footer class="chat-composer" id="<%= chatPrefix %>chat-composer">
+					<div class="chat-context d-none" id="<%= chatPrefix %>chat-context"></div>
+					<div class="chat-uploads" id="<%= chatPrefix %>chat-uploads"></div>
+					<div class="chat-rec d-none"><i class="fa-solid fa-circle text-danger"></i> <%= i18n.__('chat.ui.recording') %> <span>0:00</span><button type="button" class="btn btn-sm btn-light rounded-0 ms-auto" data-voice-cancel><%= i18n.__('chat.ui.cancel') %></button><button type="button" class="btn btn-sm btn-primary rounded-0" data-voice><%= i18n.__('chat.ui.voice_stop') %></button></div>
+					<div class="chat-emoji-panel d-none"></div>
+					<div class="chat-flags d-none"></div>
+					<div class="chat-write">
+						<div class="chat-mentions d-none" id="<%= chatPrefix %>chat-mentions"></div>
+						<div class="dropup">
+							<button type="button" class="btn btn-light rounded-0 chat-btn" data-bs-toggle="dropdown" aria-expanded="false" title="<%= i18n.__('chat.ui.attach') %>"><i class="fa-solid fa-paperclip"></i></button>
+							<ul class="dropdown-menu rounded-0">
+								<li><label class="dropdown-item mb-0" role="button"><i class="fa-regular fa-image fa-fw me-2"></i><%= i18n.__('chat.ui.attach_photo') %><input type="file" multiple hidden accept="image/jpeg,image/png,image/gif,image/webp,image/avif,video/mp4,video/webm,video/quicktime" data-as="photo" /></label></li>
+								<li><label class="dropdown-item mb-0" role="button"><i class="fa-regular fa-file fa-fw me-2"></i><%= i18n.__('chat.ui.attach_file') %><input type="file" multiple hidden data-as="file" /></label></li>
+								<li><button type="button" class="dropdown-item" data-record><i class="fa-solid fa-link fa-fw me-2"></i><%= i18n.__('chat.ui.attach_record') %></button></li>
+								<li><button type="button" class="dropdown-item" data-poll><i class="fa-solid fa-square-poll-vertical fa-fw me-2"></i><%= i18n.__('chat.ui.poll_new') %></button></li>
+								<li><button type="button" class="dropdown-item" data-checklist><i class="fa-solid fa-list-check fa-fw me-2"></i><%= i18n.__('chat.ui.checklist_new') %></button></li>
+							</ul>
+						</div>
+						<textarea class="form-control rounded-0 chat-input" id="<%= chatPrefix %>chat-input" rows="1" placeholder="<%= i18n.__('chat.ui.placeholder') %>"></textarea>
+						<button type="button" class="btn btn-light rounded-0 chat-btn" data-emoji title="<%= i18n.__('chat.ui.emoji') %>"><i class="fa-regular fa-face-smile"></i></button>
+						<button type="button" class="btn btn-primary rounded-0 chat-btn chat-mic" data-voice title="<%= i18n.__('chat.ui.voice') %>"><i class="fa-solid fa-microphone"></i></button>
+						<button type="button" class="btn btn-primary rounded-0 chat-btn d-none" id="<%= chatPrefix %>chat-send" title="<%= i18n.__('chat.ui.send_hint') %>"><i class="fa-solid fa-paper-plane"></i></button>
+					</div>
+					<div class="chat-readonly d-none"></div>
+				</footer>
+				<div class="chat-drop d-none" id="<%= chatPrefix %>chat-drop"><div><i class="fa-solid fa-cloud-arrow-up fa-2x mb-2"></i><br /><%= i18n.__('chat.ui.drop') %></div></div>
+			</div>
+		</section>
+
+		<!-- ─── Тред / перелік тредів ─── -->
+		<aside class="chat-info chat-thread d-none" id="<%= chatPrefix %>chat-thread">
+			<!-- Тред відкривається на місці розмови (як коментарі в Telegram); «назад» — повернутися до розмови -->
+			<header class="chat-conv-head">
+				<button class="btn btn-sm btn-light rounded-0" id="<%= chatPrefix %>chat-thread-close" title="<%= i18n.__('chat.ui.back_to_chat') %>"><i class="fa-solid fa-arrow-left"></i></button>
+				<div class="flex-grow-1 min-w-0">
+					<div class="fw-bold text-truncate" id="<%= chatPrefix %>chat-thread-title"><%= i18n.__('chat.ui.thread') %></div>
+					<div class="small text-muted text-truncate" id="<%= chatPrefix %>chat-thread-sub"></div>
+				</div>
+				<button class="btn btn-sm btn-light rounded-0" id="<%= chatPrefix %>chat-thread-follow"></button>
+			</header>
+			<div class="chat-messages chat-thread-list" id="<%= chatPrefix %>chat-thread-list"></div>
+			<footer class="chat-composer chat-composer-thread" id="<%= chatPrefix %>chat-thread-composer">
+					<div class="chat-context d-none" id="<%= chatPrefix %>chat-thread-context"></div>
+					<div class="chat-uploads" id="<%= chatPrefix %>chat-thread-uploads"></div>
+					<div class="chat-rec d-none"><i class="fa-solid fa-circle text-danger"></i> <%= i18n.__('chat.ui.recording') %> <span>0:00</span><button type="button" class="btn btn-sm btn-light rounded-0 ms-auto" data-voice-cancel><%= i18n.__('chat.ui.cancel') %></button><button type="button" class="btn btn-sm btn-primary rounded-0" data-voice><%= i18n.__('chat.ui.voice_stop') %></button></div>
+					<div class="chat-emoji-panel d-none"></div>
+					<div class="chat-flags d-none"></div>
+					<div class="chat-write">
+						<div class="chat-mentions d-none" id="<%= chatPrefix %>chat-thread-mentions"></div>
+						<div class="dropup">
+							<button type="button" class="btn btn-light rounded-0 chat-btn" data-bs-toggle="dropdown" aria-expanded="false" title="<%= i18n.__('chat.ui.attach') %>"><i class="fa-solid fa-paperclip"></i></button>
+							<ul class="dropdown-menu rounded-0">
+								<li><label class="dropdown-item mb-0" role="button"><i class="fa-regular fa-image fa-fw me-2"></i><%= i18n.__('chat.ui.attach_photo') %><input type="file" multiple hidden accept="image/jpeg,image/png,image/gif,image/webp,image/avif,video/mp4,video/webm,video/quicktime" data-as="photo" /></label></li>
+								<li><label class="dropdown-item mb-0" role="button"><i class="fa-regular fa-file fa-fw me-2"></i><%= i18n.__('chat.ui.attach_file') %><input type="file" multiple hidden data-as="file" /></label></li>
+								<li><button type="button" class="dropdown-item" data-record><i class="fa-solid fa-link fa-fw me-2"></i><%= i18n.__('chat.ui.attach_record') %></button></li>
+								<li><button type="button" class="dropdown-item" data-poll><i class="fa-solid fa-square-poll-vertical fa-fw me-2"></i><%= i18n.__('chat.ui.poll_new') %></button></li>
+								<li><button type="button" class="dropdown-item" data-checklist><i class="fa-solid fa-list-check fa-fw me-2"></i><%= i18n.__('chat.ui.checklist_new') %></button></li>
+							</ul>
+						</div>
+						<textarea class="form-control rounded-0 chat-input" id="<%= chatPrefix %>chat-thread-input" rows="1" placeholder="<%= i18n.__('chat.ui.placeholder') %>"></textarea>
+						<button type="button" class="btn btn-light rounded-0 chat-btn" data-emoji title="<%= i18n.__('chat.ui.emoji') %>"><i class="fa-regular fa-face-smile"></i></button>
+						<button type="button" class="btn btn-primary rounded-0 chat-btn chat-mic" data-voice title="<%= i18n.__('chat.ui.voice') %>"><i class="fa-solid fa-microphone"></i></button>
+						<button type="button" class="btn btn-primary rounded-0 chat-btn d-none" id="<%= chatPrefix %>chat-thread-send" title="<%= i18n.__('chat.ui.send_hint') %>"><i class="fa-solid fa-paper-plane"></i></button>
+					</div>
+					<div class="chat-readonly d-none"></div>
+				</footer>
+			<div class="chat-drop d-none" id="<%= chatPrefix %>chat-thread-drop"><div><i class="fa-solid fa-cloud-arrow-up fa-2x mb-2"></i><br /><%= i18n.__('chat.ui.drop') %></div></div>
+		</aside>
+
+		<!-- ─── Інформація про чат ─── -->
+		<aside class="chat-info d-none" id="<%= chatPrefix %>chat-info">
+			<div class="chat-info-head">
+				<strong><%= i18n.__('chat.ui.info') %></strong>
+				<button class="btn-close" id="<%= chatPrefix %>chat-info-close" aria-label="<%= i18n.__('chat.ui.close') %>"></button>
+			</div>
+			<div class="chat-info-scroll">
+				<div id="<%= chatPrefix %>chat-info-body"></div>
+				<!-- Вкладки: в один рядок, на вузькій панелі — з горизонтальною прокруткою -->
+				<ul class="nav nav-underline nav-fill chat-info-tabs" role="tablist">
+					<li class="nav-item"><button class="nav-link active" data-info-tab="members"><%= i18n.__('chat.ui.members') %></button></li>
+					<li class="nav-item"><button class="nav-link" data-info-tab="media"><%= i18n.__('chat.ui.media') %></button></li>
+					<li class="nav-item"><button class="nav-link" data-info-tab="docs"><%= i18n.__('chat.ui.docs') %></button></li>
+					<li class="nav-item"><button class="nav-link" data-info-tab="decisions"><%= i18n.__('chat.ui.decisions') %></button></li>
+				</ul>
+				<div class="chat-info-tab" id="<%= chatPrefix %>chat-info-tab"></div>
+			</div>
+		</aside>
+
+		<!-- Затемнення під бічною панеллю (інформація, тред), коли вона відкрита поверх розмови -->
+		<div class="chat-pane-backdrop" id="<%= chatPrefix %>chat-pane-backdrop"></div>
+	</div>
+
+<!-- Вибір людей / чатів (новий чат, група, канал, додати учасників, переслати) -->
+<div class="modal fade" id="<%= chatPrefix %>chat-pick" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+		<div class="modal-content rounded-0">
+			<div class="modal-header">
+				<h1 class="modal-title fs-5" id="<%= chatPrefix %>chat-pick-title"></h1>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= i18n.__('chat.ui.close') %>"></button>
+			</div>
+			<div class="modal-body">
+				<div id="<%= chatPrefix %>chat-pick-form"></div>
+				<input type="search" class="form-control rounded-0 mb-2" id="<%= chatPrefix %>chat-pick-search" placeholder="<%= i18n.__('chat.ui.search_people') %>" />
+				<div class="list-group rounded-0" id="<%= chatPrefix %>chat-pick-list"></div>
+			</div>
+			<div class="modal-footer">
+				<span class="me-auto small text-muted" id="<%= chatPrefix %>chat-pick-count"></span>
+				<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('chat.ui.cancel') %></button>
+				<button type="button" class="btn btn-primary rounded-0" id="<%= chatPrefix %>chat-pick-ok"></button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Пошук -->
+<div class="modal fade" id="<%= chatPrefix %>chat-search" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+		<div class="modal-content rounded-0">
+			<div class="modal-header">
+				<h1 class="modal-title fs-5"><%= i18n.__('chat.ui.search') %></h1>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= i18n.__('chat.ui.close') %>"></button>
+			</div>
+			<div class="modal-body">
+				<form class="row g-2 mb-3" id="<%= chatPrefix %>chat-search-form">
+					<div class="col-12"><input type="search" class="form-control rounded-0" name="q" placeholder="<%= i18n.__('chat.ui.search_text') %>" /></div>
+					<div class="col-md-4"><select class="form-select form-select-sm rounded-0" name="id_room"></select></div>
+					<div class="col-md-4"><select class="form-select form-select-sm rounded-0" name="id_user"></select></div>
+					<div class="col-6 col-md-2"><input type="date" class="form-control form-control-sm rounded-0" name="date_from" title="<%= i18n.__('chat.ui.date_from') %>" /></div>
+					<div class="col-6 col-md-2"><input type="date" class="form-control form-control-sm rounded-0" name="date_to" title="<%= i18n.__('chat.ui.date_to') %>" /></div>
+					<div class="col-auto"><div class="form-check"><input class="form-check-input" type="checkbox" name="has_files" id="<%= chatPrefix %>cs-files" /><label class="form-check-label small" for="<%= chatPrefix %>cs-files"><%= i18n.__('chat.ui.with_files') %></label></div></div>
+					<div class="col-auto"><div class="form-check"><input class="form-check-input" type="checkbox" name="has_links" id="<%= chatPrefix %>cs-links" /><label class="form-check-label small" for="<%= chatPrefix %>cs-links"><%= i18n.__('chat.ui.with_links') %></label></div></div>
+					<div class="col-auto"><div class="form-check"><input class="form-check-input" type="checkbox" name="mentions_me" id="<%= chatPrefix %>cs-mentions" /><label class="form-check-label small" for="<%= chatPrefix %>cs-mentions"><%= i18n.__('chat.ui.mentions_me') %></label></div></div>
+					<div class="col-auto ms-auto"><button class="btn btn-primary btn-sm rounded-0" type="submit"><%= i18n.__('chat.ui.find') %></button></div>
+				</form>
+				<div id="<%= chatPrefix %>chat-search-results"></div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Коли: надіслати пізніше / нагадати -->
+<div class="modal fade" id="<%= chatPrefix %>chat-when" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content rounded-0">
+			<div class="modal-header">
+				<h1 class="modal-title fs-5" id="<%= chatPrefix %>chat-when-title"></h1>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= i18n.__('chat.ui.close') %>"></button>
+			</div>
+			<div class="modal-body">
+				<div class="chat-when-presets mb-3" id="<%= chatPrefix %>chat-when-presets"></div>
+				<div class="mb-2">
+					<label class="form-label small mb-1" for="<%= chatPrefix %>chat-when-at"><%= i18n.__('chat.ui.pick_time') %></label>
+					<input type="datetime-local" class="form-control rounded-0" id="<%= chatPrefix %>chat-when-at" />
+					<div class="invalid-feedback"><%= i18n.__('chat.ui.time_in_future') %></div>
+					<div class="form-text" id="<%= chatPrefix %>chat-when-tz"></div>
+					<div class="form-text text-primary" id="<%= chatPrefix %>chat-when-hint"></div>
+				</div>
+				<div class="mb-2">
+					<input type="text" class="form-control rounded-0" id="<%= chatPrefix %>chat-when-note" maxlength="255" placeholder="<%= i18n.__('chat.ui.remind_note') %>" />
+				</div>
+				<div class="form-check">
+					<input class="form-check-input" type="checkbox" id="<%= chatPrefix %>chat-when-noreply" />
+					<label class="form-check-label small" for="<%= chatPrefix %>chat-when-noreply"><%= i18n.__('chat.ui.remind_no_reply') %></label>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('chat.ui.cancel') %></button>
+				<button type="button" class="btn btn-primary rounded-0" id="<%= chatPrefix %>chat-when-ok"></button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Перелік (закріплені, заплановані, нагадування) -->
+<div class="modal fade" id="<%= chatPrefix %>chat-list" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+		<div class="modal-content rounded-0">
+			<div class="modal-header">
+				<h1 class="modal-title fs-5" id="<%= chatPrefix %>chat-list-title"></h1>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= i18n.__('chat.ui.close') %>"></button>
+			</div>
+			<div class="modal-body" id="<%= chatPrefix %>chat-list-body"></div>
+		</div>
+	</div>
+</div>
+
+<!-- Задача з повідомлення -->
+<div class="modal fade" id="<%= chatPrefix %>chat-task" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<form class="modal-content rounded-0" id="<%= chatPrefix %>chat-task-form" novalidate>
+			<div class="modal-header">
+				<h1 class="modal-title fs-5"><%= i18n.__('chat.ui.make_task') %></h1>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= i18n.__('chat.ui.close') %>"></button>
+			</div>
+			<div class="modal-body">
+				<div class="mb-2">
+					<label class="form-label small mb-1" for="<%= chatPrefix %>ct-title"><%= i18n.__('chat.ui.task_title') %></label>
+					<input type="text" class="form-control rounded-0" id="<%= chatPrefix %>ct-title" name="title" maxlength="255" required />
+				</div>
+				<div class="mb-2">
+					<label class="form-label small mb-1" for="<%= chatPrefix %>ct-user"><%= i18n.__('chat.ui.task_assignee') %></label>
+					<select class="form-select rounded-0" id="<%= chatPrefix %>ct-user" name="id_user"></select>
+				</div>
+				<div class="mb-2">
+					<label class="form-label small mb-1" for="<%= chatPrefix %>ct-start"><%= i18n.__('chat.ui.task_when') %></label>
+					<div class="d-flex flex-wrap gap-1 mb-1" id="<%= chatPrefix %>chat-task-presets"></div>
+					<input type="datetime-local" class="form-control rounded-0" id="<%= chatPrefix %>ct-start" name="start" required />
+					<div class="form-text" id="<%= chatPrefix %>chat-task-tz"></div>
+				</div>
+				<div class="mb-2">
+					<label class="form-label small mb-1" for="<%= chatPrefix %>ct-desc"><%= i18n.__('chat.ui.task_description') %></label>
+					<textarea class="form-control rounded-0" id="<%= chatPrefix %>ct-desc" name="description" rows="3" maxlength="5000"></textarea>
+					<div class="form-text"><%= i18n.__('chat.ui.task_hint') %></div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('chat.ui.cancel') %></button>
+				<button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('chat.ui.create') %></button>
+			</div>
+		</form>
+	</div>
+</div>
+
+<!-- Опитування -->
+<div class="modal fade" id="<%= chatPrefix %>chat-poll" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<form class="modal-content rounded-0" id="<%= chatPrefix %>chat-poll-form" novalidate>
+			<div class="modal-header">
+				<h1 class="modal-title fs-5"><%= i18n.__('chat.ui.poll_new') %></h1>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= i18n.__('chat.ui.close') %>"></button>
+			</div>
+			<div class="modal-body">
+				<div class="mb-2">
+					<label class="form-label small mb-1" for="<%= chatPrefix %>cpl-q"><%= i18n.__('chat.ui.poll_question') %></label>
+					<textarea class="form-control rounded-0" id="<%= chatPrefix %>cpl-q" name="question" rows="2" maxlength="1000" required></textarea>
+				</div>
+				<div class="mb-2">
+					<div class="form-label small mb-1"><%= i18n.__('chat.ui.poll_options') %></div>
+					<div id="<%= chatPrefix %>chat-poll-options"></div>
+					<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="<%= chatPrefix %>chat-poll-add"><i class="fa-solid fa-plus me-1"></i><%= i18n.__('chat.ui.poll_add_option') %></button>
+				</div>
+				<div class="form-check"><input class="form-check-input" type="checkbox" id="<%= chatPrefix %>cpl-multi" name="multiple" /><label class="form-check-label small" for="<%= chatPrefix %>cpl-multi"><%= i18n.__('chat.ui.poll_multiple_label') %></label></div>
+				<div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="<%= chatPrefix %>cpl-anon" name="anonymous" /><label class="form-check-label small" for="<%= chatPrefix %>cpl-anon"><%= i18n.__('chat.ui.poll_anonymous_label') %></label></div>
+				<div>
+					<label class="form-label small mb-1" for="<%= chatPrefix %>cpl-close"><%= i18n.__('chat.ui.poll_closes') %></label>
+					<input type="datetime-local" class="form-control rounded-0" id="<%= chatPrefix %>cpl-close" name="closes_at" />
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('chat.ui.cancel') %></button>
+				<button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('chat.ui.send') %></button>
+			</div>
+		</form>
+	</div>
+</div>
+
+<!-- Чекліст -->
+<div class="modal fade" id="<%= chatPrefix %>chat-checklist" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<form class="modal-content rounded-0" id="<%= chatPrefix %>chat-checklist-form" novalidate>
+			<div class="modal-header">
+				<h1 class="modal-title fs-5"><%= i18n.__('chat.ui.checklist_new') %></h1>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= i18n.__('chat.ui.close') %>"></button>
+			</div>
+			<div class="modal-body">
+				<div class="mb-2">
+					<label class="form-label small mb-1" for="<%= chatPrefix %>ccl-title"><%= i18n.__('chat.ui.checklist_title') %></label>
+					<input type="text" class="form-control rounded-0" id="<%= chatPrefix %>ccl-title" name="title" maxlength="1000" required />
+				</div>
+				<div>
+					<label class="form-label small mb-1" for="<%= chatPrefix %>ccl-items"><%= i18n.__('chat.ui.checklist_items') %></label>
+					<textarea class="form-control rounded-0" id="<%= chatPrefix %>ccl-items" name="items" rows="6" required></textarea>
+					<div class="form-text"><%= i18n.__('chat.ui.checklist_items_hint') %></div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('chat.ui.cancel') %></button>
+				<button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('chat.ui.send') %></button>
+			</div>
+		</form>
+	</div>
+</div>
+
+<!-- Картка запису: пошук -->
+<div class="modal fade" id="<%= chatPrefix %>chat-record" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+		<div class="modal-content rounded-0">
+			<div class="modal-header">
+				<h1 class="modal-title fs-5"><%= i18n.__('chat.ui.attach_record') %></h1>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= i18n.__('chat.ui.close') %>"></button>
+			</div>
+			<div class="modal-body">
+				<input type="search" class="form-control rounded-0 mb-2" id="<%= chatPrefix %>chat-record-q" placeholder="<%= i18n.__('chat.ui.record_search') %>" />
+				<div class="list-group rounded-0" id="<%= chatPrefix %>chat-record-list"></div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Вибір реакції -->
+<div class="chat-react-pop d-none" id="<%= chatPrefix %>chat-react-pop"></div>
+
+<!-- Контекстне меню: дії з повідомленням і форматування виділеного тексту -->
+<ul class="dropdown-menu rounded-0 shadow chat-ctx" id="<%= chatPrefix %>chat-ctx"></ul>
+
+<!-- Хто прочитав -->
+<div class="modal fade" id="<%= chatPrefix %>chat-readers" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+		<div class="modal-content rounded-0">
+			<div class="modal-header">
+				<h1 class="modal-title fs-5" id="<%= chatPrefix %>chat-readers-title"><%= i18n.__('chat.ui.readers') %></h1>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= i18n.__('chat.ui.close') %>"></button>
+			</div>
+			<div class="modal-body" id="<%= chatPrefix %>chat-readers-body"></div>
+		</div>
+	</div>
+</div>
+
+<!-- Перегляд фото -->
+<div class="modal fade" id="<%= chatPrefix %>chat-viewer" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered modal-xl">
+		<div class="modal-content rounded-0 bg-dark">
+			<div class="modal-header border-0 py-2">
+				<a class="btn btn-sm btn-outline-light rounded-0 me-auto" id="<%= chatPrefix %>chat-viewer-download"><i class="fa-solid fa-download"></i></a>
+				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="<%= i18n.__('chat.ui.close') %>"></button>
+			</div>
+			<div class="modal-body text-center p-2" id="<%= chatPrefix %>chat-viewer-body"></div>
+		</div>
+	</div>
+</div>
+
+<!-- Підтвердження / короткі запитання (замість alert, confirm, prompt) -->
+<div class="modal fade" id="<%= chatPrefix %>chat-dialog" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<form class="modal-content rounded-0" id="<%= chatPrefix %>chat-dialog-form" novalidate>
+			<div class="modal-header">
+				<h1 class="modal-title fs-5" id="<%= chatPrefix %>chat-dialog-title"></h1>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= i18n.__('chat.ui.close') %>"></button>
+			</div>
+			<div class="modal-body">
+				<p class="mb-0" id="<%= chatPrefix %>chat-dialog-text"></p>
+				<div id="<%= chatPrefix %>chat-dialog-fields"></div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('chat.ui.cancel') %></button>
+				<button type="submit" class="btn btn-primary rounded-0" id="<%= chatPrefix %>chat-dialog-ok"></button>
+			</div>
+		</form>
+	</div>
+</div>
+</div>

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('clients.import.title') %></title>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+		<!-- ─── ХЛІБНІ КРИХТИ ─────────────────────────────────────────── -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('clients.import.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('clients.import.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/clients/"><%= i18n.__('clients.import.breadcrumb.clients') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('clients.import.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/clients/" class="btn btn-primary rounded-0">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3">
+			<!-- Крок 1 -->
+			<div class="card border-primary rounded-0 mb-3" id="step-upload">
+				<div class="card-header text-bg-primary rounded-0"><%= i18n.__('clients.import.step_file') %></div>
+				<div class="card-body">
+					<p class="small text-muted mb-2"><%= i18n.__('clients.import.file_hint') %></p>
+					<div class="d-flex gap-2">
+						<input type="file" class="form-control rounded-0" id="im-file" accept=".csv,.txt,.xlsx" />
+						<button type="button" class="btn btn-primary rounded-0 text-nowrap" id="im-upload"><i class="fa-solid fa-upload me-1"></i><%= i18n.__('clients.import.upload') %></button>
+					</div>
+				</div>
+			</div>
+
+			<!-- Крок 2 -->
+			<div class="card border-primary rounded-0 mb-3 d-none" id="step-map">
+				<div class="card-header text-bg-primary rounded-0"><%= i18n.__('clients.import.step_map') %> <span class="badge text-bg-light rounded-0 ms-1" id="im-total"></span></div>
+				<div class="card-body">
+					<div class="table-responsive mb-3">
+						<table class="table table-sm align-middle mb-0">
+							<thead><tr><th style="width: 220px"><%= i18n.__('clients.import.col_file') %></th><th style="width: 260px"><%= i18n.__('clients.import.col_field') %></th><th><%= i18n.__('clients.import.col_examples') %></th></tr></thead>
+							<tbody id="im-map"></tbody>
+						</table>
+					</div>
+					<div class="row g-2">
+						<div class="col-6 col-md-2">
+							<label class="form-label small"><%= i18n.__('clients.import.country') %></label>
+							<input type="text" class="form-control form-control-sm rounded-0" id="im-country" maxlength="2" placeholder="UA" />
+						</div>
+						<div class="col-6 col-md-2">
+							<label class="form-label small"><%= i18n.__('clients.import.identifier_type') %></label>
+							<select class="form-select form-select-sm rounded-0" id="im-idtype">
+								<% identifierTypes.forEach(function (t) { %><option value="<%= t.code %>"><%= t.name %></option><% }) %>
+							</select>
+						</div>
+						<div class="col-6 col-md-2">
+							<label class="form-label small"><%= i18n.__('clients.import.manager') %></label>
+							<select class="form-select form-select-sm rounded-0" id="im-manager">
+								<option value="">—</option>
+								<% managers.forEach(function (m) { %><option value="<%= m.id %>"><%= m.name || ('#' + m.id) %></option><% }) %>
+							</select>
+						</div>
+						<div class="col-6 col-md-2">
+							<label class="form-label small"><%= i18n.__('clients.import.tag') %></label>
+							<select class="form-select form-select-sm rounded-0" id="im-tag">
+								<option value="">—</option>
+								<% tags.forEach(function (t) { %><option value="<%= t.id %>"><%= t.name %></option><% }) %>
+							</select>
+						</div>
+						<div class="col-6 col-md-2">
+							<label class="form-label small"><%= i18n.__('clients.import.lifecycle') %></label>
+							<select class="form-select form-select-sm rounded-0" id="im-lifecycle">
+								<option value="">—</option>
+								<% lifecycle.forEach(function (s) { %><option value="<%= s.code %>"><%= s.name %></option><% }) %>
+							</select>
+						</div>
+						<div class="col-6 col-md-2 d-flex align-items-end">
+							<div class="form-check">
+								<input class="form-check-input" type="checkbox" id="im-create" checked />
+								<label class="form-check-label small" for="im-create"><%= i18n.__('clients.import.create_new') %></label>
+							</div>
+						</div>
+					</div>
+					<div class="small text-muted mt-2"><%= i18n.__('clients.import.map_hint') %></div>
+					<div class="d-flex justify-content-end gap-2 mt-3">
+						<button type="button" class="btn btn-secondary rounded-0" id="im-back"><%= i18n.__('clients.import.other_file') %></button>
+						<button type="button" class="btn btn-primary rounded-0" id="im-start"><i class="fa-solid fa-play me-1"></i><%= i18n.__('clients.import.start') %></button>
+					</div>
+				</div>
+			</div>
+
+			<!-- Крок 3 -->
+			<div class="card border-primary rounded-0 mb-3 d-none" id="step-run">
+				<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+					<span><%= i18n.__('clients.import.step_run') %> <span class="badge text-bg-light rounded-0 ms-1" id="im-status"></span></span>
+					<button type="button" class="btn btn-sm btn-light rounded-0" id="im-cancel"><%= i18n.__('clients.import.stop') %></button>
+				</div>
+				<div class="card-body">
+					<div class="progress rounded-0 mb-3" style="height: 22px"><div class="progress-bar" id="im-bar" style="width: 0%">0%</div></div>
+					<div class="row text-center g-2 mb-3">
+						<div class="col"><div class="small text-muted"><%= i18n.__('clients.import.processed') %></div><div class="fs-5" id="im-processed">0</div></div>
+						<div class="col"><div class="small text-muted"><%= i18n.__('clients.import.created') %></div><div class="fs-5 text-success" id="im-created">0</div></div>
+						<div class="col"><div class="small text-muted"><%= i18n.__('clients.import.matched') %></div><div class="fs-5 text-primary" id="im-matched">0</div></div>
+						<div class="col"><div class="small text-muted"><%= i18n.__('clients.import.skipped') %></div><div class="fs-5 text-danger" id="im-skipped">0</div></div>
+					</div>
+					<div id="im-errors"></div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 5000, types: [{ type: "error", background: "indianred", icon: false }] });
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const STATUS = { uploaded: "<%= i18n.__('clients.import.status.uploaded') %>", running: "<%= i18n.__('clients.import.status.running') %>", done: "<%= i18n.__('clients.import.status.done') %>", failed: "<%= i18n.__('clients.import.status.failed') %>", canceled: "<%= i18n.__('clients.import.status.canceled') %>" };
+				let JOB = null;
+				let timer = null;
+
+				async function post(url, data) {
+					const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data || {}) });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok || j.ok === false) throw new Error(j.error || "<%= i18n.__('clients.import.server_error') %>");
+					return j;
+				}
+				const show = (step) => ["step-upload", "step-map", "step-run"].forEach((id) => $(id).classList.toggle("d-none", id !== step));
+
+				$("im-upload").addEventListener("click", async function () {
+					const f = $("im-file").files[0];
+					if (!f) return notyf.error("<%= i18n.__('clients.import.choose_file') %>");
+					const fd = new FormData();
+					fd.append("file", f);
+					this.disabled = true;
+					try {
+						const r = await fetch("/api/clients/import/upload/", { method: "POST", body: fd });
+						const d = await r.json().catch(() => ({}));
+						if (!r.ok || d.ok === false) throw new Error(d.error || "<%= i18n.__('clients.import.upload_error') %>");
+						JOB = d;
+						const opts = '<option value="">' + "<%= i18n.__('clients.import.skip_column') %>" + "</option>" + d.targets.map((t) => '<option value="' + t.key + '">' + { name: "<%= i18n.__('clients.import.targets.name') %>", first_name: "<%= i18n.__('clients.import.targets.first_name') %>", last_name: "<%= i18n.__('clients.import.targets.last_name') %>", middle_name: "<%= i18n.__('clients.import.targets.middle_name') %>", organization: "<%= i18n.__('clients.import.targets.organization') %>", phone: "<%= i18n.__('clients.import.targets.phone') %>", phone_2: "<%= i18n.__('clients.import.targets.phone_2') %>", email: "<%= i18n.__('clients.import.targets.email') %>", email_2: "<%= i18n.__('clients.import.targets.email_2') %>", identifier: "<%= i18n.__('clients.import.targets.identifier') %>", country: "<%= i18n.__('clients.import.targets.country') %>", region: "<%= i18n.__('clients.import.targets.region') %>", city: "<%= i18n.__('clients.import.targets.city') %>", address: "<%= i18n.__('clients.import.targets.address') %>", postcode: "<%= i18n.__('clients.import.targets.postcode') %>", external_id: "<%= i18n.__('clients.import.targets.external_id') %>", tags: "<%= i18n.__('clients.import.targets.tags') %>", note: "<%= i18n.__('clients.import.targets.note') %>" }[t.key] || t.key + "</option>").join("");
+						$("im-map").innerHTML = d.headers
+							.map((h, i) => {
+								const ex = d.sample.map((r) => r[i]).filter((v) => v !== undefined && v !== "").slice(0, 3);
+								return "<tr><td class='fw-semibold'>" + esc(h) + '</td><td><select class="form-select form-select-sm rounded-0" data-col="' + i + '">' + opts + '</select></td><td class="small text-muted text-truncate" style="max-width:420px">' + ex.map(esc).join(" · ") + "</td></tr>";
+							})
+							.join("");
+						d.mapping.forEach((k, i) => (document.querySelector('[data-col="' + i + '"]').value = k));
+						$("im-total").textContent = "<%= i18n.__('clients.import.rows') %>".replace("{n}", d.total);
+						show("step-map");
+					} catch (e) {
+						notyf.error(e.message);
+					} finally {
+						this.disabled = false;
+					}
+				});
+
+				$("im-back").addEventListener("click", () => {
+					$("im-file").value = "";
+					show("step-upload");
+				});
+
+				$("im-start").addEventListener("click", async function () {
+					const mapping = [...document.querySelectorAll("[data-col]")].sort((a, b) => a.dataset.col - b.dataset.col).map((s) => s.value);
+					const dup = mapping.filter((k, i) => k && mapping.indexOf(k) !== i);
+					if (dup.length) return notyf.error("<%= i18n.__('clients.import.duplicate_field') %>".replace("{field}", dup[0]));
+					this.disabled = true;
+					try {
+						await post("/api/clients/import/" + JOB.id + "/start/", {
+							mapping,
+							options: {
+								country: $("im-country").value.trim(),
+								identifier_type: $("im-idtype").value,
+								id_manager: $("im-manager").value,
+								id_tag: $("im-tag").value,
+								lifecycle: $("im-lifecycle").value,
+								create_new: $("im-create").checked ? 1 : 0,
+							},
+						});
+						show("step-run");
+						poll();
+					} catch (e) {
+						notyf.error(e.message);
+					} finally {
+						this.disabled = false;
+					}
+				});
+
+				async function poll() {
+					clearTimeout(timer);
+					try {
+						const s = await post("/api/clients/import/" + JOB.id + "/status/");
+						const pct = s.total ? Math.round((s.processed / s.total) * 100) : 0;
+						$("im-bar").style.width = pct + "%";
+						$("im-bar").textContent = pct + "%";
+						$("im-status").textContent = STATUS[s.status] || s.status;
+						["processed", "created", "matched", "skipped"].forEach((k) => ($("im-" + k).textContent = s[k] || 0));
+						$("im-errors").innerHTML =
+							(s.error ? '<div class="alert alert-danger rounded-0">' + esc(s.error) + "</div>" : "") +
+							(s.errors.length ? '<div class="small fw-semibold mb-1">' + "<%= i18n.__('clients.import.skipped_rows') %>" + '</div><ul class="small mb-0">' + s.errors.map((e) => "<li>" + "<%= i18n.__('clients.import.row') %>".replace("{row}", e.row).replace("{error}", esc(e.error)) + "</li>").join("") + "</ul>" : "");
+						const running = s.status === "running";
+						$("im-cancel").classList.toggle("d-none", !running);
+						$("im-bar").classList.toggle("progress-bar-animated", running);
+						$("im-bar").classList.toggle("progress-bar-striped", running);
+						if (running) timer = setTimeout(poll, 1500);
+						else if (s.status === "done") $("im-bar").classList.add("bg-success");
+					} catch (e) {
+						timer = setTimeout(poll, 5000);
+					}
+				}
+
+				$("im-cancel").addEventListener("click", async () => {
+					if (!confirm("<%= i18n.__('clients.import.confirm_stop') %>")) return;
+					try {
+						await post("/api/clients/import/" + JOB.id + "/cancel/");
+						poll();
+					} catch (e) {
+						notyf.error(e.message);
+					}
+				});
+			})();
+		</script>
+	</body>
+</html>

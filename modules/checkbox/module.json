@@ -1,0 +1,12 @@
+{
+	"name": "checkbox",
+	"version": "1.0.0",
+	"description": "Checkbox (ПРРО): каси й зміни, фіскальні чеки продажу й повернення із замовлень, чеки при отриманні посилки Нової Пошти (ЕТТН)",
+	"author": "Growth Contour",
+	"hasConfig": false,
+	"config": {
+		"timeout_ms": 30000,
+		"sync_minutes": 5,
+		"ettn_minutes": 15
+	}
+}

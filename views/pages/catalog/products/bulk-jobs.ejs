@@ -1,0 +1,185 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.bulk_jobs.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('catalog.bulk_jobs.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('catalog.bulk_jobs.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/catalog/"><%= i18n.__('catalog.bulk_jobs.breadcrumb.catalog') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('catalog.bulk_jobs.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/catalog/" class="btn btn-primary rounded-0">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3">
+			<div class="row">
+				<div class="col-12 mb-3">
+					<% if (perms.edit) { %>
+					<a class="btn btn-primary rounded-0 mb-3" href="/catalog/bulk/new/"><i class="fa-solid fa-plus me-1"></i> <%= i18n.__('catalog.bulk_jobs.new') %></a>
+					<% } %>
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+							<span><%= i18n.__('catalog.bulk_jobs.title') %></span>
+							<div class="d-flex gap-2">
+								<select class="form-select form-select-sm rounded-0 w-auto" id="bj-kind">
+									<option value=""><%= i18n.__('catalog.bulk_jobs.kind_any') %></option>
+									<option value="edit"><%= i18n.__('catalog.bulk_jobs.kind_edit') %></option>
+									<option value="revert"><%= i18n.__('catalog.bulk_jobs.kind_revert') %></option>
+									<option value="template"><%= i18n.__('catalog.bulk_jobs.kind_template') %></option>
+								</select>
+								<select class="form-select form-select-sm rounded-0 w-auto" id="bj-status">
+									<option value=""><%= i18n.__('catalog.bulk_jobs.status_any') %></option>
+									<option value="queued"><%= i18n.__('catalog.bulk_jobs.st.queued') %></option>
+									<option value="running"><%= i18n.__('catalog.bulk_jobs.st.running') %></option>
+									<option value="done"><%= i18n.__('catalog.bulk_jobs.st.done') %></option>
+									<option value="cancelled"><%= i18n.__('catalog.bulk_jobs.st.cancelled') %></option>
+									<option value="failed"><%= i18n.__('catalog.bulk_jobs.st.failed') %></option>
+								</select>
+							</div>
+						</div>
+						<div id="bj-table"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s === null || s === undefined ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const fmt = (n) => Number(n || 0).toLocaleString();
+				const when = (ts) => (ts ? new Date(ts).toLocaleString() : "");
+				const ST = {
+					queued: ["text-bg-secondary", "<%= i18n.__('catalog.bulk_jobs.st.queued') %>"],
+					running: ["text-bg-primary", "<%= i18n.__('catalog.bulk_jobs.st.running') %>"],
+					done: ["text-bg-success", "<%= i18n.__('catalog.bulk_jobs.st.done') %>"],
+					cancelled: ["text-bg-warning", "<%= i18n.__('catalog.bulk_jobs.st.cancelled') %>"],
+					failed: ["text-bg-danger", "<%= i18n.__('catalog.bulk_jobs.st.failed') %>"],
+				};
+
+				// Стан: значок і, поки йде, — смужка прогресу
+				function stateHtml(j) {
+					const st = ST[j.status] || ST.queued;
+					let html = j.scheduled
+						? `<span class="badge rounded-0 text-bg-info"><i class="fa-regular fa-clock me-1"></i>${esc("<%= i18n.__('catalog.bulk_jobs.st.scheduled') %>")}</span><div class="small text-secondary">${esc(when(j.run_at))}</div>`
+						: `<span class="badge rounded-0 ${st[0]}">${esc(st[1])}</span>`;
+					if (j.revert_at && !j.id_reverted_by) html += `<div class="small text-secondary" title="<%= i18n.__('catalog.bulk_jobs.auto_revert') %>"><i class="fa-solid fa-rotate-left me-1"></i>${esc(when(j.revert_at))}</div>`;
+					if (j.status === "running" && Number(j.total)) {
+						const pct = Math.min(100, Math.round((Number(j.processed) / Number(j.total)) * 100));
+						html += `<div class="progress rounded-0 mt-1" style="height:6px"><div class="progress-bar" style="width:${pct}%"></div></div><div class="small text-secondary">${fmt(j.processed)} / ${fmt(j.total)}</div>`;
+					}
+					if (j.kind === "edit" && j.id_reverted_by) html += ` <span class="badge rounded-0 text-bg-light border">${esc("<%= i18n.__('catalog.bulk_jobs.reverted') %>")}</span>`;
+					return html;
+				}
+
+				const table = new Tabulator("#bj-table", {
+					layout: "fitColumns",
+					placeholder: "<%= i18n.__('catalog.bulk_jobs.empty') %>",
+					pagination: true,
+					paginationMode: "remote",
+					paginationSize: 20,
+					paginationSizeSelector: [20, 50, 100],
+					ajaxURL: "/api/catalog/bulk/jobs/list/",
+					ajaxConfig: { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" } },
+					ajaxContentType: "json",
+					ajaxParams: () => ({ status: $("bj-status").value, kind: $("bj-kind").value }),
+					index: "id",
+					columns: [
+						{ title: "#", field: "id", headerSort: false, width: 70 },
+						{ title: "<%= i18n.__('catalog.bulk_jobs.col_date') %>", field: "date_add", headerSort: false, widthGrow: 1, formatter: (c) => esc(when(c.getValue())) },
+						{
+							title: "<%= i18n.__('catalog.bulk_jobs.col_what') %>",
+							field: "title",
+							headerSort: false,
+							widthGrow: 3,
+							formatter: (c) => {
+								const j = c.getRow().getData();
+								const kind = j.kind === "revert" ? `<span class="badge rounded-0 text-bg-light border me-1"><i class="fa-solid fa-rotate-left me-1"></i>${esc("<%= i18n.__('catalog.bulk_jobs.kind_revert') %>")} #${Number(j.id_source)}</span>` : "";
+								const ops = (j.op_labels || []).join(" → ");
+								const star = j.is_template ? `<i class="fa-solid fa-star text-warning me-1" title="<%= i18n.__('catalog.bulk_jobs.kind_template') %>"></i>` : "";
+								return `${star}${kind}${j.title ? `<b>${esc(j.title)}</b><div class="small text-secondary">${esc(ops)}</div>` : esc(ops)}`;
+							},
+						},
+						{ title: "<%= i18n.__('catalog.bulk_jobs.col_user') %>", field: "user_name", headerSort: false, widthGrow: 1, formatter: (c) => esc(c.getValue() || "") },
+						{ title: "<%= i18n.__('catalog.bulk_jobs.col_total') %>", field: "total", headerSort: false, hozAlign: "right", width: 110, formatter: (c) => fmt(c.getValue()) },
+						{
+							title: "<%= i18n.__('catalog.bulk_jobs.col_result') %>",
+							field: "changed",
+							headerSort: false,
+							widthGrow: 2,
+							formatter: (c) => {
+								const j = c.getRow().getData();
+								return [
+									`<span class="text-success" title="<%= i18n.__('catalog.bulk_jobs.changed') %>"><i class="fa-solid fa-check me-1"></i>${fmt(j.changed)}</span>`,
+									j.unchanged ? `<span class="text-secondary" title="<%= i18n.__('catalog.bulk_jobs.unchanged') %>"><i class="fa-solid fa-equals me-1"></i>${fmt(j.unchanged)}</span>` : "",
+									j.skipped ? `<span class="text-warning" title="<%= i18n.__('catalog.bulk_jobs.skipped') %>"><i class="fa-solid fa-forward me-1"></i>${fmt(j.skipped)}</span>` : "",
+									j.errors ? `<span class="text-danger" title="<%= i18n.__('catalog.bulk_jobs.errors') %>"><i class="fa-solid fa-triangle-exclamation me-1"></i>${fmt(j.errors)}</span>` : "",
+								].filter(Boolean).join(" &nbsp; ");
+							},
+						},
+						{ title: "<%= i18n.__('catalog.bulk_jobs.col_state') %>", field: "status", headerSort: false, widthGrow: 1.5, formatter: (c) => stateHtml(c.getRow().getData()) },
+						{
+							title: "",
+							field: "id",
+							headerSort: false,
+							width: 60,
+							hozAlign: "center",
+							formatter: (c) => `<a class="btn btn-sm btn-primary rounded-0" href="/catalog/bulk/${Number(c.getValue())}/" title="<%= i18n.__('catalog.bulk_jobs.open') %>"><i class="fa-solid fa-pen-to-square"></i></a>`,
+						},
+					],
+				});
+
+				$("bj-status").addEventListener("change", () => table.setData());
+				$("bj-kind").addEventListener("change", () => table.setData());
+
+				// Прогрес у реальному часі: рядок оновлюється без перезавантаження таблиці; нова чи завершена — таблиця заново
+				if (typeof socket !== "undefined") {
+					socket.emit("room", "catalog:bulk");
+					socket.on("catalog:bulk", (d) => {
+						const row = table.getRow(d.id);
+						if (!row) return table.setData();
+						row.update(Object.fromEntries(Object.entries(d).filter(([, v]) => v !== undefined)));
+						if (d.status !== "running") table.setData();
+					});
+				}
+			})();
+		</script>
+	</body>
+</html>

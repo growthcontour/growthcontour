@@ -1,0 +1,15 @@
+{
+	"name": "monobank",
+	"version": "1.0.0",
+	"description": "Monobank (Mono Acquiring): посилання на оплату замовлень, кілька акаунтів (ФОП), вебхуки й автоматична зміна статусу",
+	"author": "Growth Contour",
+	"hasConfig": false,
+	"config": {
+		"reconcile_minutes": 15,
+		"reconcile_days": 7,
+		"timeout_ms": 20000,
+		"statement_hours": 1,
+		"statement_initial_days": 90,
+		"statement_overlap_days": 3
+	}
+}

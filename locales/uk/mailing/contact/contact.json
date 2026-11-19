@@ -1,0 +1,12 @@
+{
+	"mailing": {
+		"contact": {
+			"title": "Контакт",
+			"breadcrumb": {
+				"home": "Головна",
+				"mailing": "Розсилки",
+				"contacts": "Контакти"
+			}
+		}
+	}
+}

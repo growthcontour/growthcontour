@@ -1,0 +1,17 @@
+{
+    "orders": {
+        "title": "Ordini",
+        "columns": {
+            "id": "ID",
+            "source": "Fonte",
+            "reference": "Riferimento",
+            "delivery": "Consegna",
+            "total": "Totale",
+            "payment": "Pagamento",
+            "status": "Stato",
+            "date_add": "Data aggiunta",
+            "date_edit": "Data modifica",
+            "edit": "Modifica"
+        }
+    }
+}

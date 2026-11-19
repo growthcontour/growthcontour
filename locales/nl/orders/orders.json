@@ -1,0 +1,17 @@
+{
+    "orders": {
+        "title": "Bestellingen",
+        "columns": {
+            "id": "ID",
+            "source": "Bron",
+            "reference": "Referentie",
+            "delivery": "Levering",
+            "total": "Totaal",
+            "payment": "Betaling",
+            "status": "Status",
+            "date_add": "Datum toegevoegd",
+            "date_edit": "Datum bewerkt",
+            "edit": "Bewerken"
+        }
+    }
+}

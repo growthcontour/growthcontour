@@ -1,0 +1,444 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('chat.analytics.title') %></title>
+		<%- include('../../partials/head'); %>
+
+		<!-- Tabulator (таблиці) -->
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+
+		<style>
+			#rooms-table .tabulator-col,
+			#rooms-table .tabulator-cell,
+			#people-table .tabulator-col,
+			#people-table .tabulator-cell {
+				border-right: 1px solid #dee2e6;
+				border-bottom: 1px solid #dee2e6;
+			}
+			#rooms-table .tabulator-col:last-child,
+			#rooms-table .tabulator-cell:last-child,
+			#people-table .tabulator-col:last-child,
+			#people-table .tabulator-cell:last-child {
+				border-right: none;
+			}
+			.chart-box {
+				height: 320px;
+			}
+		</style>
+	</head>
+
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+
+		<!-- ─── ХЛІБНІ КРИХТИ ─────────────────────────────────────────── -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('chat.analytics.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('chat.analytics.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/chat/"><%= i18n.__('chat.analytics.breadcrumb.chat') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('chat.analytics.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/chat/" class="btn btn-primary rounded-0">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- ─── ОСНОВНИЙ КОНТЕНТ ──────────────────────────────────────── -->
+		<div class="container-fluid mt-3" id="chat-analytics" data-from="<%= data.period.from %>" data-to="<%= data.period.to %>" data-tz="<%= timezone || '' %>" data-locale="<%= locale || i18n.__('lang_iso') %>">
+			<div class="row">
+				<!-- Період -->
+				<div class="col-12 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('chat.analytics.period.title') %></div>
+						<div class="card-body">
+							<form class="row g-2 align-items-end" method="get" action="/chat/analytics/">
+								<div class="col-6 col-md-3 col-xl-2">
+									<label class="form-label small mb-1" for="flt-from"><%= i18n.__('chat.analytics.period.from') %></label>
+									<input type="date" class="form-control rounded-0" id="flt-from" name="from" value="<%= data.period.from %>" />
+								</div>
+								<div class="col-6 col-md-3 col-xl-2">
+									<label class="form-label small mb-1" for="flt-to"><%= i18n.__('chat.analytics.period.to') %></label>
+									<input type="date" class="form-control rounded-0" id="flt-to" name="to" value="<%= data.period.to %>" />
+								</div>
+								<div class="col-auto">
+									<button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('chat.analytics.period.apply') %></button>
+								</div>
+								<div class="col-auto">
+									<div class="btn-group" role="group">
+										<button type="button" class="btn btn-outline-secondary rounded-0" data-days="7"><%= i18n.__('chat.analytics.period.days_7') %></button>
+										<button type="button" class="btn btn-outline-secondary rounded-0" data-days="30"><%= i18n.__('chat.analytics.period.days_30') %></button>
+										<button type="button" class="btn btn-outline-secondary rounded-0" data-days="90"><%= i18n.__('chat.analytics.period.days_90') %></button>
+									</div>
+								</div>
+								<div class="col-12 small text-muted"><%= i18n.__('chat.analytics.period.hint', { days: data.period.days, from: data.period.prevFrom, to: data.period.prevTo }) %></div>
+							</form>
+						</div>
+					</div>
+				</div>
+
+				<!-- Головні показники -->
+				<div class="col-12 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('chat.analytics.kpi.title') %></div>
+						<div class="card-body">
+							<div class="row g-3">
+								<% [['messages', 'fa-regular fa-comment'], ['people', 'fa-solid fa-users'], ['chats', 'fa-regular fa-comments'], ['thread_replies', 'fa-solid fa-reply-all']].forEach(function (k) { %>
+								<div class="col-6 col-lg-3 col-xxl">
+									<div class="small text-muted"><i class="<%= k[1] %> me-1"></i><%= i18n.__('chat.analytics.kpi.' + k[0]) %></div>
+									<div class="fs-3 fw-semibold"><%= Number(data.current[k[0]]).toLocaleString(i18n.__('lang_iso')) %></div>
+									<% if (data.delta[k[0]] === null) { %>
+									<div class="small text-muted"><%= i18n.__('chat.analytics.kpi.no_previous') %></div>
+									<% } else { %>
+									<div class="small <%= data.delta[k[0]] > 0 ? 'text-success' : data.delta[k[0]] < 0 ? 'text-danger' : 'text-muted' %>"><%= i18n.__('chat.analytics.kpi.delta', { value: (data.delta[k[0]] > 0 ? '+' : '') + data.delta[k[0]] }) %></div>
+									<% } %>
+								</div>
+								<% }) %>
+								<div class="col-12 col-lg-6 col-xxl">
+									<div class="small text-muted"><i class="fa-regular fa-clock me-1"></i><%= i18n.__('chat.analytics.kpi.reply_avg') %></div>
+									<div class="fs-3 fw-semibold">
+										<% if (data.current.reply_avg === null) { %>—<% } else if (data.current.reply_avg < 3600) { %><%= i18n.__('chat.analytics.duration.minutes', { m: Math.max(1, Math.round(data.current.reply_avg / 60)) }) %><% } else { %><%= i18n.__('chat.analytics.duration.hours', { h: Math.floor(data.current.reply_avg / 3600), m: Math.round((data.current.reply_avg % 3600) / 60) }) %><% } %>
+									</div>
+									<% if (data.current.reply_fast !== null) { %>
+									<div class="small text-muted"><%= i18n.__('chat.analytics.kpi.reply_fast', { pct: data.current.reply_fast }) %></div>
+									<% } %>
+									<% if (data.delta.reply_avg !== null) { %>
+									<!-- Час відповіді: зменшення — добре -->
+									<div class="small <%= data.delta.reply_avg < 0 ? 'text-success' : data.delta.reply_avg > 0 ? 'text-danger' : 'text-muted' %>"><%= i18n.__('chat.analytics.kpi.delta', { value: (data.delta.reply_avg > 0 ? '+' : '') + data.delta.reply_avg }) %></div>
+									<% } %>
+								</div>
+							</div>
+							<hr />
+							<div class="row g-3">
+								<% [['urgent', 'fa-solid fa-circle-exclamation'], ['polls', 'fa-solid fa-square-poll-vertical'], ['decisions', 'fa-solid fa-gavel'], ['tasks', 'fa-regular fa-square-check'], ['events', 'fa-solid fa-bolt'], ['files', 'fa-solid fa-paperclip']].forEach(function (k) { %>
+								<div class="col-6 col-md-4 col-xl-2">
+									<div class="small text-muted"><i class="<%= k[1] %> me-1"></i><%= i18n.__('chat.analytics.kpi.' + k[0]) %></div>
+									<div class="fs-5 fw-semibold"><%= Number(data.current[k[0]]).toLocaleString(i18n.__('lang_iso')) %></div>
+								</div>
+								<% }) %>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Активність по днях -->
+				<div class="col-12 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('chat.analytics.charts.days') %></div>
+						<div class="card-body"><div id="chart-days" class="chart-box"></div></div>
+					</div>
+				</div>
+
+				<!-- Коли пишуть -->
+				<div class="col-12 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('chat.analytics.charts.hours') %></div>
+						<div class="card-body">
+							<div id="chart-hours" class="chart-box"></div>
+							<div class="small text-muted" id="chart-hours-tz"></div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Чати -->
+				<div class="col-12 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('chat.analytics.rooms.title') %></div>
+						<div id="rooms-table"></div>
+					</div>
+				</div>
+
+				<!-- Люди -->
+				<div class="col-12 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('chat.analytics.people.title') %></div>
+						<div id="people-table"></div>
+						<div class="card-footer small text-muted rounded-0"><%= i18n.__('chat.analytics.people.hint') %></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+
+		<script src="https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js"></script>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			(function () {
+				var root = document.getElementById("chat-analytics");
+				var filters = { from: root.dataset.from, to: root.dataset.to };
+				var tz = root.dataset.tz || undefined;
+				var locale = root.dataset.locale || undefined;
+
+				function post(url, body) {
+					return fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body) }).then(function (r) {
+						return r.json().then(function (j) {
+							if (!r.ok || j.ok === false) throw new Error(j.error || "<%= i18n.__('chat.analytics.error') %>");
+							return j;
+						});
+					});
+				}
+				function fmtNum(v) {
+					return (Number(v) || 0).toLocaleString(locale);
+				}
+				function fmtDuration(s) {
+					if (s === null || s === undefined) return "—";
+					if (s < 3600) return Math.max(1, Math.round(s / 60)) + " <%= i18n.__('chat.analytics.duration.min') %>";
+					return Math.floor(s / 3600) + " <%= i18n.__('chat.analytics.duration.hour') %> " + Math.round((s % 3600) / 60) + " <%= i18n.__('chat.analytics.duration.min') %>";
+				}
+				function fmtDate(v) {
+					if (!v) return "—";
+					try {
+						return new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short", timeZone: tz }).format(new Date(v));
+					} catch (e) {
+						return new Date(v).toLocaleString();
+					}
+				}
+				// Частини дати в поясі людини
+				function zone(ms) {
+					var p = {};
+					try {
+						new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", weekday: "short" })
+							.formatToParts(new Date(ms))
+							.forEach(function (x) {
+								p[x.type] = x.value;
+							});
+					} catch (e) {
+						var d = new Date(ms);
+						p = { year: d.getFullYear(), month: ("0" + (d.getMonth() + 1)).slice(-2), day: ("0" + d.getDate()).slice(-2), hour: d.getHours(), weekday: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()] };
+					}
+					return { day: p.year + "-" + p.month + "-" + p.day, hour: Number(p.hour) % 24, wd: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(p.weekday) };
+				}
+
+				// Перемикачі періоду: останні N днів до сьогодні
+				document.querySelectorAll("[data-days]").forEach(function (b) {
+					b.addEventListener("click", function () {
+						var to = new Date();
+						var from = new Date();
+						from.setDate(from.getDate() - (Number(b.dataset.days) - 1));
+						var f = function (d) {
+							return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+						};
+						location.href = "/chat/analytics/?from=" + f(from) + "&to=" + f(to);
+					});
+				});
+
+				/* ---------- Графіки ---------- */
+				var charts = {};
+				function initChart(id) {
+					if (!charts[id]) charts[id] = echarts.init(document.getElementById(id));
+					return charts[id];
+				}
+				window.addEventListener("resize", function () {
+					Object.keys(charts).forEach(function (k) {
+						charts[k].resize();
+					});
+				});
+
+				var days = initChart("chart-days");
+				var hours = initChart("chart-hours");
+				days.showLoading();
+				hours.showLoading();
+				post("/api/chat/analytics/hours/", filters)
+					.then(function (d) {
+						// Дні періоду — у поясі людини; години — тиждень × година доби
+						var byDay = {};
+						var grid = {};
+						d.hours.forEach(function (h) {
+							var z = zone(h[0] * 1000);
+							byDay[z.day] = byDay[z.day] || [0, 0];
+							byDay[z.day][0] += h[1];
+							byDay[z.day][1] += h[2];
+							var k = z.wd + ":" + z.hour;
+							grid[k] = (grid[k] || 0) + h[1];
+						});
+						var labels = [];
+						var cur = new Date(filters.from + "T12:00:00");
+						var end = new Date(filters.to + "T12:00:00");
+						while (cur <= end) {
+							labels.push(cur.getFullYear() + "-" + ("0" + (cur.getMonth() + 1)).slice(-2) + "-" + ("0" + cur.getDate()).slice(-2));
+							cur.setDate(cur.getDate() + 1);
+						}
+						days.hideLoading();
+						days.setOption({
+							tooltip: { trigger: "axis" },
+							legend: { data: ["<%= i18n.__('chat.analytics.charts.messages') %>", "<%= i18n.__('chat.analytics.charts.events') %>"], top: 0 },
+							grid: { left: 50, right: 20, top: 40, bottom: 40 },
+							xAxis: { type: "category", data: labels },
+							yAxis: { type: "value", minInterval: 1 },
+							series: [
+								{ name: "<%= i18n.__('chat.analytics.charts.messages') %>", type: "bar", data: labels.map(function (l) { return (byDay[l] || [0, 0])[0]; }) },
+								{ name: "<%= i18n.__('chat.analytics.charts.events') %>", type: "line", smooth: true, data: labels.map(function (l) { return (byDay[l] || [0, 0])[1]; }) },
+							],
+						});
+						var weekdays = [];
+						for (var i = 0; i < 7; i++) weekdays.push(new Intl.DateTimeFormat(locale, { weekday: "short", timeZone: "UTC" }).format(new Date(Date.UTC(2024, 0, 1 + i))));
+						var cells = [];
+						var max = 0;
+						for (var w = 0; w < 7; w++)
+							for (var hh = 0; hh < 24; hh++) {
+								var v = grid[w + ":" + hh] || 0;
+								max = Math.max(max, v);
+								cells.push([hh, w, v]);
+							}
+						hours.hideLoading();
+						hours.setOption({
+							tooltip: {
+								formatter: function (p) {
+									return weekdays[p.value[1]] + " " + ("0" + p.value[0]).slice(-2) + ":00 — " + fmtNum(p.value[2]);
+								},
+							},
+							grid: { left: 50, right: 10, top: 10, bottom: 70 },
+							xAxis: { type: "category", data: Array.from({ length: 24 }, function (_, i) { return ("0" + i).slice(-2); }), splitArea: { show: true } },
+							yAxis: { type: "category", data: weekdays, inverse: true, splitArea: { show: true } },
+							visualMap: { min: 0, max: Math.max(1, max), calculable: true, orient: "horizontal", left: "center", bottom: 0 },
+							series: [{ type: "heatmap", data: cells }],
+						});
+						document.getElementById("chart-hours-tz").textContent = tz ? "<%= i18n.__('chat.analytics.charts.timezone') %> " + tz : "";
+					})
+					.catch(function (e) {
+						days.hideLoading();
+						hours.hideLoading();
+						console.error(e);
+					});
+
+				/* ---------- Таблиці ---------- */
+				var roomType = {
+					direct: "<%= i18n.__('chat.analytics.rooms.direct') %>",
+					group: "<%= i18n.__('chat.analytics.rooms.group') %>",
+					channel: "<%= i18n.__('chat.analytics.rooms.channel') %>",
+				};
+				var roomKind = {
+					office: "<%= i18n.__('chat.analytics.rooms.office') %>",
+					department: "<%= i18n.__('chat.analytics.rooms.department') %>",
+					announcements: "<%= i18n.__('chat.analytics.rooms.announcements') %>",
+				};
+				new Tabulator("#rooms-table", {
+					layout: "fitColumns",
+					ajaxURL: "/api/chat/analytics/rooms/",
+					ajaxConfig: "POST",
+					ajaxContentType: "json",
+					ajaxParams: filters,
+					ajaxResponse: function (url, params, response) {
+						return response.rooms || [];
+					},
+					placeholder: "<%= i18n.__('chat.analytics.rooms.no_data') %>",
+					pagination: true,
+					paginationSize: 20,
+					paginationSizeSelector: [20, 50, 100],
+					initialSort: [{ column: "messages", dir: "desc" }],
+					columns: [
+						{
+							title: "<%= i18n.__('chat.analytics.rooms.name') %>",
+							field: "name",
+							widthGrow: 3,
+							formatter: function (cell) {
+								var r = cell.getRow().getData();
+								if (r.type === "direct") return "<em><%= i18n.__('chat.analytics.rooms.direct_all') %> (" + fmtNum(r.rooms) + ")</em>";
+								if (r.kind === "announcements") return roomKind.announcements;
+								var div = document.createElement("div");
+								div.textContent = r.name || "—";
+								return div.innerHTML;
+							},
+						},
+						{
+							title: "<%= i18n.__('chat.analytics.rooms.type') %>",
+							field: "type",
+							widthGrow: 1,
+							formatter: function (cell) {
+								var r = cell.getRow().getData();
+								return roomKind[r.kind] || roomType[r.type] || r.type;
+							},
+						},
+						{ title: "<%= i18n.__('chat.analytics.rooms.members') %>", field: "members", hozAlign: "right", widthGrow: 1, formatter: function (c) { return c.getValue() === null ? "—" : fmtNum(c.getValue()); } },
+						{ title: "<%= i18n.__('chat.analytics.rooms.messages') %>", field: "messages", hozAlign: "right", widthGrow: 1, formatter: function (c) { return fmtNum(c.getValue()); } },
+						{ title: "<%= i18n.__('chat.analytics.rooms.people') %>", field: "people", hozAlign: "right", widthGrow: 1, formatter: function (c) { return fmtNum(c.getValue()); } },
+						{ title: "<%= i18n.__('chat.analytics.rooms.threads') %>", field: "thread_replies", hozAlign: "right", widthGrow: 1, formatter: function (c) { return fmtNum(c.getValue()); } },
+						{ title: "<%= i18n.__('chat.analytics.rooms.events') %>", field: "events", hozAlign: "right", widthGrow: 1, formatter: function (c) { return fmtNum(c.getValue()); } },
+						{ title: "<%= i18n.__('chat.analytics.rooms.reply_avg') %>", field: "reply_avg", hozAlign: "right", widthGrow: 1, formatter: function (c) { return fmtDuration(c.getValue()); } },
+						{ title: "<%= i18n.__('chat.analytics.rooms.last_at') %>", field: "last_at", widthGrow: 2, formatter: function (c) { return fmtDate(c.getValue()); } },
+						{
+							title: "",
+							field: "code",
+							headerSort: false,
+							width: 70,
+							formatter: function (cell) {
+								var code = cell.getValue();
+								return code && /^[0-9a-f]{16}$/.test(code) ? '<div class="d-flex justify-content-center"><a class="text-primary" href="/chat/?room=' + code + '" title="<%= i18n.__('chat.analytics.rooms.open') %>"><i class="fa-regular fa-comments"></i></a></div>' : "";
+							},
+						},
+					],
+				});
+
+				new Tabulator("#people-table", {
+					layout: "fitColumns",
+					ajaxURL: "/api/chat/analytics/people/",
+					ajaxConfig: "POST",
+					ajaxContentType: "json",
+					ajaxParams: filters,
+					ajaxResponse: function (url, params, response) {
+						return response.people || [];
+					},
+					placeholder: "<%= i18n.__('chat.analytics.people.no_data') %>",
+					pagination: true,
+					paginationSize: 20,
+					paginationSizeSelector: [20, 50, 100],
+					initialSort: [{ column: "messages", dir: "desc" }],
+					columns: [
+						{
+							title: "<%= i18n.__('chat.analytics.people.name') %>",
+							field: "name",
+							widthGrow: 3,
+							formatter: function (cell) {
+								var r = cell.getRow().getData();
+								var div = document.createElement("div");
+								div.textContent = r.name || "—";
+								var sub = document.createElement("div");
+								sub.className = "small text-muted";
+								sub.textContent = [r.position, r.department, r.office].filter(Boolean).join(" · ");
+								return div.innerHTML + (sub.textContent ? sub.outerHTML : "");
+							},
+						},
+						{ title: "<%= i18n.__('chat.analytics.people.messages') %>", field: "messages", hozAlign: "right", widthGrow: 1, formatter: function (c) { return fmtNum(c.getValue()); } },
+						{ title: "<%= i18n.__('chat.analytics.people.threads') %>", field: "thread_replies", hozAlign: "right", widthGrow: 1, formatter: function (c) { return fmtNum(c.getValue()); } },
+						{ title: "<%= i18n.__('chat.analytics.people.chats') %>", field: "chats", hozAlign: "right", widthGrow: 1, formatter: function (c) { return fmtNum(c.getValue()); } },
+						{ title: "<%= i18n.__('chat.analytics.people.reactions') %>", field: "reactions", hozAlign: "right", widthGrow: 1, formatter: function (c) { return fmtNum(c.getValue()); } },
+						{ title: "<%= i18n.__('chat.analytics.people.files') %>", field: "files", hozAlign: "right", widthGrow: 1, formatter: function (c) { return fmtNum(c.getValue()); } },
+						{ title: "<%= i18n.__('chat.analytics.people.reply_avg') %>", field: "reply_avg", hozAlign: "right", widthGrow: 1, formatter: function (c) { return fmtDuration(c.getValue()); } },
+						{ title: "<%= i18n.__('chat.analytics.people.last_at') %>", field: "last_at", widthGrow: 2, formatter: function (c) { return fmtDate(c.getValue()); } },
+						{
+							title: "",
+							field: "id",
+							headerSort: false,
+							width: 70,
+							formatter: function (cell) {
+								return '<div class="d-flex justify-content-center"><a class="text-primary" href="/users/' + Number(cell.getValue()) + '/" title="<%= i18n.__('chat.analytics.people.open') %>"><i class="fa-regular fa-pen-to-square"></i></a></div>';
+							},
+						},
+					],
+				});
+			})();
+		</script>
+	</body>
+</html>

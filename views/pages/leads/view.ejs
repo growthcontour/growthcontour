@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+<head>
+    <title><%= i18n.__('leads.view.title') %> #<%= lead.id %></title>
+    <%- include('../../partials/head'); %>
+    <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+    <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+    <style>
+        .editable {
+            cursor: pointer;
+            border-bottom: 1px dashed #adb5bd;
+            min-height: 22px;
+            display: inline-block;
+            min-width: 60px;
+        }
+        .editable:hover { border-bottom-color: #0d6efd; }
+        .editable.saving { opacity: .5; pointer-events: none; }
+        .editable-input {
+            border: 1px solid #0d6efd;
+            border-radius: 0;
+            padding: 2px 6px;
+            font-size: inherit;
+            width: 100%;
+        }
+        .pipeline-steps { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; }
+        .pipeline-step {
+            padding: 5px 14px;
+            border-radius: 0;
+            font-size: 12px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            opacity: .55;
+            transition: opacity .15s;
+        }
+        .pipeline-step.active { opacity: 1; border-color: rgba(0,0,0,.25); }
+        .pipeline-step:hover  { opacity: .85; }
+        .score-bar { height: 6px; border-radius: 3px; background: #e9ecef; }
+        .score-bar-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+        .tab-content { min-height: 300px; }
+        .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase;
+                         color: #6c757d; letter-spacing: .5px; margin-bottom: 8px; }
+    </style>
+</head>
+<body class="d-flex flex-column h-100">
+<%- include('../../partials/header'); %>
+    <!-- ─── ХЛІБНІ КРИХТИ ─────────────────────────────────────────── -->
+    <div class="breadcrumbs pt-3 pb-3">
+      <div class="container-fluid">
+        <div class="row align-items-center">
+          <div class="col">
+            <span><%= '#' + lead.id + ' ' + (lead.title || '') %></span>
+            <div>
+              <ul class="list-inline mb-0">
+                <li class="list-inline-item">
+                  <a href="/">
+                    <i class="fas fa-home"></i>
+                    <span><%= i18n.__('leads.view.breadcrumb.home') %></span>
+                  </a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <a href="/leads/"><%= i18n.__('leads.view.breadcrumb.leads') %></a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <%= '#' + lead.id + ' ' + (lead.title || '') %>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-auto">
+            <a href="/leads/" class="btn btn-primary rounded-0">
+              <i class="fa-solid fa-angle-left"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<div class="container-fluid py-3">
+
+    <!-- Pipeline steps -->
+    <div class="pipeline-steps" id="pipeline-steps">
+        <% stages.forEach(function(st) { %>
+        <button class="pipeline-step <%= lead.id_stage == st.id ? 'active' : '' %>"
+        style="background:<%= st.color %>;color:#fff"
+        data-id="<%= st.id %>"
+        data-action="set-stage">
+            <%= st.name %>
+            <small class="ms-1 opacity-75"><%= st.probability %>%</small>
+        </button>
+        <% }); %>
+    </div>
+
+    <div class="row g-3">
+
+        <!-- ЛІВА КОЛОНКА -->
+        <div class="col-12 col-xl-8">
+
+            <!-- Заголовок -->
+            <div class="card rounded-0 border-primary mb-3">
+                <div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+                    <span class="editable fw-bold fs-5 text-white"
+                          data-field="title" data-type="text"
+                          data-value="<%= lead.title %>"><%= lead.title || '—' %></span>
+                    <div class="d-flex gap-2 align-items-center">
+                        <% if (lead.is_converted) { %>
+                        <span class="badge bg-success rounded-0"><i class="fa-solid fa-circle-check me-1"></i><%= i18n.__('leads.view.t.konvertovano') %></span>
+                        <% } %>
+                        <% if (lead.is_duplicate) { %>
+                        <span class="badge bg-warning text-dark rounded-0"><i class="fa-solid fa-copy me-1"></i><%= i18n.__('leads.view.t.dublikat') %></span>
+                        <% } %>
+                        <button type="button" class="btn btn-sm btn-outline-light rounded-0" data-action="delete-lead" title="<%= i18n.__('leads.view.t.vydalyty_v_koshyk') %>"><i class="fa-solid fa-trash"></i></button>
+                        <a href="/leads" class="btn btn-sm btn-light rounded-0"><i class="fa-solid fa-arrow-left"></i></a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3">
+                            <div class="section-title"><%= i18n.__('leads.view.t.status') %></div>
+                            <select class="form-select form-select-sm rounded-0" data-action="save-field" data-field="id_status">
+                                <% statuses.forEach(function(s) { %>
+                                <option value="<%= s.id %>" <%= lead.id_status == s.id ? 'selected' : '' %>>
+                                    <%= s.name %>
+                                </option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title"><%= i18n.__('leads.view.t.priorytet') %></div>
+                            <select class="form-select form-select-sm rounded-0"
+        data-action="save-field" data-field="id_priority"
+        id="sel-priority">
+                                <% priorities.forEach(function(p) { %>
+                                <option value="<%= p.id %>"
+                                        data-color-text="<%= p.color_text %>"
+                                        data-color-bg="<%= p.color_background %>"
+                                        <%= lead.id_priority == p.id ? 'selected' : '' %>>
+                                    <%= p.name %>
+                                </option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title"><%= i18n.__('leads.view.t.temperatura') %></div>
+                            <select class="form-select form-select-sm rounded-0"
+        data-action="save-field" data-field="id_temperature"
+        id="sel-temperature">
+                                <% temperatures.forEach(function(t) { %>
+                                <option value="<%= t.id %>"
+                                        data-slug="<%= t.slug %>"
+                                        data-color-text="<%= t.color_text %>"
+                                        data-color-bg="<%= t.color_background %>"
+                                        data-icon="<%= t.icon %>"
+                                        <%= lead.id_temperature == t.id ? 'selected' : '' %>>
+                                    <%= t.name %>
+                                </option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title"><%= i18n.__('leads.view.t.kvalifikatsiia') %></div>
+                            <select class="form-select form-select-sm rounded-0"
+        data-action="save-field" data-field="id_qualification"
+        id="sel-qualification">
+                                <% qualifications.forEach(function(q) { %>
+                                <option value="<%= q.id %>"
+                                        data-slug="<%= q.slug %>"
+                                        data-color-text="<%= q.color_text %>"
+                                        data-color-bg="<%= q.color_background %>"
+                                        <%= lead.id_qualification == q.id ? 'selected' : '' %>>
+                                    <%= q.name %>
+                                </option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title"><%= i18n.__('leads.view.t.suma') %></div>
+                            <span class="editable" data-field="value" data-type="number"
+                                  data-value="<%= lead.value %>">
+                                <%= parseFloat(lead.value || 0).toLocaleString('uk-UA') %>
+                            </span>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title"><%= i18n.__('leads.view.t.data_zakryttia') %></div>
+                            <span class="editable" data-field="expected_close_date" data-type="date"
+                                  data-value="<%= lead.expected_close_date ? new Date(lead.expected_close_date).toISOString().slice(0,10) : '' %>">
+                                <%= lead.expected_close_date ? new Date(lead.expected_close_date).toLocaleDateString('uk-UA') : '—' %>
+                            </span>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title"><%= i18n.__('leads.view.t.dzherelo') %></div>
+                            <select class="form-select form-select-sm rounded-0"
+        data-action="save-field" data-field="id_source">
+                                <option value="">—</option>
+                                <% sources.forEach(function(src) { %>
+                                <option value="<%= src.id %>" <%= lead.id_source == src.id ? 'selected' : '' %>>
+                                    <%= src.name %>
+                                </option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title"><%= i18n.__('leads.view.t.sait') %></div>
+                            <span class="editable" data-field="website" data-type="text"
+                                  data-value="<%= lead.website %>"><%= lead.website || '—' %></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Нотатка -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2"><%= i18n.__('leads.view.t.notatka') %></div>
+                <div class="card-body">
+                    <span class="editable d-block w-100" data-field="note" data-type="textarea"
+                          data-value="<%= lead.note %>"><%= lead.note || '—' %></span>
+                </div>
+            </div>
+
+            <!-- Контактна інформація -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2"><%= i18n.__('leads.view.t.kontaktna_informatsiia') %></div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <% [
+                            {key:'name',     label:i18n.__('leads.view.t.imia')},
+                            {key:'phone',    label:i18n.__('leads.view.t.telefon')},
+                            {key:'email',    label:'Email'},
+                            {key:'company',  label:i18n.__('leads.view.t.kompaniia')},
+                            {key:'position', label:i18n.__('leads.view.t.posada')}
+                        ].forEach(function(f) { %>
+                        <div class="col-12 col-md-6">
+                            <div class="section-title"><%= f.label %></div>
+                            <span class="editable"
+                                  data-field="contact_info"
+                                  data-subfield="<%= f.key %>"
+                                  data-type="text"
+                                  data-value="<%= lead.contact_info[f.key] || '' %>">
+                                <%= lead.contact_info[f.key] || '—' %>
+                            </span>
+                        </div>
+                        <% }); %>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Score -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center">
+                    <span>Score</span>
+                    <span class="badge rounded-0
+                        <%= lead.grade=='A'?'text-bg-success':lead.grade=='B'?'text-bg-primary':lead.grade=='C'?'text-bg-warning':'text-bg-secondary' %>">
+                        <%= lead.score %> / <strong><%= lead.grade %></strong>
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="section-title">Fit Score</div>
+                            <span class="editable" data-field="score_fit" data-type="number"
+                                  data-value="<%= lead.score_fit %>"><%= lead.score_fit %></span>
+                            <div class="score-bar mt-1">
+                                <div class="score-bar-fill bg-primary"
+                                     style="width:<%= Math.min(lead.score_fit, 100) %>%"></div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="section-title">Activity Score</div>
+                            <span class="editable" data-field="score_activity" data-type="number"
+                                  data-value="<%= lead.score_activity %>"><%= lead.score_activity %></span>
+                            <div class="score-bar mt-1">
+                                <div class="score-bar-fill bg-info"
+                                     style="width:<%= Math.min(lead.score_activity, 100) %>%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Програш -->
+            <div class="card rounded-0 mb-3" id="loss-section"
+                 style="<%= lead.id_loss_reason || lead.loss_note ? '' : 'display:none' %>">
+                <div class="card-header fw-semibold py-2 text-danger"><%= i18n.__('leads.view.t.prychyna_prohrashu') %></div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-12 col-md-6">
+                            <div class="section-title"><%= i18n.__('leads.view.t.prychyna') %></div>
+                            <select class="form-select form-select-sm rounded-0"
+        data-action="save-field" data-field="id_loss_reason">
+                                <option value="">—</option>
+                                <% loss_reasons.forEach(function(r) { %>
+                                <option value="<%= r.id %>" <%= lead.id_loss_reason == r.id ? 'selected' : '' %>>
+                                    <%= r.name %>
+                                </option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="section-title"><%= i18n.__('leads.view.t.komentar') %></div>
+                            <span class="editable" data-field="loss_note" data-type="textarea"
+                                  data-value="<%= lead.loss_note || '' %>"><%= lead.loss_note || '—' %></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Теги -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2"><%= i18n.__('leads.view.t.tehy') %></div>
+                <div class="card-body d-flex flex-wrap gap-2 align-items-center" id="tags-container">
+                    <% tags.forEach(function(t) { %>
+                    <span class="badge rounded-0" style="background:<%= t.color %>" data-tag-id="<%= t.id %>">
+                        <%= t.name %>
+                        <i class="fa-solid fa-xmark ms-1" style="cursor:pointer"
+   data-action="remove-tag" data-tag-id="<%= t.id %>"></i>
+                    </span>
+                    <% }); %>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm rounded-0 dropdown-toggle"
+                                data-bs-toggle="dropdown">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                        <ul class="dropdown-menu rounded-0">
+                            <% all_tags.forEach(function(t) { %>
+                            <li>
+                                <a class="dropdown-item" href="#"
+   data-action="add-tag" data-tag-id="<%= t.id %>">
+                                    <span class="badge rounded-0 me-1"
+                                          style="background:<%= t.color %>">&nbsp;</span>
+                                    <%= t.name %>
+                                </a>
+                            </li>
+                            <% }); %>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ПРАВА КОЛОНКА -->
+        <div class="col-12 col-xl-4">
+            <%- include('../../partials/risk', { riskUrl: '/api/leads/' + lead.id + '/risk/' }) %>
+
+            <!-- Клієнт -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2"><%= i18n.__('leads.view.t.kliient') %></div>
+                <div class="card-body">
+                    <% if (lead.id_client) { %>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="fa-solid fa-user text-muted me-1"></i>
+                            <a href="/clients/<%= lead.id_client %>/" class="fw-semibold"><%= lead.client_name || ('#' + lead.id_client) %></a>
+                        </div>
+                        <a href="/clients/<%= lead.id_client %>/" class="btn btn-sm btn-outline-primary rounded-0" title="<%= i18n.__('leads.view.t.kartka_kliienta') %>"><i class="fa-solid fa-up-right-from-square"></i></a>
+                    </div>
+                    <% } else { %>
+                    <span class="text-muted small"><%= i18n.__('leads.view.t.ne_pryviazano_vkazhit_telefon_email') %></span>
+                    <% } %>
+                    <% if (lead.id_client_org) { %>
+                    <div class="mt-2">
+                        <i class="fa-solid fa-building text-muted me-1"></i>
+                        <a href="/clients/<%= lead.id_client_org %>/"><%= lead.client_org_name || ('#' + lead.id_client_org) %></a>
+                    </div>
+                    <% } %>
+                </div>
+            </div>
+
+                        <!-- Заплановано -->
+            <%- include('../../partials/calendar/links', {
+                calType: 'lead',
+                calId: lead.id,
+                calManager: lead.id_manager || 0,
+                calExtra: [lead.id_client ? { type: 'client', id: lead.id_client } : null, lead.id_client_org ? { type: 'client', id: lead.id_client_org } : null].filter(Boolean)
+            }) %>
+
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2">SLA</div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <div class="section-title"><%= i18n.__('leads.view.t.dedlain_vidpovidi') %></div>
+                        <% if (lead.response_deadline) { %>
+                            <% var rd = new Date(lead.response_deadline); var now = new Date(); %>
+                            <span class="badge rounded-0 <%= rd < now ? 'text-bg-danger' : 'text-bg-success' %>">
+                                <%= rd.toLocaleString('uk-UA') %>
+                            </span>
+                        <% } else { %><span class="text-muted">—</span><% } %>
+                    </div>
+                    <div>
+                        <div class="section-title"><%= i18n.__('leads.view.t.persha_vidpovid') %></div>
+                        <span class="<%= lead.first_response_at ? '' : 'text-muted' %>">
+                            <%= lead.first_response_at
+                                ? new Date(lead.first_response_at).toLocaleString('uk-UA') : '—' %>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2"><%= i18n.__('leads.view.t.zakhoplennia') %></div>
+                <div class="card-body" style="font-size:13px">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr><td class="text-muted"><%= i18n.__('leads.view.t.typ') %></td>
+                            <td><span class="badge text-bg-secondary rounded-0"><%= lead.capture_type %></span></td></tr>
+                        <tr><td class="text-muted">Ref</td><td><%= lead.capture_ref || '—' %></td></tr>
+                        <tr><td class="text-muted"><%= i18n.__('leads.view.t.sait') %></td><td><%= lead.website || '—' %></td></tr>
+                        <tr><td class="text-muted"><%= i18n.__('leads.view.t.dzherelo') %></td>
+                            <td><%= lead.source_name || lead.lead_source || '—' %></td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2"><%= i18n.__('leads.view.t.daty') %></div>
+                <div class="card-body" style="font-size:13px">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr><td class="text-muted"><%= i18n.__('leads.view.t.stvoreno') %></td>
+                            <td><%= new Date(lead.date_add).toLocaleString('uk-UA') %></td></tr>
+                        <tr><td class="text-muted"><%= i18n.__('leads.view.t.zmineno') %></td>
+                            <td><%= new Date(lead.date_edit).toLocaleString('uk-UA') %></td></tr>
+                        <% if (lead.converted_at) { %>
+                        <tr><td class="text-muted"><%= i18n.__('leads.view.t.konvertovano') %></td>
+                            <td><%= new Date(lead.converted_at).toLocaleString('uk-UA') %></td></tr>
+                        <% } %>
+                        <% if (lead.score_decay_at) { %>
+                        <tr><td class="text-muted">Score decay</td>
+                            <td><%= new Date(lead.score_decay_at).toLocaleString('uk-UA') %></td></tr>
+                        <% } %>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ТАБИ -->
+    <div class="card rounded-0 mt-1">
+        <div class="card-header p-0">
+            <ul class="nav nav-tabs border-0" id="lead-tabs">
+                <li class="nav-item">
+                    <button class="nav-link active rounded-0" data-bs-toggle="tab"
+                            data-bs-target="#tab-history">
+                        <i class="fa-solid fa-clock-rotate-left me-1"></i> <%= i18n.__('leads.view.t.istoriia') %>
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link rounded-0" data-bs-toggle="tab"
+        data-bs-target="#tab-activities" data-action="load-activities">
+                        <i class="fa-solid fa-phone me-1"></i> <%= i18n.__('leads.view.t.aktyvnosti') %>
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link rounded-0" data-bs-toggle="tab"
+        data-bs-target="#tab-files" data-action="load-files">
+                        <i class="fa-solid fa-paperclip me-1"></i> <%= i18n.__('leads.view.t.faily') %>
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link rounded-0" data-bs-toggle="tab"
+                            data-bs-target="#tab-conversion">
+                        <i class="fa-solid fa-arrow-right-arrow-left me-1"></i> <%= i18n.__('leads.view.t.konversiia') %>
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link rounded-0" data-bs-toggle="tab"
+                            data-bs-target="#tab-utm">
+                        <i class="fa-solid fa-chart-line me-1"></i> UTM
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link rounded-0" data-bs-toggle="tab"
+                            data-bs-target="#tab-fingerprint">
+                        <i class="fa-solid fa-fingerprint me-1"></i> Fingerprint
+                    </button>
+                </li>
+            </ul>
+        </div>
+        <div class="tab-content p-3">
+
+            <!-- ТАБ: Історія -->
+            <div class="tab-pane fade show active" id="tab-history">
+                <div id="history-table"></div>
+            </div>
+
+            <!-- ТАБ: Активності -->
+            <div class="tab-pane fade" id="tab-activities">
+                <div class="mb-3">
+                    <button class="btn btn-primary btn-sm rounded-0">
+                        <i class="fa-solid fa-plus me-1"></i> <%= i18n.__('leads.view.t.dodaty_aktyvnist') %>
+                    </button>
+                </div>
+                <div id="activities-list"><p class="text-muted"><%= i18n.__('leads.view.t.zavantazhennia') %></p></div>
+            </div>
+
+            <!-- ТАБ: Файли -->
+            <div class="tab-pane fade" id="tab-files">
+                <div class="mb-3">
+                    <button class="btn btn-primary btn-sm rounded-0">
+                        <i class="fa-solid fa-upload me-1"></i> <%= i18n.__('leads.view.t.zavantazhyty_fail') %>
+                    </button>
+                </div>
+                <div id="files-list"><p class="text-muted"><%= i18n.__('leads.view.t.zavantazhennia') %></p></div>
+            </div>
+
+            <!-- ТАБ: Конверсія -->
+            <div class="tab-pane fade" id="tab-conversion">
+                <% if (lead.is_converted) { %>
+                <div class="alert alert-success rounded-0">
+                    <i class="fa-solid fa-circle-check me-2"></i>
+                    <%= i18n.__('leads.view.t.lid_skonvertovano') %>
+                    <%= lead.converted_at ? new Date(lead.converted_at).toLocaleString('uk-UA') : '' %>
+                </div>
+                <% } else { %>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-success btn-sm rounded-0"
+        data-action="convert-lead" data-target="order">
+    <i class="fa-solid fa-cart-shopping me-1"></i> <%= i18n.__('leads.view.t.v_zamovlennia') %>
+</button>
+<button class="btn btn-outline-success btn-sm rounded-0"
+        data-action="convert-lead" data-target="client">
+    <i class="fa-solid fa-user me-1"></i> <%= i18n.__('leads.view.t.v_kliienta') %>
+</button>
+<button class="btn btn-outline-primary btn-sm rounded-0"
+        data-action="convert-lead" data-target="deal">
+    <i class="fa-solid fa-handshake me-1"></i> <%= i18n.__('leads.view.t.v_uhodu') %>
+</button>
+                </div>
+                <% } %>
+            </div>
+
+            <!-- ТАБ: UTM -->
+            <div class="tab-pane fade" id="tab-utm">
+                <table class="table table-sm table-bordered mb-0" style="font-size:13px">
+                    <% var utmLabels = {
+                        source:'Source', medium:'Medium', campaign:'Campaign',
+                        term:'Term', content:'Content', referrer:'Referrer'
+                    }; %>
+                    <% Object.keys(utmLabels).forEach(function(k) { %>
+                    <tr>
+                        <td class="text-muted fw-semibold" style="width:120px"><%= utmLabels[k] %></td>
+                        <td><%= lead.utm[k] || '—' %></td>
+                    </tr>
+                    <% }); %>
+                </table>
+            </div>
+
+            <!-- ТАБ: Fingerprint -->
+            <div class="tab-pane fade" id="tab-fingerprint">
+                <table class="table table-sm table-bordered mb-0" style="font-size:13px">
+                    <% var fpLabels = {
+                        ip:'IP', country:i18n.__('leads.view.t.kraina'), city:i18n.__('leads.view.t.misto'), browser:i18n.__('leads.view.t.brauzer'),
+                        os:i18n.__('leads.view.t.os'), device:i18n.__('leads.view.t.prystrii'), page:i18n.__('leads.view.t.storinka'), session_sec:i18n.__('leads.view.t.chas_sesii_sek')
+                    }; %>
+                    <% Object.keys(fpLabels).forEach(function(k) { %>
+                    <tr>
+                        <td class="text-muted fw-semibold" style="width:150px"><%= fpLabels[k] %></td>
+                        <td><%= lead.fingerprint[k] || '—' %></td>
+                    </tr>
+                    <% }); %>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+<%- include('../../partials/footer'); %>
+<%- include('../../partials/script'); %>
+<script src="/assets/js/tabulator/tabulator.min.js"></script>
+<script>
+const LEAD_ID = <%= lead.id %>;
+
+// Локалізація — передаємо з сервера через i18n
+const FIELD_LABELS  = { title: "<%= i18n.__('leads.fields.title') %>", note: "<%= i18n.__('leads.fields.note') %>", value: "<%= i18n.__('leads.fields.value') %>", id_status: "<%= i18n.__('leads.fields.id_status') %>", id_pipeline: "<%= i18n.__('leads.fields.id_pipeline') %>", id_stage: "<%= i18n.__('leads.fields.id_stage') %>", temperature: "<%= i18n.__('leads.fields.temperature') %>", qualification: "<%= i18n.__('leads.fields.qualification') %>", priority: "<%= i18n.__('leads.fields.priority') %>", id_manager: "<%= i18n.__('leads.fields.id_manager') %>", id_team: "<%= i18n.__('leads.fields.id_team') %>", id_source: "<%= i18n.__('leads.fields.id_source') %>", lead_source: "<%= i18n.__('leads.fields.lead_source') %>", website: "<%= i18n.__('leads.fields.website') %>", capture_type: "<%= i18n.__('leads.fields.capture_type') %>", capture_ref: "<%= i18n.__('leads.fields.capture_ref') %>", contact_info: "<%= i18n.__('leads.fields.contact_info._') %>", "contact_info.name": "<%= i18n.__('leads.fields.contact_info.name') %>", "contact_info.phone": "<%= i18n.__('leads.fields.contact_info.phone') %>", "contact_info.email": "<%= i18n.__('leads.fields.contact_info.email') %>", "contact_info.company": "<%= i18n.__('leads.fields.contact_info.company') %>", "contact_info.position": "<%= i18n.__('leads.fields.contact_info.position') %>", utm: "<%= i18n.__('leads.fields.utm') %>", fingerprint: "<%= i18n.__('leads.fields.fingerprint') %>", custom_fields: "<%= i18n.__('leads.fields.custom_fields') %>", score_fit: "<%= i18n.__('leads.fields.score_fit') %>", score_activity: "<%= i18n.__('leads.fields.score_activity') %>", score: "<%= i18n.__('leads.fields.score') %>", grade: "<%= i18n.__('leads.fields.grade') %>", expected_close_date: "<%= i18n.__('leads.fields.expected_close_date') %>", response_deadline: "<%= i18n.__('leads.fields.response_deadline') %>", first_response_at: "<%= i18n.__('leads.fields.first_response_at') %>", id_loss_reason: "<%= i18n.__('leads.fields.id_loss_reason') %>", loss_note: "<%= i18n.__('leads.fields.loss_note') %>", is_converted: "<%= i18n.__('leads.fields.is_converted') %>", is_duplicate: "<%= i18n.__('leads.fields.is_duplicate') %>" };
+const ACTION_LABELS = { field_change: "<%= i18n.__('leads.history.actions.field_change') %>", status_change: "<%= i18n.__('leads.history.actions.status_change') %>", stage_change: "<%= i18n.__('leads.history.actions.stage_change') %>", pipeline_change: "<%= i18n.__('leads.history.actions.pipeline_change') %>", assigned: "<%= i18n.__('leads.history.actions.assigned') %>", unassigned: "<%= i18n.__('leads.history.actions.unassigned') %>", score_change: "<%= i18n.__('leads.history.actions.score_change') %>", converted: "<%= i18n.__('leads.history.actions.converted') %>", comment: "<%= i18n.__('leads.history.actions.comment') %>", comment_pin: "<%= i18n.__('leads.history.actions.comment_pin') %>", file_attached: "<%= i18n.__('leads.history.actions.file_attached') %>", file_deleted: "<%= i18n.__('leads.history.actions.file_deleted') %>", task_created: "<%= i18n.__('leads.history.actions.task_created') %>", email_sent: "<%= i18n.__('leads.history.actions.email_sent') %>", call_logged: "<%= i18n.__('leads.history.actions.call_logged') %>", meeting_logged: "<%= i18n.__('leads.history.actions.meeting_logged') %>", sla_breach: "<%= i18n.__('leads.history.actions.sla_breach') %>", automation_fired: "<%= i18n.__('leads.history.actions.automation_fired') %>", duplicate_marked: "<%= i18n.__('leads.history.actions.duplicate_marked') %>", deleted: "<%= i18n.__('leads.history.actions.deleted') %>", restored: "<%= i18n.__('leads.history.actions.restored') %>" };
+const SOURCE_LABELS = { web: "<%= i18n.__('leads.history.sources.web') %>", api: "<%= i18n.__('leads.history.sources.api') %>", automation: "<%= i18n.__('leads.history.sources.automation') %>", import: "<%= i18n.__('leads.history.sources.import') %>", system: "<%= i18n.__('leads.history.sources.system') %>" };
+const LANG_SYSTEM   = "<%= i18n.__('leads.history.system') %>";
+const LANG_NO_DATA  = "<%= i18n.__('leads.history.no_data') %>";
+const ENUM_LABELS   = {
+    temperature:   { cold: "<%= i18n.__('leads.temperature.cold') %>", warm: "<%= i18n.__('leads.temperature.warm') %>", hot: "<%= i18n.__('leads.temperature.hot') %>" },
+    qualification: { unqualified: "<%= i18n.__('leads.qualification.unqualified') %>", mql: "<%= i18n.__('leads.qualification.mql') %>", sql: "<%= i18n.__('leads.qualification.sql') %>", pql: "<%= i18n.__('leads.qualification.pql') %>" },
+    priority:      { "0": "<%= i18n.__('leads.priority.0') %>", "1": "<%= i18n.__('leads.priority.1') %>", "2": "<%= i18n.__('leads.priority.2') %>", "3": "<%= i18n.__('leads.priority.3') %>" },
+    capture_type:  { api: "<%= i18n.__('leads.capture_type.api') %>", form: "<%= i18n.__('leads.capture_type.form') %>", manual: "<%= i18n.__('leads.capture_type.manual') %>", import: "<%= i18n.__('leads.capture_type.import') %>", chat: "<%= i18n.__('leads.capture_type.chat') %>", webhook: "<%= i18n.__('leads.capture_type.webhook') %>" }
+};
+
+// JSON-кеш для підполів contact_info тощо
+var jsonFieldCache = {
+    contact_info: <%- JSON.stringify(lead.contact_info || {}) %>,
+    utm:          <%- JSON.stringify(lead.utm || {}) %>,
+    fingerprint:  <%- JSON.stringify(lead.fingerprint || {}) %>
+};
+
+// ============================================================
+// ЗБЕРЕЖЕННЯ ПОЛЯ
+// ============================================================
+function saveField(field, value) {
+    return fetch('/api/leads/' + LEAD_ID + '/field/', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ field, value })
+    }).then(r => r.json());
+}
+
+// ============================================================
+// INLINE EDIT
+// ============================================================
+document.querySelectorAll('.editable').forEach(function(el) {
+    el.addEventListener('click', function() {
+        if (el.querySelector('input,textarea')) return;
+
+        var field    = el.dataset.field;
+        var subfield = el.dataset.subfield;
+        var type     = el.dataset.type || 'text';
+        var val      = el.dataset.value || '';
+        var original = el.innerHTML;
+
+        var input;
+        if (type === 'textarea') {
+            input = document.createElement('textarea');
+            input.rows = 3;
+        } else {
+            input = document.createElement('input');
+            input.type = type;
+        }
+        input.className = 'editable-input';
+        input.value = val;
+        el.innerHTML = '';
+        el.appendChild(input);
+        input.focus();
+
+        function commit() {
+            var newVal = input.value.trim();
+            if (newVal === val) { el.innerHTML = original; return; } // не змінилось
+            el.classList.add('saving');
+
+            var saveVal = subfield
+                ? (jsonFieldCache[field][subfield] = newVal, jsonFieldCache[field])
+                : newVal;
+
+            saveField(field, saveVal).then(function(data) {
+                el.classList.remove('saving');
+                el.dataset.value = newVal;
+                el.textContent = newVal || '—';
+                if (data.changed && historyLoaded) {
+                    historyTable.setData('/api/leads/' + LEAD_ID + '/history/', {}, 'POST');
+                }
+                if (field === 'score_fit' || field === 'score_activity' || field === 'contact_info') location.reload();
+            }).catch(function() {
+                el.classList.remove('saving');
+                el.innerHTML = original;
+            });
+        }
+
+        input.addEventListener('blur', commit);
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && type !== 'textarea') commit();
+            if (e.key === 'Escape') el.innerHTML = original;
+        });
+    });
+});
+
+// ============================================================
+// PIPELINE STAGE
+// ============================================================
+function setStage(id_stage) {
+    saveField('id_stage', id_stage).then(function(data) {
+        if (!data.changed) return;
+        document.querySelectorAll('.pipeline-step').forEach(function(btn) {
+            btn.classList.toggle('active', parseInt(btn.dataset.id) === parseInt(id_stage));
+        });
+        if (historyLoaded) {
+            historyTable.setData('/api/leads/' + LEAD_ID + '/history/', {}, 'POST');
+        }
+    });
+}
+
+// ============================================================
+// ТЕГИ
+// ============================================================
+function addTag(id_tag) {
+    fetch('/api/leads/' + LEAD_ID + '/tag/add/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_tag })
+    }).then(r => r.json()).then(function(d) { if (d.ok) location.reload(); });
+}
+function removeTag(id_tag) {
+    fetch('/api/leads/' + LEAD_ID + '/tag/remove/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_tag })
+    }).then(r => r.json()).then(function(d) {
+        if (d.ok) {
+            var el = document.querySelector('[data-tag-id="' + id_tag + '"]');
+            if (el) el.remove();
+        }
+    });
+}
+
+// ============================================================
+// КОНВЕРСІЯ
+// ============================================================
+function convertLead(type) {
+    if (!confirm('<%= i18n.__('leads.view.t.konvertuvaty_lid_v') %> ' + type + '?')) return;
+    fetch('/api/leads/' + LEAD_ID + '/convert/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ converted_to: type })
+    }).then(r => r.json()).then(function(d) { if (d.ok) location.reload(); });
+}
+
+// ============================================================
+// HISTORY — Tabulator
+// ============================================================
+var historyTable = null;
+var historyLoaded = false;
+
+function renderDiff(h) {
+    var o, n;
+    if (h.field_name === 'id_status') {
+        o = h.status_old_name || h.value_old || '—';
+        n = h.status_new_name || h.value_new || '—';
+    } else if (h.field_name === 'id_stage') {
+        o = h.stage_old_name || h.value_old || '—';
+        n = h.stage_new_name || h.value_new || '—';
+    } else if (h.field_name && ENUM_LABELS[h.field_name]) {
+        var map = ENUM_LABELS[h.field_name];
+        o = map[h.value_old] || h.value_old || '—';
+        n = map[h.value_new] || h.value_new || '—';
+    } else if (['contact_info','utm','fingerprint','custom_fields'].includes(h.field_name)) {
+        return '<span class="text-muted fst-italic small"><%= i18n.__('leads.view.t.onovleno') %></span>';
+    } else {
+        o = h.value_old || '—';
+        n = h.value_new || '—';
+    }
+    return '<span class="text-muted text-decoration-line-through me-1">' + o + '</span>'
+         + '<i class="fa-solid fa-arrow-right mx-1 text-muted" style="font-size:10px"></i>'
+         + '<span class="text-success fw-semibold">' + n + '</span>';
+}
+
+(function initHistory() {
+    historyLoaded = true;
+    historyTable = new Tabulator("#history-table", {
+        layout: "fitColumns",
+        ajaxURL: "/api/leads/" + LEAD_ID + "/history/",
+        ajaxConfig: "POST",
+        pagination: true,
+        paginationMode: "local",
+        paginationSize: 15,
+        paginationSizeSelector: [15, 30, 50],
+        initialSort: [{ column: "date_add", dir: "desc" }],
+        placeholder: LANG_NO_DATA,
+        columns: [
+            {
+                title: "<%= i18n.__('leads.view.t.podiia') %>", field: "action_type", widthGrow: 1, headerSort: true,
+                formatter: function(cell) {
+                    var h = cell.getRow().getData();
+                    var label = ACTION_LABELS[h.action_type] || h.action_type;
+                    var colorMap = {
+                        field_change:'warning', status_change:'success', stage_change:'primary',
+                        converted:'info', sla_breach:'danger', automation_fired:'secondary',
+                        comment:'primary', file_attached:'secondary', deleted:'danger', restored:'success'
+                    };
+                    return '<span class="badge rounded-0 text-bg-' + (colorMap[h.action_type]||'secondary') + '">'
+                         + label + '</span>';
+                }
+            },
+            {
+                title: "<%= i18n.__('leads.view.t.pole') %>", field: "field_name", widthGrow: 1, headerSort: true,
+                formatter: function(cell) {
+                    var v = cell.getValue();
+                    return v ? (FIELD_LABELS[v] || v) : '—';
+                }
+            },
+            {
+                title: "<%= i18n.__('leads.view.t.zmina') %>", field: "value_old", widthGrow: 3, headerSort: false,
+                formatter: function(cell) {
+                    var h = cell.getRow().getData();
+                    var diff = (h.value_old !== null || h.value_new !== null) ? renderDiff(h) : '';
+                    var comment = h.comment
+                        ? '<div class="mt-1 fst-italic text-muted small">' + h.comment + '</div>' : '';
+                    return diff + comment || '—';
+                }
+            },
+            {
+                title: "<%= i18n.__('leads.view.t.khto') %>", field: "manager_name", width: 160, headerSort: true,
+                formatter: function(cell) {
+                    var h   = cell.getRow().getData();
+                    var who = (cell.getValue()||'').trim() || LANG_SYSTEM;
+                    var src = SOURCE_LABELS[h.source] || h.source || '';
+                    return '<div>' + who + '</div>'
+                         + (src ? '<small class="text-muted">' + src + '</small>' : '');
+                }
+            },
+            {
+                title: "<%= i18n.__('leads.view.t.data') %>", field: "date_add", width: 145, headerSort: true, sorter: "string"
+            }
+        ]
+    });
+})();
+
+// ============================================================
+// ACTIVITIES
+// ============================================================
+var activitiesLoaded = false;
+function loadActivities() {
+    if (activitiesLoaded) return;
+    activitiesLoaded = true;
+    fetch('/api/leads/' + LEAD_ID + '/activities/', { method: 'POST' })
+        .then(r => r.json())
+        .then(function(rows) {
+            var typeIcon = {
+                call:'fa-phone', email:'fa-envelope', meeting:'fa-handshake',
+                task:'fa-check', note:'fa-note-sticky', whatsapp:'fa-whatsapp',
+                telegram:'fa-telegram', demo:'fa-desktop', other:'fa-circle'
+            };
+            var statusBadge = {
+                planned:'text-bg-primary', done:'text-bg-success',
+                cancelled:'text-bg-secondary', missed:'text-bg-danger'
+            };
+            if (!rows.length) {
+                document.getElementById('activities-list').innerHTML = '<p class="text-muted"><%= i18n.__('leads.view.t.aktyvnostei_nemaie') %></p>';
+                return;
+            }
+            document.getElementById('activities-list').innerHTML = rows.map(function(a) {
+                return '<div class="d-flex gap-3 mb-3 border-bottom pb-3">'
+                     + '<div style="width:32px;text-align:center">'
+                     + '<i class="fa-solid ' + (typeIcon[a.type]||'fa-circle') + ' text-primary"></i></div>'
+                     + '<div class="flex-grow-1">'
+                     + '<div class="d-flex justify-content-between">'
+                     + '<strong>' + (a.subject || a.type) + '</strong>'
+                     + '<span class="badge rounded-0 ' + (statusBadge[a.status]||'text-bg-secondary') + '">' + a.status + '</span>'
+                     + '</div>'
+                     + '<small class="text-muted">' + (a.manager_name||'—') + ' · ' + (a.scheduled_at||a.date_add) + '</small>'
+                     + (a.body ? '<div class="mt-1 small">' + a.body + '</div>' : '')
+                     + '</div></div>';
+            }).join('');
+        });
+}
+
+// ============================================================
+// FILES
+// ============================================================
+var filesLoaded = false;
+function loadFiles() {
+    if (filesLoaded) return;
+    filesLoaded = true;
+    fetch('/api/leads/' + LEAD_ID + '/files/', { method: 'POST' })
+        .then(r => r.json())
+        .then(function(rows) {
+            if (!rows.length) {
+                document.getElementById('files-list').innerHTML = '<p class="text-muted"><%= i18n.__('leads.view.t.failiv_nemaie') %></p>';
+                return;
+            }
+            document.getElementById('files-list').innerHTML = rows.map(function(f) {
+                return '<div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">'
+                     + '<div><i class="fa-solid fa-file me-2 text-muted"></i>'
+                     + '<a href="/' + f.path + '" target="_blank">' + f.name + '</a>'
+                     + '<small class="text-muted ms-2">' + (f.category||'') + ' · '
+                     + Math.round(f.size/1024) + ' KB</small></div>'
+                     + '<small class="text-muted">' + f.date_add + '</small></div>';
+            }).join('');
+        });
+}
+
+// ============================================================
+// ДЕЛЕГУВАННЯ ПОДІЙ (замінює inline onclick/onchange)
+// ============================================================
+document.addEventListener('click', function(e) {
+    var el = e.target.closest('[data-action]');
+    if (!el) return;
+    switch (el.dataset.action) {
+        case 'set-stage':
+            setStage(parseInt(el.dataset.id, 10));
+            break;
+        case 'remove-tag':
+            removeTag(parseInt(el.dataset.tagId, 10));
+            break;
+        case 'add-tag':
+            e.preventDefault();
+            addTag(parseInt(el.dataset.tagId, 10));
+            break;
+        case 'load-activities':
+            loadActivities();
+            break;
+        case 'load-files':
+            loadFiles();
+            break;
+        case 'convert-lead':
+            convertLead(el.dataset.target);
+            break;
+        case 'delete-lead':
+            if (!confirm('<%= i18n.__('leads.view.t.vydalyty_lid_ioho_mozhna_bude') %>')) break;
+            fetch('/api/leads/' + LEAD_ID + '/delete/', { method: 'POST' })
+                .then(function (r) { return r.json().then(function (j) { return { ok: r.ok && j.ok !== false, j: j }; }); })
+                .then(function (x) { if (x.ok) location.href = '/leads'; else alert(x.j.error || '<%= i18n.__('leads.view.t.pomylka_vydalennia') %>'); });
+            break;
+    }
+});
+
+document.addEventListener('change', function(e) {
+    var el = e.target.closest('[data-action="save-field"]');
+    if (!el) return;
+    saveField(el.dataset.field, el.value);
+});
+</script>
+</body>
+</html>

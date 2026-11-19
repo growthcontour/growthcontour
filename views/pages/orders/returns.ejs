@@ -1,0 +1,181 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('orders.returns.title') %></title>
+		<%- include('../../partials/head'); %>
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<style>
+			#rma-status .btn { font-size: 13px; }
+			#rma-table .tabulator-cell { white-space: normal; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+
+		<!-- ─── хлібні крихти ─────────────────────────────────────────── -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('orders.returns.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('orders.returns.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/orders/"><%= i18n.__('orders.returns.breadcrumb.orders') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('orders.returns.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/orders/" class="btn btn-primary rounded-0">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3 mb-4">
+			<!-- Стан: кнопки з лічильниками -->
+			<div class="btn-group flex-wrap mb-2" id="rma-status" role="group">
+				<button type="button" class="btn btn-outline-primary rounded-0 active" data-status="open"><%= i18n.__('orders.returns.open') %> <span class="badge text-bg-light" data-count="open"></span></button>
+				<button type="button" class="btn btn-outline-primary rounded-0" data-status=""><%= i18n.__('orders.returns.all') %></button>
+				<% statuses.forEach(function (s) { %><button type="button" class="btn btn-outline-primary rounded-0" data-status="<%= s %>"><%= i18n.__('orders.returns.s.' + s) %> <span class="badge text-bg-light" data-count="<%= s %>"></span></button><% }); %>
+			</div>
+
+			<div class="card border-primary rounded-0">
+				<div class="card-header text-bg-primary rounded-0">
+					<div class="row g-2 align-items-center">
+						<div class="col-md-3"><input type="search" class="form-control form-control-sm rounded-0" id="f-q" placeholder="<%= i18n.__('orders.returns.search') %>" /></div>
+						<div class="col-md-2">
+							<select class="form-select form-select-sm rounded-0" id="f-type">
+								<option value=""><%= i18n.__('orders.returns.type') %>: <%= i18n.__('orders.returns.all') %></option>
+								<% types.forEach(function (t) { %><option value="<%= t %>"><%= i18n.__('orders.returns.t.' + t) %></option><% }); %>
+							</select>
+						</div>
+						<div class="col-md-3">
+							<select class="form-select form-select-sm rounded-0" id="f-reason">
+								<option value=""><%= i18n.__('orders.returns.reason') %>: <%= i18n.__('orders.returns.all') %></option>
+								<% reasons.forEach(function (r) { %><option value="<%= r %>"><%= i18n.__('orders.returns.r.' + r) %></option><% }); %>
+							</select>
+						</div>
+						<div class="col-md-2"><div class="input-group input-group-sm"><span class="input-group-text rounded-0"><%= i18n.__('orders.returns.from') %></span><input type="date" class="form-control rounded-0" id="f-from" /></div></div>
+						<div class="col-md-2"><div class="input-group input-group-sm"><span class="input-group-text rounded-0"><%= i18n.__('orders.returns.to') %></span><input type="date" class="form-control rounded-0" id="f-to" /></div></div>
+					</div>
+				</div>
+				<div class="card-body p-0"><div id="rma-table"></div></div>
+			</div>
+		</div>
+
+		<%- include('../../partials/footer'); %>
+		<%- include('../../partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const BADGE = { new: "primary", awaiting: "info", received: "warning", checked: "warning", refunded: "success", exchanged: "success", rejected: "danger", closed: "secondary", canceled: "secondary" };
+				const OPEN = ["new", "awaiting", "received", "checked"];
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const MONEY = new Intl.NumberFormat("uk-UA", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+				const dt = (v) => (v ? new Date(v).toLocaleString() : "");
+				let status = "open";
+
+				const post = (url, body) =>
+					fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) }).then((r) =>
+						r.json().then((d) => {
+							if (!r.ok) throw new Error(d.error || "<%= i18n.__('orders.returns.error') %>");
+							return d;
+						})
+					);
+
+				const filters = () => ({ status, type: $("f-type").value, reason: $("f-reason").value, q: $("f-q").value.trim(), from: $("f-from").value, to: $("f-to").value });
+
+				// Лічильники на кнопках стану (без фільтрів)
+				const counts = (c) => {
+					document.querySelectorAll("[data-count]").forEach((el) => {
+						const k = el.dataset.count;
+						const n = k === "open" ? OPEN.reduce((s, x) => s + (c[x] || 0), 0) : c[k] || 0;
+						el.textContent = n || "";
+					});
+				};
+
+				const table = new Tabulator("#rma-table", {
+					layout: "fitColumns",
+					ajaxURL: "/api/orders/returns/list/",
+					ajaxRequestFunc: (url, cfg, p) =>
+						post(url, { ...filters(), page: p.page, size: p.size }).then((r) => {
+							counts(r.counts || {});
+							return r;
+						}),
+					pagination: true,
+					paginationMode: "remote",
+					paginationSize: 50,
+					placeholder: "<%= i18n.__('orders.returns.none') %>",
+					columns: [
+						{ title: "№", field: "number", width: 150, headerSort: false, formatter: (c) => `<a href="/orders/${Number(c.getData().id_order)}/"><b>${esc(c.getValue())}</b></a>` },
+						{ title: "<%= i18n.__('orders.returns.status') %>", field: "status", width: 150, headerSort: false, formatter: (c) => `<span class="badge rounded-0 text-bg-${BADGE[c.getValue()] || "secondary"}">${esc(({ new: "<%= i18n.__('orders.returns.s.new') %>", awaiting: "<%= i18n.__('orders.returns.s.awaiting') %>", received: "<%= i18n.__('orders.returns.s.received') %>", checked: "<%= i18n.__('orders.returns.s.checked') %>", refunded: "<%= i18n.__('orders.returns.s.refunded') %>", exchanged: "<%= i18n.__('orders.returns.s.exchanged') %>", rejected: "<%= i18n.__('orders.returns.s.rejected') %>", closed: "<%= i18n.__('orders.returns.s.closed') %>", canceled: "<%= i18n.__('orders.returns.s.canceled') %>" })[c.getValue()] || c.getValue())}</span>` },
+						{ title: "<%= i18n.__('orders.returns.type') %>", field: "type", width: 100, headerSort: false, formatter: (c) => esc(({ return: "<%= i18n.__('orders.returns.t.return') %>", exchange: "<%= i18n.__('orders.returns.t.exchange') %>" })[c.getValue()] || c.getValue()) },
+						{ title: "<%= i18n.__('orders.returns.order') %>", field: "reference", width: 140, headerSort: false, formatter: (c) => `<a href="/orders/${Number(c.getData().id_order)}/">${esc(c.getValue() || "#" + c.getData().id_order)}</a>` },
+						{ title: "<%= i18n.__('orders.returns.client') %>", field: "client", width: 180, headerSort: false, formatter: (c) => esc(c.getValue()) + (c.getData().phone && c.getData().phone !== c.getValue() ? `<br><small class="text-muted">${esc(c.getData().phone)}</small>` : "") },
+						{ title: "<%= i18n.__('orders.returns.reason') %>", field: "reason", width: 170, headerSort: false, formatter: (c) => esc(({ size: "<%= i18n.__('orders.returns.r.size') %>", defect: "<%= i18n.__('orders.returns.r.defect') %>", not_as_described: "<%= i18n.__('orders.returns.r.not_as_described') %>", wrong_item: "<%= i18n.__('orders.returns.r.wrong_item') %>", damaged: "<%= i18n.__('orders.returns.r.damaged') %>", changed_mind: "<%= i18n.__('orders.returns.r.changed_mind') %>", other: "<%= i18n.__('orders.returns.r.other') %>" })[c.getValue()] || c.getValue()) },
+						{
+							title: "<%= i18n.__('orders.returns.items') %>",
+							field: "items",
+							minWidth: 220,
+							headerSort: false,
+							formatter: (c) => c.getValue().map((x) => esc(x.name) + " × " + x.qty + (x.condition === "defect" ? ` <span class="badge text-bg-danger rounded-0"><%= i18n.__('orders.returns.defect') %></span>` : "")).join("<br>"),
+						},
+						{ title: "<%= i18n.__('orders.returns.value') %>", field: "value", width: 120, hozAlign: "right", headerSort: false, formatter: (c) => MONEY.format(c.getValue()) + " " + esc(c.getData().currency_iso || "") },
+						{
+							title: "<%= i18n.__('orders.returns.back') %>" + " / " + "<%= i18n.__('orders.returns.due') %>",
+							field: "amount",
+							width: 150,
+							hozAlign: "right",
+							headerSort: false,
+							formatter: (c) => {
+								const d = c.getData();
+								const out = [];
+								if (Number(d.amount)) out.push(`<span class="text-danger">−${MONEY.format(d.amount)}</span>`);
+								if (Number(d.amount_due)) out.push(`+${MONEY.format(d.amount_due)}`);
+								if (d.id_exchange_order) out.push(`<a href="/orders/${Number(d.id_exchange_order)}/">${esc(d.exchange_reference || "#" + d.id_exchange_order)}</a>`);
+								return out.join("<br>");
+							},
+						},
+						{ title: "<%= i18n.__('orders.returns.ttn') %>", field: "ttn", width: 150, headerSort: false, formatter: (c) => (c.getValue() ? `<a href="https://novaposhta.ua/tracking/?cargo_number=${encodeURIComponent(c.getValue())}" target="_blank" rel="noopener">${esc(c.getValue())}</a>` : "") },
+						{ title: "<%= i18n.__('orders.returns.manager') %>", field: "user_name", width: 140, headerSort: false, formatter: (c) => esc(c.getValue() || "") },
+						{ title: "<%= i18n.__('orders.returns.date') %>", field: "date_add", width: 150, headerSort: false, formatter: (c) => esc(dt(c.getValue())) },
+						{ title: "<%= i18n.__('orders.returns.updated') %>", field: "date_edit", width: 150, headerSort: false, formatter: (c) => esc(dt(c.getValue())) },
+					],
+				});
+
+				const reload = () => table.setData();
+				$("rma-status").addEventListener("click", (e) => {
+					const b = e.target.closest("[data-status]");
+					if (!b) return;
+					document.querySelectorAll("#rma-status .btn").forEach((x) => x.classList.toggle("active", x === b));
+					status = b.dataset.status;
+					reload();
+				});
+				["f-type", "f-reason", "f-from", "f-to"].forEach((id) => $(id).addEventListener("change", reload));
+				let t = null;
+				$("f-q").addEventListener("input", () => {
+					clearTimeout(t);
+					t = setTimeout(reload, 400);
+				});
+			})();
+		</script>
+	</body>
+</html>

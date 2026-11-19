@@ -1,0 +1,28 @@
+{
+	"deals": {
+		"list": {
+			"title": "Угоди",
+			"breadcrumb": {
+				"home": "Головна",
+				"current": "Угоди"
+			},
+			"t": {
+				"dodaty_uhodu": "Додати угоду",
+				"uhoda": "Угода",
+				"stadiia": "Стадія",
+				"voronka": "Воронка",
+				"kompaniia": "Компанія",
+				"kontakt": "Контакт",
+				"suma": "Сума",
+				"imovirnist": "Ймовірність",
+				"zakryttia": "Закриття",
+				"menedzher": "Менеджер",
+				"protukhaie": "Протухає",
+				"dniv_bez_aktyvnosti": "днів без активності",
+				"d": "д",
+				"stvoreno": "Створено",
+				"pomylka_stvorennia_uhody": "Помилка створення угоди"
+			}
+		}
+	}
+}
