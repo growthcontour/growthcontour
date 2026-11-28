@@ -1,0 +1,1170 @@
+<!doctype html>
+<html lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+		<meta name="robots" content="noindex" />
+		<title><%= shop.name %></title>
+		<script src="https://telegram.org/js/telegram-web-app.js"></script>
+		<style>
+			/* Кольори — з теми Telegram користувача (світла / темна), запасні — для звичайного браузера */
+			:root {
+				color-scheme: light dark;
+				--bg: var(--tg-theme-bg-color, #fff);
+				--bg2: var(--tg-theme-secondary-bg-color, #f1f3f6);
+				--text: var(--tg-theme-text-color, #111);
+				--hint: var(--tg-theme-hint-color, #888);
+				--link: var(--tg-theme-link-color, #0057b8);
+				--btn: var(--tg-theme-button-color, #0057b8);
+				--btn-text: var(--tg-theme-button-text-color, #fff);
+				--danger: var(--tg-theme-destructive-text-color, #d93025);
+				--sep: var(--tg-theme-section-separator-color, rgba(127, 127, 127, 0.2));
+				--r: 12px;
+			}
+			* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+			html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+			body { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+			button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+			input, select { font: inherit; color: var(--text); }
+			.hidden { display: none !important; }
+			.muted { color: var(--hint); }
+			.small { font-size: 13px; }
+
+			/* Шапка каталогу */
+			.top { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 10px 12px 6px; border-bottom: 1px solid var(--sep); }
+			.row { display: flex; gap: 8px; align-items: center; }
+			.search { flex: 1; position: relative; }
+			.search input { width: 100%; border: 0; border-radius: 10px; background: var(--bg2); padding: 9px 12px 9px 34px; outline: none; }
+			.search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; fill: var(--hint); }
+			.cart-btn { position: relative; width: 40px; height: 40px; border-radius: 10px; background: var(--bg2); display: grid; place-items: center; }
+			.cart-btn svg { width: 22px; height: 22px; fill: var(--text); }
+			.badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; border-radius: 9px; background: var(--btn); color: var(--btn-text); font-size: 11px; display: grid; place-items: center; padding: 0 5px; }
+			.chips { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0 2px; scrollbar-width: none; }
+			.chips::-webkit-scrollbar { display: none; }
+			.chip { flex: 0 0 auto; padding: 6px 12px; border-radius: 16px; background: var(--bg2); white-space: nowrap; font-size: 14px; }
+			.chip.on { background: var(--btn); color: var(--btn-text); }
+			.sortline { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px 0; }
+			.sortline select { border: 0; background: transparent; color: var(--link); padding: 0; appearance: none; text-align: right; }
+
+			/* Сітка товарів */
+			.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 10px 12px; }
+			.card { background: var(--bg2); border-radius: var(--r); overflow: hidden; display: flex; flex-direction: column; text-align: left; }
+			.ph { aspect-ratio: 1 / 1; background: var(--bg); display: grid; place-items: center; overflow: hidden; }
+			.ph img { width: 100%; height: 100%; object-fit: contain; }
+			.ph svg { width: 40%; fill: var(--sep); }
+			.card .b { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+			.card .n { font-size: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.8em; }
+			.price { font-weight: 600; }
+			.old { color: var(--hint); text-decoration: line-through; font-weight: 400; font-size: 13px; margin-left: 4px; }
+			.oos { color: var(--hint); font-size: 12px; }
+			.card.off .ph img { opacity: 0.5; }
+			.center { text-align: center; padding: 40px 20px; }
+			.btn { display: inline-flex; justify-content: center; align-items: center; gap: 6px; border-radius: 10px; padding: 11px 16px; background: var(--btn); color: var(--btn-text); font-weight: 600; }
+			.btn.ghost { background: var(--bg2); color: var(--text); font-weight: 500; }
+			.btn.block { width: 100%; }
+			.btn:disabled { opacity: 0.5; }
+			.skel { background: linear-gradient(90deg, var(--bg2), var(--sep), var(--bg2)); background-size: 200% 100%; animation: sk 1.2s infinite; border-radius: var(--r); height: 230px; }
+			@keyframes sk { to { background-position: -200% 0; } }
+
+			/* Картка товару */
+			.gallery { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; background: var(--bg2); scrollbar-width: none; }
+			.gallery::-webkit-scrollbar { display: none; }
+			.gallery img { flex: 0 0 100%; width: 100%; aspect-ratio: 1 / 1; object-fit: contain; scroll-snap-align: center; background: var(--bg); }
+			.dots { display: flex; justify-content: center; gap: 5px; padding: 8px 0 0; }
+			.dots i { width: 6px; height: 6px; border-radius: 3px; background: var(--sep); }
+			.dots i.on { background: var(--btn); }
+			.pd { padding: 12px 16px; }
+			.pd h1 { font-size: 19px; margin: 0 0 6px; font-weight: 600; }
+			.pd .price { font-size: 20px; }
+			.vars { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+			.var { border: 1px solid var(--sep); border-radius: 10px; padding: 7px 12px; font-size: 14px; }
+			.var.on { border-color: var(--btn); box-shadow: inset 0 0 0 1px var(--btn); }
+			.var.off { color: var(--hint); text-decoration: line-through; }
+			.qty { display: inline-flex; align-items: center; background: var(--bg2); border-radius: 10px; }
+			.qty button { width: 38px; height: 38px; font-size: 20px; }
+			.qty span { min-width: 32px; text-align: center; font-weight: 600; }
+			.desc { margin-top: 16px; border-top: 1px solid var(--sep); padding-top: 12px; overflow-wrap: anywhere; }
+			.desc img { max-width: 100%; height: auto; }
+			.desc table { max-width: 100%; display: block; overflow-x: auto; border-collapse: collapse; }
+			.desc td, .desc th { border: 1px solid var(--sep); padding: 4px 6px; }
+			.desc a { color: var(--link); }
+			.stock { font-size: 13px; margin-top: 4px; }
+			.stock.ok { color: #2e9e4f; }
+
+			/* Кошик */
+			.line { display: flex; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--sep); }
+			.line .ph { width: 64px; height: 64px; flex: 0 0 64px; border-radius: 10px; background: var(--bg2); }
+			.line .i { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+			.line .n { font-size: 14px; }
+			.line .warn { color: var(--danger); font-size: 12px; }
+			.line .bot { display: flex; justify-content: space-between; align-items: center; }
+			.line .qty button { width: 32px; height: 32px; font-size: 18px; }
+			.line .rm { color: var(--hint); font-size: 13px; }
+			.sum { display: flex; justify-content: space-between; padding: 14px 16px; font-size: 17px; font-weight: 600; }
+			.note { margin: 0 16px; padding: 10px 12px; border-radius: 10px; background: var(--bg2); font-size: 14px; }
+
+			/* Оформлення */
+			.sec { padding: 4px 16px 12px; }
+			.sec h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--hint); font-weight: 600; margin: 14px 0 8px; }
+			.fld { display: block; margin-bottom: 10px; }
+			.fld span { display: block; font-size: 13px; color: var(--hint); margin-bottom: 4px; }
+			.fld input, .fld textarea { width: 100%; border: 1px solid transparent; border-radius: 10px; background: var(--bg2); padding: 10px 12px; outline: none; resize: vertical; }
+			.fld input:focus, .fld textarea:focus { border-color: var(--btn); }
+			.fld.bad input, .fld.bad textarea { border-color: var(--danger); }
+			.opt { display: flex; gap: 10px; align-items: flex-start; padding: 11px 12px; border-radius: 10px; background: var(--bg2); margin-bottom: 8px; cursor: pointer; border: 1px solid transparent; }
+			.opt.on { border-color: var(--btn); }
+			.opt.bad { border-color: var(--danger); }
+			.opt input { margin: 3px 0 0; accent-color: var(--btn); }
+			.opt .t { flex: 1; }
+			.opt .s { font-size: 13px; color: var(--hint); }
+			.opt .pr { font-weight: 600; white-space: nowrap; }
+			.sug { margin: -4px 0 10px; border-radius: 10px; background: var(--bg2); overflow: hidden; max-height: 280px; overflow-y: auto; }
+			.sug button { display: block; width: 100%; text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--sep); }
+			.sug button:last-child { border-bottom: 0; }
+			.sug .s { font-size: 12px; color: var(--hint); }
+			.picked { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 10px; background: var(--bg2); margin-bottom: 10px; }
+			.picked .ch { color: var(--link); font-size: 14px; white-space: nowrap; }
+			.tot { display: flex; justify-content: space-between; padding: 3px 0; }
+			.tot.big { font-size: 17px; font-weight: 600; padding-top: 8px; }
+			.done { text-align: center; padding: 36px 20px 20px; }
+			.done .ic { width: 64px; height: 64px; border-radius: 32px; background: #2e9e4f; color: #fff; display: grid; place-items: center; margin: 0 auto 14px; font-size: 34px; }
+			.done h1 { font-size: 20px; margin: 0 0 6px; }
+			.paytext { white-space: pre-wrap; text-align: left; margin: 16px; padding: 12px; border-radius: 10px; background: var(--bg2); user-select: text; }
+			.ord { padding: 12px 16px; border-bottom: 1px solid var(--sep); display: flex; gap: 10px; align-items: center; }
+			.ord .i { flex: 1; }
+			.ord .st { font-size: 13px; }
+			.ord .st.ok { color: #2e9e4f; }
+			.ord .st.no { color: var(--danger); }
+			.icon-btn { width: 40px; height: 40px; border-radius: 10px; background: var(--bg2); display: grid; place-items: center; }
+			.icon-btn svg { width: 22px; height: 22px; fill: var(--text); }
+
+			/* Нижня кнопка поза Telegram (у Telegram — MainButton) */
+			.fab { position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 6; }
+			.toast { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: rgba(0, 0, 0, 0.8); color: #fff; padding: 8px 14px; border-radius: 18px; font-size: 14px; z-index: 9; transition: opacity 0.2s; }
+		</style>
+	</head>
+	<body>
+		<div id="v-catalog">
+			<div class="top">
+				<div class="row">
+					<label class="search">
+						<svg viewBox="0 0 24 24"><path d="M10 2a8 8 0 0 1 6.3 12.9l5.4 5.4-1.4 1.4-5.4-5.4A8 8 0 1 1 10 2zm0 2a6 6 0 1 0 0 12 6 6 0 0 0 0-12z" /></svg>
+						<input id="q" type="search" enterkeyhint="search" autocomplete="off" />
+					</label>
+					<button class="icon-btn" id="open-orders" type="button" aria-label="orders">
+						<svg viewBox="0 0 24 24"><path d="M6 2h12a2 2 0 0 1 2 2v18l-3-2-2 2-3-2-3 2-2-2-3 2V4a2 2 0 0 1 2-2zm2 5v2h8V7H8zm0 4v2h8v-2H8zm0 4v2h5v-2H8z" /></svg>
+					</button>
+					<button class="cart-btn" id="open-cart" type="button">
+						<svg viewBox="0 0 24 24"><path d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM1 2h3.3l.9 2H21a1 1 0 0 1 .9 1.4l-3.6 7a2 2 0 0 1-1.8 1.1H8.1l-.9 1.6-.1.3c0 .3.2.5.5.5H19v2H7.6a2.5 2.5 0 0 1-2.2-3.7L6.8 13 3 4H1V2z" /></svg>
+						<span class="badge hidden" id="badge"></span>
+					</button>
+				</div>
+				<div class="chips" id="chips"></div>
+				<div class="chips hidden" id="subchips"></div>
+			</div>
+			<div class="sortline">
+				<span class="muted small" id="found"></span>
+				<select id="sort"></select>
+			</div>
+			<div class="grid" id="grid"></div>
+			<div class="center hidden" id="more-wrap"><button class="btn ghost" id="more" type="button"></button></div>
+			<div class="center muted hidden" id="empty"></div>
+		</div>
+
+		<div id="v-product" class="hidden"></div>
+		<div id="v-cart" class="hidden"></div>
+		<div id="v-checkout" class="hidden"></div>
+		<div id="v-done" class="hidden"></div>
+		<div id="v-orders" class="hidden"></div>
+		<div id="v-error" class="center hidden"></div>
+		<div class="fab hidden" id="fab"><button class="btn block" id="fab-btn" type="button"></button></div>
+		<div class="toast hidden" id="toast"></div>
+
+		<script>
+			(function () {
+				"use strict";
+				const L = <%- JSON.stringify(i18n.__('modules.telegramshop.app')).replace(/</g, "\\u003c") %>;
+				const SHOP = <%- JSON.stringify({ slug: shop.slug, support: shop.support, bot: shop.bot }).replace(/</g, "\\u003c") %>;
+				const API = "/api/module/telegramshop/app/" + SHOP.slug + "/";
+				const CART_KEY = "tgshop_cart_" + SHOP.slug;
+				const tgApp = window.Telegram && window.Telegram.WebApp;
+				const inTg = !!(tgApp && tgApp.initData);
+				const $ = (id) => document.getElementById(id);
+				const t = (k, vars) => String(L[k] || k).replace(/\{\{(\w+)\}\}/g, (_, n) => (vars && vars[n] !== undefined ? vars[n] : ""));
+				const esc = (s) => String(s === null || s === undefined ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const NOIMG = '<svg viewBox="0 0 24 24"><path d="M21 5v14H3V5h18zm-2 2H5v8.6l3.5-3.5 3 3 4-4 3.5 3.5V7zM8 8.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z"/></svg>';
+
+				const VIEWS = ["catalog", "product", "cart", "checkout", "done", "orders"];
+				const S = { shop: null, cats: [], cat: 0, q: "", sort: "popular", page: 1, more: false, loading: false, view: "catalog", product: null, variant: 0, qty: 1, cart: loadCart(), checked: null, seq: 0 };
+
+				// ── Telegram ──
+				if (tgApp) {
+					tgApp.ready();
+					tgApp.expand();
+					try {
+						tgApp.setHeaderColor("bg_color");
+					} catch (e) {}
+				}
+				const haptic = (type) => {
+					try {
+						if (tgApp && tgApp.HapticFeedback) type === "select" ? tgApp.HapticFeedback.selectionChanged() : tgApp.HapticFeedback.impactOccurred(type || "light");
+					} catch (e) {}
+				};
+				const notice = (text) => {
+					if (inTg && tgApp.showAlert) return tgApp.showAlert(text);
+					toast(text);
+				};
+				let toastTimer = null;
+				function toast(text) {
+					const el = $("toast");
+					el.textContent = text;
+					el.classList.remove("hidden");
+					clearTimeout(toastTimer);
+					toastTimer = setTimeout(() => el.classList.add("hidden"), 1800);
+				}
+
+				// Нижня кнопка: MainButton у Telegram, інакше — своя
+				let mainHandler = null;
+				function mainButton(text, handler) {
+					mainHandler = handler;
+					if (inTg && tgApp.MainButton) {
+						if (!text) return tgApp.MainButton.hide();
+						tgApp.MainButton.setParams({ text, is_visible: true, is_active: true });
+						return;
+					}
+					$("fab").classList.toggle("hidden", !text);
+					$("fab-btn").textContent = text || "";
+				}
+				if (inTg && tgApp.MainButton) tgApp.MainButton.onClick(() => mainHandler && mainHandler());
+				$("fab-btn").addEventListener("click", () => mainHandler && mainHandler());
+
+				function backButton(on) {
+					if (inTg && tgApp.BackButton) on ? tgApp.BackButton.show() : tgApp.BackButton.hide();
+				}
+				if (inTg && tgApp.BackButton) tgApp.BackButton.onClick(() => history.back());
+				window.addEventListener("popstate", () => route());
+
+				// ── API ──
+				async function api(path, body) {
+					const res = await fetch(API + path + "/", {
+						method: "POST",
+						headers: { "Content-Type": "application/json", "X-Telegram-Init-Data": (tgApp && tgApp.initData) || "" },
+						body: JSON.stringify(body || {}),
+					}).catch(() => null);
+					if (!res) throw Object.assign(new Error(t("e_net")), { net: true });
+					const data = await res.json().catch(() => ({}));
+					if (!res.ok || !data.ok) throw Object.assign(new Error(data.error || t("e_net")), { status: res.status, code: data.code, promo: !!data.promo });
+					return data;
+				}
+
+				// ── Гроші: формат валюти магазину мовою користувача ──
+				let fmt = null;
+				const money = (n) => {
+					if (n === null || n === undefined) return "";
+					if (!fmt) {
+						try {
+							fmt = new Intl.NumberFormat(S.shop.lang || undefined, { style: "currency", currency: S.shop.currency, maximumFractionDigits: 2 });
+						} catch (e) {
+							fmt = { format: (x) => Number(x).toFixed(2) + " " + S.shop.currency };
+						}
+					}
+					return fmt.format(n);
+				};
+
+				// ── Кошик: localStorage браузера Telegram ──
+				function loadCart() {
+					try {
+						const c = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+						return Array.isArray(c) ? c.filter((l) => l && l.id > 0 && l.qty > 0) : [];
+					} catch (e) {
+						return [];
+					}
+				}
+				// Кошик і на сервері: з іншого пристрою покупця, нагадування про незавершене замовлення
+				let syncTimer = null;
+				function syncCart() {
+					clearTimeout(syncTimer);
+					syncTimer = setTimeout(() => api("cart/save", { lines: S.cart.map((l) => ({ id: l.id, variant: l.variant, qty: l.qty })) }).catch(() => {}), 1500);
+				}
+				function saveCart() {
+					try {
+						localStorage.setItem(CART_KEY, JSON.stringify(S.cart));
+					} catch (e) {}
+					syncCart();
+					S.checked = null;
+					updateBadge();
+				}
+				const cartCount = () => S.cart.reduce((a, l) => a + l.qty, 0);
+				const inCart = (id, variant) => S.cart.find((l) => l.id === id && (l.variant || 0) === (variant || 0));
+				function addToCart(p, variant, qty) {
+					const l = inCart(p.id, variant);
+					if (l) l.qty += qty;
+					else S.cart.push({ id: p.id, variant: variant || 0, qty, name: p.name, image: p.image });
+					saveCart();
+				}
+				function updateBadge() {
+					const n = cartCount();
+					$("badge").textContent = n > 99 ? "99+" : n;
+					$("badge").classList.toggle("hidden", !n);
+					if (S.view === "catalog") mainButton(n ? t("cart") + " · " + n : "", () => go("cart"));
+				}
+
+				// ── Навігація: історія браузера, щоб «Назад» Telegram працював природно ──
+				function go(view, param) {
+					history.pushState({ view, param }, "", "#" + view + (param ? "/" + param : ""));
+					route();
+				}
+				function route() {
+					const st = history.state || { view: "catalog" };
+					S.view = st.view || "catalog";
+					VIEWS.forEach((v) => $("v-" + v).classList.toggle("hidden", v !== S.view));
+					$("v-error").classList.add("hidden");
+					backButton(S.view !== "catalog");
+					window.scrollTo(0, S.view === "catalog" ? S.catalogScroll || 0 : 0);
+					if (S.view === "catalog") updateBadge();
+					if (S.view === "product") openProduct(st.param);
+					if (S.view === "cart") openCart();
+					if (S.view === "checkout") openCheckout();
+					if (S.view === "done") renderDone();
+					if (S.view === "orders") openOrders();
+				}
+
+				// ── Каталог ──
+				function renderChips() {
+					const top = S.cats.filter((c) => !c.parent);
+					const active = S.cats.find((c) => c.id === S.cat);
+					const rootId = active ? rootOf(active).id : 0;
+					$("chips").innerHTML =
+						'<button class="chip' + (!S.cat ? " on" : "") + '" data-cat="0" type="button">' + esc(t("all")) + "</button>" +
+						top.map((c) => '<button class="chip' + (c.id === rootId ? " on" : "") + '" data-cat="' + c.id + '" type="button">' + esc(c.name) + "</button>").join("");
+					// Підкатегорії обраної гілки
+					const branch = active ? (S.cats.some((c) => c.parent === active.id) ? active : S.cats.find((c) => c.id === active.parent)) : null;
+					const subs = branch ? S.cats.filter((c) => c.parent === branch.id) : [];
+					$("subchips").classList.toggle("hidden", !subs.length);
+					$("subchips").innerHTML = subs.length
+						? '<button class="chip' + (S.cat === branch.id ? " on" : "") + '" data-cat="' + branch.id + '" type="button">' + esc(t("all")) + "</button>" +
+						  subs.map((c) => '<button class="chip' + (c.id === S.cat ? " on" : "") + '" data-cat="' + c.id + '" type="button">' + esc(c.name) + "</button>").join("")
+						: "";
+				}
+				function rootOf(c) {
+					const seen = new Set();
+					while (c && c.parent && !seen.has(c.id)) {
+						seen.add(c.id);
+						c = S.cats.find((x) => x.id === c.parent) || c;
+						if (!c.parent) break;
+					}
+					return c;
+				}
+				document.addEventListener("click", (e) => {
+					const chip = e.target.closest("[data-cat]");
+					if (chip) {
+						haptic("select");
+						S.cat = Number(chip.dataset.cat) || 0;
+						renderChips();
+						loadProducts(true);
+						return;
+					}
+					const card = e.target.closest("[data-product]");
+					if (card) {
+						S.catalogScroll = window.scrollY;
+						go("product", card.dataset.product);
+					}
+				});
+
+				function card(p) {
+					const price = p.priced
+						? '<span class="price">' + (p.price_from ? esc(t("from")) + " " : "") + esc(money(p.price)) + (p.compare ? '<span class="old">' + esc(money(p.compare)) + "</span>" : "") + "</span>"
+						: '<span class="muted small">' + esc(t("on_request")) + "</span>";
+					return (
+						'<button class="card' + (p.available ? "" : " off") + '" data-product="' + p.id + '" type="button">' +
+						'<div class="ph">' + (p.image ? '<img loading="lazy" src="' + esc(p.image) + '" alt="">' : NOIMG) + "</div>" +
+						'<div class="b"><div class="n">' + esc(p.name) + "</div>" + price +
+						(p.stock !== "in_stock" ? '<span class="oos">' + esc(t(p.stock)) + "</span>" : "") +
+						"</div></button>"
+					);
+				}
+
+				async function loadProducts(reset) {
+					if (reset) {
+						S.page = 1;
+						$("grid").innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div>';
+						$("empty").classList.add("hidden");
+						$("more-wrap").classList.add("hidden");
+					}
+					const seq = ++S.seq;
+					S.loading = true;
+					$("more").disabled = true;
+					try {
+						const r = await api("products", { q: S.q, category: S.cat || null, sort: S.sort, page: S.page });
+						if (seq !== S.seq) return;
+						const html = r.items.map(card).join("");
+						if (reset) $("grid").innerHTML = html;
+						else $("grid").insertAdjacentHTML("beforeend", html);
+						S.more = r.more;
+						$("more-wrap").classList.toggle("hidden", !r.more);
+						const none = reset && !r.items.length;
+						$("empty").classList.toggle("hidden", !none);
+						$("empty").textContent = S.q || S.cat ? t("empty") : t("empty_shop");
+					} catch (e) {
+						if (seq === S.seq) fail(e);
+					} finally {
+						if (seq === S.seq) {
+							S.loading = false;
+							$("more").disabled = false;
+						}
+					}
+				}
+				$("more").textContent = t("more");
+				$("more").addEventListener("click", () => {
+					if (S.loading) return;
+					S.page++;
+					loadProducts(false);
+				});
+				// Автодовантаження біля низу сторінки
+				window.addEventListener("scroll", () => {
+					if (S.view !== "catalog" || !S.more || S.loading) return;
+					if (window.innerHeight + window.scrollY > document.body.scrollHeight - 600) {
+						S.page++;
+						loadProducts(false);
+					}
+				}, { passive: true });
+
+				$("q").placeholder = t("search");
+				let qTimer = null;
+				$("q").addEventListener("input", () => {
+					clearTimeout(qTimer);
+					qTimer = setTimeout(() => {
+						const v = $("q").value.trim();
+						if (v === S.q) return;
+						S.q = v;
+						loadProducts(true);
+					}, 350);
+				});
+				$("q").addEventListener("keydown", (e) => {
+					if (e.key === "Enter") $("q").blur();
+				});
+				$("sort").innerHTML = ["popular", "new", "price_asc", "price_desc", "name"].map((k) => '<option value="' + k + '">' + esc(t("sort_" + k)) + "</option>").join("");
+				$("sort").addEventListener("change", () => {
+					S.sort = $("sort").value;
+					loadProducts(true);
+				});
+				$("open-cart").addEventListener("click", () => go("cart"));
+				$("open-orders").addEventListener("click", () => go("orders"));
+
+				// ── Картка товару ──
+				async function openProduct(id) {
+					const box = $("v-product");
+					mainButton("", null);
+					if (!S.product || String(S.product.id) !== String(id)) {
+						box.innerHTML = '<div class="skel" style="height:320px;border-radius:0"></div>';
+						try {
+							const pr = await api("product", { id });
+							S.product = pr.item;
+							S.watched = pr.watched || [];
+						} catch (e) {
+							if (S.view === "product") fail(e);
+							return;
+						}
+						if (S.view !== "product") return;
+						// Єдиний варіант — обраний одразу; кілька — покупець обирає сам
+						S.variant = S.product.variants.length === 1 ? S.product.variants[0].id : 0;
+						S.qty = S.product.min_qty;
+					}
+					renderProduct();
+				}
+				function curVariant() {
+					return S.product.variants.find((v) => v.id === S.variant) || null;
+				}
+				function renderProduct() {
+					const p = S.product;
+					const v = curVariant();
+					// Фото варіанта — першими
+					let imgs = p.images;
+					if (v && v.media.length) imgs = [...v.media.map((id) => p.images.find((m) => m.id === id)).filter(Boolean), ...p.images.filter((m) => !v.media.includes(m.id))];
+					const price = v ? v.price : p.has_variants ? null : p.price;
+					const compare = v ? v.compare : p.compare;
+					const stock = v ? v.stock : p.has_variants ? null : p.stock;
+					const max = v ? v.max : p.max;
+					const cnt = inCart(p.id, S.variant);
+					$("v-product").innerHTML =
+						'<div class="gallery" id="gal">' + (imgs.length ? imgs.map((m) => '<img src="' + esc(m.url) + '" alt="" loading="lazy">').join("") : '<div class="ph" style="width:100%">' + NOIMG + "</div>") + "</div>" +
+						(imgs.length > 1 ? '<div class="dots" id="dots">' + imgs.map((_, i) => "<i" + (i ? "" : ' class="on"') + "></i>").join("") + "</div>" : "") +
+						'<div class="pd"><h1>' + esc(p.name) + "</h1>" +
+						(p.sku ? '<div class="muted small">' + esc(t("sku")) + ": " + esc((v && v.sku) || p.sku) + "</div>" : "") +
+						'<div style="margin-top:8px">' +
+						(!p.priced
+							? '<span class="muted">' + esc(t("on_request")) + "</span>"
+							: price !== null
+								? '<span class="price">' + esc(money(price)) + (compare ? '<span class="old">' + esc(money(compare)) + "</span>" : "") + "</span>"
+								: '<span class="price">' + (p.price_from ? esc(t("from")) + " " : "") + esc(money(p.price)) + "</span>") +
+						"</div>" +
+						(SHOP.bot ? '<button class="rm" style="color:var(--link);margin-top:6px" id="share" type="button">↗ ' + esc(t("share")) + "</button>" : "") +
+						(stock ? '<div class="stock' + (stock === "in_stock" ? " ok" : " muted") + '">' + esc(t(stock)) + (max && max <= 10 ? " · " + esc(t("left", { n: max })) : "") + "</div>" : "") +
+						(p.variants.length
+							? '<div class="vars">' + p.variants.map((x) => '<button class="var' + (x.id === S.variant ? " on" : "") + (x.available ? "" : " off") + '" data-var="' + x.id + '" type="button">' + esc(x.label) + "</button>").join("") + "</div>"
+							: "") +
+						(p.available ? '<div class="row" style="margin-top:14px"><div class="qty"><button type="button" data-q="-1">−</button><span id="qv">' + S.qty + '</span><button type="button" data-q="1">+</button></div>' + (cnt ? '<span class="muted small">' + esc(t("in_cart", { n: cnt.qty })) + "</span>" : "") + "</div>" : "") +
+						(p.short ? '<p class="muted">' + esc(p.short) + "</p>" : "") +
+						(p.description ? '<div class="desc"><div class="muted small" style="margin-bottom:6px">' + esc(t("description")) + '</div><div id="desc"></div></div>' : "") +
+						"</div>";
+					if (p.description) $("desc").appendChild(cleanHtml(p.description));
+					// Поділитися: посилання на бота з товаром (/start p<ID> → картка товару)
+					if ($("share"))
+						$("share").addEventListener("click", () => {
+							const link = "https://t.me/" + SHOP.bot + "?start=p" + p.id;
+							const url = "https://t.me/share/url?url=" + encodeURIComponent(link) + "&text=" + encodeURIComponent(t("share_text", { name: p.name }));
+							if (inTg && tgApp.openTelegramLink) tgApp.openTelegramLink(url);
+							else window.open(url, "_blank", "noopener");
+						});
+					const gal = $("gal");
+					if ($("dots"))
+						gal.addEventListener("scroll", () => {
+							const i = Math.round(gal.scrollLeft / gal.clientWidth);
+							[...$("dots").children].forEach((d, k) => d.classList.toggle("on", k === i));
+						}, { passive: true });
+					$("v-product").querySelectorAll("[data-var]").forEach((b) =>
+						b.addEventListener("click", () => {
+							haptic("select");
+							S.variant = Number(b.dataset.var);
+							S.qty = p.min_qty;
+							renderProduct();
+						})
+					);
+					$("v-product").querySelectorAll("[data-q]").forEach((b) =>
+						b.addEventListener("click", () => {
+							const step = p.qty_step;
+							let n = S.qty + Number(b.dataset.q) * step;
+							const caps = [p.max_qty, max].filter((x) => x);
+							if (caps.length) n = Math.min(n, Math.min(...caps));
+							S.qty = Math.max(p.min_qty, n);
+							$("qv").textContent = S.qty;
+							haptic("select");
+							productMain(p, v, price);
+						})
+					);
+					productMain(p, v, price);
+				}
+				// Головна кнопка — «До кошика» з сумою або «Оберіть варіант»
+				function productMain(p, v, price) {
+					if (p.has_variants && !v) return mainButton(t("choose"), () => notice(t("choose")));
+					// Немає в наявності — підписка «повідомити, коли з'явиться» (на товар або обраний варіант)
+					if (!p.available || (v && !v.available)) {
+						if (!S.shop.back_in_stock || !p.priced) return mainButton("", null);
+						const vid = v ? v.id : 0;
+						const on = (S.watched || []).includes(vid);
+						return mainButton(on ? t("notify_cancel") : t("notify_me"), async () => {
+							try {
+								await api("watch", { id: p.id, variant: vid, on: !on });
+								S.watched = on ? S.watched.filter((x) => x !== vid) : [...(S.watched || []), vid];
+								haptic("medium");
+								notice(on ? t("notify_off") : t("notify_on"));
+								if (S.view === "product") productMain(p, v, price);
+							} catch (e) {
+								notice(e.message);
+							}
+						});
+					}
+					mainButton(t("add") + " · " + money(price * S.qty), () => {
+						addToCart(p, S.variant, S.qty);
+						haptic("medium");
+						toast(t("added"));
+						renderProduct();
+					});
+				}
+
+				// Опис: лише безпечні теги й атрибути (сервер теж чистить)
+				const ALLOWED = new Set(["P", "BR", "B", "STRONG", "I", "EM", "U", "S", "UL", "OL", "LI", "H1", "H2", "H3", "H4", "H5", "H6", "TABLE", "THEAD", "TBODY", "TR", "TD", "TH", "A", "IMG", "SPAN", "DIV", "BLOCKQUOTE", "HR", "SUB", "SUP"]);
+				function cleanHtml(html) {
+					const doc = new DOMParser().parseFromString("<div>" + html + "</div>", "text/html");
+					const out = document.createDocumentFragment();
+					const walk = (src, dst) => {
+						src.childNodes.forEach((n) => {
+							if (n.nodeType === 3) return dst.appendChild(document.createTextNode(n.nodeValue));
+							if (n.nodeType !== 1) return;
+							if (!ALLOWED.has(n.tagName)) return walk(n, dst);
+							const el = document.createElement(n.tagName);
+							if (n.tagName === "A" && /^https?:\/\//i.test(n.getAttribute("href") || "")) el.href = n.getAttribute("href");
+							if (n.tagName === "IMG") {
+								const s = n.getAttribute("src") || "";
+								if (!/^(https?:\/\/|\/)/i.test(s)) return;
+								el.src = s;
+								el.loading = "lazy";
+							}
+							if (n.getAttribute("colspan")) el.colSpan = Number(n.getAttribute("colspan")) || 1;
+							if (n.getAttribute("rowspan")) el.rowSpan = Number(n.getAttribute("rowspan")) || 1;
+							walk(n, el);
+							dst.appendChild(el);
+						});
+					};
+					walk(doc.body.firstChild, out);
+					return out;
+				}
+				// Посилання з опису — відкрити поза Mini App
+				$("v-product").addEventListener("click", (e) => {
+					const a = e.target.closest(".desc a[href]");
+					if (!a) return;
+					e.preventDefault();
+					if (inTg && tgApp.openLink) tgApp.openLink(a.href);
+					else window.open(a.href, "_blank", "noopener");
+				});
+
+				// ── Кошик: перевірка на сервері (ціни, наявність, кількість) ──
+				async function openCart() {
+					const box = $("v-cart");
+					mainButton("", null);
+					if (!S.cart.length) return renderCart(null);
+					box.innerHTML = '<div style="padding:12px 16px"><div class="skel" style="height:64px;margin-bottom:10px"></div><div class="skel" style="height:64px"></div></div>';
+					try {
+						S.checked = (await api("cart", { lines: S.cart.map((l) => ({ id: l.id, variant: l.variant, qty: l.qty })) })).cart;
+						await recheckPromo();
+					} catch (e) {
+						if (S.view === "cart") fail(e);
+						return;
+					}
+					if (S.view !== "cart") return;
+					// Узгодити локальний кошик з перевіреним: кількість і назви
+					for (const c of S.checked.lines) {
+						const l = inCart(c.id, c.variant);
+						if (!l) continue;
+						if (c.name) l.name = c.name;
+						if (c.image) l.image = c.image;
+						if (c.qty > 0 && c.qty !== l.qty) l.qty = c.qty;
+					}
+					try {
+						localStorage.setItem(CART_KEY, JSON.stringify(S.cart));
+					} catch (e) {}
+					renderCart(S.checked);
+				}
+				function renderCart(c) {
+					const box = $("v-cart");
+					updateBadge();
+					if (!S.cart.length || !c) {
+						box.innerHTML = '<div class="center"><p class="muted">' + esc(t("cart_empty")) + '</p><button class="btn" id="to-cat" type="button">' + esc(t("to_catalog")) + "</button></div>";
+						$("to-cat").addEventListener("click", () => history.back());
+						return mainButton("", null);
+					}
+					const warn = (l) =>
+						l.problem === "gone" ? t("p_gone") : l.problem === "variant" ? t("p_variant") : l.problem === "unavailable" ? t("p_unavailable") : l.problem === "qty" ? t("p_qty", { n: l.qty }) : "";
+					box.innerHTML =
+						'<div class="pd" style="padding-bottom:0"><h1>' + esc(t("cart")) + "</h1></div>" +
+						c.lines
+							.map((l) => {
+								const local = inCart(l.id, l.variant) || {};
+								return (
+									'<div class="line"><div class="ph">' + (l.image || local.image ? '<img src="' + esc(l.image || local.image) + '" alt="">' : NOIMG) + "</div>" +
+									'<div class="i"><div class="n">' + esc(l.name || local.name || "#" + l.id) + "</div>" +
+									(l.variant_label ? '<div class="muted small">' + esc(l.variant_label) + "</div>" : "") +
+									(l.problem ? '<div class="warn">' + esc(warn(l)) + "</div>" : "") +
+									'<div class="bot">' +
+									(l.qty > 0
+										? '<div class="qty"><button type="button" data-cq="-1" data-id="' + l.id + '" data-v="' + l.variant + '">−</button><span>' + l.qty + '</span><button type="button" data-cq="1" data-id="' + l.id + '" data-v="' + l.variant + '">+</button></div><span class="price">' + esc(money(l.sum)) + "</span>"
+										: '<button class="rm" type="button" data-rm="1" data-id="' + l.id + '" data-v="' + l.variant + '">' + esc(t("remove")) + "</button>") +
+									"</div></div></div>"
+								);
+							})
+							.join("") +
+						// Промокод
+						(S.promo
+							? '<div class="tot" style="padding:8px 16px 0"><span>' + esc(t("promo_line", { code: S.promo.code })) + ' <button class="rm" style="color:var(--link)" id="promo-rm" type="button">' + esc(t("remove")) + "</button></span><span>" + esc(S.promo.free_shipping ? t("promo_free_ship") : "−" + money(S.promo.discount)) + "</span></div>"
+							: '<div class="sec" style="padding-top:10px;padding-bottom:0"><div class="row"><label class="fld" style="flex:1;margin:0"><input type="text" id="promo-in" autocomplete="off" autocapitalize="characters" placeholder="' + esc(t("promo_ph")) + '"></label><button class="btn ghost" id="promo-apply" type="button">' + esc(t("promo_apply")) + "</button></div></div>") +
+						'<div class="sum"><span>' + esc(t("total")) + "</span><span>" + esc(money(cartTotal(c))) + "</span></div>" +
+						(c.below_min ? '<div class="note">' + esc(t("min_order", { sum: money(c.min_order) })) + "</div>" : "") +
+						'<div class="center" style="padding:16px"><button class="rm muted" id="clear" type="button">' + esc(t("clear")) + "</button></div>";
+					box.querySelectorAll("[data-cq]").forEach((b) =>
+						b.addEventListener("click", () => {
+							const l = inCart(Number(b.dataset.id), Number(b.dataset.v));
+							const cl = c.lines.find((x) => x.id === Number(b.dataset.id) && x.variant === Number(b.dataset.v));
+							if (!l || !cl) return;
+							const step = cl.qty_step || 1;
+							const n = l.qty + Number(b.dataset.cq) * step;
+							haptic("select");
+							if (n < (cl.min_qty || 1)) S.cart = S.cart.filter((x) => x !== l);
+							else l.qty = n;
+							saveCart();
+							openCart();
+						})
+					);
+					box.querySelectorAll("[data-rm]").forEach((b) =>
+						b.addEventListener("click", () => {
+							S.cart = S.cart.filter((x) => !(x.id === Number(b.dataset.id) && (x.variant || 0) === Number(b.dataset.v)));
+							saveCart();
+							openCart();
+						})
+					);
+					if ($("promo-apply"))
+						$("promo-apply").addEventListener("click", async () => {
+							const code = $("promo-in").value.trim();
+							if (!code) return;
+							$("promo-apply").disabled = true;
+							try {
+								S.promo = (await api("promo", { code, lines: S.cart.map((l) => ({ id: l.id, variant: l.variant, qty: l.qty })) })).promo;
+								haptic("medium");
+								toast(t("promo_ok"));
+								renderCart(c);
+							} catch (e) {
+								notice(e.message);
+							} finally {
+								if ($("promo-apply")) $("promo-apply").disabled = false;
+							}
+						});
+					if ($("promo-rm"))
+						$("promo-rm").addEventListener("click", () => {
+							S.promo = null;
+							renderCart(c);
+						});
+					$("clear").addEventListener("click", () => {
+						S.cart = [];
+						saveCart();
+						renderCart(null);
+					});
+					const okLines = c.lines.filter((l) => l.qty > 0);
+					if (!okLines.length || c.below_min) return mainButton("", null);
+					mainButton(t("checkout", { sum: money(cartTotal(c)) }), () => go("checkout"));
+				}
+				// Сума кошика з урахуванням промокоду (без доставки)
+				const cartTotal = (c) => Math.max(0, c.total - (S.promo && !S.promo.free_shipping ? S.promo.discount : 0));
+				// Кошик змінився — промокод перевіряємо заново (сума знижки, мінімальна сума, товари)
+				async function recheckPromo() {
+					if (!S.promo) return;
+					try {
+						S.promo = (await api("promo", { code: S.promo.code, lines: S.cart.map((l) => ({ id: l.id, variant: l.variant, qty: l.qty })) })).promo;
+					} catch (e) {
+						S.promo = null;
+						notice(e.message);
+					}
+				}
+
+				// ── Оформлення ──
+				const newKey = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
+				async function openCheckout() {
+					const box = $("v-checkout");
+					mainButton("", null);
+					if (!S.cart.length) return history.back();
+					box.innerHTML = '<div style="padding:12px 16px"><div class="skel" style="height:44px;margin-bottom:10px"></div><div class="skel" style="height:44px;margin-bottom:10px"></div><div class="skel" style="height:120px"></div></div>';
+					try {
+						const [f, c] = await Promise.all([S.co ? null : api("checkout/form"), S.checked ? null : api("cart", { lines: S.cart.map((l) => ({ id: l.id, variant: l.variant, qty: l.qty })) })]);
+						if (f) S.co = { methods: f.methods, form: f.form, key: newKey(), bad: [] };
+						if (c) S.checked = c.cart;
+					} catch (e) {
+						if (S.view === "checkout") fail(e);
+						return;
+					}
+					if (S.view !== "checkout") return;
+					const d = S.co.methods.delivery, pm = S.co.methods.payments;
+					if (!d.some((x) => x.id === S.co.form.delivery)) S.co.form.delivery = d.length === 1 ? d[0].id : "";
+					if (!pm.some((x) => x.id === S.co.form.payment)) S.co.form.payment = pm.length === 1 ? pm[0].id : "";
+					renderCheckout();
+				}
+				// Розрахунок на сервері (Нова пошта: ціна за містом і вагою; комісія НП за накладений платіж) — для обраних доставки, міста й оплати
+				let qSeq = 0;
+				const qKey = () => [S.co.form.delivery, S.co.form.city_ref || "", S.co.form.payment || "", S.promo && !S.promo.free_shipping ? S.promo.discount : 0, S.checked.total].join("|");
+				function needServerQuote(d) {
+					const p = S.co.methods.payments.find((x) => x.id === S.co.form.payment);
+					return !!(d && d.kind.startsWith("np_") && S.co.form.city_ref && (d.price_mode === "api" || (p && p.kind === "cod")));
+				}
+				async function refreshQuote(d) {
+					if (!needServerQuote(d)) return;
+					const key = qKey();
+					if (S.co.sq && S.co.sq.key === key) return;
+					const seq = ++qSeq;
+					S.co.sq = { key, data: null, loading: true };
+					let data = null;
+					try {
+						data = (await api("quote", { delivery: S.co.form.delivery, payment: S.co.form.payment, city_ref: S.co.form.city_ref, discount: S.promo && !S.promo.free_shipping ? S.promo.discount : 0, lines: S.cart.map((l) => ({ id: l.id, variant: l.variant, qty: l.qty })) })).quote;
+					} catch (e) {
+						data = null;
+					}
+					if (seq !== qSeq || !S.co) return;
+					S.co.sq = { key, data, loading: false };
+					if (S.view === "checkout") renderCheckout();
+				}
+				const serverQuote = (d) => (S.co && S.co.sq && d && d.id === S.co.form.delivery && S.co.sq.key === qKey() ? S.co.sq : null);
+				// Вартість доставки — та сама логіка, що на сервері (shops.shippingQuote): одна ціна / за вагою / за тарифами перевізника / Нова пошта
+				function quote(d) {
+					if (!d) return { price: 0, free: false, carrier: false };
+					if (d.free_from > 0 && S.checked.total >= d.free_from) return { price: 0, free: true, carrier: false };
+					if (d.price_mode === "carrier") return { price: 0, free: false, carrier: true };
+					if (d.price_mode === "api") {
+						const sq = serverQuote(d);
+						if (!sq || !sq.data) return { price: 0, free: false, carrier: true, needCity: d.id !== S.co.form.delivery || !S.co.form.city_ref, loading: !!(sq && sq.loading) };
+						if (!sq.data.carrier) return { price: Number(sq.data.price) || 0, free: !(Number(sq.data.price) > 0), carrier: false };
+						return { price: 0, free: false, carrier: true, estimate: Number(sq.data.estimate) || 0 };
+					}
+					if (d.price_mode === "weight") {
+						const rates = d.rates || [];
+						if (!rates.length) return { price: 0, free: false, carrier: true };
+						const w = Number(S.checked.weight) || 0;
+						const r = rates.find((x) => w <= Number(x.to)) || rates[rates.length - 1];
+						return { price: Number(r.price) || 0, free: !(Number(r.price) > 0), carrier: false };
+					}
+					return { price: Number(d.price) || 0, free: !(Number(d.price) > 0), carrier: false };
+				}
+				const quoteText = (q) =>
+					q.carrier
+						? q.estimate > 0
+							? "≈ " + money(q.estimate) + " · " + t("on_receipt")
+							: q.loading
+								? t("calculating")
+								: q.needCity
+									? t("api_city")
+									: t("carrier")
+						: q.price > 0
+							? money(q.price)
+							: t("free");
+				// Комісія магазину за накладений платіж: сума + % від товарів (та сама, що на сервері)
+				function codFee() {
+					const p = S.co.methods.payments.find((x) => x.id === S.co.form.payment);
+					if (!p || p.kind !== "cod") return 0;
+					return Math.round(((Number(p.fee_fixed) || 0) + (cartTotal(S.checked) * (Number(p.fee_percent) || 0)) / 100) * 100) / 100;
+				}
+				function shippingCost() {
+					const d = S.co.methods.delivery.find((x) => x.id === S.co.form.delivery);
+					if (!d) return 0;
+					if (S.promo && S.promo.free_shipping) return 0;
+					return quote(d).price;
+				}
+				function renderCheckout() {
+					const f = S.co.form, m = S.co.methods, bad = new Set(S.co.bad);
+					const d = m.delivery.find((x) => x.id === f.delivery);
+					const field = (name, label, type, extra) =>
+						'<label class="fld' + (bad.has(name) ? " bad" : "") + '"><span>' + esc(label) + "</span>" +
+						(type === "textarea" ? '<textarea rows="2" data-f="' + name + '">' + esc(f[name] || "") + "</textarea>" : '<input type="' + type + '" data-f="' + name + '" value="' + esc(f[name] || "") + '" ' + (extra || "") + ">") + "</label>";
+					const ship = shippingCost();
+					const fee = codFee();
+					const sq = serverQuote(d);
+					const npCod = sq && sq.data && Number(sq.data.np_cod) > 0 ? Number(sq.data.np_cod) : 0;
+					const noWeight = sq && sq.data && Number(sq.data.weight_missing) > 0 && d && d.price_mode === "api";
+					$("v-checkout").innerHTML =
+						'<div class="pd" style="padding-bottom:0"><h1>' + esc(t("co_title")) + "</h1></div>" +
+						'<div class="sec"><h2>' + esc(t("co_contact")) + "</h2>" +
+						field("firstname", t("f_firstname"), "text", 'autocomplete="given-name" maxlength="100"') +
+						field("lastname", t("f_lastname"), "text", 'autocomplete="family-name" maxlength="100"') +
+						field("phone", t("f_phone"), "tel", 'autocomplete="tel" maxlength="32"') +
+						field("email", t("f_email"), "email", 'autocomplete="email" maxlength="120"') +
+						"</div>" +
+						(m.delivery.length
+							? '<div class="sec"><h2>' + esc(t("co_delivery")) + "</h2>" +
+							  m.delivery.map((x) => {
+									const q = quote(x);
+									const free = q.free && x.free_from > 0 && S.checked.total >= x.free_from;
+									return '<label class="opt' + (x.id === f.delivery ? " on" : "") + (bad.has("delivery") ? " bad" : "") + '"><input type="radio" name="dlv" value="' + esc(x.id) + '"' + (x.id === f.delivery ? " checked" : "") + '><div class="t"><div>' + esc(x.name) + "</div>" +
+										(x.note ? '<div class="s">' + esc(x.note) + "</div>" : "") + (x.free_from > 0 && !free ? '<div class="s">' + esc(t("free_from", { sum: money(x.free_from) })) + "</div>" : "") +
+										'</div><div class="pr">' + esc(quoteText(q)) + "</div></label>";
+							  }).join("") +
+							  (d && d.kind.startsWith("np_") ? npFields(d, bad) : "") +
+							  (d && d.kind === "point" ? field("city", t("f_city"), "text", 'maxlength="128"') + field("point", t("f_point"), "text", 'maxlength="255"') : "") +
+							  (d && d.kind === "address" ? field("city", t("f_city"), "text", 'autocomplete="address-level2" maxlength="128"') + field("address", t("f_address"), "text", 'autocomplete="street-address" maxlength="255"') + field("postcode", t("f_postcode"), "text", 'autocomplete="postal-code" maxlength="16"') : "") +
+							  "</div>"
+							: "") +
+						'<div class="sec"><h2>' + esc(t("co_payment")) + "</h2>" +
+						(m.payments.length
+							? m.payments.map((x) => '<label class="opt' + (x.id === f.payment ? " on" : "") + (bad.has("payment") ? " bad" : "") + '"><input type="radio" name="pay" value="' + esc(x.id) + '"' + (x.id === f.payment ? " checked" : "") + '><div class="t"><div>' + esc(x.name) + "</div>" + (x.text ? '<div class="s">' + esc(x.text) + "</div>" : "") + "</div></label>").join("")
+							: '<div class="note">' + esc(t("co_no_payment")) + "</div>") +
+						"</div>" +
+						'<div class="sec"><h2>' + esc(t("co_note")) + "</h2>" + field("note", t("f_note"), "textarea") + "</div>" +
+						'<div class="sec"><div class="tot"><span>' + esc(t("subtotal", { n: S.checked.count })) + "</span><span>" + esc(money(S.checked.total)) + "</span></div>" +
+						(S.promo && !S.promo.free_shipping ? '<div class="tot"><span>' + esc(t("promo_line", { code: S.promo.code })) + "</span><span>−" + esc(money(S.promo.discount)) + "</span></div>" : "") +
+						(d ? '<div class="tot"><span>' + esc(t("co_delivery")) + "</span><span>" + esc(S.promo && S.promo.free_shipping ? t("free") : quoteText(quote(d))) + "</span></div>" : "") +
+						(fee > 0 ? '<div class="tot"><span>' + esc(t("cod_fee")) + "</span><span>" + esc(money(fee)) + "</span></div>" : "") +
+						'<div class="tot big"><span>' + esc(t("total")) + "</span><span>" + esc(money(cartTotal(S.checked) + ship + fee)) + "</span></div>" +
+						(npCod > 0 ? '<p class="muted small">' + esc(t("np_cod", { sum: money(npCod) })) + "</p>" : "") +
+						(noWeight ? '<p class="muted small">' + esc(t("approx_weight")) + "</p>" : "") +
+						(m.note ? '<p class="muted small">' + esc(m.note) + "</p>" : "") +
+						"</div>";
+					const box = $("v-checkout");
+					bindNp(d);
+					box.querySelectorAll("[data-f]").forEach((el) => el.addEventListener("input", () => {
+						f[el.dataset.f] = el.value;
+						el.closest(".fld").classList.remove("bad");
+						S.co.bad = S.co.bad.filter((x) => x !== el.dataset.f);
+					}));
+					box.querySelectorAll('input[name="dlv"]').forEach((el) => el.addEventListener("change", () => {
+						f.delivery = el.value;
+						S.co.bad = S.co.bad.filter((x) => x !== "delivery");
+						haptic("select");
+						renderCheckout();
+					}));
+					box.querySelectorAll('input[name="pay"]').forEach((el) => el.addEventListener("change", () => {
+						f.payment = el.value;
+						S.co.bad = S.co.bad.filter((x) => x !== "payment");
+						haptic("select");
+						renderCheckout();
+					}));
+					mainButton(m.payments.length ? t("co_submit", { sum: money(cartTotal(S.checked) + ship + fee) }) : "", submitOrder);
+					refreshQuote(d);
+				}
+				// ── Нова пошта: місто й відділення з довідника (пошук на сервері) ──
+				function npFields(d, bad) {
+					const f = S.co.form;
+					let html = "";
+					if (f.city_ref) html += '<span class="muted small">' + esc(t("f_city")) + '</span><div class="picked"><span>' + esc(f.city) + '</span><button class="ch" type="button" data-np-reset="city">' + esc(t("change")) + "</button></div>";
+					else html += '<label class="fld' + (bad.has("city") ? " bad" : "") + '"><span>' + esc(t("f_city")) + '</span><input type="text" id="np-city" autocomplete="off" placeholder="' + esc(t("np_city_ph")) + '" value="' + esc(f.city || "") + '"></label><div class="sug hidden" id="np-city-list"></div>';
+					if (f.city_ref && d.kind !== "np_address") {
+						const lbl = d.kind === "np_postomat" ? t("np_postomat") : t("np_warehouse");
+						if (f.point_ref) html += '<span class="muted small">' + esc(lbl) + '</span><div class="picked"><span>' + esc(f.point) + '</span><button class="ch" type="button" data-np-reset="point">' + esc(t("change")) + "</button></div>";
+						else html += '<label class="fld' + (bad.has("point") ? " bad" : "") + '"><span>' + esc(lbl) + '</span><input type="text" id="np-point" autocomplete="off" placeholder="' + esc(t("np_point_ph")) + '"></label><div class="sug" id="np-point-list"><div class="muted small" style="padding:9px 12px">…</div></div>';
+					}
+					if (f.city_ref && d.kind === "np_address") html += '<label class="fld' + (bad.has("address") ? " bad" : "") + '"><span>' + esc(t("f_address")) + '</span><input type="text" data-f="address" maxlength="255" placeholder="' + esc(t("np_address_ph")) + '" value="' + esc(f.address || "") + '"></label>';
+					return html;
+				}
+				let npTimer = null;
+				let npSeq = 0;
+				function bindNp(d) {
+					if (!d || !d.kind.startsWith("np_")) return;
+					const f = S.co.form;
+					$("v-checkout").querySelectorAll("[data-np-reset]").forEach((b) => b.addEventListener("click", () => {
+						if (b.dataset.npReset === "city") Object.assign(f, { city_ref: "", city: "", point_ref: "", point: "" });
+						else Object.assign(f, { point_ref: "", point: "" });
+						renderCheckout();
+						const el = $(b.dataset.npReset === "city" ? "np-city" : "np-point");
+						if (el) el.focus();
+					}));
+					const search = (input, list, load, pick) => {
+						const run = async () => {
+							const seq = ++npSeq;
+							let rows = [];
+							try {
+								rows = await load(input.value.trim());
+							} catch (e) {
+								return;
+							}
+							if (seq !== npSeq || !document.body.contains(list)) return;
+							list.classList.toggle("hidden", !rows.length && !input.value.trim());
+							list.innerHTML = rows.length
+								? rows.map((x, i) => '<button type="button" data-i="' + i + '"><div>' + esc(x.title) + "</div>" + (x.sub ? '<div class="s">' + esc(x.sub) + "</div>" : "") + "</button>").join("")
+								: '<div class="muted small" style="padding:9px 12px">' + esc(t("empty")) + "</div>";
+							list.querySelectorAll("[data-i]").forEach((b) => b.addEventListener("click", () => {
+								haptic("select");
+								pick(rows[Number(b.dataset.i)]);
+								S.co.bad = S.co.bad.filter((k) => k !== "city" && k !== "point");
+								renderCheckout();
+							}));
+						};
+						input.addEventListener("input", () => {
+							clearTimeout(npTimer);
+							npTimer = setTimeout(run, 300);
+						});
+						return run;
+					};
+					const ci = $("np-city");
+					if (ci)
+						search(ci, $("np-city-list"), async (q) => (q.length < 2 ? [] : (await api("np/cities", { q })).rows.map((c) => ({ ...c, title: c.name, sub: [c.type, c.area].filter(Boolean).join(", ") }))), (c) =>
+							Object.assign(f, { city_ref: c.ref, city: c.name + (c.area ? " (" + c.area + ")" : ""), point_ref: "", point: "" })
+						);
+					if (ci && ci.value.trim().length >= 2) ci.dispatchEvent(new Event("input"));
+					const pi = $("np-point");
+					if (pi) {
+						const run = search(pi, $("np-point-list"), async (q) => (await api("np/warehouses", { city_ref: f.city_ref, q, kind: d.kind })).rows.map((w) => ({ ...w, title: w.name, sub: w.short })), (w) =>
+							Object.assign(f, { point_ref: w.ref, point: w.name })
+						);
+						run();
+					}
+				}
+
+				let sending = false;
+				async function submitOrder() {
+					if (sending) return;
+					const f = S.co.form;
+					// Перевірка на місці — щоб не чекати сервер через порожнє поле
+					const bad = [];
+					if (!String(f.firstname || "").trim()) bad.push("firstname");
+					if (String(f.phone || "").replace(/\D/g, "").length < 6) bad.push("phone");
+					const d = S.co.methods.delivery.find((x) => x.id === f.delivery);
+					if (S.co.methods.delivery.length && !d) bad.push("delivery");
+					if (d && d.kind.startsWith("np_")) {
+						if (!f.city_ref) bad.push("city");
+						else if (d.kind !== "np_address" && !f.point_ref) bad.push("point");
+						else if (d.kind === "np_address" && !String(f.address || "").trim()) bad.push("address");
+					} else {
+						if (d && d.kind !== "pickup" && !String(f.city || "").trim()) bad.push("city");
+						if (d && d.kind === "point" && !String(f.point || "").trim()) bad.push("point");
+						if (d && d.kind === "address" && !String(f.address || "").trim()) bad.push("address");
+					}
+					if (!f.payment) bad.push("payment");
+					if (bad.length) return showBad(bad);
+					sending = true;
+					if (inTg && tgApp.MainButton.showProgress) tgApp.MainButton.showProgress();
+					try {
+						const r = await api("checkout", { ...f, key: S.co.key, promo: S.promo ? S.promo.code : "", lines: S.cart.map((l) => ({ id: l.id, variant: l.variant, qty: l.qty })) });
+						if (r.changed) {
+							S.checked = r.cart;
+							notice(t("co_changed"));
+							return history.back();
+						}
+						haptic("medium");
+						try { tgApp.HapticFeedback.notificationOccurred("success"); } catch (e) {}
+						S.cart = [];
+						S.promo = null;
+						saveCart();
+						S.done = r;
+						S.co = null;
+						history.replaceState({ view: "done" }, "", "#done");
+						route();
+						if (r.payment && (r.payment.kind === "monobank" || r.payment.kind === "telegram") && !r.order.paid) payOrder(r.order.id);
+					} catch (e) {
+						if (e.fields) return showBad(e.fields);
+						// Промокод перестав діяти (вичерпано, закінчився) — прибираємо, покупець бачить нову суму
+						if (e.promo && S.promo) {
+							S.promo = null;
+							renderCheckout();
+						}
+						notice(e.message);
+					} finally {
+						sending = false;
+						if (inTg && tgApp.MainButton.hideProgress) tgApp.MainButton.hideProgress();
+					}
+				}
+				function showBad(list) {
+					S.co.bad = list;
+					haptic("light");
+					try { tgApp.HapticFeedback.notificationOccurred("error"); } catch (e) {}
+					renderCheckout();
+					const el = $("v-checkout").querySelector(".bad");
+					if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+				}
+
+				// ── Оплата онлайн: Monobank — сторінка банку, Telegram — рахунок усередині Telegram ──
+				async function payOrder(id) {
+					try {
+						const p = (await api("pay", { id })).pay;
+						if (p.kind === "telegram" && inTg && tgApp.openInvoice) {
+							tgApp.openInvoice(p.url, (status) => {
+								if (status === "paid") {
+									notice(t("pay_ok"));
+									if (S.done && S.done.order.id === id) S.done.order.paid = true;
+									if (S.view === "done") renderDone();
+									if (S.view === "orders") openOrders();
+								}
+							});
+						} else if (inTg && tgApp.openLink) tgApp.openLink(p.url);
+						else window.open(p.url, "_blank", "noopener");
+					} catch (e) {
+						notice(e.message);
+					}
+				}
+				function renderDone() {
+					const r = S.done;
+					backButton(false);
+					if (!r) return history.replaceState({ view: "catalog" }, "", location.pathname), route();
+					const online = r.payment && (r.payment.kind === "monobank" || r.payment.kind === "telegram");
+					$("v-done").innerHTML =
+						'<div class="done"><div class="ic">✓</div><h1>' + esc(t("done_title", { ref: r.order.reference })) + "</h1>" +
+						'<div class="muted">' + esc(t("done_sum", { sum: money(r.order.total) })) + "</div>" +
+						'<p class="muted small">' + esc(t("done_bot")) + "</p></div>" +
+						(r.payment && r.payment.text ? '<div class="paytext">' + esc(r.payment.text) + "</div>" : "") +
+						(r.order.paid ? '<div class="center" style="padding-top:0"><span class="stock ok">' + esc(t("paid")) + "</span></div>" : "") +
+						'<div class="center" style="padding-top:8px"><button class="btn ghost" id="done-orders" type="button">' + esc(t("my_orders")) + "</button></div>";
+					$("done-orders").addEventListener("click", () => {
+						history.replaceState({ view: "catalog" }, "", location.pathname);
+						go("orders");
+					});
+					if (online && !r.order.paid) mainButton(t("pay", { sum: money(r.order.total) }), () => payOrder(r.order.id));
+					else mainButton(t("to_catalog"), () => {
+						history.replaceState({ view: "catalog" }, "", location.pathname);
+						route();
+					});
+				}
+
+				// ── Мої замовлення ──
+				async function openOrders() {
+					const box = $("v-orders");
+					mainButton("", null);
+					box.innerHTML = '<div style="padding:12px 16px"><div class="skel" style="height:56px;margin-bottom:10px"></div><div class="skel" style="height:56px"></div></div>';
+					let list;
+					try {
+						list = (await api("orders")).orders;
+					} catch (e) {
+						if (S.view === "orders") fail(e);
+						return;
+					}
+					if (S.view !== "orders") return;
+					const fmtDate = (d) => {
+						try { return new Date(String(d).replace(" ", "T")).toLocaleDateString(S.shop.lang || undefined); } catch (e) { return String(d).slice(0, 10); }
+					};
+					box.innerHTML =
+						'<div class="pd" style="padding-bottom:0"><h1>' + esc(t("my_orders")) + "</h1></div>" +
+						(list.length
+							? list.map((o) =>
+									'<div class="ord"><div class="i"><div><b>' + esc(o.reference) + '</b> <span class="muted small">· ' + esc(fmtDate(o.date)) + "</span></div>" +
+									'<div class="st' + (o.canceled ? " no" : o.paid ? " ok" : "") + '">' + esc(o.status || "") + (o.paid && !o.canceled ? " · " + esc(t("paid")) : "") + "</div></div>" +
+									'<div style="text-align:right"><div class="price">' + esc(new Intl.NumberFormat(S.shop.lang || undefined, { style: "currency", currency: o.currency }).format(o.total)) + "</div>" +
+									(o.can_pay ? '<button class="btn" style="padding:6px 12px;margin-top:4px" data-pay="' + o.id + '" type="button">' + esc(t("pay_short")) + "</button>" : "") +
+									'<div><button class="rm" style="color:var(--link);margin-top:4px" data-reorder="' + o.id + '" type="button">' + esc(t("reorder")) + "</button></div>" +
+									"</div></div>"
+							  ).join("")
+							: '<div class="center muted">' + esc(t("orders_empty")) + "</div>");
+					box.querySelectorAll("[data-pay]").forEach((b) => b.addEventListener("click", () => payOrder(Number(b.dataset.pay))));
+					box.querySelectorAll("[data-reorder]").forEach((b) => b.addEventListener("click", async () => {
+						b.disabled = true;
+						try {
+							const r = await api("reorder", { id: Number(b.dataset.reorder) });
+							if (!r.lines.length) return notice(t("reorder_empty"));
+							for (const l of r.lines) {
+								const have = inCart(l.id, l.variant);
+								if (have) have.qty = Math.max(have.qty, l.qty);
+								else S.cart.push({ id: l.id, variant: l.variant || 0, qty: l.qty, name: l.name, image: l.image });
+							}
+							saveCart();
+							haptic("medium");
+							if (r.skipped) notice(t("reorder_skipped"));
+							else toast(t("reordered"));
+							go("cart");
+						} catch (e) {
+							notice(e.message);
+						} finally {
+							b.disabled = false;
+						}
+					}));
+				}
+
+				// ── Помилки ──
+				function fail(e) {
+					const box = $("v-error");
+					VIEWS.forEach((v) => $("v-" + v).classList.add("hidden"));
+					mainButton("", null);
+					box.classList.remove("hidden");
+					box.innerHTML = '<p class="muted">' + esc(e.message) + "</p>" + (e.status === 401 || e.code === "closed" ? "" : '<button class="btn" id="retry" type="button">' + esc(t("retry")) + "</button>");
+					if ($("retry")) $("retry").addEventListener("click", () => (S.shop ? route() : start()));
+				}
+
+				// ── Старт ──
+				async function start() {
+					if (!inTg) {
+						$("v-catalog").classList.add("hidden");
+						$("v-error").classList.remove("hidden");
+						$("v-error").innerHTML = '<p class="muted">' + esc(t("open_in_tg")) + "</p>";
+						return;
+					}
+					const hash = location.hash.slice(1);
+					try {
+						// Відкрили з кнопки розсилки (?b=…) — сервер позначить перехід
+						const bref = new URLSearchParams(location.search).get("b");
+						const r = await api("init", bref ? { b: bref } : {});
+						S.shop = r.shop;
+						S.cats = r.categories;
+						// Кошик з іншого пристрою — якщо тут порожньо; інакше — цей кошик на сервер
+						if (!S.cart.length && Array.isArray(r.cart) && r.cart.length) {
+							S.cart = r.cart.map((l) => ({ id: l.id, variant: l.variant || 0, qty: l.qty }));
+							try {
+								localStorage.setItem(CART_KEY, JSON.stringify(S.cart));
+							} catch (e) {}
+						} else if (S.cart.length) syncCart();
+					} catch (e) {
+						return fail(e);
+					}
+					$("v-error").classList.add("hidden");
+					$("v-catalog").classList.remove("hidden");
+					renderChips();
+					history.replaceState({ view: "catalog" }, "", location.pathname);
+					route();
+					loadProducts(true);
+					// Посилання з бота: #cart — кошик, #product/ID — товар
+					const pm = /^product\/(\d+)$/.exec(hash);
+					if (hash === "cart") go("cart");
+					else if (pm) go("product", pm[1]);
+				}
+				start();
+			})();
+		</script>
+	</body>
+</html>

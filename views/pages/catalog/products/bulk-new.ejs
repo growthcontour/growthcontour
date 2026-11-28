@@ -1,0 +1,1107 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.bulk_new.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('catalog.bulk_new.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('catalog.bulk_new.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/catalog/"><%= i18n.__('catalog.bulk_new.breadcrumb.catalog') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/catalog/bulk/"><%= i18n.__('catalog.bulk_new.breadcrumb.bulk') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('catalog.bulk_new.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/catalog/bulk/" class="btn btn-primary rounded-0">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3">
+			<div class="row">
+				<% if (templates.length) { %>
+				<!-- ─── Почати з шаблону ─── -->
+				<div class="col-12 mb-3">
+					<div class="d-flex gap-2 align-items-center">
+						<i class="fa-solid fa-star text-warning"></i>
+						<select class="form-select rounded-0 w-auto" id="bn-template">
+							<option value=""><%= i18n.__('catalog.bulk_new.from_template') %></option>
+							<% templates.forEach(function (t) { %><option value="<%= t.id %>">#<%= t.id %> <%= t.title || i18n.__('catalog.bulk_new.untitled') %></option><% }) %>
+						</select>
+						<span class="form-text m-0"><%= i18n.__('catalog.bulk_new.from_template_hint') %></span>
+					</div>
+				</div>
+				<% } %>
+				<!-- ─── 1. Які товари ─── -->
+				<div class="col-12 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+							<span><%= i18n.__('catalog.bulk_new.step_products') %></span>
+							<span><%= i18n.__('catalog.bulk_new.found') %>: <span class="badge text-bg-light rounded-0" id="bn-count">…</span></span>
+						</div>
+						<div class="card-body">
+							<div class="btn-group mb-3" role="group">
+								<input type="radio" class="btn-check" name="bn-mode" id="bn-mode-filter" value="filter" checked />
+								<label class="btn btn-outline-primary rounded-0" for="bn-mode-filter"><i class="fa-solid fa-filter me-1"></i> <%= i18n.__('catalog.bulk_new.mode_filter') %></label>
+								<input type="radio" class="btn-check" name="bn-mode" id="bn-mode-list" value="list" />
+								<label class="btn btn-outline-primary rounded-0" for="bn-mode-list"><i class="fa-solid fa-list me-1"></i> <%= i18n.__('catalog.bulk_new.mode_list') %></label>
+							</div>
+
+							<div id="bn-filter">
+								<div class="row g-2">
+									<div class="col-12 col-md-4"><input type="search" class="form-control rounded-0" data-f="search" value="<%= filter.search %>" placeholder="<%= i18n.__('catalog.products.filters.search') %>" /><input type="hidden" data-f="issue" value="<%= filter.issue %>" /></div>
+									<div class="col-12 col-md-4">
+										<select class="form-select rounded-0" data-f="id_category">
+											<option value=""><%= i18n.__('catalog.products.filters.all_categories') %></option>
+											<% categories.forEach(function (c) { %><option value="<%= c.id %>"<% if (String(c.id) === filter.id_category) { %> selected<% } %>><%= c.label %></option><% }) %>
+										</select>
+									</div>
+									<div class="col-12 col-md-4">
+										<select class="form-select rounded-0" data-f="id_brand">
+											<option value=""><%= i18n.__('catalog.products.filters.all_brands') %></option>
+											<% brands.forEach(function (b) { %><option value="<%= b.id %>"<% if (String(b.id) === filter.id_brand) { %> selected<% } %>><%= b.name %></option><% }) %>
+										</select>
+									</div>
+									<div class="col-6 col-md-2">
+										<select class="form-select rounded-0" data-f="status">
+											<option value=""><%= i18n.__('catalog.products.filters.all_statuses') %></option>
+											<option value="active"<% if (filter.status === 'active') { %> selected<% } %>><%= i18n.__('catalog.products.status.active') %></option>
+											<option value="draft"<% if (filter.status === 'draft') { %> selected<% } %>><%= i18n.__('catalog.products.status.draft') %></option>
+											<option value="archived"<% if (filter.status === 'archived') { %> selected<% } %>><%= i18n.__('catalog.products.status.archived') %></option>
+										</select>
+									</div>
+									<div class="col-6 col-md-2">
+										<select class="form-select rounded-0" data-f="type">
+											<option value=""><%= i18n.__('catalog.products.filters.all_types') %></option>
+											<% ['simple', 'variable', 'bundle', 'digital', 'service', 'gift_card'].forEach(function (t) { %><option value="<%= t %>"<% if (filter.type === t) { %> selected<% } %>><%= i18n.__('catalog.products.types.' + t) %></option><% }) %>
+										</select>
+									</div>
+									<div class="col-6 col-md-2">
+										<select class="form-select rounded-0" data-f="stock">
+											<option value=""><%= i18n.__('catalog.products.filters.any_stock') %></option>
+											<option value="in"<% if (filter.stock === 'in') { %> selected<% } %>><%= i18n.__('catalog.products.filters.in_stock') %></option>
+											<option value="out"<% if (filter.stock === 'out') { %> selected<% } %>><%= i18n.__('catalog.products.filters.out_of_stock') %></option>
+											<option value="low"<% if (filter.stock === 'low') { %> selected<% } %>><%= i18n.__('catalog.products.filters.low_stock') %></option>
+										</select>
+									</div>
+									<div class="col-6 col-md-1"><input type="number" min="0" step="0.01" class="form-control rounded-0" data-f="price_from" value="<%= filter.price_from %>" placeholder="<%= i18n.__('catalog.products.filters.price_from') %>" /></div>
+									<div class="col-6 col-md-1"><input type="number" min="0" step="0.01" class="form-control rounded-0" data-f="price_to" value="<%= filter.price_to %>" placeholder="<%= i18n.__('catalog.products.filters.price_to') %>" /></div>
+									<div class="col-6 col-md-2">
+										<select class="form-select rounded-0" data-f="quality">
+											<option value=""><%= i18n.__('catalog.quality.filter_any') %></option>
+											<option value="low"<% if (filter.quality === 'low') { %> selected<% } %>><%= i18n.__('catalog.quality.levels.low') %></option>
+											<option value="mid"<% if (filter.quality === 'mid') { %> selected<% } %>><%= i18n.__('catalog.quality.levels.mid') %></option>
+											<option value="high"<% if (filter.quality === 'high') { %> selected<% } %>><%= i18n.__('catalog.quality.levels.high') %></option>
+										</select>
+									</div>
+									<% if (publishing) { %>
+									<div class="col-6 col-md-2">
+										<select class="form-select rounded-0" data-f="publish">
+											<option value=""><%= i18n.__('catalog.publish.filter_any') %></option>
+											<% ['changed', 'never', 'published', 'withdrawn'].forEach(function (s) { %><option value="<%= s %>"<% if (filter.publish === s) { %> selected<% } %>><%= i18n.__('catalog.publish.state_' + s) %></option><% }) %>
+											<option value="scheduled"<% if (filter.publish === 'scheduled') { %> selected<% } %>><%= i18n.__('catalog.publish.filter_scheduled') %></option>
+										</select>
+									</div>
+									<% } %>
+									<% if (channels.length) { %>
+									<div class="col-12 col-md-4">
+										<select class="form-select rounded-0" data-f="channel">
+											<option value=""><%= i18n.__('catalog.products.filters.channel_any') %></option>
+											<% channels.forEach(function (ch) { %>
+											<option value="<%= ch.id %>:in"<% if (filter.channel === ch.id + ':in') { %> selected<% } %>><%= i18n.__('catalog.products.filters.channel_in').replace('%s', ch.name) %></option>
+											<option value="<%= ch.id %>:out"<% if (filter.channel === ch.id + ':out') { %> selected<% } %>><%= i18n.__('catalog.products.filters.channel_out').replace('%s', ch.name) %></option>
+											<option value="<%= ch.id %>:notready"<% if (filter.channel === ch.id + ':notready') { %> selected<% } %>><%= i18n.__('catalog.products.filters.channel_notready').replace('%s', ch.name) %></option>
+											<% }) %>
+										</select>
+									</div>
+									<% } %>
+								</div>
+								<div class="form-text"><%= i18n.__('catalog.bulk_new.filter_hint') %></div>
+							</div>
+
+							<div id="bn-list" class="d-none">
+								<textarea class="form-control rounded-0 font-monospace" id="bn-list-text" rows="8" placeholder="<%= i18n.__('catalog.bulk_new.list_placeholder') %>"></textarea>
+								<div class="form-text"><%= i18n.__('catalog.bulk_new.list_hint') %></div>
+								<div class="alert alert-warning rounded-0 mt-2 mb-0 d-none" id="bn-not-found"></div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- ─── 2. Що змінити ─── -->
+				<div class="col-12 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('catalog.bulk_new.step_actions') %></div>
+						<div class="card-body">
+							<div class="mb-3">
+								<label class="form-label" for="bn-title"><%= i18n.__('catalog.bulk_new.name') %></label>
+								<input type="text" class="form-control rounded-0" id="bn-title" maxlength="255" placeholder="<%= i18n.__('catalog.bulk_new.name_placeholder') %>" />
+							</div>
+							<div id="bn-ops"></div>
+							<div class="d-flex gap-2 align-items-center">
+								<select class="form-select rounded-0 w-auto" id="bn-add">
+									<option value=""><%= i18n.__('catalog.bulk_new.add_action') %></option>
+									<option value="status"><%= i18n.__('catalog.bulk.a_status') %></option>
+									<option value="visibility"><%= i18n.__('catalog.bulk.a_visibility') %></option>
+									<option value="featured"><%= i18n.__('catalog.bulk.a_featured') %></option>
+									<option value="brand"><%= i18n.__('catalog.bulk.a_brand') %></option>
+									<option value="categories"><%= i18n.__('catalog.bulk.a_categories') %></option>
+									<option value="price"><%= i18n.__('catalog.bulk.a_price') %></option>
+									<option value="compare_from_price"><%= i18n.__('catalog.bulk.a_compare_from_price') %></option>
+									<% if (currencies.length) { %><option value="currency"><%= i18n.__('catalog.bulk.a_currency') %></option><% } %>
+									<% if (perms.costEdit) { %><option value="formula"><%= i18n.__('catalog.bulk.a_formula') %></option><% } %>
+									<% if (currencies.length) { %><option value="fixed_price"><%= i18n.__('catalog.bulk.a_fixed_price') %></option><% } %>
+									<option value="field"><%= i18n.__('catalog.bulk.a_field') %></option>
+									<option value="variant_field"><%= i18n.__('catalog.bulk.a_variant_field') %></option>
+									<option value="text"><%= i18n.__('catalog.bulk.a_text') %></option>
+									<option value="seo"><%= i18n.__('catalog.bulk.a_seo') %></option>
+									<option value="media"><%= i18n.__('catalog.bulk.a_media') %></option>
+									<% if (attributes.length) { %><option value="attribute"><%= i18n.__('catalog.bulk.a_attribute') %></option><% } %>
+									<option value="codes"><%= i18n.__('catalog.bulk.a_codes') %></option>
+									<% if (warehouses.length) { %><option value="stock"><%= i18n.__('catalog.bulk.a_stock') %></option><% } %>
+								</select>
+								<span class="form-text m-0"><%= i18n.__('catalog.bulk_new.actions_hint') %></span>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- ─── 3. Перевірка і запуск ─── -->
+				<div class="col-12 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('catalog.bulk_new.step_preview') %></div>
+						<div class="card-body">
+							<div class="row g-2 mb-3">
+								<div class="col-12 col-md-4">
+									<label class="form-label" for="bn-when"><%= i18n.__('catalog.bulk_new.when') %></label>
+									<select class="form-select rounded-0" id="bn-when">
+										<option value="now"><%= i18n.__('catalog.bulk_new.when_now') %></option>
+										<option value="at"><%= i18n.__('catalog.bulk_new.when_at') %></option>
+									</select>
+								</div>
+								<div class="col-12 col-md-4 d-none" id="bn-run-at-wrap">
+									<label class="form-label" for="bn-run-at"><%= i18n.__('catalog.bulk_new.run_at') %></label>
+									<input type="datetime-local" class="form-control rounded-0" id="bn-run-at" />
+								</div>
+								<div class="col-12 col-md-4">
+									<div class="form-check mt-md-4 pt-md-2">
+										<input class="form-check-input" type="checkbox" id="bn-auto-revert" />
+										<label class="form-check-label" for="bn-auto-revert"><%= i18n.__('catalog.bulk_new.auto_revert') %></label>
+									</div>
+									<input type="datetime-local" class="form-control rounded-0 mt-1 d-none" id="bn-revert-at" />
+								</div>
+								<div class="col-12 form-text mt-0"><%= i18n.__('catalog.bulk_new.schedule_hint') %></div>
+							</div>
+							<div class="d-flex gap-2 mb-3">
+								<button type="button" class="btn btn-outline-primary rounded-0" id="bn-preview"><i class="fa-solid fa-eye me-1"></i> <%= i18n.__('catalog.bulk_new.preview') %></button>
+								<button type="button" class="btn btn-primary rounded-0" id="bn-run" disabled><i class="fa-solid fa-play me-1"></i> <%= i18n.__('catalog.bulk_new.run') %></button>
+							</div>
+							<div class="form-text mb-2" id="bn-preview-hint"><%= i18n.__('catalog.bulk_new.preview_hint', { n: String(preview) }) %></div>
+							<div class="table-responsive d-none" id="bn-preview-wrap">
+								<table class="table table-sm table-bordered align-middle mb-0">
+									<thead>
+										<tr>
+											<th><%= i18n.__('catalog.bulk_new.col_product') %></th>
+											<th><%= i18n.__('catalog.bulk_new.col_field') %></th>
+											<th><%= i18n.__('catalog.bulk_new.col_old') %></th>
+											<th><%= i18n.__('catalog.bulk_new.col_new') %></th>
+										</tr>
+									</thead>
+									<tbody id="bn-preview-rows"></tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Підтвердження запуску -->
+		<div class="modal fade" id="bn-run-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5"><%= i18n.__('catalog.bulk_new.run_title') %></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<p class="mb-2" id="bn-run-text"></p>
+						<div class="form-text"><%= i18n.__('catalog.bulk_new.run_hint') %></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('catalog.bulk_new.cancel') %></button>
+						<button type="button" class="btn btn-primary rounded-0" id="bn-run-ok"><%= i18n.__('catalog.bulk_new.run') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- ─── Шаблони параметрів дій (клонуються в блок дії; поля — data-p) ─── -->
+		<template data-op="status">
+			<select class="form-select rounded-0" data-p="status">
+				<option value="active"><%= i18n.__('catalog.products.status.active') %></option>
+				<option value="draft"><%= i18n.__('catalog.products.status.draft') %></option>
+				<option value="archived"><%= i18n.__('catalog.products.status.archived') %></option>
+			</select>
+		</template>
+		<template data-op="visibility">
+			<select class="form-select rounded-0" data-p="visibility">
+				<option value="all"><%= i18n.__('catalog.bulk.visibility_all') %></option>
+				<option value="catalog"><%= i18n.__('catalog.bulk.visibility_catalog') %></option>
+				<option value="search"><%= i18n.__('catalog.bulk.visibility_search') %></option>
+				<option value="none"><%= i18n.__('catalog.bulk.visibility_none') %></option>
+			</select>
+		</template>
+		<template data-op="featured">
+			<select class="form-select rounded-0" data-p="value" data-type="int">
+				<option value="1"><%= i18n.__('catalog.bulk.featured_yes') %></option>
+				<option value="0"><%= i18n.__('catalog.bulk.featured_no') %></option>
+			</select>
+		</template>
+		<template data-op="brand">
+			<select class="form-select rounded-0" data-p="id_brand" data-type="intnull">
+				<option value=""><%= i18n.__('catalog.bulk.brand_none') %></option>
+				<% brands.forEach(function (b) { %><option value="<%= b.id %>"><%= b.name %></option><% }) %>
+			</select>
+		</template>
+		<template data-op="categories">
+			<div class="row g-2">
+				<div class="col-12 col-md-4">
+					<label class="form-label"><%= i18n.__('catalog.bulk.cat_op') %></label>
+					<select class="form-select rounded-0" data-p="op">
+						<option value="add"><%= i18n.__('catalog.bulk.cat_add') %></option>
+						<option value="remove"><%= i18n.__('catalog.bulk.cat_remove') %></option>
+						<option value="replace"><%= i18n.__('catalog.bulk.cat_replace') %></option>
+					</select>
+					<div class="form-check mt-2">
+						<input class="form-check-input" type="checkbox" data-p="set_main" />
+						<label class="form-check-label"><%= i18n.__('catalog.bulk.cat_set_main') %></label>
+					</div>
+				</div>
+				<div class="col-12 col-md-8">
+					<label class="form-label"><%= i18n.__('catalog.bulk.cat_list') %></label>
+					<select class="form-select rounded-0" data-p="ids" data-type="ints" multiple size="8">
+						<% categories.forEach(function (c) { %><option value="<%= c.id %>"><%= c.label %></option><% }) %>
+					</select>
+				</div>
+			</div>
+		</template>
+		<template data-op="price">
+			<div class="row g-2">
+				<div class="col-6 col-md-3">
+					<label class="form-label"><%= i18n.__('catalog.bulk.price_field') %></label>
+					<select class="form-select rounded-0" data-p="field">
+						<option value="price"><%= i18n.__('catalog.bulk.field_price') %></option>
+						<option value="compare_at_price"><%= i18n.__('catalog.bulk.field_compare_at_price') %></option>
+						<% if (perms.costEdit) { %>
+						<option value="cost_price"><%= i18n.__('catalog.bulk.field_cost_price') %></option>
+						<option value="wholesale_price"><%= i18n.__('catalog.bulk.field_wholesale_price') %></option>
+						<% } %>
+					</select>
+				</div>
+				<div class="col-6 col-md-3">
+					<label class="form-label"><%= i18n.__('catalog.bulk.price_op') %></label>
+					<select class="form-select rounded-0" data-p="op">
+						<option value="percent"><%= i18n.__('catalog.bulk.op_percent') %></option>
+						<option value="amount"><%= i18n.__('catalog.bulk.op_amount') %></option>
+						<option value="set"><%= i18n.__('catalog.bulk.op_set') %></option>
+					</select>
+				</div>
+				<div class="col-6 col-md-3">
+					<label class="form-label"><%= i18n.__('catalog.bulk.price_value') %></label>
+					<input type="number" step="0.0001" class="form-control rounded-0" data-p="value" data-type="num" />
+					<div class="form-text"><%= i18n.__('catalog.bulk.price_value_hint') %></div>
+				</div>
+				<div class="col-6 col-md-3">
+					<label class="form-label"><%= i18n.__('catalog.bulk.round') %></label>
+					<select class="form-select rounded-0" data-p="round">
+						<% ['none', '0', '1', '2', '99', '9'].forEach(function (r) { %><option value="<%= r %>"><%= i18n.__('catalog.bulk.round_' + r) %></option><% }) %>
+					</select>
+				</div>
+				<div class="col-12">
+					<div class="form-check">
+						<input class="form-check-input" type="checkbox" data-p="variants" checked />
+						<label class="form-check-label"><%= i18n.__('catalog.bulk.apply_variants') %></label>
+					</div>
+				</div>
+			</div>
+		</template>
+		<template data-op="compare_from_price">
+			<div class="form-check">
+				<input class="form-check-input" type="checkbox" data-p="variants" checked />
+				<label class="form-check-label"><%= i18n.__('catalog.bulk.apply_variants') %></label>
+			</div>
+		</template>
+		<template data-op="formula">
+			<select class="form-select rounded-0" data-p="on" data-type="bool">
+				<option value="1"><%= i18n.__('catalog.bulk.formula_on') %></option>
+				<option value="0"><%= i18n.__('catalog.bulk.formula_off') %></option>
+			</select>
+			<div class="form-text"><%= i18n.__('catalog.bulk.formula_hint') %></div>
+		</template>
+		<template data-op="fixed_price">
+			<div class="row g-2">
+				<div class="col-6 col-md-3">
+					<label class="form-label"><%= i18n.__('catalog.bulk.cur_code') %></label>
+					<select class="form-select rounded-0" data-p="code">
+						<% currencies.forEach(function (c) { %><option value="<%= c %>"><%= c %></option><% }) %>
+					</select>
+				</div>
+				<div class="col-6 col-md-5">
+					<label class="form-label"><%= i18n.__('catalog.bulk.fx_op') %></label>
+					<select class="form-select rounded-0" data-p="op">
+						<option value="convert"><%= i18n.__('catalog.bulk.fx_convert') %></option>
+						<option value="percent"><%= i18n.__('catalog.bulk.fx_percent') %></option>
+						<option value="clear"><%= i18n.__('catalog.bulk.fx_clear') %></option>
+					</select>
+				</div>
+				<div class="col-6 col-md-2" data-show-if="op=percent">
+					<label class="form-label">%</label>
+					<input type="number" step="0.01" min="-99" max="1000" class="form-control rounded-0" data-p="value" data-type="num" />
+				</div>
+			</div>
+			<div class="form-text"><%= i18n.__('catalog.bulk.fx_hint') %></div>
+		</template>
+		<template data-op="currency">
+			<div class="row g-2">
+				<div class="col-6 col-md-3">
+					<label class="form-label"><%= i18n.__('catalog.bulk.cur_group') %></label>
+					<select class="form-select rounded-0" data-p="group">
+						<option value="price"><%= i18n.__('catalog.bulk.cur_group_price') %></option>
+						<% if (perms.costEdit) { %>
+						<option value="cost"><%= i18n.__('catalog.bulk.field_cost_price') %></option>
+						<option value="wholesale"><%= i18n.__('catalog.bulk.field_wholesale_price') %></option>
+						<% } %>
+					</select>
+				</div>
+				<div class="col-6 col-md-3">
+					<label class="form-label"><%= i18n.__('catalog.bulk.cur_code') %></label>
+					<select class="form-select rounded-0" data-p="code" data-type="strnull">
+						<option value=""><%= currency %> (<%= i18n.__('catalog.bulk.cur_base') %>)</option>
+						<% currencies.forEach(function (c) { %><option value="<%= c %>"><%= c %></option><% }) %>
+					</select>
+				</div>
+				<div class="col-12 col-md-6">
+					<label class="form-label"><%= i18n.__('catalog.bulk.cur_mode') %></label>
+					<select class="form-select rounded-0" data-p="mode">
+						<option value="convert"><%= i18n.__('catalog.bulk.cur_convert') %></option>
+						<option value="keep"><%= i18n.__('catalog.bulk.cur_keep') %></option>
+					</select>
+				</div>
+			</div>
+			<div class="form-text"><%= i18n.__('catalog.bulk.cur_hint') %></div>
+		</template>
+
+		<template data-op="field">
+			<div class="row g-2">
+				<div class="col-12 col-md-4">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.field') %></label>
+					<select class="form-select rounded-0" data-p="field" data-field-select>
+						<% fieldGroups.forEach(function (g) { %>
+						<optgroup label="<%= i18n.__('catalog.bulk_new.fg_' + g.group) %>">
+							<% g.fields.forEach(function (f) { %><option value="<%= f.key %>" data-t="<%= f.t %>" data-values="<%= f.values.join(',') %>" data-nullable="<%= f.nullable ? 1 : 0 %>"><%= i18n.__('catalog.bulk_new.f_' + f.key) %></option><% }) %>
+						</optgroup>
+						<% }) %>
+					</select>
+				</div>
+				<div class="col-6 col-md-3">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.operation') %></label>
+					<select class="form-select rounded-0" data-p="op" data-op-select>
+						<% ['set', 'percent', 'amount', 'clear', 'prepend', 'append', 'replace'].forEach(function (o) { %><option value="<%= o %>"><%= i18n.__('catalog.bulk_new.op_' + o) %></option><% }) %>
+					</select>
+				</div>
+				<div class="col-6 col-md-2" data-show-if="op=replace">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.find') %></label>
+					<input type="text" class="form-control rounded-0" data-p="find" maxlength="255" />
+				</div>
+				<div class="col-12 col-md-3" data-hide-if="op=clear">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.value') %></label>
+					<div data-vt="num"><input type="number" step="any" class="form-control rounded-0" data-p="value" data-type="num" /></div>
+					<div data-vt="int"><input type="number" step="1" class="form-control rounded-0" data-p="value" data-type="num" /></div>
+					<div data-vt="bool">
+						<select class="form-select rounded-0" data-p="value" data-type="boolv">
+							<option value="1"><%= i18n.__('catalog.bulk.featured_yes') %></option>
+							<option value="0"><%= i18n.__('catalog.bulk.featured_no') %></option>
+						</select>
+					</div>
+					<div data-vt="enum"><select class="form-select rounded-0" data-p="value" data-enum></select></div>
+					<div data-vt="str"><input type="text" class="form-control rounded-0" data-p="value" maxlength="255" /></div>
+					<div data-vt="date"><input type="date" class="form-control rounded-0" data-p="value" /></div>
+				</div>
+			</div>
+			<div class="form-text"><%= i18n.__('catalog.bulk_new.field_hint') %></div>
+			<!-- Підписи значень переліків (для вибору значення) -->
+			<% fieldGroups.forEach(function (g) { g.fields.filter(function (f) { return f.t === 'enum'; }).forEach(function (f) { f.values.forEach(function (v) { %><span class="d-none" data-enum-label="<%= f.key %>:<%= v %>"><%= i18n.__('catalog.bulk_new.fv_' + f.key + '_' + v) %></span><% }) }) }) %>
+		</template>
+		<template data-op="variant_field">
+			<div class="row g-2">
+				<div class="col-12 col-md-4">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.field') %></label>
+					<select class="form-select rounded-0" data-p="field" data-field-select>
+						<% variantFields.forEach(function (f) { %><option value="<%= f.key %>" data-t="<%= f.t %>" data-values="<%= f.values.join(',') %>" data-nullable="<%= f.nullable ? 1 : 0 %>"><%= i18n.__('catalog.bulk_new.vf_' + f.key) %></option><% }) %>
+					</select>
+				</div>
+				<div class="col-6 col-md-3">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.operation') %></label>
+					<select class="form-select rounded-0" data-p="op" data-op-select>
+						<% ['set', 'percent', 'amount', 'clear', 'prepend', 'append', 'replace'].forEach(function (o) { %><option value="<%= o %>"><%= i18n.__('catalog.bulk_new.op_' + o) %></option><% }) %>
+					</select>
+				</div>
+				<div class="col-6 col-md-2" data-show-if="op=replace">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.find') %></label>
+					<input type="text" class="form-control rounded-0" data-p="find" maxlength="255" />
+				</div>
+				<div class="col-12 col-md-3" data-hide-if="op=clear">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.value') %></label>
+					<div data-vt="num"><input type="number" step="any" class="form-control rounded-0" data-p="value" data-type="num" /></div>
+					<div data-vt="int"><input type="number" step="1" class="form-control rounded-0" data-p="value" data-type="num" /></div>
+					<div data-vt="bool">
+						<select class="form-select rounded-0" data-p="value" data-type="boolv">
+							<option value="1"><%= i18n.__('catalog.bulk.featured_yes') %></option>
+							<option value="0"><%= i18n.__('catalog.bulk.featured_no') %></option>
+						</select>
+					</div>
+					<div data-vt="enum"><select class="form-select rounded-0" data-p="value" data-enum></select></div>
+					<div data-vt="str"><input type="text" class="form-control rounded-0" data-p="value" maxlength="255" /></div>
+					<div data-vt="date"><input type="date" class="form-control rounded-0" data-p="value" /></div>
+				</div>
+				<div class="col-12" data-show-if="op=set">
+					<div class="form-check">
+						<input class="form-check-input" type="checkbox" data-p="only_empty" />
+						<label class="form-check-label"><%= i18n.__('catalog.bulk_new.vf_only_empty') %></label>
+					</div>
+				</div>
+			</div>
+			<div class="form-text"><%= i18n.__('catalog.bulk_new.vf_hint') %></div>
+			<% variantFields.filter(function (f) { return f.t === 'enum'; }).forEach(function (f) { f.values.forEach(function (v) { %><span class="d-none" data-enum-label="<%= f.key %>:<%= v %>"><%= i18n.__('catalog.bulk_new.fv_' + f.key + '_' + v) %></span><% }) }) %>
+		</template>
+		<template data-op="text">
+			<div class="row g-2">
+				<div class="col-12 col-md-4">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.field') %></label>
+					<select class="form-select rounded-0" data-p="field">
+						<% ['name', 'h1', 'short_description', 'description', 'meta_title', 'meta_description', 'meta_keywords', 'tags', 'search_keywords', 'text_in_stock', 'text_out_of_stock', 'delivery_text_in_stock', 'delivery_text_out_stock', 'unit_label', 'og_title', 'og_description'].forEach(function (f) { %><option value="<%= f %>"><%= i18n.__('catalog.bulk_new.t_' + f) %></option><% }) %>
+					</select>
+				</div>
+				<div class="col-12 col-md-4">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.operation') %></label>
+					<select class="form-select rounded-0" data-p="op">
+						<% ['replace', 'regex', 'set', 'prepend', 'append', 'clear'].forEach(function (o) { %><option value="<%= o %>"><%= i18n.__('catalog.bulk_new.top_' + o) %></option><% }) %>
+					</select>
+				</div>
+				<div class="col-12 col-md-4 d-flex align-items-end" data-show-if="op=replace|regex">
+					<div class="form-check mb-2">
+						<input class="form-check-input" type="checkbox" data-p="case_sensitive" />
+						<label class="form-check-label"><%= i18n.__('catalog.bulk_new.case_sensitive') %></label>
+					</div>
+				</div>
+				<div class="col-12" data-show-if="op=replace|regex">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.find') %></label>
+					<input type="text" class="form-control rounded-0 font-monospace" data-p="find" maxlength="500" />
+					<div class="form-text" data-show-if="op=regex"><%= i18n.__('catalog.bulk_new.regex_hint') %></div>
+				</div>
+				<div class="col-12" data-hide-if="op=clear">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.text_value') %></label>
+					<textarea class="form-control rounded-0" data-p="value" rows="3" maxlength="65535"></textarea>
+				</div>
+				<div class="col-12">
+					<label class="form-label d-block"><%= i18n.__('catalog.bulk_new.langs') %></label>
+					<% languages.forEach(function (l) { %>
+					<div class="form-check form-check-inline">
+						<input class="form-check-input" type="checkbox" data-p="langs" data-type="checks" value="<%= l.id %>" />
+						<label class="form-check-label"><%= l.name %> (<%= l.code %>)</label>
+					</div>
+					<% }) %>
+					<div class="form-text"><%= i18n.__('catalog.bulk_new.langs_hint') %></div>
+				</div>
+			</div>
+		</template>
+		<template data-op="seo">
+			<div class="row g-2">
+				<div class="col-12 col-md-4">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.field') %></label>
+					<select class="form-select rounded-0" data-p="field">
+						<% ['meta_title', 'meta_description', 'meta_keywords', 'h1', 'og_title', 'og_description'].forEach(function (f) { %><option value="<%= f %>"><%= i18n.__('catalog.bulk_new.t_' + f) %></option><% }) %>
+					</select>
+				</div>
+				<div class="col-12 col-md-8">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.template') %></label>
+					<input type="text" class="form-control rounded-0" data-p="template" data-required maxlength="1000" placeholder="<%= i18n.__('catalog.bulk_new.template_placeholder') %>" />
+					<div class="form-text"><%= i18n.__('catalog.bulk_new.template_hint') %></div>
+				</div>
+				<div class="col-12">
+					<div class="form-check">
+						<input class="form-check-input" type="checkbox" data-p="only_empty" checked />
+						<label class="form-check-label"><%= i18n.__('catalog.bulk_new.only_empty') %></label>
+					</div>
+				</div>
+				<div class="col-12">
+					<label class="form-label d-block"><%= i18n.__('catalog.bulk_new.langs') %></label>
+					<% languages.forEach(function (l) { %>
+					<div class="form-check form-check-inline">
+						<input class="form-check-input" type="checkbox" data-p="langs" data-type="checks" value="<%= l.id %>" />
+						<label class="form-check-label"><%= l.name %> (<%= l.code %>)</label>
+					</div>
+					<% }) %>
+					<div class="form-text"><%= i18n.__('catalog.bulk_new.langs_hint') %></div>
+				</div>
+			</div>
+		</template>
+		<template data-op="media">
+			<div class="row g-2">
+				<div class="col-12 col-md-3">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.operation') %></label>
+					<select class="form-select rounded-0" data-p="op">
+						<option value="cover"><%= i18n.__('catalog.bulk_new.media_cover') %></option>
+						<option value="remove"><%= i18n.__('catalog.bulk_new.media_remove') %></option>
+						<option value="alt"><%= i18n.__('catalog.bulk_new.media_alt') %></option>
+					</select>
+				</div>
+				<div class="col-12 col-md-9" data-show-if="op=cover">
+					<div class="row g-2">
+						<div class="col-6 col-md-4">
+							<label class="form-label"><%= i18n.__('catalog.bulk_new.media_pick') %></label>
+							<select class="form-select rounded-0" data-p="pick">
+								<% ['first', 'last', 'position'].forEach(function (v) { %><option value="<%= v %>"><%= i18n.__('catalog.bulk_new.media_pick_' + v) %></option><% }) %>
+							</select>
+						</div>
+						<div class="col-6 col-md-3" data-show-if="pick=position">
+							<label class="form-label"><%= i18n.__('catalog.bulk_new.media_position') %></label>
+							<input type="number" min="1" max="1000" step="1" value="2" class="form-control rounded-0" data-p="position" data-type="int" />
+						</div>
+						<div class="col-12">
+							<div class="form-check">
+								<input class="form-check-input" type="checkbox" data-p="move_first" checked />
+								<label class="form-check-label"><%= i18n.__('catalog.bulk_new.media_move_first') %></label>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="col-12 col-md-9" data-show-if="op=remove">
+					<div class="row g-2">
+						<div class="col-8 col-md-5">
+							<label class="form-label"><%= i18n.__('catalog.bulk_new.media_what') %></label>
+							<select class="form-select rounded-0" data-p="what">
+								<% ['duplicates', 'except_cover', 'keep_first', 'all'].forEach(function (v) { %><option value="<%= v %>"><%= i18n.__('catalog.bulk_new.media_what_' + v) %></option><% }) %>
+							</select>
+						</div>
+						<div class="col-4 col-md-3" data-show-if="what=keep_first">
+							<label class="form-label"><%= i18n.__('catalog.bulk_new.media_keep') %></label>
+							<input type="number" min="1" max="1000" step="1" value="5" class="form-control rounded-0" data-p="keep" data-type="int" />
+						</div>
+						<div class="col-12 form-text"><%= i18n.__('catalog.bulk_new.media_remove_hint') %></div>
+					</div>
+				</div>
+				<div class="col-12 col-md-9" data-show-if="op=alt">
+					<div class="row g-2">
+						<div class="col-6 col-md-3">
+							<label class="form-label"><%= i18n.__('catalog.bulk_new.field') %></label>
+							<select class="form-select rounded-0" data-p="field">
+								<option value="alt">ALT</option>
+								<option value="title">title</option>
+							</select>
+						</div>
+						<div class="col-6 col-md-3">
+							<label class="form-label"><%= i18n.__('catalog.bulk_new.value') %></label>
+							<select class="form-select rounded-0" data-p="clear" data-type="boolv">
+								<option value="0"><%= i18n.__('catalog.bulk_new.media_alt_template') %></option>
+								<option value="1"><%= i18n.__('catalog.bulk_new.op_clear') %></option>
+							</select>
+						</div>
+						<div class="col-12 col-md-6" data-hide-if="clear=1">
+							<label class="form-label"><%= i18n.__('catalog.bulk_new.template') %></label>
+							<input type="text" class="form-control rounded-0" data-p="template" data-required maxlength="1000" placeholder="<%= i18n.__('catalog.bulk_new.media_alt_placeholder') %>" />
+							<div class="form-text"><%= i18n.__('catalog.bulk_new.media_alt_hint') %></div>
+						</div>
+						<div class="col-12" data-hide-if="clear=1">
+							<div class="form-check">
+								<input class="form-check-input" type="checkbox" data-p="only_empty" checked />
+								<label class="form-check-label"><%= i18n.__('catalog.bulk_new.media_alt_only_empty') %></label>
+							</div>
+						</div>
+						<div class="col-12">
+							<label class="form-label d-block"><%= i18n.__('catalog.bulk_new.langs') %></label>
+							<% languages.forEach(function (l) { %>
+							<div class="form-check form-check-inline">
+								<input class="form-check-input" type="checkbox" data-p="langs" data-type="checks" value="<%= l.id %>" />
+								<label class="form-check-label"><%= l.name %> (<%= l.code %>)</label>
+							</div>
+							<% }) %>
+							<div class="form-text"><%= i18n.__('catalog.bulk_new.langs_hint') %></div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</template>
+		<% if (attributes.length) { %>
+		<template data-op="attribute">
+			<div class="row g-2">
+				<div class="col-12 col-md-4">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.attribute') %></label>
+					<select class="form-select rounded-0" data-p="id_attribute" data-type="int" data-attr-select>
+						<% attributes.forEach(function (a) { %><option value="<%= a.id %>" data-t="<%= a.type %>"><%= a.name %></option><% }) %>
+					</select>
+				</div>
+				<div class="col-12 col-md-3">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.operation') %></label>
+					<select class="form-select rounded-0" data-p="op">
+						<option value="set"><%= i18n.__('catalog.bulk_new.attr_set') %></option>
+						<option value="remove"><%= i18n.__('catalog.bulk_new.attr_remove') %></option>
+					</select>
+				</div>
+				<div class="col-12 col-md-5" data-hide-if="op=remove">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.value') %></label>
+					<div data-at="values"><select class="form-select rounded-0" data-p="value_ids" data-type="ints" multiple size="6"></select><div class="form-text"><%= i18n.__('catalog.bulk_new.attr_values_hint') %></div></div>
+					<div data-at="number"><input type="number" step="any" class="form-control rounded-0" data-p="number" data-type="num" /></div>
+					<div data-at="bool">
+						<select class="form-select rounded-0" data-p="number" data-type="int">
+							<option value="1"><%= i18n.__('catalog.bulk.featured_yes') %></option>
+							<option value="0"><%= i18n.__('catalog.bulk.featured_no') %></option>
+						</select>
+					</div>
+					<div data-at="date"><input type="date" class="form-control rounded-0" data-p="date" /></div>
+					<div data-at="text"><input type="text" class="form-control rounded-0" data-p="text" maxlength="65535" /></div>
+				</div>
+				<div class="col-12" data-hide-if="op=remove">
+					<div class="form-check">
+						<input class="form-check-input" type="checkbox" data-p="only_empty" />
+						<label class="form-check-label"><%= i18n.__('catalog.bulk_new.attr_only_empty') %></label>
+					</div>
+				</div>
+			</div>
+		</template>
+		<% } %>
+		<template data-op="codes">
+			<div class="row g-2">
+				<div class="col-12 col-md-4">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.code') %></label>
+					<select class="form-select rounded-0" data-p="code">
+						<option value="sku"><%= i18n.__('catalog.bulk_new.codes_sku') %></option>
+						<option value="ean"><%= i18n.__('catalog.bulk_new.codes_ean') %></option>
+					</select>
+				</div>
+				<div class="col-12 col-md-8" data-show-if="code=sku">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.template') %></label>
+					<input type="text" class="form-control rounded-0 font-monospace" data-p="template" maxlength="128" placeholder="<%= skuPattern %>" />
+					<div class="form-text"><%= i18n.__('catalog.bulk_new.sku_hint') %></div>
+				</div>
+				<div class="col-12" data-show-if="code=sku">
+					<div class="form-check">
+						<input class="form-check-input" type="checkbox" data-p="only_empty" checked />
+						<label class="form-check-label"><%= i18n.__('catalog.bulk_new.sku_only_empty') %></label>
+					</div>
+				</div>
+				<div class="col-12 form-text" data-show-if="code=ean"><%= i18n.__('catalog.bulk_new.ean_hint') %></div>
+			</div>
+		</template>
+		<% if (warehouses.length) { %>
+		<template data-op="stock">
+			<div class="row g-2">
+				<div class="col-12 col-md-4">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.stock_warehouse') %></label>
+					<select class="form-select rounded-0" data-p="id_warehouse" data-type="int">
+						<% warehouses.forEach(function (w) { %><option value="<%= w.id %>"<% if (w.is_default) { %> selected<% } %>><%= w.name %></option><% }) %>
+					</select>
+				</div>
+				<div class="col-12 col-md-4">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.stock_op') %></label>
+					<select class="form-select rounded-0" data-p="op">
+						<option value="set"><%= i18n.__('catalog.bulk_new.stock_set') %></option>
+						<option value="add"><%= i18n.__('catalog.bulk_new.stock_add') %></option>
+					</select>
+				</div>
+				<div class="col-12 col-md-4">
+					<label class="form-label"><%= i18n.__('catalog.bulk_new.stock_qty') %></label>
+					<input type="number" step="any" class="form-control rounded-0" data-p="qty" data-type="num" />
+				</div>
+				<div class="col-12 form-text" data-show-if="op=set"><%= i18n.__('catalog.bulk_new.stock_set_hint') %></div>
+				<div class="col-12 form-text" data-show-if="op=add"><%= i18n.__('catalog.bulk_new.stock_add_hint') %></div>
+				<div class="col-12 form-text"><%= i18n.__('catalog.bulk_new.stock_hint') %></div>
+			</div>
+		</template>
+		<% } %>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s === null || s === undefined ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const fmt = (n) => Number(n || 0).toLocaleString();
+				const notyf = new Notyf({ duration: 6000, position: { x: "right", y: "top" } });
+				const MAX_OPS = 10;
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					let j = {};
+					try {
+						j = await res.json();
+					} catch (e) {}
+					if (!res.ok || !j.ok) throw Object.assign(new Error(j.error || "Error"), { errors: j.errors });
+					return j;
+				}
+
+				/* ─── 1. Набір товарів ─── */
+				const mode = () => document.querySelector("input[name=bn-mode]:checked").value;
+				function selection() {
+					if (mode() === "list") return { mode: "list", list: $("bn-list-text").value };
+					const filter = {};
+					document.querySelectorAll("#bn-filter [data-f]").forEach((el) => el.value !== "" && (filter[el.dataset.f] = el.value));
+					return { mode: "filter", filter };
+				}
+				let total = 0;
+				let countTimer = null;
+				let countSeq = 0;
+				async function count() {
+					const seq = ++countSeq;
+					$("bn-count").textContent = "…";
+					try {
+						const sel = selection();
+						if (sel.mode === "list" && !sel.list.trim()) {
+							total = 0;
+							$("bn-count").textContent = "0";
+							$("bn-not-found").classList.add("d-none");
+							return;
+						}
+						const r = await api("/api/catalog/bulk/count/", { selection: sel });
+						if (seq !== countSeq) return;
+						total = r.total;
+						$("bn-count").textContent = fmt(r.total);
+						const nf = $("bn-not-found");
+						if (sel.mode === "list" && r.not_found_count) {
+							nf.innerHTML = `${esc("<%= i18n.__('catalog.bulk_new.not_found') %>")}: <b>${fmt(r.not_found_count)}</b><div class="small font-monospace">${r.not_found.map(esc).join(", ")}${r.not_found_count > r.not_found.length ? " …" : ""}</div>`;
+							nf.classList.remove("d-none");
+						} else nf.classList.add("d-none");
+					} catch (e) {
+						if (seq === countSeq) $("bn-count").textContent = "—";
+					}
+				}
+				const recount = () => {
+					stale();
+					clearTimeout(countTimer);
+					countTimer = setTimeout(count, 400);
+				};
+				document.querySelectorAll("input[name=bn-mode]").forEach((r) =>
+					r.addEventListener("change", () => {
+						$("bn-filter").classList.toggle("d-none", mode() !== "filter");
+						$("bn-list").classList.toggle("d-none", mode() !== "list");
+						recount();
+					})
+				);
+				document.querySelectorAll("#bn-filter [data-f]").forEach((el) => el.addEventListener(el.tagName === "SELECT" ? "change" : "input", recount));
+				$("bn-list-text").addEventListener("input", recount);
+
+				/* ─── 2. Дії ─── */
+				const opsBox = $("bn-ops");
+				function addOp(action) {
+					if (opsBox.children.length >= MAX_OPS) return notyf.error("<%= i18n.__('catalog.bulk_new.max_actions', { n: '10' }) %>");
+					const tpl = document.querySelector(`template[data-op="${action}"]`);
+					const card = document.createElement("div");
+					card.className = "card rounded-0 mb-3";
+					card.dataset.action = action;
+					card.innerHTML = `<div class="card-header rounded-0 d-flex justify-content-between align-items-center">
+						<span><span class="badge text-bg-primary rounded-0 me-2" data-num></span>${esc($("bn-add").querySelector(`option[value="${action}"]`).textContent)}</span>
+						<span class="btn-group">
+							<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-move="-1" title="<%= i18n.__('catalog.bulk_new.up') %>"><i class="fa-solid fa-arrow-up"></i></button>
+							<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-move="1" title="<%= i18n.__('catalog.bulk_new.down') %>"><i class="fa-solid fa-arrow-down"></i></button>
+							<button type="button" class="btn btn-sm btn-outline-danger rounded-0" data-remove title="<%= i18n.__('catalog.bulk_new.remove') %>"><i class="fa-solid fa-xmark"></i></button>
+						</span></div><div class="card-body"></div>`;
+					card.querySelector(".card-body").appendChild(tpl.content.cloneNode(true));
+					opsBox.appendChild(card);
+					renumber();
+					showIf(card);
+					stale();
+				}
+				function renumber() {
+					[...opsBox.children].forEach((c, i) => (c.querySelector("[data-num]").textContent = i + 1));
+				}
+				// Поля, потрібні лише при певному значенні іншого поля: data-show-if="op=replace|regex", data-hide-if="op=clear"
+				function showIf(card) {
+					const test = (rule) => {
+						const [k, v] = rule.split("=");
+						const src = card.querySelector(`[data-p="${k}"]`);
+						return !!src && v.split("|").includes(src.value);
+					};
+					card.querySelectorAll("[data-show-if]").forEach((el) => el.classList.toggle("d-none", !test(el.dataset.showIf)));
+					card.querySelectorAll("[data-hide-if]").forEach((el) => el.classList.toggle("d-none", test(el.dataset.hideIf)));
+					if (card.dataset.action === "field" || card.dataset.action === "variant_field") fieldControls(card);
+					if (card.dataset.action === "attribute") attrControls(card);
+				}
+
+				// «Поле товару»: операції й поле значення — за типом вибраного поля
+				const FIELD_OPS = { num: ["set", "percent", "amount", "clear"], int: ["set", "amount", "clear"], bool: ["set"], enum: ["set", "clear"], str: ["set", "clear", "prepend", "append", "replace"], date: ["set", "clear"] };
+				function fieldControls(card) {
+					const opt = card.querySelector("[data-field-select]").selectedOptions[0];
+					const t = opt.dataset.t;
+					const ops = FIELD_OPS[t].filter((o) => o !== "clear" || opt.dataset.nullable === "1");
+					const opSel = card.querySelector("[data-op-select]");
+					[...opSel.options].forEach((o) => (o.hidden = !ops.includes(o.value)));
+					if (!ops.includes(opSel.value)) {
+						opSel.value = ops[0];
+						return showIf(card);
+					}
+					card.querySelectorAll("[data-vt]").forEach((el) => el.classList.toggle("d-none", el.dataset.vt !== t));
+					// Значення переліку — підписами з шаблону
+					const en = card.querySelector("[data-enum]");
+					if (t === "enum" && en.dataset.for !== opt.value) {
+						en.dataset.for = opt.value;
+						en.innerHTML = opt.dataset.values
+							.split(",")
+							.map((v) => `<option value="${esc(v)}">${esc((card.querySelector(`[data-enum-label="${opt.value}:${v}"]`) || {}).textContent || v)}</option>`)
+							.join("");
+					}
+				}
+
+				// «Характеристика»: поле значення — за типом характеристики; значення вибору — з сервера
+				const AT = { select: "values", multiselect: "values", color: "values", integer: "number", decimal: "number", boolean: "bool", date: "date", text: "text", textarea: "text" };
+				function attrControls(card) {
+					const opt = card.querySelector("[data-attr-select]").selectedOptions[0];
+					const kind = AT[opt.dataset.t] || "text";
+					card.querySelectorAll("[data-at]").forEach((el) => el.classList.toggle("d-none", el.dataset.at !== kind));
+					const sel = card.querySelector('[data-p="value_ids"]');
+					sel.multiple = opt.dataset.t === "multiselect";
+					sel.size = sel.multiple ? 6 : 1;
+					if (kind === "values" && sel.dataset.for !== opt.value) {
+						sel.dataset.for = opt.value;
+						sel.innerHTML = "";
+						api("/api/catalog/bulk/attribute-values/", { id_attribute: Number(opt.value) })
+							.then((r) => {
+								if (sel.dataset.for !== opt.value) return;
+								sel.innerHTML = r.values.map((v) => `<option value="${Number(v.id)}">${esc(v.name)}</option>`).join("");
+								// «Створити таку саму»: вибрати збережені значення, коли вони підвантажились
+								const want = sel.dataset.want ? JSON.parse(sel.dataset.want) : [];
+								[...sel.options].forEach((o) => (o.selected = want.includes(Number(o.value))));
+							})
+							.catch((e) => notyf.error(e.message));
+					}
+				}
+				$("bn-add").addEventListener("change", (e) => {
+					if (e.target.value) addOp(e.target.value);
+					e.target.value = "";
+				});
+				opsBox.addEventListener("click", (e) => {
+					const card = e.target.closest(".card[data-action]");
+					if (!card) return;
+					if (e.target.closest("[data-remove]")) {
+						card.remove();
+						renumber();
+						stale();
+					}
+					const mv = e.target.closest("[data-move]");
+					if (mv) {
+						const sib = Number(mv.dataset.move) < 0 ? card.previousElementSibling : card.nextElementSibling;
+						if (sib) Number(mv.dataset.move) < 0 ? opsBox.insertBefore(card, sib) : opsBox.insertBefore(sib, card);
+						renumber();
+						stale();
+					}
+				});
+				opsBox.addEventListener("change", (e) => {
+					const card = e.target.closest(".card[data-action]");
+					if (card) showIf(card);
+					stale();
+				});
+				opsBox.addEventListener("input", stale);
+
+				/** Параметри дії з полів data-p (data-type: int, intnull, num, bool, ints, strnull; checkbox — так / ні) */
+				function params(card) {
+					const p = {};
+					card.querySelectorAll("[data-p]").forEach((el) => {
+						if (el.closest(".d-none")) return;
+						const k = el.dataset.p;
+						const t = el.dataset.type;
+						if (t === "checks") {
+							p[k] = p[k] || [];
+							if (el.checked) p[k].push(Number(el.value));
+						} else if (t === "boolv") p[k] = el.value === "1";
+						else if (el.type === "checkbox") p[k] = el.checked;
+						else if (t === "ints") p[k] = [...el.selectedOptions].map((o) => Number(o.value));
+						else if (t === "int") p[k] = Number(el.value);
+						else if (t === "intnull") p[k] = el.value === "" ? null : Number(el.value);
+						else if (t === "num") {
+							if (el.value !== "") p[k] = Number(el.value);
+						} else if (t === "bool") p[k] = el.value === "1";
+						else if (t === "strnull") p[k] = el.value === "" ? null : el.value;
+						else p[k] = el.value;
+					});
+					return p;
+				}
+				// Час — у поясі людини (datetime-local), на сервер — ISO у UTC
+				const iso = (v) => (v ? new Date(v).toISOString() : null);
+				const runAt = () => ($("bn-when").value === "at" ? iso($("bn-run-at").value) : null);
+				const revertAt = () => ($("bn-auto-revert").checked ? iso($("bn-revert-at").value) : null);
+				const payload = () => ({
+					title: $("bn-title").value.trim(),
+					selection: selection(),
+					operations: [...opsBox.children].map((c) => ({ action: c.dataset.action, params: params(c) })),
+					run_at: runAt(),
+					revert_at: revertAt(),
+				});
+				$("bn-when").addEventListener("change", () => $("bn-run-at-wrap").classList.toggle("d-none", $("bn-when").value !== "at"));
+				$("bn-auto-revert").addEventListener("change", () => $("bn-revert-at").classList.toggle("d-none", !$("bn-auto-revert").checked));
+
+				/* ─── 3. Перегляд і запуск ─── */
+				// Будь-яка зміна набору чи дій — перегляд застарів, запуск лише після нового перегляду
+				function stale() {
+					$("bn-run").disabled = true;
+					$("bn-preview-wrap").classList.add("d-none");
+				}
+				function validate() {
+					if (!opsBox.children.length) {
+						notyf.error("<%= i18n.__('catalog.bulk_new.e_no_actions') %>");
+						return false;
+					}
+					// Залишки — окремим складським документом, з іншими діями не поєднуються
+					if (opsBox.children.length > 1 && opsBox.querySelector('[data-action="stock"]')) {
+						notyf.error("<%= i18n.__('catalog.bulk_new.e_stock_alone') %>");
+						return false;
+					}
+					const st = opsBox.querySelector('[data-action="stock"] [data-p="qty"]');
+					if (st && st.value === "") {
+						notyf.error("<%= i18n.__('catalog.bulk_new.e_stock_qty') %>");
+						return false;
+					}
+					// Обов'язкові поля дій (шаблон SEO, ALT): порожнє видиме поле — підказка з номером дії, без запиту на сервер
+					for (const [i, card] of [...opsBox.children].entries()) {
+						const el = [...card.querySelectorAll("[data-required]")].find((x) => !x.closest(".d-none") && !x.value.trim());
+						if (el) {
+							el.classList.add("is-invalid");
+							el.addEventListener("input", () => el.classList.remove("is-invalid"), { once: true });
+							el.focus();
+							notyf.error(`<%= i18n.__('catalog.bulk_new.e_template') %> №${i + 1}`);
+							return false;
+						}
+					}
+					return true;
+				}
+				const errorText = (e) => e.message + (e.errors && e.errors.length ? ": " + e.errors.map((x) => x.field).join(", ") : "");
+
+				$("bn-preview").addEventListener("click", async () => {
+					if (!validate()) return;
+					const btn = $("bn-preview");
+					btn.disabled = true;
+					try {
+						const r = await api("/api/catalog/bulk/preview/", payload());
+						total = r.total;
+						$("bn-count").textContent = fmt(r.total);
+						const rows = [];
+						for (const p of r.sample) {
+							const name = `<a href="/catalog/products/${Number(p.id)}/" target="_blank">${esc(p.name)}</a>${p.sku ? `<div class="small text-secondary">${esc(p.sku)}</div>` : ""}`;
+							if (p.status !== "changed") {
+								const text = p.status === "unchanged" ? "<%= i18n.__('catalog.bulk_new.unchanged') %>" : [p.message_text, p.user_name].filter(Boolean).join(": ");
+								rows.push(`<tr><td>${name}</td><td colspan="3" class="${p.status === "unchanged" ? "text-secondary" : "text-warning"}">${esc(text)}</td></tr>`);
+								continue;
+							}
+							p.changes.forEach((c, i) => {
+								rows.push(`<tr>${i ? "" : `<td rowspan="${p.changes.length}">${name}</td>`}<td>${esc(c.label)}</td><td class="text-secondary">${esc(c.old === null ? "—" : c.old)}</td><td class="fw-semibold">${esc(c.new === null ? "—" : c.new)}</td></tr>`);
+							});
+						}
+						$("bn-preview-rows").innerHTML = rows.join("") || `<tr><td colspan="4" class="text-secondary">${esc("<%= i18n.__('catalog.bulk_new.preview_empty') %>")}</td></tr>`;
+						$("bn-preview-wrap").classList.remove("d-none");
+						$("bn-run").disabled = !r.total;
+						if (!r.total) notyf.error("<%= i18n.__('catalog.bulk_new.e_empty') %>");
+					} catch (e) {
+						notyf.error(errorText(e));
+					} finally {
+						btn.disabled = false;
+					}
+				});
+
+				const runModal = new bootstrap.Modal($("bn-run-modal"));
+				$("bn-run").addEventListener("click", () => {
+					if (!validate()) return;
+					if ($("bn-when").value === "at" && !$("bn-run-at").value) return notyf.error("<%= i18n.__('catalog.bulk_new.e_run_at') %>");
+					if ($("bn-auto-revert").checked && !$("bn-revert-at").value) return notyf.error("<%= i18n.__('catalog.bulk_new.e_revert_at') %>");
+					const lines = ["<%= i18n.__('catalog.bulk_new.run_text') %>".replace("%n", fmt(total))];
+					if (runAt()) lines.push("<%= i18n.__('catalog.bulk_new.run_text_at') %>".replace("%s", new Date(runAt()).toLocaleString()));
+					if (revertAt()) lines.push("<%= i18n.__('catalog.bulk_new.run_text_revert') %>".replace("%s", new Date(revertAt()).toLocaleString()));
+					$("bn-run-text").textContent = lines.join(" ");
+					runModal.show();
+				});
+				$("bn-run-ok").addEventListener("click", async () => {
+					const btn = $("bn-run-ok");
+					btn.disabled = true;
+					try {
+						const r = await api("/api/catalog/bulk/jobs/", payload());
+						location.assign(`/catalog/bulk/${Number(r.id)}/`);
+					} catch (e) {
+						btn.disabled = false;
+						runModal.hide();
+						notyf.error(errorText(e));
+					}
+				});
+
+				/* ─── «Створити таку саму»: набір і дії з попередньої зміни (?from=id) ─── */
+				function fill(card, p) {
+					const set = (el, v) => {
+						const t = el.dataset.type;
+						if (t === "checks") el.checked = (v || []).includes(Number(el.value));
+						else if (el.type === "checkbox") el.checked = !!v;
+						else if (t === "ints") {
+							el.dataset.want = JSON.stringify(v || []);
+							[...el.options].forEach((o) => (o.selected = (v || []).includes(Number(o.value))));
+						} else if (t === "boolv" || t === "bool") el.value = v ? "1" : "0";
+						else el.value = v === null || v === undefined ? "" : String(v);
+					};
+					// Спершу «ключові» поля (від них залежать інші), потім значення
+					const first = ["field", "id_attribute", "code", "op"];
+					first.forEach((k) => p[k] !== undefined && card.querySelectorAll(`[data-p="${k}"]`).forEach((el) => set(el, p[k])));
+					showIf(card);
+					card.querySelectorAll("[data-p]").forEach((el) => !first.includes(el.dataset.p) && p[el.dataset.p] !== undefined && set(el, p[el.dataset.p]));
+					showIf(card);
+				}
+				// Шаблон: та сама сторінка з ?from=<id> — набір і дії підставляються з нього
+				if ($("bn-template")) $("bn-template").addEventListener("change", (e) => e.target.value && location.assign(`/catalog/bulk/new/?from=${Number(e.target.value)}`));
+				const from = Number(new URLSearchParams(location.search).get("from")) || 0;
+				if (from)
+					api(`/api/catalog/bulk/jobs/${from}/source/`)
+						.then(({ source }) => {
+							$("bn-title").value = source.title || "";
+							if (source.selection.mode === "list") {
+								$("bn-mode-list").checked = true;
+								$("bn-list-text").value = source.selection.list;
+								$("bn-filter").classList.add("d-none");
+								$("bn-list").classList.remove("d-none");
+							} else document.querySelectorAll("#bn-filter [data-f]").forEach((el) => (el.value = source.selection.filter[el.dataset.f] || ""));
+							for (const op of source.operations) {
+								if (!document.querySelector(`template[data-op="${op.action}"]`)) continue;
+								addOp(op.action);
+								fill(opsBox.lastElementChild, op.params || {});
+							}
+							count();
+						})
+						.catch((e) => notyf.error(e.message));
+				else count();
+			})();
+		</script>
+	</body>
+</html>

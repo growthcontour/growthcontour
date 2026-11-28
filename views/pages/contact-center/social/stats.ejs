@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('contact_center.social_stats.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<style>
+			#stats-table .tabulator-col,
+			#stats-table .tabulator-cell { border-right: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; }
+			#stats-table .tabulator-col:last-child,
+			#stats-table .tabulator-cell:last-child { border-right: none; }
+			#stats-table .tabulator-row:last-child .tabulator-cell { border-bottom: none; }
+			#stats-table .tabulator-cell { white-space: normal; }
+			.kpi { border: 1px solid #dee2e6; padding: 10px 12px; background: #fff; }
+			.kpi .v { font-size: 1.4rem; font-weight: 600; }
+			.kpi .l { font-size: 0.8rem; color: #6c757d; }
+			.heat { border-collapse: collapse; width: 100%; table-layout: fixed; font-size: 0.75rem; }
+			.heat th { font-weight: 400; color: #6c757d; text-align: center; padding: 2px; }
+			.heat td { height: 26px; border: 1px solid #fff; text-align: center; color: #052c65; cursor: default; }
+			.heat td.empty { background: #f8f9fa; }
+			.heat th.dow { text-align: left; width: 40px; }
+		</style>
+	</head>
+
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('contact_center.social_stats.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('contact_center.social_stats.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/contact-center/"><%= i18n.__('contact_center.social_stats.breadcrumb.contact_center') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/contact-center/social/"><%= i18n.__('contact_center.social_stats.breadcrumb.posts') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('contact_center.social_stats.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/contact-center/social/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3 mb-4">
+			<% if (!data.accounts.length) { %>
+			<div class="alert alert-info rounded-0"><%= i18n.__('contact_center.social_stats.no_accounts') %></div>
+			<% } %>
+			<div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+				<select class="form-select rounded-0 w-auto" id="f_account">
+					<option value=""><%= i18n.__('contact_center.social_stats.all_accounts') %></option>
+					<% data.accounts.forEach(function (a) { %>
+					<option value="<%= a.id %>"><%= i18n.__('contact_center.social.networks.' + a.network) %> · <%= a.name %></option>
+					<% }); %>
+				</select>
+				<select class="form-select rounded-0 w-auto" id="f_days">
+					<% [7, 30, 90, 365].forEach(function (d) { %>
+					<option value="<%= d %>"<%= d === 30 ? ' selected' : '' %>><%= i18n.__('contact_center.social_stats.days_' + d) %></option>
+					<% }); %>
+				</select>
+				<span class="small text-muted ms-auto"><%= i18n.__('contact_center.social_stats.note') %></span>
+			</div>
+
+			<!-- Підсумки -->
+			<div class="row g-2 mb-3" id="kpis">
+				<% ['posts', 'likes', 'comments', 'shares', 'saves', 'reach', 'views', 'avg_engagement'].forEach(function (k) { %>
+				<div class="col-6 col-md-3 col-xxl"><div class="kpi"><div class="v" data-kpi="<%= k %>">—</div><div class="l"><%= i18n.__('contact_center.social_stats.kpi.' + k) %></div></div></div>
+				<% }); %>
+			</div>
+
+			<div class="row g-3">
+				<div class="col-xxl-8">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('contact_center.social_stats.posts') %></div>
+						<div id="stats-table"></div>
+					</div>
+				</div>
+				<div class="col-xxl-4">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><i class="fa-solid fa-wand-magic-sparkles me-1"></i><%= i18n.__('contact_center.social_stats.best_time') %></div>
+						<div class="card-body">
+							<select class="form-select form-select-sm rounded-0 mb-2" id="bt_account">
+								<% data.accounts.forEach(function (a) { %>
+								<option value="<%= a.id %>"><%= i18n.__('contact_center.social.networks.' + a.network) %> · <%= a.name %></option>
+								<% }); %>
+							</select>
+							<div id="bt_body" class="small text-muted"></div>
+							<p class="small text-muted mt-2 mb-0"><%= i18n.__('contact_center.social_stats.best_time_how') %></p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %> <%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			(function () {
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000 });
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const ICONS = { instagram: "fa-brands fa-instagram text-danger", facebook: "fa-brands fa-facebook text-primary" };
+				const fmtNum = (v) => (v === null || v === undefined ? "—" : Number(v).toLocaleString());
+				const post = (url, body) =>
+					fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) })
+						.then((r) => r.json())
+						.then((d) => {
+							if (d.ok === false) throw new Error(d.error || "Error");
+							return d;
+						});
+				const filters = () => ({ id_account: $("f_account").value, days: $("f_days").value });
+				const metric = (field, title) => ({ title, field, width: 95, hozAlign: "right", headerSort: true, formatter: (c) => fmtNum(c.getValue()) });
+
+				const table = new Tabulator("#stats-table", {
+					layout: "fitColumns",
+					ajaxURL: "/api/contact-center/social/stats/list/",
+					ajaxConfig: "POST",
+					ajaxContentType: "json",
+					ajaxParams: filters,
+					pagination: true,
+					paginationMode: "remote",
+					paginationSize: 20,
+					sortMode: "remote",
+					initialSort: [{ column: "date_published", dir: "desc" }],
+					placeholder: "<%= i18n.__('contact_center.social_stats.empty') %>",
+					columns: [
+						{
+							title: "<%= i18n.__('contact_center.social_stats.columns.post') %>",
+							field: "text",
+							minWidth: 220,
+							widthGrow: 3,
+							headerSort: false,
+							formatter: (c) => {
+								const d = c.getData();
+								const link = d.permalink ? ' <a href="' + esc(d.permalink) + '" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>' : "";
+								const err = d.error ? '<div class="small text-danger">' + esc(d.error) + "</div>" : "";
+								return '<a class="text-reset" href="/contact-center/social/' + Number(d.id_post) + '/">' + esc(d.text || "#" + d.id_post) + "</a>" + link + '<div class="small text-muted"><i class="' + ICONS[d.network] + ' me-1"></i>' + esc(d.account) + " · " + esc(d.format) + "</div>" + err;
+							},
+						},
+						{ title: "<%= i18n.__('contact_center.social_stats.columns.date') %>", field: "date_published", width: 140, headerSort: true, formatter: (c) => esc(new Date(c.getValue()).toLocaleString([], { dateStyle: "short", timeStyle: "short" })) },
+						metric("likes", "<%= i18n.__('contact_center.social.metrics.likes') %>"),
+						metric("comments", "<%= i18n.__('contact_center.social.metrics.comments') %>"),
+						metric("shares", "<%= i18n.__('contact_center.social.metrics.shares') %>"),
+						metric("saves", "<%= i18n.__('contact_center.social.metrics.saves') %>"),
+						metric("reach", "<%= i18n.__('contact_center.social.metrics.reach') %>"),
+						metric("views", "<%= i18n.__('contact_center.social.metrics.views') %>"),
+						{ title: "<%= i18n.__('contact_center.social.metrics.er') %>", field: "er", width: 80, hozAlign: "right", headerSort: true, formatter: (c) => (c.getValue() === null ? "—" : c.getValue() + "%") },
+						{
+							title: "",
+							field: "id",
+							width: 50,
+							hozAlign: "center",
+							headerSort: false,
+							formatter: (c) => '<button type="button" class="bg-transparent border-0 text-secondary act-refresh" data-id="' + Number(c.getValue()) + '" title="<%= i18n.__('contact_center.social_stats.refresh') %>"><i class="fa-solid fa-rotate"></i></button>',
+						},
+					],
+				});
+
+				function loadSummary() {
+					post("/api/contact-center/social/stats/summary/", filters())
+						.then((d) => document.querySelectorAll("[data-kpi]").forEach((el) => (el.textContent = fmtNum(d.data[el.dataset.kpi]))))
+						.catch((e) => notyf.error(e.message));
+				}
+
+				/* ─── Найкращий час: теплова карта 7 × 24 ─── */
+				const DOW = [
+					"<%= i18n.__('contact_center.social_stats.dow.0') %>",
+					"<%= i18n.__('contact_center.social_stats.dow.1') %>",
+					"<%= i18n.__('contact_center.social_stats.dow.2') %>",
+					"<%= i18n.__('contact_center.social_stats.dow.3') %>",
+					"<%= i18n.__('contact_center.social_stats.dow.4') %>",
+					"<%= i18n.__('contact_center.social_stats.dow.5') %>",
+					"<%= i18n.__('contact_center.social_stats.dow.6') %>",
+				];
+				function loadBestTime() {
+					const id = $("bt_account").value;
+					if (!id) return;
+					post("/api/contact-center/social/stats/best-time/", { id_account: id })
+						.then((d) => {
+							const bt = d.data;
+							if (!bt.enough) {
+								$("bt_body").textContent = "<%= i18n.__('contact_center.social_stats.best_time_few') %>".replace("{n}", bt.posts).replace("{min}", bt.min);
+								return;
+							}
+							const cell = new Map(bt.grid.map((c) => [c.dow + ":" + c.hour, c]));
+							const max = Math.max(...bt.grid.map((c) => c.index), 1);
+							let h = '<table class="heat"><tr><th class="dow"></th>';
+							for (let hr = 0; hr < 24; hr += 3) h += '<th colspan="3">' + hr + "</th>";
+							h += "</tr>";
+							for (let dw = 0; dw < 7; dw++) {
+								h += '<tr><th class="dow">' + esc(DOW[dw]) + "</th>";
+								for (let hr = 0; hr < 24; hr++) {
+									const c = cell.get(dw + ":" + hr);
+									if (!c) h += '<td class="empty"></td>';
+									else {
+										// Синій — краще за середнє, тим насиченіший, чим більший індекс
+										const a = Math.min(1, Math.max(0.08, c.index / max));
+										const title = DOW[dw] + " " + hr + ":00 — " + "<%= i18n.__('contact_center.social_stats.cell') %>".replace("{index}", c.index).replace("{n}", c.posts);
+										h += '<td style="background: rgba(13,110,253,' + a.toFixed(2) + ')" title="' + esc(title) + '"></td>';
+									}
+								}
+								h += "</tr>";
+							}
+							h += "</table>";
+							const top = bt.top.length
+								? '<div class="mt-2"><div class="fw-semibold text-dark"><%= i18n.__('contact_center.social_stats.top') %></div>' +
+								  bt.top.map((c) => "<div>" + esc(DOW[c.dow]) + " " + c.hour + ":00 — " + "<%= i18n.__('contact_center.social_stats.cell') %>".replace("{index}", c.index).replace("{n}", c.posts) + "</div>").join("") +
+								  "</div>"
+								: "";
+							$("bt_body").innerHTML = h + top;
+						})
+						.catch((e) => notyf.error(e.message));
+				}
+
+				const reload = () => {
+					table.setData();
+					loadSummary();
+				};
+				$("f_account").addEventListener("change", () => {
+					if ($("f_account").value) $("bt_account").value = $("f_account").value;
+					reload();
+					loadBestTime();
+				});
+				$("f_days").addEventListener("change", reload);
+				$("bt_account").addEventListener("change", loadBestTime);
+				loadSummary();
+				loadBestTime();
+
+				$("stats-table").addEventListener("click", (e) => {
+					const b = e.target.closest(".act-refresh");
+					if (!b) return;
+					b.disabled = true;
+					post("/api/contact-center/social/stats/" + Number(b.dataset.id) + "/refresh/")
+						.then((d) => (d.error ? notyf.error(d.error) : notyf.success("<%= i18n.__('contact_center.social_stats.refreshed') %>")))
+						.then(reload)
+						.catch((err) => notyf.error(err.message))
+						.finally(() => (b.disabled = false));
+				});
+			})();
+		</script>
+	</body>
+</html>

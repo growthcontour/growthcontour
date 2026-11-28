@@ -1,0 +1,244 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('leads.new.title') %></title>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #6c757d; letter-spacing: 0.5px; margin-bottom: 4px; }
+			.req-mark { color: #dc3545; margin-left: 2px; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('leads.new.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('leads.list.breadcrumb.home') %></span></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/leads"><%= i18n.__('leads.list.breadcrumb.current') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= i18n.__('leads.new.title') %></li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/leads" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<form class="container-fluid mt-3 mb-4" id="lead-form" autocomplete="off" novalidate>
+			<% if (!pipelines.length) { %>
+			<div class="alert alert-warning rounded-0"><%= i18n.__('leads.kanban.no_pipelines') %></div>
+			<% } %>
+			<div class="row">
+				<div class="col-12 col-xl-8">
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('leads.new.main') %></div>
+						<div class="card-body">
+							<div class="row g-3">
+								<div class="col-12">
+									<label class="section-title d-block" for="f-title"><%= i18n.__('leads.view.f.title') %></label>
+									<input type="text" class="form-control rounded-0" id="f-title" name="title" maxlength="500" placeholder="<%= i18n.__('leads.new.title_ph') %>" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-4">
+									<label class="section-title d-block" for="f-value"><%= i18n.__('leads.view.f.value') %><span class="req-mark d-none" data-req="value">*</span></label>
+									<input type="number" class="form-control rounded-0" id="f-value" name="value" min="0" step="0.01" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-4">
+									<label class="section-title d-block" for="f-expected_close_date"><%= i18n.__('leads.view.f.expected_close_date') %><span class="req-mark d-none" data-req="expected_close_date">*</span></label>
+									<input type="date" class="form-control rounded-0" id="f-expected_close_date" name="expected_close_date" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-md-4">
+									<label class="section-title d-block" for="f-website"><%= i18n.__('leads.view.f.website') %><span class="req-mark d-none" data-req="website">*</span></label>
+									<input type="text" class="form-control rounded-0" id="f-website" name="website" maxlength="255" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<div class="col-12">
+									<label class="section-title d-block" for="f-note"><%= i18n.__('leads.view.f.note') %><span class="req-mark d-none" data-req="note">*</span></label>
+									<textarea class="form-control rounded-0" id="f-note" name="note" rows="4"></textarea>
+									<div class="invalid-feedback"></div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="card rounded-0 mb-3">
+						<div class="card-header fw-semibold py-2"><%= i18n.__('leads.new.contact') %> <span class="req-mark d-none small fw-normal" data-req="contact.any">* <%= i18n.__('leads.rules.f.contact.any') %></span></div>
+						<div class="card-body">
+							<div class="row g-3">
+								<% [['name', 'text', 255], ['phone', 'tel', 32], ['email', 'email', 255], ['company', 'text', 255], ['position', 'text', 255]].forEach(function (c) { %>
+								<div class="col-md-<%= c[0] === 'name' ? 12 : 6 %>">
+									<label class="section-title d-block" for="f-contact-<%= c[0] %>"><%= i18n.__('leads.rules.f.contact.' + c[0]) %><span class="req-mark d-none" data-req="contact.<%= c[0] %>">*</span></label>
+									<input type="<%= c[1] %>" class="form-control rounded-0" id="f-contact-<%= c[0] %>" name="contact.<%= c[0] %>" maxlength="<%= c[2] %>" />
+									<div class="invalid-feedback"></div>
+								</div>
+								<% }); %>
+							</div>
+							<!-- Збіги за телефоном / email — до створення -->
+							<div class="alert alert-warning rounded-0 mt-3 mb-0 d-none" id="similar">
+								<div class="fw-semibold mb-1"><i class="fa-solid fa-copy me-1"></i><%= i18n.__('leads.new.similar') %></div>
+								<div id="similar-list" class="small"></div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="col-12 col-xl-4">
+					<div class="card rounded-0 mb-3">
+						<div class="card-header fw-semibold py-2"><%= i18n.__('leads.new.pipeline') %></div>
+						<div class="card-body">
+							<div class="mb-3">
+								<label class="section-title d-block" for="f-id_pipeline"><%= i18n.__('leads.list.pipeline') %></label>
+								<select class="form-select rounded-0" id="f-id_pipeline" name="id_pipeline">
+									<% pipelines.forEach(function (p) { %><option value="<%= p.id %>"<%= pipelineId === p.id ? ' selected' : '' %>><%= p.name %></option><% }); %>
+								</select>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="mb-3">
+								<label class="section-title d-block" for="f-id_stage"><%= i18n.__('leads.list.stage') %></label>
+								<select class="form-select rounded-0" id="f-id_stage" name="id_stage"></select>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="mb-3">
+								<label class="section-title d-block" for="f-id_status"><%= i18n.__('leads.list.status') %></label>
+								<select class="form-select rounded-0" id="f-id_status" name="id_status">
+									<% statuses.filter(function (s) { return s.system_type !== 'lost' && s.system_type !== 'won'; }).forEach(function (s) { %><option value="<%= s.id %>"><%= s.name %></option><% }); %>
+								</select>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="mb-3">
+								<label class="section-title d-block" for="f-id_manager"><%= i18n.__('leads.list.manager') %><span class="req-mark d-none" data-req="id_manager">*</span></label>
+								<select class="form-select rounded-0" id="f-id_manager" name="id_manager">
+									<option value=""><%= i18n.__('leads.list.manager_none') %></option>
+									<% managers.forEach(function (m) { %><option value="<%= m.id %>"<%= Number(m.id) === Number(user.userId) ? ' selected' : '' %>><%= m.name || ('#' + m.id) %></option><% }); %>
+								</select>
+								<div class="invalid-feedback"></div>
+							</div>
+							<% [['id_source', sources], ['id_priority', priorities], ['id_temperature', temperatures], ['id_qualification', qualifications]].forEach(function (d) { %>
+							<div class="mb-3">
+								<label class="section-title d-block" for="f-<%= d[0] %>"><%= i18n.__('leads.view.f.' + d[0]) %><span class="req-mark d-none" data-req="<%= d[0] %>">*</span></label>
+								<select class="form-select rounded-0" id="f-<%= d[0] %>" name="<%= d[0] %>">
+									<option value="">—</option>
+									<% d[1].forEach(function (x) { %><option value="<%= x.id %>"><%= x.name %></option><% }); %>
+								</select>
+								<div class="invalid-feedback"></div>
+							</div>
+							<% }); %>
+							<% if (tags.length) { %>
+							<div>
+								<div class="section-title"><%= i18n.__('leads.view.f.tags') %></div>
+								<div class="d-flex flex-wrap gap-2">
+									<% tags.forEach(function (t) { %>
+									<div class="form-check"><input class="form-check-input" type="checkbox" name="tags" value="<%= t.id %>" id="tag-<%= t.id %>" /><label class="form-check-label" for="tag-<%= t.id %>"><%= t.name %></label></div>
+									<% }); %>
+								</div>
+							</div>
+							<% } %>
+						</div>
+					</div>
+					<div class="d-flex gap-2 mb-3">
+						<button type="submit" class="btn btn-primary rounded-0 flex-grow-1" id="btn-create"<%= pipelines.length ? '' : ' disabled' %>><i class="fa-solid fa-plus me-1"></i><%= i18n.__('leads.new.create') %></button>
+						<a href="/leads" class="btn btn-secondary rounded-0"><%= i18n.__('leads.view.cancel') %></a>
+					</div>
+				</div>
+			</div>
+		</form>
+
+		<%- include('../../partials/footer'); %>
+		<%- include('../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000, types: [{ type: "success", dismissible: true, icon: false }, { type: "error", background: "indianred", dismissible: true, icon: false }] });
+				const STAGES = <%- JSON.stringify(stages.map(function (s) { return { id: s.id, id_pipeline: s.id_pipeline, name: s.name, system_type: s.system_type, required: s.required_fields }; })).replace(/</g, '\\u003c') %>;
+				const form = $("lead-form");
+
+				// Етапи — лише вибраної воронки (без «виграно» / «програно»); позначки обов'язкових полів етапу
+				function fillStages() {
+					const p = $("f-id_pipeline").value;
+					const sel = $("f-id_stage");
+					sel.innerHTML = STAGES.filter((s) => String(s.id_pipeline) === p && s.system_type !== "won" && s.system_type !== "lost")
+						.map((s) => '<option value="' + Number(s.id) + '">' + esc(s.name) + "</option>")
+						.join("");
+					marks();
+				}
+				function marks() {
+					const st = STAGES.find((s) => String(s.id) === $("f-id_stage").value);
+					const req = new Set(st ? st.required : []);
+					document.querySelectorAll("[data-req]").forEach((m) => m.classList.toggle("d-none", !req.has(m.dataset.req)));
+				}
+				$("f-id_pipeline").addEventListener("change", fillStages);
+				$("f-id_stage").addEventListener("change", marks);
+				fillStages();
+
+				// Збіги за телефоном / email
+				let simT;
+				async function similar() {
+					const phone = $("f-contact-phone").value.trim();
+					const email = $("f-contact-email").value.trim();
+					if (phone.replace(/\D/g, "").length < 5 && !/@/.test(email)) return $("similar").classList.add("d-none");
+					try {
+						const r = await fetch("/api/leads/similar/", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone, email }) });
+						const d = await r.json();
+						const rows = d.rows || [];
+						$("similar").classList.toggle("d-none", !rows.length);
+						$("similar-list").innerHTML = rows
+							.map((x) => '<div><a href="/leads/' + Number(x.id) + '/" target="_blank" rel="noopener">#' + Number(x.id) + " " + esc(x.title) + "</a> · " + esc([x.contact_info.name, x.contact_info.phone, x.contact_info.email].filter(Boolean).join(", ")) + " · " + esc(x.status_name || "—") + " · " + esc(x.manager_name || "—") + "</div>")
+							.join("");
+					} catch (e) {
+						/* підказка необов'язкова */
+					}
+				}
+				["f-contact-phone", "f-contact-email"].forEach((id) => $(id).addEventListener("input", () => { clearTimeout(simT); simT = setTimeout(similar, 500); }));
+
+				form.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					const btn = $("btn-create");
+					const fd = new FormData(form);
+					const body = { contact: {}, tags: fd.getAll("tags") };
+					fd.forEach((v, k) => {
+						if (k === "tags") return;
+						if (k.startsWith("contact.")) body.contact[k.slice(8)] = String(v).trim();
+						else body[k] = String(v).trim();
+					});
+					form.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+					btn.disabled = true;
+					try {
+						const r = await fetch("/api/leads/create/", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body) });
+						const d = await r.json().catch(() => ({}));
+						if (!r.ok) {
+							Object.entries(d.errors || {}).forEach(([f, msg]) => {
+								// contact.any — підсвічуємо телефон і email
+								const ids = f === "contact.any" ? ["f-contact-phone", "f-contact-email"] : ["f-" + f.replace(".", "-")];
+								ids.map($).filter(Boolean).forEach((el) => {
+									el.classList.add("is-invalid");
+									const fb = el.parentElement.querySelector(".invalid-feedback");
+									if (fb) fb.textContent = msg;
+								});
+							});
+							notyf.error(d.message || "<%= i18n.__('leads.server.server') %>");
+							btn.disabled = false;
+							return;
+						}
+						notyf.success("<%= i18n.__('leads.new.created') %>");
+						location.href = d.url;
+					} catch (err) {
+						notyf.error("<%= i18n.__('leads.server.server') %>");
+						btn.disabled = false;
+					}
+				});
+			})();
+		</script>
+	</body>
+</html>

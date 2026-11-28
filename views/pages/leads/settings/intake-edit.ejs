@@ -1,0 +1,496 @@
+<% const isNew = !tokenId; %><!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__(isNew ? 'leads.intake.new' : 'leads.intake.edit_title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<style>
+			.section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #6c757d; letter-spacing: 0.5px; margin-bottom: 4px; }
+			.token-reveal { font-family: monospace; font-size: 15px; background: #f8f9fa; border: 1px dashed #0057b8; padding: 12px; word-break: break-all; }
+			pre.code { background: #f8f9fa; border: 1px solid #dee2e6; padding: 12px; font-size: 12px; white-space: pre-wrap; word-break: break-all; margin: 0; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__(isNew ? 'leads.intake.new' : 'leads.intake.edit_title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('leads.intake.breadcrumb.home') %></span></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/leads/settings/"><%= i18n.__('leads.intake.breadcrumb.settings') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/leads/settings/intake/"><%= i18n.__('leads.intake.title') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= isNew ? i18n.__('leads.intake.new') : '#' + tokenId %></li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/leads/settings/intake/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3">
+			<div class="row">
+				<div class="col-12 col-xl-7">
+					<!-- Ключ після створення: показується один раз -->
+					<div class="card border-success rounded-0 mb-3 d-none" id="tk-result">
+						<div class="card-header text-bg-success rounded-0"><%= i18n.__('leads.intake.created') %></div>
+						<div class="card-body">
+							<div class="alert alert-warning rounded-0"><i class="fa-solid fa-triangle-exclamation me-1"></i><%= i18n.__('leads.intake.copy_warning') %></div>
+							<div class="token-reveal mb-3" id="tk-token-value"></div>
+							<button type="button" class="btn btn-outline-primary rounded-0" id="btn-copy-token"><i class="fa-regular fa-copy me-1"></i><%= i18n.__('leads.intake.copy') %></button>
+							<a href="" class="btn btn-primary rounded-0" id="btn-continue"><%= i18n.__('leads.intake.continue') %></a>
+						</div>
+					</div>
+
+					<div id="tk-form">
+						<!-- ═══ Загальне ═══ -->
+						<div class="card border-primary rounded-0 mb-3">
+							<div class="card-header text-bg-primary rounded-0 d-flex align-items-center justify-content-between">
+								<span><%= i18n.__('leads.intake.cards.general') %></span>
+								<% if (!isNew) { %><span class="badge text-bg-light rounded-0" id="tk-state"></span><% } %>
+							</div>
+							<div class="card-body">
+								<div class="row">
+									<div class="col-12 col-md-6 mb-3">
+										<label class="form-label" for="f-name"><%= i18n.__('leads.intake.f.name') %> *</label>
+										<input type="text" class="form-control rounded-0" id="f-name" maxlength="100" placeholder="<%= i18n.__('leads.intake.ph.name') %>" />
+									</div>
+									<div class="col-12 col-md-6 mb-3">
+										<label class="form-label" for="f-expires_at"><%= i18n.__('leads.intake.f.expires_at') %></label>
+										<input type="date" class="form-control rounded-0" id="f-expires_at" />
+									</div>
+								</div>
+								<% if (!isNew) { %>
+								<div class="row">
+									<div class="col-12 col-md-6 mb-3">
+										<div class="section-title"><%= i18n.__('leads.intake.f.key') %></div>
+										<code id="tk-key" class="text-muted"></code>
+									</div>
+									<div class="col-12 col-md-6 mb-3">
+										<div class="form-check form-switch mt-3">
+											<input class="form-check-input" type="checkbox" role="switch" id="f-is_active" />
+											<label class="form-check-label" for="f-is_active"><%= i18n.__('leads.intake.f.is_active') %></label>
+										</div>
+									</div>
+								</div>
+								<% } %>
+								<div>
+									<label class="form-label" for="f-note"><%= i18n.__('leads.intake.f.note') %></label>
+									<input type="text" class="form-control rounded-0" id="f-note" maxlength="999" />
+								</div>
+							</div>
+						</div>
+
+						<!-- ═══ Звідки дозволено запити ═══ -->
+						<div class="card border-primary rounded-0 mb-3">
+							<div class="card-header text-bg-primary rounded-0"><%= i18n.__('leads.intake.cards.access') %></div>
+							<div class="card-body">
+								<div class="mb-3" style="max-width: 420px">
+									<label class="form-label" for="f-source_check_mode"><%= i18n.__('leads.intake.f.source_check_mode') %></label>
+									<select class="form-select rounded-0" id="f-source_check_mode">
+										<option value="any"><%= i18n.__('leads.intake.mode.any') %></option>
+										<option value="all"><%= i18n.__('leads.intake.mode.all') %></option>
+										<option value="off"><%= i18n.__('leads.intake.mode.off') %></option>
+									</select>
+								</div>
+								<div class="row">
+									<div class="col-12 col-md-6 mb-3 mb-md-0">
+										<label class="form-label" for="f-allowed_domains"><%= i18n.__('leads.intake.f.allowed_domains') %></label>
+										<textarea class="form-control rounded-0" id="f-allowed_domains" rows="3" placeholder="mysite.com&#10;landing.mysite.com"></textarea>
+										<small class="text-muted"><%= i18n.__('leads.intake.hint.domains') %></small>
+									</div>
+									<div class="col-12 col-md-6">
+										<label class="form-label" for="f-allowed_ips"><%= i18n.__('leads.intake.f.allowed_ips') %></label>
+										<textarea class="form-control rounded-0" id="f-allowed_ips" rows="3" placeholder="1.2.3.4&#10;10.0.0.0/24"></textarea>
+										<small class="text-muted"><%= i18n.__('leads.intake.hint.ips') %></small>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- ═══ Куди потрапляє лід ═══ -->
+						<div class="card border-primary rounded-0 mb-3">
+							<div class="card-header text-bg-primary rounded-0"><%= i18n.__('leads.intake.cards.target') %></div>
+							<div class="card-body">
+								<div class="row">
+									<div class="col-12 col-md-6 mb-3">
+										<label class="form-label" for="f-id_pipeline"><%= i18n.__('leads.intake.f.pipeline') %></label>
+										<select class="form-select rounded-0" id="f-id_pipeline"><option value=""><%= i18n.__('leads.intake.default') %></option><% d.pipelines.forEach(function (x) { %><option value="<%= x.id %>"><%= x.name %></option><% }) %></select>
+									</div>
+									<div class="col-12 col-md-6 mb-3">
+										<label class="form-label" for="f-id_stage"><%= i18n.__('leads.intake.f.stage') %></label>
+										<select class="form-select rounded-0" id="f-id_stage"><option value=""><%= i18n.__('leads.intake.first_stage') %></option><% d.stages.forEach(function (x) { %><option value="<%= x.id %>" data-pipeline="<%= x.id_pipeline %>"><%= x.name %></option><% }) %></select>
+									</div>
+									<div class="col-12 col-md-6 mb-3">
+										<label class="form-label" for="f-id_status"><%= i18n.__('leads.intake.f.status') %></label>
+										<select class="form-select rounded-0" id="f-id_status"><option value=""><%= i18n.__('leads.intake.default') %></option><% d.statuses.forEach(function (x) { %><option value="<%= x.id %>"><%= x.name %></option><% }) %></select>
+									</div>
+									<div class="col-12 col-md-6 mb-3">
+										<label class="form-label" for="f-id_source"><%= i18n.__('leads.intake.f.source') %></label>
+										<select class="form-select rounded-0" id="f-id_source"><option value="">—</option><% d.sources.forEach(function (x) { %><option value="<%= x.id %>"><%= x.name %></option><% }) %></select>
+									</div>
+									<div class="col-12 col-md-6 mb-3">
+										<label class="form-label" for="f-id_priority"><%= i18n.__('leads.intake.f.priority') %></label>
+										<select class="form-select rounded-0" id="f-id_priority"><option value="">—</option><% d.priorities.forEach(function (x) { %><option value="<%= x.id %>"><%= x.name %></option><% }) %></select>
+									</div>
+									<div class="col-12 col-md-6 mb-3">
+										<label class="form-label" for="f-id_manager"><%= i18n.__('leads.intake.f.manager') %></label>
+										<select class="form-select rounded-0" id="f-id_manager"><option value="">—</option><% d.managers.forEach(function (x) { %><option value="<%= x.id %>"><%= x.name || ('#' + x.id) %></option><% }) %></select>
+									</div>
+								</div>
+								<% if (d.tags.length) { %>
+								<div class="mb-3">
+									<div class="form-label"><%= i18n.__('leads.intake.f.tags') %></div>
+									<div class="d-flex flex-wrap gap-3">
+										<% d.tags.forEach(function (x) { %>
+										<div class="form-check"><input class="form-check-input tk-tag" type="checkbox" id="tag-<%= x.id %>" value="<%= x.id %>" /><label class="form-check-label" for="tag-<%= x.id %>"><%= x.name %></label></div>
+										<% }) %>
+									</div>
+								</div>
+								<% } %>
+								<div class="form-check">
+									<input class="form-check-input" type="checkbox" id="f-notify_manager" checked />
+									<label class="form-check-label" for="f-notify_manager"><%= i18n.__('leads.intake.f.notify_manager') %></label>
+								</div>
+							</div>
+						</div>
+
+						<!-- ═══ Спам і повтори ═══ -->
+						<div class="card border-primary rounded-0 mb-3">
+							<div class="card-header text-bg-primary rounded-0"><%= i18n.__('leads.intake.cards.protect') %></div>
+							<div class="card-body">
+								<div class="row">
+									<div class="col-12 col-md-4 mb-3">
+										<label class="form-label" for="f-dedupe_hours"><%= i18n.__('leads.intake.f.dedupe_hours') %></label>
+										<input type="number" min="0" max="720" class="form-control rounded-0" id="f-dedupe_hours" value="24" />
+										<small class="text-muted"><%= i18n.__('leads.intake.hint.dedupe') %></small>
+									</div>
+									<div class="col-12 col-md-4 mb-3">
+										<label class="form-label" for="f-rate_limit"><%= i18n.__('leads.intake.f.rate_limit') %></label>
+										<input type="number" min="0" max="1000" class="form-control rounded-0" id="f-rate_limit" value="30" />
+										<small class="text-muted"><%= i18n.__('leads.intake.hint.rate_limit') %></small>
+									</div>
+									<div class="col-12 col-md-4 mb-3">
+										<label class="form-label" for="f-honeypot"><%= i18n.__('leads.intake.f.honeypot') %></label>
+										<input type="text" class="form-control rounded-0" id="f-honeypot" maxlength="64" placeholder="website_url" />
+										<small class="text-muted"><%= i18n.__('leads.intake.hint.honeypot') %></small>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- ═══ Поля форми ═══ -->
+						<div class="card border-primary rounded-0 mb-3">
+							<div class="card-header text-bg-primary rounded-0"><%= i18n.__('leads.intake.cards.fields') %></div>
+							<div class="card-body">
+								<p class="small text-muted mb-2"><%= i18n.__('leads.intake.hint.fields') %></p>
+								<p class="small mb-3"><code>title name first_name last_name phone email company position message value website page_url source external_id utm_source utm_medium utm_campaign utm_term utm_content</code></p>
+								<div class="row">
+									<div class="col-12 col-md-6 mb-3">
+										<label class="form-label" for="f-field_map"><%= i18n.__('leads.intake.f.field_map') %></label>
+										<textarea class="form-control rounded-0 font-monospace" id="f-field_map" rows="4" placeholder="your-name = name&#10;tel = phone&#10;comment = message&#10;city = custom.city"></textarea>
+										<small class="text-muted"><%= i18n.__('leads.intake.hint.field_map') %></small>
+									</div>
+									<div class="col-12 col-md-6 mb-3">
+										<label class="form-label" for="f-success_redirect"><%= i18n.__('leads.intake.f.success_redirect') %></label>
+										<input type="url" class="form-control rounded-0" id="f-success_redirect" maxlength="500" placeholder="https://mysite.com/thanks/" />
+										<small class="text-muted"><%= i18n.__('leads.intake.hint.success_redirect') %></small>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div class="d-flex gap-2 mb-3">
+							<button type="button" class="btn btn-primary rounded-0" id="btn-save"><%= i18n.__(isNew ? 'leads.intake.generate' : 'leads.intake.save') %></button>
+							<a href="/leads/settings/intake/" class="btn btn-secondary rounded-0"><%= i18n.__('leads.intake.close') %></a>
+							<% if (!isNew) { %>
+							<button type="button" class="btn btn-outline-danger rounded-0 ms-auto" id="btn-revoke"><i class="fa-solid fa-ban me-1"></i><%= i18n.__('leads.intake.revoke') %></button>
+							<% } %>
+						</div>
+					</div>
+				</div>
+
+				<!-- ═══ Як підключити ═══ -->
+				<div class="col-12 col-xl-5">
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('leads.intake.cards.howto') %></div>
+						<div class="card-body">
+							<div class="section-title"><%= i18n.__('leads.intake.howto.endpoint') %></div>
+							<div class="input-group mb-3">
+								<input type="text" class="form-control rounded-0 font-monospace small" id="endpoint" value="<%= endpoint %>" readonly />
+								<button type="button" class="btn btn-outline-primary rounded-0 js-copy" data-target="endpoint" title="<%= i18n.__('leads.intake.copy') %>"><i class="fa-regular fa-copy"></i></button>
+							</div>
+							<p class="small text-muted"><%= i18n.__('leads.intake.howto.auth') %></p>
+							<ul class="nav nav-tabs" role="tablist">
+								<% ['curl', 'html', 'js', 'php', 'response'].forEach(function (k, i) { %>
+								<li class="nav-item"><button type="button" class="nav-link rounded-0<%= i ? '' : ' active' %>" data-bs-toggle="tab" data-bs-target="#ex-<%= k %>"><%= i18n.__('leads.intake.howto.tab_' + k) %></button></li>
+								<% }) %>
+							</ul>
+							<div class="tab-content border border-top-0 p-2">
+								<% ['curl', 'html', 'js', 'php', 'response'].forEach(function (k, i) { %>
+								<div class="tab-pane fade<%= i ? '' : ' show active' %>" id="ex-<%= k %>">
+									<div class="text-end mb-1"><button type="button" class="btn btn-sm btn-outline-primary rounded-0 js-copy" data-target="code-<%= k %>"><i class="fa-regular fa-copy me-1"></i><%= i18n.__('leads.intake.copy') %></button></div>
+									<pre class="code" id="code-<%= k %>"></pre>
+									<% if (k === 'html') { %><small class="text-muted d-block mt-2"><%= i18n.__('leads.intake.howto.html_hint') %></small><% } %>
+									<% if (k === 'js') { %><small class="text-muted d-block mt-2"><%= i18n.__('leads.intake.howto.js_hint') %></small><% } %>
+								</div>
+								<% }) %>
+							</div>
+							<div class="small text-muted mt-3"><%= i18n.__('leads.intake.howto.errors') %></div>
+						</div>
+					</div>
+
+					<% if (!isNew) { %>
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('leads.intake.cards.stats') %></div>
+						<div class="card-body">
+							<div class="row">
+								<div class="col-4"><div class="section-title"><%= i18n.__('leads.intake.stats.usage') %></div><span id="st-usage">0</span></div>
+								<div class="col-4"><div class="section-title"><%= i18n.__('leads.intake.stats.errors') %></div><span id="st-errors">0</span></div>
+								<div class="col-4"><div class="section-title"><%= i18n.__('leads.intake.stats.last_used') %></div><span id="st-last">—</span></div>
+							</div>
+						</div>
+					</div>
+					<% } %>
+				</div>
+
+				<% if (!isNew) { %>
+				<!-- Журнал запитів -->
+				<div class="col-12 mb-3">
+					<div class="card border-primary rounded-0" id="log">
+						<div class="card-header text-bg-primary rounded-0 d-flex align-items-center gap-2">
+							<span class="me-auto"><%= i18n.__('leads.intake.log') %></span>
+							<select class="form-select form-select-sm rounded-0 w-auto" id="log-result">
+								<option value=""><%= i18n.__('leads.intake.res.all') %></option>
+								<% ['success', 'duplicate', 'spam', 'rejected'].forEach(function (r) { %><option value="<%= r %>"><%= i18n.__('leads.intake.res.' + r) %></option><% }) %>
+							</select>
+						</div>
+						<div id="log-table"></div>
+						<div class="card-footer small text-muted rounded-0"><%= i18n.__('leads.intake.log_retention') %></div>
+					</div>
+				</div>
+				<% } %>
+			</div>
+		</div>
+
+		<% if (!isNew) { %>
+		<div class="modal fade" id="m-revoke" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5"><%= i18n.__('leads.intake.revoke') %></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<p class="mb-2"><%= i18n.__('leads.intake.revoke_text') %></p>
+						<label class="form-label" for="revoke-reason"><%= i18n.__('leads.intake.revoke_reason') %></label>
+						<input type="text" class="form-control rounded-0" id="revoke-reason" maxlength="255" />
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('leads.intake.close') %></button>
+						<button type="button" class="btn btn-danger rounded-0" id="m-revoke-ok"><%= i18n.__('leads.intake.revoke') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<% } %>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<% if (!isNew) { %><script src="/assets/js/tabulator/tabulator.min.js"></script><% } %>
+		<script>
+			(function () {
+				"use strict";
+				const TOKEN_ID = <%= tokenId ? Number(tokenId) : 'null' %>;
+				const ENDPOINT = <%- JSON.stringify(endpoint).replace(/</g, '\\u003c') %>;
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000, types: [{ type: "success", dismissible: true, icon: false }, { type: "error", background: "indianred", dismissible: true, icon: false }] });
+				const FIELDS = ["name", "expires_at", "note", "source_check_mode", "allowed_domains", "allowed_ips", "id_pipeline", "id_stage", "id_status", "id_source", "id_priority", "id_manager", "dedupe_hours", "rate_limit", "honeypot", "field_map", "success_redirect"];
+
+				async function post(url, body) {
+					const r = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+					const d = await r.json().catch(() => ({}));
+					if (!r.ok) throw new Error(d.message || "Error");
+					return d;
+				}
+				async function busy(btn, fn) {
+					if (btn.disabled) return;
+					const html = btn.innerHTML;
+					btn.disabled = true;
+					btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+					try {
+						await fn();
+					} catch (e) {
+						notyf.error(e.message);
+					} finally {
+						btn.disabled = false;
+						btn.innerHTML = html;
+					}
+				}
+
+				// ── Приклади підключення (ключ — справжній одразу після створення, інакше заглушка) ──
+				function examples(key, honeypot) {
+					const k = key || "lk_ВАШ_КЛЮЧ";
+					const hp = honeypot ? '\n  <input type="text" name="' + honeypot + '" style="display:none" tabindex="-1" autocomplete="off">' : "";
+					$("code-curl").textContent =
+						"curl -X POST '" + ENDPOINT + "' \\\n  -H 'Authorization: Bearer " + k + "' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\n    \"name\": \"Олена\",\n    \"phone\": \"+380671234567\",\n    \"email\": \"olena@example.com\",\n    \"message\": \"Хочу консультацію\",\n    \"page_url\": \"https://mysite.com/contacts/\",\n    \"utm_source\": \"google\"\n  }'";
+					$("code-html").textContent =
+						'<form method="POST" action="' + ENDPOINT + '">\n  <input type="hidden" name="_token" value="' + k + '">\n  <input type="text" name="name" placeholder="Ім\'я" required>\n  <input type="tel" name="phone" placeholder="Телефон" required>\n  <input type="email" name="email" placeholder="Email">\n  <textarea name="message"></textarea>' + hp + '\n  <button type="submit">Надіслати</button>\n</form>';
+					$("code-js").textContent =
+						"fetch('" + ENDPOINT + "', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json', 'X-Api-Key': '" + k + "' },\n  body: JSON.stringify({ name, phone, email, message, page_url: location.href })\n})\n  .then((r) => r.json())\n  .then((d) => console.log(d.ok ? 'Лід #' + d.lead_id : d.error));";
+					$("code-php").textContent =
+						"$ch = curl_init('" + ENDPOINT + "');\ncurl_setopt_array($ch, [\n    CURLOPT_POST => true,\n    CURLOPT_RETURNTRANSFER => true,\n    CURLOPT_TIMEOUT => 10,\n    CURLOPT_HTTPHEADER => ['Authorization: Bearer " + k + "', 'Content-Type: application/json'],\n    CURLOPT_POSTFIELDS => json_encode([\n        'name'    => $_POST['name'] ?? '',\n        'phone'   => $_POST['phone'] ?? '',\n        'email'   => $_POST['email'] ?? '',\n        'message' => $_POST['message'] ?? '',\n    ], JSON_UNESCAPED_UNICODE),\n]);\n$response = json_decode(curl_exec($ch), true);\ncurl_close($ch);";
+					$("code-response").textContent =
+						'201  { "ok": true, "lead_id": 1532 }\n200  { "ok": true, "lead_id": 1530, "duplicate": true }   <- повтор: коментар до наявного ліда\n400  { "ok": false, "error": "empty_contact" }\n401  { "ok": false, "error": "bad_token" }\n403  { "ok": false, "error": "domain_denied" }\n429  { "ok": false, "error": "rate_limited" }';
+				}
+				examples(null, "");
+				$("f-honeypot").addEventListener("input", () => examples(null, $("f-honeypot").value.trim()));
+				document.addEventListener("click", (e) => {
+					const b = e.target.closest(".js-copy");
+					if (!b) return;
+					const el = $(b.dataset.target);
+					navigator.clipboard.writeText(el.value !== undefined && el.tagName === "INPUT" ? el.value : el.textContent).then(() => notyf.success("<%= i18n.__('leads.intake.copied') %>"));
+				});
+
+				// ── Етапи — лише вибраної воронки ──
+				function filterStages() {
+					const p = $("f-id_pipeline").value;
+					[...$("f-id_stage").options].forEach((o) => {
+						if (!o.value) return;
+						o.hidden = !!p && o.dataset.pipeline !== p;
+					});
+					if ($("f-id_stage").selectedOptions[0] && $("f-id_stage").selectedOptions[0].hidden) $("f-id_stage").value = "";
+				}
+				$("f-id_pipeline").addEventListener("change", filterStages);
+
+				function lock(ro) {
+					document.querySelectorAll("#tk-form input, #tk-form select, #tk-form textarea").forEach((el) => (el.disabled = ro));
+					$("btn-save").disabled = ro;
+					if ($("btn-revoke")) $("btn-revoke").disabled = ro;
+				}
+				const STATE = {
+					active: "<%= i18n.__('leads.intake.state.active') %>",
+					disabled: "<%= i18n.__('leads.intake.state.disabled') %>",
+					expired: "<%= i18n.__('leads.intake.state.expired') %>",
+					revoked: "<%= i18n.__('leads.intake.state.revoked') %>",
+				};
+
+				if (TOKEN_ID) {
+					lock(true);
+					post("/api/leads/settings/intake/get/", { id: TOKEN_ID })
+						.then((t) => {
+							FIELDS.forEach((f) => {
+								const v = t[f];
+								$("f-" + f).value = Array.isArray(v) ? v.join("\n") : v ?? "";
+							});
+							$("f-is_active").checked = !!t.is_active;
+							$("f-notify_manager").checked = !!t.notify_manager;
+							document.querySelectorAll(".tk-tag").forEach((x) => (x.checked = (t.tags || []).map(Number).includes(Number(x.value))));
+							filterStages();
+							$("f-id_stage").value = t.id_stage || "";
+							$("tk-key").textContent = (t.prefix || "") + "…" + (t.last4 || "");
+							$("tk-state").textContent = STATE[t.state] || t.state;
+							$("st-usage").textContent = t.usage_count || 0;
+							$("st-errors").textContent = t.error_count || 0;
+							$("st-last").textContent = t.last_used_at ? t.last_used_at + (t.last_ip ? " · " + t.last_ip : "") : "—";
+							examples(null, t.honeypot);
+							lock(t.state === "revoked");
+						})
+						.catch((e) => notyf.error(e.message));
+				}
+
+				$("btn-save").addEventListener("click", function () {
+					busy(this, async () => {
+						const body = {};
+						FIELDS.forEach((f) => (body[f] = $("f-" + f).value));
+						body.notify_manager = $("f-notify_manager").checked ? 1 : 0;
+						body.tags = [...document.querySelectorAll(".tk-tag:checked")].map((x) => Number(x.value));
+						if (TOKEN_ID) {
+							await post("/api/leads/settings/intake/update/", { id: TOKEN_ID, is_active: $("f-is_active").checked ? 1 : 0, ...body });
+							notyf.success("<%= i18n.__('leads.intake.saved') %>");
+							return;
+						}
+						const d = await post("/api/leads/settings/intake/generate/", body);
+						// Ключ показуємо один раз; адресу міняємо, щоб оновлення сторінки не створило ще один
+						$("tk-token-value").textContent = d.token;
+						$("tk-form").classList.add("d-none");
+						$("tk-result").classList.remove("d-none");
+						$("btn-continue").href = "/leads/settings/intake/" + Number(d.id) + "/";
+						examples(d.token, body.honeypot);
+						history.replaceState(null, "", "/leads/settings/intake/" + Number(d.id) + "/");
+					});
+				});
+				$("btn-copy-token").addEventListener("click", () => navigator.clipboard.writeText($("tk-token-value").textContent).then(() => notyf.success("<%= i18n.__('leads.intake.copied') %>")));
+
+				if (TOKEN_ID) {
+					$("btn-revoke").addEventListener("click", () => {
+						$("revoke-reason").value = "";
+						bootstrap.Modal.getOrCreateInstance($("m-revoke")).show();
+					});
+					$("m-revoke-ok").addEventListener("click", function () {
+						busy(this, async () => {
+							await post("/api/leads/settings/intake/revoke/", { id: TOKEN_ID, reason: $("revoke-reason").value });
+							bootstrap.Modal.getOrCreateInstance($("m-revoke")).hide();
+							notyf.success("<%= i18n.__('leads.intake.revoked') %>");
+							$("tk-state").textContent = STATE.revoked;
+							lock(true);
+						});
+					});
+
+					// Журнал: що прийшло й чим закінчилось
+					const RES = {
+						success: ["text-bg-success", "<%= i18n.__('leads.intake.res.success') %>"],
+						duplicate: ["text-bg-info", "<%= i18n.__('leads.intake.res.duplicate') %>"],
+						spam: ["text-bg-warning", "<%= i18n.__('leads.intake.res.spam') %>"],
+						rejected: ["text-bg-danger", "<%= i18n.__('leads.intake.res.rejected') %>"],
+					};
+					const REASON = <%- JSON.stringify(i18n.__('leads.intake.reason')).replace(/</g, '\\u003c') %>;
+					const logTable = new Tabulator("#log-table", {
+						layout: "fitColumns",
+						ajaxURL: "/api/leads/settings/intake/log/",
+						ajaxRequestFunc: (url, cfg, params) => post(url, { id: TOKEN_ID, result: $("log-result").value, page: params.page, size: params.size }),
+						pagination: true,
+						paginationMode: "remote",
+						paginationSize: 20,
+						paginationSizeSelector: [20, 50, 100],
+						placeholder: "<%= i18n.__('leads.intake.log_empty') %>",
+						columns: [
+							{ title: "<%= i18n.__('leads.intake.col_date') %>", field: "date_add", headerSort: false, width: 150 },
+							{
+								title: "<%= i18n.__('leads.intake.col_result') %>", field: "result", headerSort: false, width: 190,
+								formatter: (c) => {
+									const r = c.getData();
+									const s = RES[r.result] || RES.rejected;
+									const why = r.reject_reason ? '<div class="small text-muted">' + esc((REASON && REASON[r.reject_reason]) || r.reject_reason) + "</div>" : "";
+									return '<span class="badge rounded-0 ' + s[0] + '">' + s[1] + "</span>" + why;
+								},
+							},
+							{ title: "<%= i18n.__('leads.intake.col_lead') %>", field: "id_lead", headerSort: false, width: 90, formatter: (c) => (c.getValue() ? '<a href="/leads/' + Number(c.getValue()) + '/">#' + Number(c.getValue()) + "</a>" : "—") },
+							{ title: "IP", field: "ip", headerSort: false, width: 130, formatter: (c) => esc(c.getValue() || "—") },
+							{ title: "<%= i18n.__('leads.intake.col_domain') %>", field: "domain", headerSort: false, widthGrow: 1, formatter: (c) => esc(c.getValue() || "—") },
+							{ title: "HTTP", field: "http_status", headerSort: false, width: 70 },
+							{
+								title: "<%= i18n.__('leads.intake.col_payload') %>", field: "payload", headerSort: false, widthGrow: 3,
+								formatter: (c) => {
+									const p = c.getValue();
+									if (!p) return "—";
+									return '<code class="small text-wrap">' + esc(Object.entries(p).map(([k, v]) => k + ": " + (typeof v === "object" ? JSON.stringify(v) : v)).join(" · ").slice(0, 600)) + "</code>";
+								},
+							},
+						],
+					});
+					$("log-result").addEventListener("change", () => logTable.setData());
+				}
+			})();
+		</script>
+	</body>
+</html>

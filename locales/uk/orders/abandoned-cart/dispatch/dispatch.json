@@ -1,0 +1,15 @@
+{
+    "orders": {
+        "abandoned-cart": {
+            "dispatch": {
+                "title": "Розсилки по кошиках",
+                "breadcrumb": {
+                    "home": "Головна",
+                    "orders": "Замовлення",
+                    "abandoned_cart": "Покинуті кошики",
+                    "current": "Розсилки по кошиках"
+                }
+            }
+        }
+    }
+}

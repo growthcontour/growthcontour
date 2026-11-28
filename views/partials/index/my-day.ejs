@@ -1,0 +1,25 @@
+<%#
+	Головна: "Мій день" — прострочені й сьогоднішні події користувача (дані з маршруту /, оновлення — скриптом сторінки).
+	Підписи часу й посилань готує маршрут / (у поясі й мові користувача).
+%>
+<div class="card border-primary rounded-0" id="home-my-day">
+	<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+		<span><i class="fa-solid fa-list-check me-2"></i><%= i18n.__('index.home.my_day') %> <span class="badge text-bg-danger rounded-0 ms-1<%= home.overdue ? '' : ' d-none' %>" id="md-overdue"><%= home.overdue %></span></span>
+		<button type="button" class="btn btn-sm btn-light rounded-0" id="md-refresh" title="<%= i18n.__('index.home.refresh') %>"><i class="fa-solid fa-rotate"></i></button>
+	</div>
+	<div class="list-group list-group-flush home-scroll" id="md-list">
+		<% if (home.myDay.length) { home.myDay.forEach(function (e) { %>
+		<div class="list-group-item d-flex align-items-center gap-2<%= e.overdue ? ' list-group-item-danger' : '' %>">
+			<button type="button" class="btn btn-sm btn-outline-success rounded-0" data-md-done="<%= e.id %>" title="<%= i18n.__('index.home.done') %>"><i class="fa-solid fa-check"></i></button>
+			<span class="text-nowrap small fw-semibold" style="min-width: 90px"><%= e.time_label %></span>
+			<i class="<%= e.type_icon || 'fa-solid fa-calendar' %>" style="color: <%= e.type_color || '#6c757d' %>"></i>
+			<a href="#" class="flex-grow-1 text-truncate" data-md-open="<%= e.id %>"><%= e.title %></a>
+			<% e.links.forEach(function (l) { %>
+			<% if (l.url) { %><a href="<%= l.url %>" class="badge text-bg-light border rounded-0 text-decoration-none"><i class="fa-solid <%= l.icon %> me-1"></i><%= l.label %></a><% } else { %><span class="badge text-bg-light border rounded-0"><i class="fa-solid <%= l.icon %> me-1"></i><%= l.label %></span><% } %>
+			<% }); %>
+		</div>
+		<% }); } else { %>
+		<div class="list-group-item text-center text-muted"><%= i18n.__('index.home.nothing_today') %></div>
+		<% } %>
+	</div>
+</div>

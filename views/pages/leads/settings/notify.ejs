@@ -1,0 +1,147 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('leads.routing.notify_title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('leads.routing.notify_title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('leads.intake.breadcrumb.home') %></span></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/leads/"><%= i18n.__('leads.intake.breadcrumb.leads') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/leads/settings/"><%= i18n.__('leads.intake.breadcrumb.settings') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= i18n.__('leads.routing.notify_title') %></li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/leads/settings/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3 mb-4">
+			<div class="card border-primary rounded-0">
+				<div class="card-header text-bg-primary rounded-0"><%= i18n.__('leads.routing.notify_title') %></div>
+				<div class="card-body">
+					<p class="small text-muted"><%= i18n.__('leads.routing.notify_intro') %></p>
+					<div class="alert alert-warning rounded-0 py-2 small d-none" id="no-recipients"><%= i18n.__('leads.routing.no_recipients') %></div>
+					<div class="row g-2 mb-3">
+						<div class="col-md-6">
+							<select class="form-select rounded-0" id="user-select">
+								<option value=""><%= i18n.__('leads.routing.add_user') %></option>
+								<% managers.forEach(function (m) { %><option value="<%= m.id %>"><%= m.name || ('#' + m.id) %></option><% }); %>
+							</select>
+						</div>
+						<div class="col-md-6">
+							<select class="form-select rounded-0" id="group-select">
+								<option value=""><%= i18n.__('leads.routing.add_group') %></option>
+								<% groups.forEach(function (g) { %><option value="<%= g.id %>"><%= g.name %></option><% }); %>
+							</select>
+						</div>
+					</div>
+					<div class="table-responsive">
+						<table class="table table-bordered table-sm align-middle">
+							<thead class="table-light">
+								<tr>
+									<th><%= i18n.__('leads.routing.recipient') %></th>
+									<% events.forEach(function (ev) { %><th class="text-center small" style="max-width: 170px"><%= i18n.__('leads.routing.ev.' + ev) %></th><% }); %>
+									<th style="width: 50px"></th>
+								</tr>
+							</thead>
+							<tbody id="rec-body"></tbody>
+						</table>
+					</div>
+					<button type="button" class="btn btn-primary rounded-0" id="btn-save"><i class="fa-solid fa-floppy-disk me-1"></i><%= i18n.__('leads.view.save') %></button>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000, types: [{ type: "success", dismissible: true, icon: false }, { type: "error", background: "indianred", dismissible: true, icon: false }] });
+				const EVENTS = <%- JSON.stringify(events) %>;
+				async function post(url, body) {
+					const r = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok) throw new Error(j.message || "<%= i18n.__('leads.server.server') %>");
+					return j;
+				}
+				// Отримувач (користувач або група) — рядок; події — прапорці в options отримувача
+				const rec = new Map();
+				const body = $("rec-body");
+				function render() {
+					body.innerHTML = [...rec.values()]
+						.map((r) => {
+							const k = r.kind + ":" + r.ref;
+							return (
+								'<tr><td><i class="fa-solid ' + (r.kind === "group" ? "fa-users" : "fa-user") + ' text-muted me-1"></i>' + esc(r.name) + "</td>" +
+								EVENTS.map((ev) => '<td class="text-center"><input class="form-check-input" type="checkbox" data-k="' + esc(k) + '" data-ev="' + ev + '"' + (r.events[ev] ? " checked" : "") + "></td>").join("") +
+								'<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger rounded-0" data-rm="' + esc(k) + '"><i class="fa-solid fa-xmark"></i></button></td></tr>'
+							);
+						})
+						.join("");
+					$("no-recipients").classList.toggle("d-none", rec.size > 0);
+				}
+				function add(kind, ref, name) {
+					const k = kind + ":" + ref;
+					if (rec.has(k)) return;
+					const events = {};
+					EVENTS.forEach((ev) => (events[ev] = ev !== "new_all"));
+					rec.set(k, { kind, ref: String(ref), name, events });
+					render();
+				}
+				body.addEventListener("change", (e) => {
+					const cb = e.target.closest("[data-ev]");
+					if (cb && rec.has(cb.dataset.k)) rec.get(cb.dataset.k).events[cb.dataset.ev] = cb.checked;
+				});
+				body.addEventListener("click", (e) => {
+					const b = e.target.closest("[data-rm]");
+					if (!b) return;
+					rec.delete(b.dataset.rm);
+					render();
+				});
+				[["user-select", "user"], ["group-select", "group"]].forEach(([id, kind]) =>
+					$(id).addEventListener("change", (e) => {
+						const s = e.target;
+						if (!s.value) return;
+						add(kind, s.value, s.selectedOptions[0].textContent);
+						s.value = "";
+					})
+				);
+				post("/api/leads/settings/notify/recipients/")
+					.then((d) => {
+						d.rows.forEach((x) => rec.set(x.kind + ":" + x.ref, { kind: x.kind, ref: String(x.ref), name: x.name || "#" + x.ref, events: x.events }));
+						render();
+					})
+					.catch((e) => notyf.error(e.message));
+				$("btn-save").addEventListener("click", async (e) => {
+					const btn = e.currentTarget;
+					btn.disabled = true;
+					try {
+						await post("/api/leads/settings/notify/save/", { recipients: [...rec.values()].map((r) => ({ kind: r.kind, ref: r.ref, events: r.events })) });
+						notyf.success("<%= i18n.__('leads.routing.saved_rec') %>");
+					} catch (err) {
+						notyf.error(err.message);
+					} finally {
+						btn.disabled = false;
+					}
+				});
+			})();
+		</script>
+	</body>
+</html>

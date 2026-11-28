@@ -1,0 +1,462 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('orders.promo.title') %></title>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<style>
+			/* Таблиці — як «Статуси замовлень»: рамки між колонками й рядками */
+			#promo-table .tabulator-col,
+			#uses-table .tabulator-col,
+			#promo-table .tabulator-cell,
+			#uses-table .tabulator-cell { border-right: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; }
+			#promo-table .tabulator-col:last-child,
+			#uses-table .tabulator-col:last-child,
+			#promo-table .tabulator-cell:last-child,
+			#uses-table .tabulator-cell:last-child { border-right: none; }
+			#promo-table .tabulator-row:last-child .tabulator-cell,
+			#uses-table .tabulator-row:last-child .tabulator-cell { border-bottom: none; }
+
+			.section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #6c757d; letter-spacing: 0.5px; margin-bottom: 4px; }
+			.chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #0057b8; color: #0057b8; padding: 2px 8px; margin: 0 6px 6px 0; font-size: 13px; }
+			.chip button { border: 0; background: none; color: inherit; padding: 0; line-height: 1; }
+			.lk { position: relative; }
+			.lk .list-group { position: absolute; left: 0; right: 0; z-index: 10; max-height: 240px; overflow-y: auto; }
+			.code { font-family: monospace; font-weight: 600; letter-spacing: 0.5px; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('orders.promo.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('orders.promo.breadcrumb.home') %></span></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/orders/"><%= i18n.__('orders.promo.breadcrumb.orders') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= i18n.__('orders.promo.title') %></li>
+							</ul>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pt-3 pb-5">
+				<div class="alert alert-light border rounded-0 small"><i class="fa-solid fa-circle-info me-1 text-primary"></i><%= i18n.__('orders.promo.help') %></div>
+				<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+					<div><% if (perms.edit) { %><button type="button" class="btn btn-primary rounded-0" id="btn-new"><%= i18n.__('orders.promo.new') %></button><% } %></div>
+					<div class="d-flex gap-2 align-items-center">
+						<input type="search" class="form-control rounded-0" id="f-search" placeholder="<%= i18n.__('orders.promo.search') %>" />
+						<select class="form-select rounded-0 w-auto" id="f-state">
+							<option value=""><%= i18n.__('orders.promo.state.all') %></option>
+							<option value="active"><%= i18n.__('orders.promo.state.active') %></option>
+							<option value="inactive"><%= i18n.__('orders.promo.state.inactive') %></option>
+						</select>
+					</div>
+				</div>
+				<div class="card border-primary rounded-0">
+					<div class="card-header text-bg-primary rounded-0"><%= i18n.__('orders.promo.title') %></div>
+					<div id="promo-table"></div>
+				</div>
+			</div>
+		</main>
+
+		<!-- Промокод -->
+		<div class="modal fade" id="m-code" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5" id="m-title"></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<ul class="nav nav-tabs mb-3" role="tablist">
+							<li class="nav-item"><button class="nav-link active rounded-0" data-bs-toggle="tab" data-bs-target="#tab-main" type="button"><%= i18n.__('orders.promo.tab.main') %></button></li>
+							<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#tab-rules" type="button"><%= i18n.__('orders.promo.tab.rules') %></button></li>
+							<li class="nav-item d-none" id="tab-uses-li"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#tab-uses" type="button" id="tab-uses-btn"><%= i18n.__('orders.promo.tab.uses') %></button></li>
+						</ul>
+						<div class="tab-content">
+							<div class="tab-pane fade show active" id="tab-main">
+								<div class="row g-3">
+									<div class="col-md-6">
+										<label class="section-title d-block" for="p-code"><%= i18n.__('orders.promo.f.code') %></label>
+										<div class="input-group">
+											<input type="text" class="form-control rounded-0 code text-uppercase" id="p-code" maxlength="64" />
+											<button type="button" class="btn btn-outline-primary rounded-0" id="p-gen" title="<%= i18n.__('orders.promo.generate') %>"><i class="fa-solid fa-shuffle"></i></button>
+										</div>
+										<div class="invalid-feedback d-block" data-err="code"></div>
+										<div class="form-text"><%= i18n.__('orders.promo.code_hint') %></div>
+									</div>
+									<div class="col-md-6">
+										<label class="section-title d-block" for="p-name"><%= i18n.__('orders.promo.f.name') %></label>
+										<input type="text" class="form-control rounded-0" id="p-name" maxlength="255" placeholder="<%= i18n.__('orders.promo.name_ph') %>" />
+									</div>
+									<div class="col-md-4">
+										<label class="section-title d-block" for="p-type"><%= i18n.__('orders.promo.f.type') %></label>
+										<select class="form-select rounded-0" id="p-type">
+											<option value="percent"><%= i18n.__('orders.promo.type.percent') %></option>
+											<option value="fixed"><%= i18n.__('orders.promo.type.fixed') %></option>
+											<option value="free_shipping"><%= i18n.__('orders.promo.type.free_shipping') %></option>
+										</select>
+									</div>
+									<div class="col-md-4" id="w-value">
+										<label class="section-title d-block" for="p-value"><%= i18n.__('orders.promo.f.value') %></label>
+										<div class="input-group">
+											<input type="number" min="0" step="0.01" class="form-control rounded-0" id="p-value" />
+											<span class="input-group-text rounded-0" id="p-value-unit">%</span>
+										</div>
+										<div class="invalid-feedback d-block" data-err="value"></div>
+									</div>
+									<div class="col-md-4" id="w-max">
+										<label class="section-title d-block" for="p-max"><%= i18n.__('orders.promo.f.max_discount') %></label>
+										<input type="number" min="0" step="0.01" class="form-control rounded-0" id="p-max" placeholder="<%= i18n.__('orders.promo.no_limit') %>" />
+									</div>
+									<div class="col-md-4">
+										<label class="section-title d-block" for="p-currency"><%= i18n.__('orders.promo.f.currency') %></label>
+										<input type="text" class="form-control rounded-0 text-uppercase" id="p-currency" maxlength="3" placeholder="<%= baseCurrency %>" />
+										<div class="invalid-feedback d-block" data-err="currency"></div>
+										<div class="form-text"><%= i18n.__('orders.promo.currency_hint') %></div>
+									</div>
+									<div class="col-md-4">
+										<label class="section-title d-block" for="p-min"><%= i18n.__('orders.promo.f.min_order') %></label>
+										<input type="number" min="0" step="0.01" class="form-control rounded-0" id="p-min" placeholder="<%= i18n.__('orders.promo.no_limit') %>" />
+									</div>
+									<div class="col-md-4 d-flex align-items-end">
+										<div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" id="p-status" /><label class="form-check-label" for="p-status"><%= i18n.__('orders.promo.f.status') %></label></div>
+									</div>
+									<div class="col-md-3">
+										<label class="section-title d-block" for="p-start"><%= i18n.__('orders.promo.f.date_start') %></label>
+										<input type="date" class="form-control rounded-0" id="p-start" />
+									</div>
+									<div class="col-md-3">
+										<label class="section-title d-block" for="p-end"><%= i18n.__('orders.promo.f.date_end') %></label>
+										<input type="date" class="form-control rounded-0" id="p-end" />
+										<div class="invalid-feedback d-block" data-err="date_end"></div>
+									</div>
+									<div class="col-md-3">
+										<label class="section-title d-block" for="p-limit"><%= i18n.__('orders.promo.f.limit_total') %></label>
+										<input type="number" min="1" step="1" class="form-control rounded-0" id="p-limit" placeholder="<%= i18n.__('orders.promo.no_limit') %>" />
+									</div>
+									<div class="col-md-3">
+										<label class="section-title d-block" for="p-limit-c"><%= i18n.__('orders.promo.f.limit_per_customer') %></label>
+										<input type="number" min="1" step="1" class="form-control rounded-0" id="p-limit-c" placeholder="<%= i18n.__('orders.promo.no_limit') %>" />
+									</div>
+									<div class="col-12">
+										<label class="section-title d-block" for="p-note"><%= i18n.__('orders.promo.f.note') %></label>
+										<textarea class="form-control rounded-0" id="p-note" rows="2" maxlength="1000"></textarea>
+									</div>
+								</div>
+							</div>
+
+							<div class="tab-pane fade" id="tab-rules">
+								<div class="form-check"><input class="form-check-input" type="checkbox" id="p-first" /><label class="form-check-label" for="p-first"><%= i18n.__('orders.promo.f.first_order_only') %></label></div>
+								<div class="form-check mb-3"><input class="form-check-input" type="checkbox" id="p-sale" /><label class="form-check-label" for="p-sale"><%= i18n.__('orders.promo.f.exclude_sale') %></label></div>
+
+								<div class="section-title"><%= i18n.__('orders.promo.f.channels') %></div>
+								<div class="mb-1" id="p-channels">
+									<% channels.forEach(function (c) { %>
+									<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" value="<%= c.id %>" id="ch-<%= c.id %>" /><label class="form-check-label small" for="ch-<%= c.id %>"><%= c.name %> <span class="text-muted">(<%= c.platform %>)</span></label></div>
+									<% }); %>
+								</div>
+								<div class="form-text mt-0 mb-3"><%= i18n.__('orders.promo.channels_hint') %></div>
+
+								<div class="row g-3">
+									<div class="col-md-6">
+										<div class="section-title"><%= i18n.__('orders.promo.f.categories') %></div>
+										<div id="p-cats"></div>
+										<div class="lk"><input type="text" class="form-control form-control-sm rounded-0" id="p-cats-q" placeholder="<%= i18n.__('orders.promo.find_category') %>" autocomplete="off" /><div class="list-group rounded-0" id="p-cats-list"></div></div>
+									</div>
+									<div class="col-md-6">
+										<div class="section-title"><%= i18n.__('orders.promo.f.products') %></div>
+										<div id="p-prods"></div>
+										<div class="lk"><input type="text" class="form-control form-control-sm rounded-0" id="p-prods-q" placeholder="<%= i18n.__('orders.promo.find_product') %>" autocomplete="off" /><div class="list-group rounded-0" id="p-prods-list"></div></div>
+									</div>
+								</div>
+								<div class="form-text"><%= i18n.__('orders.promo.scope_hint') %></div>
+							</div>
+
+							<div class="tab-pane fade" id="tab-uses">
+								<div class="card border-primary rounded-0">
+									<div class="card-header text-bg-primary rounded-0"><%= i18n.__('orders.promo.tab.uses') %></div>
+									<div id="uses-table"></div>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<% if (perms.edit) { %><button type="button" class="btn btn-outline-danger rounded-0 me-auto d-none" id="p-del"><i class="fa-solid fa-trash me-1"></i><%= i18n.__('orders.promo.delete') %></button><% } %>
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('orders.promo.cancel') %></button>
+						<% if (perms.edit) { %><button type="button" class="btn btn-primary rounded-0" id="p-save"><%= i18n.__('orders.promo.save') %></button><% } %>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Підтвердження видалення -->
+		<div class="modal fade" id="m-del" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5"><%= i18n.__('orders.promo.delete') %></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body"><p class="mb-0"><%= i18n.__('orders.promo.delete_q') %></p></div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('orders.promo.cancel') %></button>
+						<button type="button" class="btn btn-danger rounded-0" id="d-ok"><%= i18n.__('orders.promo.delete') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../partials/footer'); %>
+		<%- include('../../partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s === null || s === undefined ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000, types: [{ type: "success", dismissible: true, icon: false }, { type: "error", background: "indianred", dismissible: true, icon: false }] });
+				const L = <%- JSON.stringify(i18n.__('orders.promo')).replace(/</g, '\\u003c') %>;
+				const EDIT = <%= perms.edit ? 'true' : 'false' %>;
+				const BASE = <%- JSON.stringify(baseCurrency) %>;
+				async function post(url, body) {
+					const r = await fetch("/api/orders/promo/" + url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok || j.ok === false) throw Object.assign(new Error(j.error || L.e.server), { errors: j.errors });
+					return j;
+				}
+				const money = (n, cur) => (n === null || n === undefined ? "" : Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 }) + (cur ? " " + cur : ""));
+				const day = (v) => (v ? String(v).slice(0, 10) : "");
+
+				// ── Список ──
+				function stateOf(d) {
+					const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+					if (!d.status) return ["off", "text-bg-secondary"];
+					if (d.date_end && d.date_end < now) return ["expired", "text-bg-dark"];
+					if (d.date_start && d.date_start > now) return ["scheduled", "text-bg-info"];
+					if (d.limit_total && d.used_count >= d.limit_total) return ["used_up", "text-bg-warning"];
+					return ["active", "text-bg-success"];
+				}
+				const valueText = (d) => (d.type === "percent" ? d.value + "%" + (d.max_discount ? " (≤ " + money(d.max_discount, d.currency || BASE) + ")" : "") : d.type === "fixed" ? money(d.value, d.currency) : L.type.free_shipping);
+				const table = new Tabulator("#promo-table", {
+					layout: "fitColumns",
+					pagination: true,
+					paginationSize: 10,
+					paginationSizeSelector: [10, 20, 30, 40],
+					movableColumns: true,
+					columnDefaults: { headerSort: false },
+					placeholder: L.empty,
+					columns: [
+						{ title: "ID", field: "id", width: 70 },
+						{ title: L.f.code, field: "code", width: 170, formatter: (c) => '<span class="code">' + esc(c.getValue()) + "</span>" },
+						{ title: L.f.name, field: "name", widthGrow: 3, minWidth: 160, formatter: (c) => esc(c.getValue()) },
+						{ title: L.f.value, field: "value", width: 170, formatter: (c) => esc(valueText(c.getRow().getData())) },
+						{ title: L.col.period, field: "date_end", width: 190, formatter: (c) => { const d = c.getRow().getData(); return d.date_start || d.date_end ? esc(day(d.date_start) || "…") + " — " + esc(day(d.date_end) || "…") : '<span class="text-muted">' + esc(L.no_limit) + "</span>"; } },
+						{ title: L.col.used, field: "used_all", width: 130, hozAlign: "right", formatter: (c) => { const d = c.getRow().getData(); return (d.used_all ?? d.used_count) + (d.limit_total ? ' <span class="text-muted">/ ' + d.limit_total + "</span>" : "") + (d.issued_count ? '<div class="small text-muted">' + esc(L.issued.replace("{{n}}", d.issued_count)) + "</div>" : ""); } },
+						{ title: L.col.discount, field: "discount_base", width: 130, hozAlign: "right", formatter: (c) => esc(money(c.getValue(), BASE)) },
+						{ title: L.col.orders, field: "orders_base", width: 140, hozAlign: "right", formatter: (c) => esc(money(c.getValue(), BASE)) },
+						{ title: L.f.status, field: "status", width: 130, formatter: (c) => { const [k, cls] = stateOf(c.getRow().getData()); return '<span class="badge rounded-0 ' + cls + '">' + esc(L.st[k]) + "</span>"; } },
+						{ title: "", field: "id", width: 100, formatter: (c) => '<div class="d-flex justify-content-center gap-2"><button type="button" class="bg-transparent border-0 text-primary" data-act="edit"><i class="fa-regular fa-pen-to-square"></i></button>' + (EDIT ? '<button type="button" class="bg-transparent border-0 text-danger" data-act="del"><i class="fa-regular fa-trash-can"></i></button>' : "") + "</div>", cellClick: (e, cell) => { const b = e.target.closest("[data-act]"); if (!b) return; if (b.dataset.act === "edit") open(cell.getRow().getData().id); else askDelete(cell.getRow().getData().id); } },
+					],
+				});
+				let sTimer = null;
+				const load = () => post("list/", { search: $("f-search").value, state: $("f-state").value }).then((d) => table.replaceData(d.rows)).catch((e) => notyf.error(e.message));
+				table.on("tableBuilt", load);
+				$("f-state").addEventListener("change", load);
+				$("f-search").addEventListener("input", () => (clearTimeout(sTimer), (sTimer = setTimeout(load, 300))));
+
+				// ── Обмеження: категорії й товари (чипи + пошук) ──
+				function picker(kind, boxId, inputId, listId) {
+					const state = { items: [] };
+					const render = () => {
+						$(boxId).innerHTML = state.items.length ? state.items.map((x) => '<span class="chip">' + esc(x.name || "#" + x.id) + (EDIT ? ' <button type="button" data-rm="' + x.id + '">×</button>' : "") + "</span>").join("") : '<div class="small text-muted mb-2">' + esc(L.any) + "</div>";
+					};
+					$(boxId).addEventListener("click", (e) => {
+						const b = e.target.closest("[data-rm]");
+						if (!b) return;
+						state.items = state.items.filter((x) => x.id !== Number(b.dataset.rm));
+						render();
+					});
+					let t = null;
+					$(inputId).addEventListener("input", () => {
+						clearTimeout(t);
+						t = setTimeout(async () => {
+							const q = $(inputId).value.trim();
+							if (q.length < 2) return ($(listId).innerHTML = "");
+							const r = await post("lookup/", { kind, q }).catch(() => ({ rows: [] }));
+							$(listId).innerHTML = r.rows.map((x) => '<button type="button" class="list-group-item list-group-item-action small" data-id="' + x.id + '" data-n="' + esc(x.name) + '">' + esc(x.name) + (x.sku ? ' <span class="text-muted">' + esc(x.sku) + "</span>" : "") + "</button>").join("");
+						}, 300);
+					});
+					$(listId).addEventListener("click", (e) => {
+						const b = e.target.closest("[data-id]");
+						if (!b) return;
+						if (!state.items.some((x) => x.id === Number(b.dataset.id))) state.items.push({ id: Number(b.dataset.id), name: b.dataset.n });
+						$(listId).innerHTML = "";
+						$(inputId).value = "";
+						render();
+					});
+					return {
+						async set(ids) {
+							state.items = (ids || []).map((id) => ({ id: Number(id), name: "#" + id }));
+							render();
+							if (ids && ids.length) {
+								const r = await post("lookup/", { kind, ids }).catch(() => ({ rows: [] }));
+								const names = new Map(r.rows.map((x) => [Number(x.id), x.name]));
+								state.items.forEach((x) => (x.name = names.get(x.id) || x.name));
+								render();
+							}
+						},
+						get: () => state.items.map((x) => x.id),
+					};
+				}
+				const cats = picker("categories", "p-cats", "p-cats-q", "p-cats-list");
+				const prods = picker("products", "p-prods", "p-prods-q", "p-prods-list");
+
+				// ── Модальне вікно ──
+				const mCode = bootstrap.Modal.getOrCreateInstance($("m-code"));
+				let cur = null;
+				function typeUi() {
+					const t = $("p-type").value;
+					$("w-value").classList.toggle("d-none", t === "free_shipping");
+					$("w-max").classList.toggle("d-none", t !== "percent");
+					$("p-value-unit").textContent = t === "percent" ? "%" : ($("p-currency").value || BASE).toUpperCase();
+				}
+				$("p-type").addEventListener("change", typeUi);
+				$("p-currency").addEventListener("input", typeUi);
+				function errors(map) {
+					document.querySelectorAll("[data-err]").forEach((el) => (el.textContent = (map && map[el.dataset.err]) || ""));
+				}
+				let usesTable = null;
+				// Видалення: з таблиці (кнопка в рядку) або з вікна промокоду
+				let delId = null;
+				function askDelete(id) {
+					delId = id;
+					bootstrap.Modal.getOrCreateInstance($("m-del")).show();
+				}
+				async function open(id) {
+					errors(null);
+					cur = id ? (await post(id + "/get/").catch((e) => (notyf.error(e.message), null)))?.item : null;
+					if (id && !cur) return;
+					const d = cur || { code: "", name: "", status: true, type: "percent", value: 10, currency: "", channels: [], categories: [], products: [] };
+					$("m-title").textContent = cur ? cur.code : L.new;
+					$("p-code").value = d.code;
+					$("p-name").value = d.name;
+					$("p-status").checked = !!d.status;
+					$("p-type").value = d.type;
+					$("p-value").value = d.type === "free_shipping" ? "" : d.value;
+					$("p-currency").value = d.currency || "";
+					$("p-max").value = d.max_discount || "";
+					$("p-min").value = d.min_order || "";
+					$("p-start").value = day(d.date_start);
+					$("p-end").value = day(d.date_end);
+					$("p-limit").value = d.limit_total || "";
+					$("p-limit-c").value = d.limit_per_customer || "";
+					$("p-note").value = d.note || "";
+					$("p-first").checked = !!d.first_order_only;
+					$("p-sale").checked = !!d.exclude_sale;
+					document.querySelectorAll("#p-channels input").forEach((x) => (x.checked = (d.channels || []).includes(Number(x.value))));
+					cats.set(d.categories);
+					prods.set(d.products);
+					typeUi();
+					$("tab-uses-li").classList.toggle("d-none", !cur);
+					if ($("p-del")) $("p-del").classList.toggle("d-none", !cur);
+					document.querySelectorAll("#m-code input, #m-code select, #m-code textarea").forEach((el) => (el.disabled = !EDIT));
+					bootstrap.Tab.getOrCreateInstance(document.querySelector('[data-bs-target="#tab-main"]')).show();
+					mCode.show();
+				}
+				$("tab-uses-btn").addEventListener("shown.bs.tab", async () => {
+					if (!cur) return;
+					if (!usesTable)
+						usesTable = new Tabulator("#uses-table", {
+							layout: "fitColumns",
+							pagination: true,
+							paginationSize: 10,
+							paginationSizeSelector: [10, 20, 30, 40],
+							movableColumns: true,
+							columnDefaults: { headerSort: false },
+							placeholder: L.no_uses,
+							columns: [
+								{ title: L.col.order, field: "reference", width: 150, formatter: (c) => '<a href="/orders/' + c.getRow().getData().id_order + '/" target="_blank">' + esc(c.getValue()) + "</a>" + (c.getRow().getData().is_canceled ? ' <span class="badge text-bg-secondary rounded-0">' + esc(L.canceled) + "</span>" : "") },
+								{ title: L.f.code, field: "code", width: 170, formatter: (c) => '<span class="code">' + esc(c.getValue()) + "</span>" },
+								{ title: L.col.client, field: "client", widthGrow: 3, minWidth: 160, formatter: (c) => esc(c.getValue() || "—") },
+								{ title: L.col.discount, field: "amount", width: 140, hozAlign: "right", formatter: (c) => esc(money(c.getValue(), c.getRow().getData().currency)) },
+								{ title: L.col.total, field: "total", width: 140, hozAlign: "right", formatter: (c) => esc(money(c.getValue(), c.getRow().getData().currency_iso)) },
+								{ title: L.col.date, field: "date_add", width: 160 },
+							],
+						});
+					const r = await post(cur.id + "/uses/").catch(() => ({ rows: [] }));
+					usesTable.replaceData(r.rows);
+				});
+				if (EDIT) {
+					$("btn-new").addEventListener("click", () => open(null));
+					$("p-gen").addEventListener("click", async () => {
+						const r = await post("generate/", { length: 8 }).catch((e) => (notyf.error(e.message), null));
+						if (r) $("p-code").value = r.code;
+					});
+					$("p-save").addEventListener("click", async () => {
+						const btn = $("p-save");
+						btn.disabled = true;
+						errors(null);
+						try {
+							const r = await post("save/", {
+								id: cur ? cur.id : null,
+								code: $("p-code").value,
+								name: $("p-name").value,
+								status: $("p-status").checked,
+								type: $("p-type").value,
+								value: $("p-value").value,
+								currency: $("p-currency").value,
+								max_discount: $("p-max").value,
+								min_order: $("p-min").value,
+								date_start: $("p-start").value,
+								date_end: $("p-end").value,
+								limit_total: $("p-limit").value,
+								limit_per_customer: $("p-limit-c").value,
+								note: $("p-note").value,
+								first_order_only: $("p-first").checked,
+								exclude_sale: $("p-sale").checked,
+								channels: [...document.querySelectorAll("#p-channels input:checked")].map((x) => Number(x.value)),
+								categories: cats.get(),
+								products: prods.get(),
+							});
+							mCode.hide();
+							notyf.success(L.saved);
+							load();
+						} catch (e) {
+							errors(e.errors);
+							if (e.errors && (e.errors.code || e.errors.value || e.errors.currency || e.errors.date_end)) bootstrap.Tab.getOrCreateInstance(document.querySelector('[data-bs-target="#tab-main"]')).show();
+							notyf.error(e.message);
+						} finally {
+							btn.disabled = false;
+						}
+					});
+					const mDel = bootstrap.Modal.getOrCreateInstance($("m-del"));
+					$("p-del").addEventListener("click", () => {
+						delId = cur && cur.id;
+						mDel.show();
+					});
+					$("d-ok").addEventListener("click", async () => {
+						try {
+							await post(delId + "/delete/");
+							mDel.hide();
+							mCode.hide();
+							notyf.success(L.deleted);
+							load();
+						} catch (e) {
+							notyf.error(e.message);
+						}
+					});
+				}
+			})();
+		</script>
+	</body>
+</html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<span>Кошик</span>
+				<div>
+					<ul class="list-inline mb-0">
+						<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i></a></li>
+						<li class="list-inline-item"><i class="fas fa-chevron-right"></i> Кошик</li>
+					</ul>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3">
+			<div class="card border-primary rounded-0 mb-3">
+				<div class="card-header text-bg-primary rounded-0 p-0">
+					<ul class="nav nav-tabs card-header-tabs m-0" id="t-tabs">
+						<% types.forEach(function (t, i) { %>
+						<li class="nav-item"><button class="nav-link rounded-0<%= i === 0 ? ' active' : '' %>" data-type="<%= t.key %>"><%= t.title %> <span class="badge text-bg-light rounded-0"><%= counts[t.key] || 0 %></span></button></li>
+						<% }) %>
+					</ul>
+				</div>
+				<div class="card-body py-2 small text-muted" id="t-hint"></div>
+				<div class="table-responsive">
+					<table class="table table-sm align-middle mb-0">
+						<thead><tr><th style="width: 80px">ID</th><th>Назва</th><th>Видалено</th><th>Ким</th><th>Остаточно</th><th style="width: 200px"></th></tr></thead>
+						<tbody id="t-body"></tbody>
+					</table>
+				</div>
+				<div class="card-body text-center d-none" id="t-more-box"><button class="btn btn-sm btn-outline-primary rounded-0" id="t-more">Показати ще</button></div>
+			</div>
+		</div>
+
+		<%- include('../../partials/footer'); %> <%- include('../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				const CAN_RESTORE = <%= canRestore ? 'true' : 'false' %>;
+				const CAN_PURGE = <%= canPurge ? 'true' : 'false' %>;
+				const KEEP = <%= keepDays %>;
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000, types: [{ type: "error", background: "indianred", icon: false }] });
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const fmt = (d) => (d ? new Date(d).toLocaleString([], { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—");
+				let TYPE = document.querySelector("#t-tabs [data-type]").dataset.type;
+				let NEXT = null;
+				let PURGE = true;
+
+				async function post(url, data) {
+					const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data || {}) });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok || j.ok === false) throw new Error(j.error || "Помилка сервера");
+					return j;
+				}
+
+				function row(r) {
+					const btns =
+						(CAN_RESTORE ? '<button class="btn btn-sm btn-outline-success rounded-0" data-restore="' + r.id + '"><i class="fa-solid fa-rotate-left me-1"></i>Відновити</button> ' : "") +
+						(CAN_PURGE && PURGE ? '<button class="btn btn-sm btn-outline-danger rounded-0" data-purge="' + r.id + '" title="Видалити остаточно"><i class="fa-solid fa-trash"></i></button>' : "");
+					return (
+						'<tr data-row="' + r.id + '"><td>' + r.id + "</td><td>" + esc(r.name || "—") + "</td><td class='small'>" + esc(fmt(r.deleted_at)) + "</td><td class='small'>" + esc(r.deleted_by || "—") + "</td>" +
+						"<td class='small " + (PURGE ? "text-danger" : "text-muted") + "'>" + (PURGE ? esc(fmt(r.purge_at)) : "не видаляється") + "</td><td class='text-end'>" + btns + "</td></tr>"
+					);
+				}
+
+				async function load(reset) {
+					try {
+						const d = await post("/api/trash/" + TYPE + "/list/", { before_id: reset ? null : NEXT, limit: 50 });
+						PURGE = d.purge;
+						$("t-hint").textContent = PURGE ? "Видалене зберігається " + KEEP + " днів, потім прибирається остаточно." : "Замовлення — фінансові документи: вони лишаються в базі назавжди, їх можна лише відновити.";
+						const html = d.rows.map(row).join("");
+						if (reset) $("t-body").innerHTML = html || '<tr><td colspan="6" class="text-center text-muted py-3">Кошик порожній</td></tr>';
+						else $("t-body").insertAdjacentHTML("beforeend", html);
+						NEXT = d.next_before_id;
+						$("t-more-box").classList.toggle("d-none", !d.has_more);
+					} catch (e) {
+						notyf.error(e.message);
+					}
+				}
+
+				$("t-body").addEventListener("click", async (ev) => {
+					const r = ev.target.closest("[data-restore]");
+					const p = ev.target.closest("[data-purge]");
+					if (!r && !p) return;
+					const id = Number((r || p).dataset.restore || (r || p).dataset.purge);
+					if (p && !confirm("Видалити остаточно? Це не можна скасувати.")) return;
+					try {
+						const res = await post("/api/trash/" + TYPE + "/" + (r ? "restore" : "purge") + "/", { id });
+						document.querySelector('[data-row="' + id + '"]').remove();
+						notyf.success(r ? "Відновлено" : "Видалено остаточно");
+						if (r && res.url) setTimeout(() => (location.href = res.url), 600);
+					} catch (e) {
+						notyf.error(e.message);
+					}
+				});
+
+				document.querySelectorAll("#t-tabs [data-type]").forEach((b) =>
+					b.addEventListener("click", () => {
+						document.querySelectorAll("#t-tabs .nav-link").forEach((x) => x.classList.remove("active"));
+						b.classList.add("active");
+						TYPE = b.dataset.type;
+						load(true);
+					})
+				);
+				$("t-more").addEventListener("click", () => load(false));
+				load(true);
+			})();
+		</script>
+	</body>
+</html>

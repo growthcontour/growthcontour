@@ -1,0 +1,38 @@
+{
+	"contact_center": {
+		"instagram": {
+			"settings": {
+				"title": "Instagram — акаунти",
+				"connect_button": "Підключити Instagram",
+				"connected_ok": "Акаунт підключено.",
+				"connected_err": "Не вдалося підключити",
+				"breadcrumb": {
+					"home": "Головна",
+					"contact_center": "Контакт-центр",
+					"current": "Instagram"
+				},
+				"delete_modal": {
+					"title": "Видалити акаунт?",
+					"confirm_text": "Акаунт буде відключено. Історія чатів залишиться, але стане неробочою.",
+					"close": "Закрити",
+					"delete": "Видалити"
+				},
+				"table": {
+					"id": "№",
+					"name": "Назва",
+					"username": "Username",
+					"active": "Акаунт",
+					"notify_active": "Сповіщення",
+					"expires": "Токен дійсний до",
+					"date_add": "Додано",
+					"edit": "Дії"
+				},
+				"status": {
+					"on": "Увімк.",
+					"off": "Вимк.",
+					"acc_on": "Активний"
+				}
+			}
+		}
+	}
+}

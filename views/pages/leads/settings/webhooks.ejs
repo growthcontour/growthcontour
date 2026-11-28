@@ -1,0 +1,134 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('leads.webhooks.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('leads.webhooks.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('leads.intake.breadcrumb.home') %></span></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/leads/"><%= i18n.__('leads.intake.breadcrumb.leads') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/leads/settings/"><%= i18n.__('leads.intake.breadcrumb.settings') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= i18n.__('leads.webhooks.title') %></li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/leads/settings/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3">
+			<div class="row">
+				<div class="col-12 mb-3">
+					<a href="/leads/settings/webhooks/new/" class="btn btn-primary rounded-0 mb-3"><i class="fa-solid fa-plus me-1"></i><%= i18n.__('leads.webhooks.new') %></a>
+					<div class="alert alert-light border rounded-0 small"><i class="fa-solid fa-circle-info me-1 text-primary"></i><%= i18n.__('leads.webhooks.intro') %></div>
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('leads.webhooks.title') %></div>
+						<div id="hooks-table"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="modal fade" id="m-delete" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5"><%= i18n.__('leads.webhooks.delete_title') %></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<p class="mb-2"><%= i18n.__('leads.webhooks.delete_text') %></p>
+						<p class="mb-0"><strong id="m-delete-name"></strong> <span class="text-muted">#<span id="m-delete-id"></span></span></p>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('leads.intake.close') %></button>
+						<button type="button" class="btn btn-danger rounded-0" id="m-delete-ok"><%= i18n.__('leads.intake.delete') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000, types: [{ type: "success", dismissible: true, icon: false }, { type: "error", background: "indianred", dismissible: true, icon: false }] });
+				const EV = <%- JSON.stringify(i18n.__('leads.webhooks.ev')).replace(/</g, '\\u003c') %>;
+				const table = new Tabulator("#hooks-table", {
+					layout: "fitColumns",
+					ajaxURL: "/api/leads/settings/webhooks/list/",
+					ajaxConfig: "POST",
+					pagination: true,
+					paginationSize: 20,
+					placeholder: "<%= i18n.__('leads.webhooks.empty') %>",
+					columns: [
+						{ title: "ID", field: "id", headerSort: false, width: 70 },
+						{ title: "<%= i18n.__('leads.webhooks.f.name') %>", field: "name", headerSort: false, widthGrow: 3, formatter: (c) => { const d = c.getData(); return "<div>" + esc(d.name) + '</div><small class="text-muted"><code>' + esc(d.url) + "</code></small>"; } },
+						{ title: "<%= i18n.__('leads.webhooks.f.events') %>", field: "events", headerSort: false, widthGrow: 3, formatter: (c) => (c.getValue() || []).map((e) => '<span class="badge rounded-0 text-bg-light border me-1">' + esc((EV && EV[e.replace(".", "_")]) || e) + "</span>").join("") },
+						{ title: "<%= i18n.__('leads.intake.col_state') %>", field: "is_active", headerSort: false, width: 120, formatter: (c) => (Number(c.getValue()) ? '<span class="badge rounded-0 text-bg-success"><%= i18n.__('leads.intake.state.active') %></span>' : '<span class="badge rounded-0 text-bg-secondary"><%= i18n.__('leads.intake.state.disabled') %></span>') },
+						{
+							title: "<%= i18n.__('leads.webhooks.col_last') %>", field: "last_sent_at", headerSort: false, widthGrow: 2,
+							formatter: (c) => {
+								const d = c.getData();
+								if (!d.last_sent_at) return "—";
+								return (d.last_status === "success" ? '<i class="fa-solid fa-circle-check text-success me-1"></i>' : '<i class="fa-solid fa-circle-xmark text-danger me-1"></i>') + esc(d.last_sent_at) + (d.fail_count ? ' <span class="badge rounded-0 text-bg-danger">' + Number(d.fail_count) + "</span>" : "");
+							},
+						},
+						{
+							title: "", field: "id", headerSort: false, width: 90,
+							formatter: (c) => {
+								const d = c.getData();
+								return '<div class="d-flex justify-content-center gap-2"><a href="/leads/settings/webhooks/' + Number(d.id) + '/" class="text-primary" title="<%= i18n.__('leads.intake.edit') %>"><i class="fa-regular fa-pen-to-square"></i></a>' +
+									'<button type="button" class="bg-transparent border-0 text-danger p-0 js-delete" data-id="' + Number(d.id) + '" data-name="' + esc(d.name) + '" title="<%= i18n.__('leads.intake.delete') %>"><i class="fa-regular fa-trash-can"></i></button></div>';
+							},
+						},
+					],
+				});
+				let delId = null;
+				document.addEventListener("click", (e) => {
+					const b = e.target.closest(".js-delete");
+					if (!b) return;
+					delId = Number(b.dataset.id);
+					$("m-delete-id").textContent = delId;
+					$("m-delete-name").textContent = b.dataset.name;
+					bootstrap.Modal.getOrCreateInstance($("m-delete")).show();
+				});
+				$("m-delete-ok").addEventListener("click", async (e) => {
+					const btn = e.currentTarget;
+					btn.disabled = true;
+					try {
+						const r = await fetch("/api/leads/settings/webhooks/delete/", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: delId }) });
+						const d = await r.json().catch(() => ({}));
+						if (!r.ok) throw new Error(d.message || "Error");
+						bootstrap.Modal.getOrCreateInstance($("m-delete")).hide();
+						notyf.success("<%= i18n.__('leads.intake.deleted') %>");
+						table.replaceData();
+					} catch (err) {
+						notyf.error(err.message);
+					} finally {
+						btn.disabled = false;
+					}
+				});
+			})();
+		</script>
+	</body>
+</html>

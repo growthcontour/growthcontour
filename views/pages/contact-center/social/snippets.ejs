@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('contact_center.social_snippets.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<style>
+			#snippets-table .tabulator-col,
+			#snippets-table .tabulator-cell { border-right: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; }
+			#snippets-table .tabulator-col:last-child,
+			#snippets-table .tabulator-cell:last-child { border-right: none; }
+			#snippets-table .tabulator-row:last-child .tabulator-cell { border-bottom: none; }
+			#snippets-table .tabulator-cell { white-space: normal; }
+			#kind_tabs .nav-link { border-radius: 0; }
+			.tags-preview .badge { font-weight: 400; margin: 0 4px 4px 0; }
+		</style>
+	</head>
+
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+		<%- include('../../../partials/contact-center/social-editor'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('contact_center.social_snippets.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('contact_center.social_snippets.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/contact-center/"><%= i18n.__('contact_center.social_snippets.breadcrumb.contact_center') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/contact-center/social/"><%= i18n.__('contact_center.social_snippets.breadcrumb.posts') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('contact_center.social_snippets.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/contact-center/social/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3 mb-4">
+			<div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+				<% if (data.perms.edit) { %>
+				<button type="button" class="btn btn-primary rounded-0" id="btn_add"><i class="fa-solid fa-plus me-1"></i><span id="btn_add_text"><%= i18n.__('contact_center.social_snippets.add_template') %></span></button>
+				<% } %>
+				<input type="search" class="form-control rounded-0 w-auto flex-grow-1" id="f_q" placeholder="<%= i18n.__('contact_center.social_snippets.search') %>" />
+			</div>
+
+			<ul class="nav nav-tabs" id="kind_tabs">
+				<li class="nav-item"><button type="button" class="nav-link active" data-kind="template"><i class="fa-regular fa-file-lines me-1"></i><%= i18n.__('contact_center.social_snippets.templates') %></button></li>
+				<li class="nav-item"><button type="button" class="nav-link" data-kind="hashtags"><i class="fa-solid fa-hashtag me-1"></i><%= i18n.__('contact_center.social_snippets.hashtags') %></button></li>
+			</ul>
+			<div class="card border-primary rounded-0 border-top-0">
+				<div class="card-header text-bg-primary rounded-0" id="table_title"><%= i18n.__('contact_center.social_snippets.templates') %></div>
+				<div id="snippets-table"></div>
+			</div>
+		</div>
+
+		<!-- Модалка шаблону / групи хештегів -->
+		<div class="modal fade" id="snippetModal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-lg modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5" id="sn_title"></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" id="sn_id" />
+						<div class="row">
+							<div class="col-md-8 mb-3">
+								<label class="form-label" for="sn_name"><%= i18n.__('contact_center.social_snippets.name') %></label>
+								<input type="text" class="form-control rounded-0" id="sn_name" maxlength="255" />
+							</div>
+							<div class="col-md-4 mb-3">
+								<label class="form-label" for="sn_network"><%= i18n.__('contact_center.social_snippets.network') %></label>
+								<select class="form-select rounded-0" id="sn_network">
+									<option value=""><%= i18n.__('contact_center.social_snippets.network_all') %></option>
+									<% ['instagram', 'facebook', 'telegram', 'viber'].forEach(function (n) { %>
+									<option value="<%= n %>"><%= i18n.__('contact_center.social.networks.' + n) %></option>
+									<% }); %>
+								</select>
+							</div>
+						</div>
+						<!-- Шаблон: редактор з форматуванням -->
+						<div id="sn_template_box">
+							<label class="form-label"><%= i18n.__('contact_center.social_snippets.content') %></label>
+							<textarea class="d-none" id="sn_template" data-ph="<%= i18n.__('contact_center.social_snippets.template_ph') %>"></textarea>
+							<small class="text-muted"><%= i18n.__('contact_center.social_snippets.template_hint') %></small>
+						</div>
+						<!-- Хештеги: довільний ввід, нормалізується -->
+						<div id="sn_tags_box" class="d-none">
+							<label class="form-label" for="sn_tags"><%= i18n.__('contact_center.social_snippets.tags') %></label>
+							<textarea class="form-control rounded-0" id="sn_tags" rows="4" placeholder="<%= i18n.__('contact_center.social_snippets.tags_ph') %>"></textarea>
+							<div class="small mt-1" id="sn_tags_count"></div>
+							<div class="tags-preview mt-2" id="sn_tags_preview"></div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('contact_center.social_snippets.cancel') %></button>
+						<button type="button" class="btn btn-primary rounded-0" id="sn_save"><%= i18n.__('contact_center.social_snippets.save') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %> <%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="/assets/js/contact-center/social-editor.js"></script>
+		<script>
+			(function () {
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000 });
+				const CAN_EDIT = <%= data.perms.edit ? 'true' : 'false' %>;
+				const CAN_DELETE = <%= data.perms.delete ? 'true' : 'false' %>;
+				const MAX_TAGS = <%= Number(data.maxTags) %>;
+				const $ = (id) => document.getElementById(id);
+				const esc = SocialEditor.esc;
+				const post = (url, body) =>
+					fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) })
+						.then((r) => r.json())
+						.then((d) => {
+							if (!d.ok) throw new Error(d.error || "Error");
+							return d;
+						});
+
+				let kind = "template";
+				let rows = [];
+
+				const table = new Tabulator("#snippets-table", {
+					layout: "fitColumns",
+					placeholder: "<%= i18n.__('contact_center.social_snippets.empty') %>",
+					columns: [
+						{ title: "<%= i18n.__('contact_center.social_snippets.columns.name') %>", field: "name", widthGrow: 2, headerSort: false, formatter: (c) => '<span class="fw-semibold">' + esc(c.getValue()) + "</span>" },
+						{
+							title: "<%= i18n.__('contact_center.social_snippets.columns.content') %>",
+							field: "preview",
+							widthGrow: 5,
+							headerSort: false,
+							formatter: (c) => {
+								const d = c.getData();
+								return '<div class="small">' + esc(d.preview).replace(/\n/g, "<br>") + "</div>" + (d.tags_count ? '<div class="small text-muted">' + "<%= i18n.__('contact_center.social_snippets.tags_n') %>".replace("{n}", d.tags_count) + "</div>" : "");
+							},
+						},
+						{ title: "<%= i18n.__('contact_center.social_snippets.columns.network') %>", field: "network", width: 120, headerSort: false, formatter: (c) => esc(c.getValue() || "<%= i18n.__('contact_center.social_snippets.network_all') %>") },
+						{ title: "<%= i18n.__('contact_center.social_snippets.columns.used') %>", field: "usage_count", width: 110, hozAlign: "center", headerSort: false },
+						{
+							title: "<%= i18n.__('contact_center.social_snippets.columns.actions') %>",
+							field: "id",
+							width: 100,
+							hozAlign: "center",
+							headerSort: false,
+							formatter: (c) => {
+								const id = Number(c.getValue());
+								return (
+									'<div class="d-flex justify-content-center gap-2">' +
+									(CAN_EDIT ? '<button type="button" class="bg-transparent border-0 text-primary act-edit" data-id="' + id + '"><i class="fa-regular fa-pen-to-square"></i></button>' : "") +
+									(CAN_DELETE ? '<button type="button" class="bg-transparent border-0 text-danger act-delete" data-id="' + id + '"><i class="fa-regular fa-trash-can"></i></button>' : "") +
+									"</div>"
+								);
+							},
+						},
+					],
+				});
+
+				function load() {
+					return post("/api/contact-center/social/snippets/list/", { kind, q: $("f_q").value.trim() })
+						.then((d) => {
+							rows = d.data;
+							table.replaceData(rows);
+						})
+						.catch((e) => notyf.error(e.message));
+				}
+				table.on("tableBuilt", load);
+				let qT;
+				$("f_q").addEventListener("input", () => {
+					clearTimeout(qT);
+					qT = setTimeout(load, 300);
+				});
+				document.querySelectorAll("#kind_tabs [data-kind]").forEach((b) =>
+					b.addEventListener("click", () => {
+						kind = b.dataset.kind;
+						document.querySelectorAll("#kind_tabs .nav-link").forEach((x) => x.classList.toggle("active", x === b));
+						$("table_title").textContent = kind === "template" ? "<%= i18n.__('contact_center.social_snippets.templates') %>" : "<%= i18n.__('contact_center.social_snippets.hashtags') %>";
+						if ($("btn_add_text")) $("btn_add_text").textContent = kind === "template" ? "<%= i18n.__('contact_center.social_snippets.add_template') %>" : "<%= i18n.__('contact_center.social_snippets.add_hashtags') %>";
+						load();
+					})
+				);
+
+				/* ─── Модалка ─── */
+				const modal = new bootstrap.Modal($("snippetModal"));
+				const editor = SocialEditor.create($("sn_template"));
+				let editingKind = "template";
+
+				// Ті самі правила, що й на сервері (snippets.normalizeTags)
+				function normalizeTags(input) {
+					const seen = new Set();
+					const out = [];
+					for (const raw of String(input || "").split(/[\s,;]+/)) {
+						const tag = raw.replace(/^#+/, "").replace(/[^\p{L}\p{N}_]/gu, "");
+						if (!tag || /^\d+$/.test(tag)) continue;
+						const key = tag.toLocaleLowerCase();
+						if (seen.has(key)) continue;
+						seen.add(key);
+						out.push("#" + tag);
+					}
+					return out;
+				}
+				function syncTags() {
+					const tags = normalizeTags($("sn_tags").value);
+					$("sn_tags_preview").innerHTML = tags.map((t) => '<span class="badge text-bg-light border">' + esc(t) + "</span>").join("");
+					$("sn_tags_count").textContent = "<%= i18n.__('contact_center.social_snippets.tags_count') %>".replace("{n}", tags.length).replace("{max}", MAX_TAGS);
+					$("sn_tags_count").className = "small mt-1 " + (tags.length > MAX_TAGS ? "text-danger" : "text-muted");
+				}
+				$("sn_tags").addEventListener("input", syncTags);
+
+				function open(row) {
+					editingKind = row ? row.kind : kind;
+					$("sn_title").textContent = (editingKind === "template" ? "<%= i18n.__('contact_center.social_snippets.modal_template') %>" : "<%= i18n.__('contact_center.social_snippets.modal_hashtags') %>") + (row ? " #" + row.id : "");
+					$("sn_id").value = row ? row.id : "";
+					$("sn_name").value = row ? row.name : "";
+					$("sn_network").value = row && row.network ? row.network : "";
+					$("sn_template_box").classList.toggle("d-none", editingKind !== "template");
+					$("sn_tags_box").classList.toggle("d-none", editingKind !== "hashtags");
+					editor.setHtml(row && row.kind === "template" ? row.content : "");
+					$("sn_tags").value = row && row.kind === "hashtags" ? row.content : "";
+					syncTags();
+					modal.show();
+				}
+				if ($("btn_add")) $("btn_add").addEventListener("click", () => open(null));
+
+				$("sn_save").addEventListener("click", () => {
+					const btn = $("sn_save");
+					btn.disabled = true;
+					post("/api/contact-center/social/snippets/save/", {
+						id: $("sn_id").value || null,
+						kind: editingKind,
+						name: $("sn_name").value.trim(),
+						network: $("sn_network").value || null,
+						content: editingKind === "template" ? $("sn_template").value : $("sn_tags").value,
+					})
+						.then(() => {
+							modal.hide();
+							notyf.success("<%= i18n.__('contact_center.social_snippets.saved') %>");
+							return load();
+						})
+						.catch((e) => notyf.error(e.message))
+						.finally(() => (btn.disabled = false));
+				});
+
+				$("snippets-table").addEventListener("click", (e) => {
+					const b = e.target.closest("button[data-id]");
+					if (!b) return;
+					const id = Number(b.dataset.id);
+					if (b.classList.contains("act-edit")) return open(rows.find((r) => r.id === id));
+					if (b.classList.contains("act-delete")) {
+						if (!confirm("<%= i18n.__('contact_center.social_snippets.confirm_delete') %>")) return;
+						post("/api/contact-center/social/snippets/" + id + "/delete/")
+							.then(() => notyf.success("<%= i18n.__('contact_center.social_snippets.deleted') %>"))
+							.then(load)
+							.catch((err) => notyf.error(err.message));
+					}
+				});
+			})();
+		</script>
+	</body>
+</html>

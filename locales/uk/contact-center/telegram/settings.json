@@ -1,0 +1,43 @@
+{
+  "contact_center": {
+    "telegram": {
+      "settings": {
+        "title": "Токени Telegram",
+        "breadcrumb": {
+          "home": "Головна",
+          "contact_center": "Контакт-центр",
+          "current": "Токени Telegram"
+        },
+        "table": {
+          "id": "ID",
+          "name": "Назва",
+          "active": "Бот",
+          "notify_active": "Сповіщення",
+          "date_add": "Створено",
+          "date_edit": "Змінено",
+          "edit": "Редагувати"
+        },
+        "add_button": "Додати токен",
+        "create_modal": {
+          "title": "Новий токен",
+          "name": "Назва",
+          "token": "Токен бота",
+          "token_hint": "Отримайте у @BotFather. Перевіримо й збережемо зашифровано.",
+          "create": "Створити",
+          "close": "Скасувати"
+        },
+        "delete_modal": {
+          "title": "Видалення токена",
+          "confirm_text": "Видалити цей токен-бот назавжди? Бот перестане приймати повідомлення. Дію не можна скасувати.",
+          "close": "Скасувати",
+          "delete": "Видалити"
+        },
+        "status": {
+          "on": "Увімкнено",
+          "off": "Вимкнено",
+          "bot_on": "Активний"
+        }
+      }
+    }
+  }
+}

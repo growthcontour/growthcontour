@@ -1,0 +1,490 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('leads.auto.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<style>
+			.section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #6c757d; letter-spacing: 0.5px; margin-bottom: 4px; }
+			.chk-box { max-height: 150px; overflow-y: auto; border: 1px solid #dee2e6; padding: 6px 10px; }
+			.act-row { border: 1px solid #dee2e6; border-left: 3px solid #0057b8; padding: 10px; margin-bottom: 8px; background: #fff; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('leads.auto.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('leads.intake.breadcrumb.home') %></span></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/leads/"><%= i18n.__('leads.intake.breadcrumb.leads') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/leads/settings/"><%= i18n.__('leads.intake.breadcrumb.settings') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= i18n.__('leads.auto.title') %></li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/leads/settings/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3 mb-4">
+			<div class="alert alert-light border rounded-0 small"><i class="fa-solid fa-circle-info me-1 text-primary"></i><%= i18n.__('leads.auto.intro') %></div>
+			<div class="card border-primary rounded-0">
+				<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+					<span><%= i18n.__('leads.auto.title') %></span>
+					<button type="button" class="btn btn-sm btn-light rounded-0" id="btn-new"><i class="fa-solid fa-plus me-1"></i><%= i18n.__('leads.auto.add') %></button>
+				</div>
+				<div id="auto-table"></div>
+			</div>
+		</div>
+
+		<!-- Модалка: автоматизація -->
+		<div class="modal fade" id="m-auto" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5" id="m-auto-title"></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" id="a-id" />
+						<div class="row g-3">
+							<div class="col-md-7">
+								<label class="section-title d-block" for="a-name"><%= i18n.__('leads.routing.f.name') %></label>
+								<input type="text" class="form-control rounded-0" id="a-name" maxlength="255" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-2">
+								<label class="section-title d-block" for="a-sort"><%= i18n.__('leads.routing.f.sort') %></label>
+								<input type="number" class="form-control rounded-0" id="a-sort" min="0" step="1" />
+							</div>
+							<div class="col-md-3 d-flex align-items-end">
+								<div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="a-active" /><label class="form-check-label" for="a-active"><%= i18n.__('leads.routing.f.active') %></label></div>
+							</div>
+						</div>
+
+						<h6 class="mt-4 mb-2"><%= i18n.__('leads.auto.when') %></h6>
+						<div class="row g-3">
+							<div class="col-md-4">
+								<label class="section-title d-block" for="a-event"><%= i18n.__('leads.auto.f.event') %></label>
+								<select class="form-select rounded-0" id="a-event">
+									<% triggers.forEach(function (t) { %><option value="<%= t %>"><%= i18n.__('leads.auto.trigger.' + t) %></option><% }); %>
+								</select>
+								<div class="invalid-feedback" id="err-trigger"></div>
+							</div>
+							<div class="col-md-4" data-tr="stage_enter idle">
+								<label class="section-title d-block" for="a-stage"><%= i18n.__('leads.list.stage') %></label>
+								<select class="form-select rounded-0" id="a-stage">
+									<option value="" data-tr-any><%= i18n.__('leads.auto.any_stage') %></option>
+									<% pipelines.forEach(function (p) { %>
+									<optgroup label="<%= p.name %>">
+										<% stages.filter(function (s) { return Number(s.id_pipeline) === Number(p.id); }).forEach(function (s) { %><option value="<%= s.id %>"><%= s.name %></option><% }); %>
+									</optgroup>
+									<% }); %>
+								</select>
+							</div>
+							<div class="col-md-4" data-tr="status_change">
+								<label class="section-title d-block" for="a-status"><%= i18n.__('leads.list.status') %></label>
+								<select class="form-select rounded-0" id="a-status">
+									<option value=""><%= i18n.__('leads.auto.any_status') %></option>
+									<% statuses.forEach(function (s) { %><option value="<%= s.id %>"><%= s.name %></option><% }); %>
+								</select>
+							</div>
+							<div class="col-md-2" data-tr="idle">
+								<label class="section-title d-block" for="a-days"><%= i18n.__('leads.auto.f.days') %></label>
+								<input type="number" class="form-control rounded-0" id="a-days" min="1" max="365" step="1" />
+							</div>
+							<div class="col-md-4" data-tr="created stage_enter status_change">
+								<div class="section-title"><%= i18n.__('leads.auto.f.delay') %></div>
+								<div class="input-group">
+									<input type="number" class="form-control rounded-0" id="a-delay" min="0" step="1" />
+									<select class="form-select rounded-0" id="a-delay-unit" style="max-width: 140px">
+										<option value="1"><%= i18n.__('leads.auto.unit.min') %></option>
+										<option value="60"><%= i18n.__('leads.auto.unit.hour') %></option>
+										<option value="1440"><%= i18n.__('leads.auto.unit.day') %></option>
+									</select>
+								</div>
+								<div class="form-text"><%= i18n.__('leads.auto.delay_hint') %></div>
+							</div>
+						</div>
+
+						<h6 class="mt-4 mb-2"><%= i18n.__('leads.auto.if') %> <small class="text-muted fw-normal"><%= i18n.__('leads.routing.when_hint') %></small></h6>
+						<div class="row g-3">
+							<div class="col-md-3">
+								<div class="section-title"><%= i18n.__('leads.routing.f.sources') %></div>
+								<div class="chk-box" id="c-sources">
+									<% sources.forEach(function (x) { %><div class="form-check"><input class="form-check-input" type="checkbox" value="<%= x.id %>" id="csrc-<%= x.id %>" /><label class="form-check-label" for="csrc-<%= x.id %>"><%= x.name %></label></div><% }); %>
+									<% if (!sources.length) { %><span class="text-muted small">—</span><% } %>
+								</div>
+							</div>
+							<div class="col-md-3">
+								<div class="section-title"><%= i18n.__('leads.routing.f.capture') %></div>
+								<div class="chk-box" id="c-capture">
+									<% capture.forEach(function (x) { %><div class="form-check"><input class="form-check-input" type="checkbox" value="<%= x %>" id="ccap-<%= x %>" /><label class="form-check-label" for="ccap-<%= x %>"><%= i18n.__('leads.routing.capture.' + x.replace('-', '_')) %></label></div><% }); %>
+								</div>
+							</div>
+							<div class="col-md-3">
+								<div class="section-title"><%= i18n.__('leads.routing.f.pipelines') %></div>
+								<div class="chk-box" id="c-pipelines">
+									<% pipelines.forEach(function (x) { %><div class="form-check"><input class="form-check-input" type="checkbox" value="<%= x.id %>" id="cpl-<%= x.id %>" /><label class="form-check-label" for="cpl-<%= x.id %>"><%= x.name %></label></div><% }); %>
+								</div>
+							</div>
+							<div class="col-md-3">
+								<div class="section-title"><%= i18n.__('leads.routing.f.value') %></div>
+								<div class="input-group mb-2">
+									<input type="number" class="form-control rounded-0" id="c-vmin" min="0" step="0.01" placeholder="<%= i18n.__('leads.routing.from') %>" />
+									<input type="number" class="form-control rounded-0" id="c-vmax" min="0" step="0.01" placeholder="<%= i18n.__('leads.routing.to') %>" />
+								</div>
+								<div class="section-title"><%= i18n.__('leads.routing.f.phone_prefix') %></div>
+								<input type="text" class="form-control rounded-0" id="c-phone" placeholder="+48, +380" />
+							</div>
+						</div>
+
+						<h6 class="mt-4 mb-2 d-flex align-items-center gap-2">
+							<%= i18n.__('leads.auto.then') %>
+							<div class="dropdown ms-auto">
+								<button type="button" class="btn btn-sm btn-outline-primary rounded-0" data-bs-toggle="dropdown"><i class="fa-solid fa-plus me-1"></i><%= i18n.__('leads.auto.add_action') %> <i class="fa-solid fa-angle-down"></i></button>
+								<ul class="dropdown-menu dropdown-menu-end rounded-0">
+									<% actions.forEach(function (a) { %><li><button type="button" class="dropdown-item" data-add-act="<%= a %>"><%= i18n.__('leads.auto.action.' + a) %></button></li><% }); %>
+								</ul>
+							</div>
+						</h6>
+						<div id="a-actions"></div>
+						<div class="invalid-feedback d-block" id="err-actions"></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-danger rounded-0 me-auto d-none" id="a-delete"><i class="fa-solid fa-trash me-1"></i><%= i18n.__('leads.work.delete') %></button>
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('leads.view.cancel') %></button>
+						<button type="button" class="btn btn-primary rounded-0" id="a-save"><i class="fa-solid fa-floppy-disk me-1"></i><%= i18n.__('leads.view.save') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Модалка: журнал запусків -->
+		<div class="modal fade" id="m-log" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5" id="m-log-title"></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body p-0">
+						<table class="table table-sm table-bordered mb-0 align-middle">
+							<thead class="table-light"><tr><th><%= i18n.__('leads.work.f.date') %></th><th><%= i18n.__('leads.auto.lead') %></th><th><%= i18n.__('leads.auto.result') %></th></tr></thead>
+							<tbody id="log-rows"></tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Модалка: підтвердження видалення -->
+		<div class="modal fade" id="m-del" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5"><%= i18n.__('leads.auto.delete_title') %></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body"><p class="mb-0" id="m-del-text"></p></div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('leads.view.cancel') %></button>
+						<button type="button" class="btn btn-danger rounded-0" id="m-del-ok"><%= i18n.__('leads.work.delete') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000, types: [{ type: "success", dismissible: true, icon: false }, { type: "error", background: "indianred", dismissible: true, icon: false }] });
+				const J = (v) => v;
+				const D = J(<%- JSON.stringify({
+					stages: stages.map(function (s) { return [s.id, s.name]; }),
+					statuses: statuses.map(function (s) { return [s.id, s.name]; }),
+					managers: managers.map(function (m) { return [m.id, m.name || ('#' + m.id)]; }),
+					groups: groups.map(function (g) { return [g.id, g.name]; }),
+					tags: tags.map(function (t) { return [t.id, t.name]; }),
+					id_priority: priorities.map(function (x) { return [x.id, x.name]; }),
+					id_temperature: temperatures.map(function (x) { return [x.id, x.name]; }),
+					id_qualification: qualifications.map(function (x) { return [x.id, x.name]; }),
+					id_source: sources.map(function (x) { return [x.id, x.name]; })
+				}).replace(/</g, '\\u003c') %>);
+				const NAME = Object.fromEntries(Object.entries(D).map(([k, list]) => [k, Object.fromEntries(list)]));
+				const SET_FIELDS = <%- JSON.stringify(setFields) %>;
+				const T = {
+					trigger: { created: "<%= i18n.__('leads.auto.trigger.created') %>", stage_enter: "<%= i18n.__('leads.auto.trigger.stage_enter') %>", status_change: "<%= i18n.__('leads.auto.trigger.status_change') %>", idle: "<%= i18n.__('leads.auto.trigger.idle') %>" },
+					action: { task: "<%= i18n.__('leads.auto.action.task') %>", notify: "<%= i18n.__('leads.auto.action.notify') %>", set_manager: "<%= i18n.__('leads.auto.action.set_manager') %>", set_stage: "<%= i18n.__('leads.auto.action.set_stage') %>", set_status: "<%= i18n.__('leads.auto.action.set_status') %>", set_field: "<%= i18n.__('leads.auto.action.set_field') %>", tag_add: "<%= i18n.__('leads.auto.action.tag_add') %>", tag_remove: "<%= i18n.__('leads.auto.action.tag_remove') %>", comment: "<%= i18n.__('leads.auto.action.comment') %>" },
+					field: { id_priority: "<%= i18n.__('leads.view.f.id_priority') %>", id_temperature: "<%= i18n.__('leads.view.f.id_temperature') %>", id_qualification: "<%= i18n.__('leads.view.f.id_qualification') %>", id_source: "<%= i18n.__('leads.view.f.id_source') %>" },
+					result: { success: "<%= i18n.__('leads.auto.res.success') %>", error: "<%= i18n.__('leads.auto.res.error') %>", skipped: "<%= i18n.__('leads.auto.res.skipped') %>", pending: "<%= i18n.__('leads.auto.res.pending') %>", running: "<%= i18n.__('leads.auto.res.running') %>" },
+					days: "<%= i18n.__('leads.auto.days_n') %>",
+					after: "<%= i18n.__('leads.auto.after') %>",
+					min: "<%= i18n.__('leads.auto.unit.min') %>",
+					never: "<%= i18n.__('leads.auto.never') %>",
+					err: "<%= i18n.__('leads.server.server') %>",
+				};
+				const L = {
+					subject: "<%= i18n.__('leads.work.f.subject') %>", body: "<%= i18n.__('leads.work.f.body') %>", due: "<%= i18n.__('leads.auto.f.due_hours') %>",
+					to: "<%= i18n.__('leads.auto.f.to') %>", to_manager: "<%= i18n.__('leads.auto.to.manager') %>", to_user: "<%= i18n.__('leads.auto.to.user') %>", to_group: "<%= i18n.__('leads.auto.to.group') %>",
+					text: "<%= i18n.__('leads.auto.f.text') %>", user: "<%= i18n.__('leads.list.manager') %>", only_empty: "<%= i18n.__('leads.auto.f.only_empty') %>", by_rules: "<%= i18n.__('leads.auto.f.by_rules') %>",
+					stage: "<%= i18n.__('leads.list.stage') %>", status: "<%= i18n.__('leads.list.status') %>", field: "<%= i18n.__('leads.auto.f.field') %>", value: "<%= i18n.__('leads.auto.f.value') %>", tag: "<%= i18n.__('leads.list.tag') %>",
+				};
+
+				async function post(url, body) {
+					const r = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok) throw Object.assign(new Error(j.message || T.err), { data: j });
+					return j;
+				}
+				const opts = (list, sel, empty) => (empty !== undefined ? '<option value="">' + esc(empty) + "</option>" : "") + list.map(([id, n]) => '<option value="' + Number(id) + '"' + (String(sel) === String(id) ? " selected" : "") + ">" + esc(n) + "</option>").join("");
+
+				function triggerText(t) {
+					let s = T.trigger[t.event] || t.event;
+					if (t.event === "stage_enter" && t.id_stage) s += ": " + (NAME.stages[t.id_stage] || "#" + t.id_stage);
+					if (t.event === "status_change" && t.id_status) s += ": " + (NAME.statuses[t.id_status] || "#" + t.id_status);
+					if (t.event === "idle") s += ": " + T.days.replace("{{n}}", t.days) + (t.id_stage ? " · " + (NAME.stages[t.id_stage] || "") : "");
+					return s;
+				}
+				function actionText(a) {
+					const n = T.action[a.type] || a.type;
+					switch (a.type) {
+						case "task": return n + ": " + a.subject;
+						case "notify": return n + " → " + (a.to === "manager" ? L.to_manager : a.to === "group" ? NAME.groups[a.ref] || "#" + a.ref : NAME.managers[a.ref] || "#" + a.ref);
+						case "set_manager": return n + ": " + (a.rules ? L.by_rules : NAME.managers[a.id_user] || "#" + a.id_user);
+						case "set_stage": return n + ": " + (NAME.stages[a.id_stage] || "#" + a.id_stage);
+						case "set_status": return n + ": " + (NAME.statuses[a.id_status] || "#" + a.id_status);
+						case "set_field": return (T.field[a.field] || a.field) + ": " + ((NAME[a.field] || {})[a.value] || "#" + a.value);
+						case "tag_add": case "tag_remove": return n + ": " + (NAME.tags[a.id_tag] || "#" + a.id_tag);
+					}
+					return n;
+				}
+
+				const table = new Tabulator("#auto-table", {
+					layout: "fitColumns",
+					placeholder: "<%= i18n.__('leads.auto.empty') %>",
+					columns: [
+						{ title: "<%= i18n.__('leads.routing.f.sort') %>", field: "sort", width: 90, hozAlign: "center" },
+						{ title: "<%= i18n.__('leads.routing.f.name') %>", field: "name", minWidth: 180, formatter: (c) => esc(c.getValue()) },
+						{ title: "<%= i18n.__('leads.auto.when') %>", field: "trigger", minWidth: 200, headerSort: false, formatter: (c) => { const d = c.getRow().getData(); return esc(triggerText(c.getValue() || {})) + (Number(d.delay_min) ? '<br><small class="text-muted">' + esc(T.after) + " " + Number(d.delay_min) + " " + esc(T.min) + "</small>" : ""); } },
+						{ title: "<%= i18n.__('leads.auto.then') %>", field: "actions", minWidth: 260, headerSort: false, variableHeight: true, formatter: (c) => (c.getValue() || []).map((a) => esc(actionText(a))).join("<br>") },
+						{ title: "<%= i18n.__('leads.auto.runs') %>", field: "runs", width: 140, hozAlign: "center", formatter: (c) => { const d = c.getRow().getData(); return '<a href="#" data-log="' + Number(d.id) + '">' + Number(c.getValue() || 0) + "</a>" + '<br><small class="text-muted">' + esc(d.last_run ? String(d.last_run).slice(0, 16) : T.never) + "</small>"; } },
+						{ title: "<%= i18n.__('leads.routing.f.active') %>", field: "is_active", width: 100, hozAlign: "center", formatter: (c) => (Number(c.getValue()) ? '<i class="fa-solid fa-check text-success"></i>' : '<i class="fa-solid fa-minus text-muted"></i>') },
+						{ title: "", field: "id", width: 60, hozAlign: "center", headerSort: false, formatter: () => '<button type="button" class="btn btn-sm btn-outline-primary rounded-0"><i class="fa-solid fa-pen"></i></button>', cellClick: (e, cell) => open(cell.getRow().getData()) },
+					],
+				});
+				const load = () => post("/api/leads/settings/automations/list/").then((d) => table.replaceData(d.rows)).catch((e) => notyf.error(e.message));
+				table.on("tableBuilt", load);
+
+				/* ── Дії: рядок на дію, поля за типом ── */
+				function actionRow(a) {
+					const el = document.createElement("div");
+					el.className = "act-row";
+					el.dataset.type = a.type;
+					let f = "";
+					const field = (label, html, col) => '<div class="col-md-' + (col || 4) + '"><div class="section-title">' + esc(label) + "</div>" + html + "</div>";
+					switch (a.type) {
+						case "task":
+							f = field(L.subject, '<input type="text" class="form-control rounded-0" data-k="subject" maxlength="500" value="' + esc(a.subject || "") + '">', 5) +
+								field(L.due, '<input type="number" class="form-control rounded-0" data-k="due_hours" min="0" step="1" value="' + Number(a.due_hours ?? 1) + '">', 2) +
+								field(L.body, '<input type="text" class="form-control rounded-0" data-k="body" maxlength="5000" value="' + esc(a.body || "") + '">', 5);
+							break;
+						case "notify":
+							f = field(L.to, '<select class="form-select rounded-0" data-k="to"><option value="manager"' + (a.to === "manager" || !a.to ? " selected" : "") + ">" + esc(L.to_manager) + '</option><option value="user"' + (a.to === "user" ? " selected" : "") + ">" + esc(L.to_user) + '</option><option value="group"' + (a.to === "group" ? " selected" : "") + ">" + esc(L.to_group) + "</option></select>", 3) +
+								field("", '<select class="form-select rounded-0" data-k="ref">' + opts(a.to === "group" ? D.groups : D.managers, a.ref, "—") + "</select>", 3) +
+								field(L.text, '<input type="text" class="form-control rounded-0" data-k="text" maxlength="1000" value="' + esc(a.text || "") + '">', 6);
+							break;
+						case "set_manager":
+							f = field(L.user, '<select class="form-select rounded-0" data-k="id_user"><option value="__rules"' + (a.rules ? " selected" : "") + ">" + esc(L.by_rules) + "</option>" + opts(D.managers, a.rules ? "" : a.id_user) + "</select>", 5) +
+								'<div class="col-md-4 d-flex align-items-end"><div class="form-check mb-2"><input class="form-check-input" type="checkbox" data-k="only_empty"' + (a.only_empty ? " checked" : "") + '><label class="form-check-label">' + esc(L.only_empty) + "</label></div></div>";
+							break;
+						case "set_stage":
+							f = field(L.stage, '<select class="form-select rounded-0" data-k="id_stage">' + $("a-stage").innerHTML.replace(/<option value="" data-tr-any>[^<]*<\/option>/, "") + "</select>", 5);
+							break;
+						case "set_status":
+							f = field(L.status, '<select class="form-select rounded-0" data-k="id_status">' + opts(D.statuses, a.id_status) + "</select>", 5);
+							break;
+						case "set_field":
+							f = field(L.field, '<select class="form-select rounded-0" data-k="field">' + SET_FIELDS.map((x) => '<option value="' + x + '"' + (a.field === x ? " selected" : "") + ">" + esc(T.field[x]) + "</option>").join("") + "</select>", 4) +
+								field(L.value, '<select class="form-select rounded-0" data-k="value">' + opts(D[a.field || SET_FIELDS[0]] || [], a.value) + "</select>", 4);
+							break;
+						case "tag_add":
+						case "tag_remove":
+							f = field(L.tag, '<select class="form-select rounded-0" data-k="id_tag">' + opts(D.tags, a.id_tag) + "</select>", 5);
+							break;
+						case "comment":
+							f = field(L.text, '<input type="text" class="form-control rounded-0" data-k="text" maxlength="5000" value="' + esc(a.text || "") + '">', 12);
+							break;
+					}
+					el.innerHTML = '<div class="d-flex justify-content-between align-items-center mb-2"><strong>' + esc(T.action[a.type]) + '</strong><div class="btn-group btn-group-sm">' +
+						'<button type="button" class="btn btn-outline-secondary rounded-0" data-mv="-1"><i class="fa-solid fa-arrow-up"></i></button>' +
+						'<button type="button" class="btn btn-outline-secondary rounded-0" data-mv="1"><i class="fa-solid fa-arrow-down"></i></button>' +
+						'<button type="button" class="btn btn-outline-danger rounded-0" data-rm-act><i class="fa-solid fa-xmark"></i></button></div></div><div class="row g-2">' + f + "</div>";
+					if (a.type === "set_stage" && a.id_stage) el.querySelector('[data-k="id_stage"]').value = String(a.id_stage);
+					$("a-actions").appendChild(el);
+				}
+				function readActions() {
+					return [...$("a-actions").children].map((el) => {
+						const a = { type: el.dataset.type };
+						el.querySelectorAll("[data-k]").forEach((i) => (a[i.dataset.k] = i.type === "checkbox" ? i.checked : i.value));
+						if (a.type === "set_manager" && a.id_user === "__rules") {
+							delete a.id_user;
+							a.rules = true;
+						}
+						return a;
+					});
+				}
+				$("a-actions").addEventListener("change", (e) => {
+					const row = e.target.closest(".act-row");
+					if (!row) return;
+					if (row.dataset.type === "notify" && e.target.dataset.k === "to") row.querySelector('[data-k="ref"]').innerHTML = opts(e.target.value === "group" ? D.groups : D.managers, "", "—");
+					if (row.dataset.type === "set_field" && e.target.dataset.k === "field") row.querySelector('[data-k="value"]').innerHTML = opts(D[e.target.value] || []);
+				});
+				$("a-actions").addEventListener("click", (e) => {
+					const row = e.target.closest(".act-row");
+					if (!row) return;
+					if (e.target.closest("[data-rm-act]")) row.remove();
+					const mv = e.target.closest("[data-mv]");
+					if (mv) {
+						if (mv.dataset.mv === "-1" && row.previousElementSibling) row.parentNode.insertBefore(row, row.previousElementSibling);
+						if (mv.dataset.mv === "1" && row.nextElementSibling) row.parentNode.insertBefore(row.nextElementSibling, row);
+					}
+				});
+				document.querySelectorAll("[data-add-act]").forEach((b) => b.addEventListener("click", () => actionRow({ type: b.dataset.addAct })));
+
+				/* ── Модалка правила ── */
+				const modal = bootstrap.Modal.getOrCreateInstance($("m-auto"));
+				const checks = (box, vals) => $(box).querySelectorAll("input").forEach((i) => (i.checked = (vals || []).map(String).includes(i.value)));
+				const checked = (box) => [...$(box).querySelectorAll("input:checked")].map((i) => i.value);
+				function eventSync() {
+					const ev = $("a-event").value;
+					document.querySelectorAll("[data-tr]").forEach((el) => el.classList.toggle("d-none", !el.dataset.tr.split(" ").includes(ev)));
+					// «Будь-який етап» — лише для «без змін»
+					const any = $("a-stage").querySelector("[data-tr-any]");
+					any.disabled = ev === "stage_enter";
+					if (ev === "stage_enter" && !$("a-stage").value) $("a-stage").selectedIndex = 1;
+				}
+				$("a-event").addEventListener("change", eventSync);
+				function open(r) {
+					r = r || { is_active: 1, trigger: { event: "stage_enter" }, conditions: {}, actions: [{ type: "task", due_hours: 1 }], sort: (table.getData().reduce((m, x) => Math.max(m, Number(x.sort) || 0), 0) || 0) + 10 };
+					$("m-auto").querySelectorAll(".is-invalid").forEach((x) => x.classList.remove("is-invalid"));
+					["err-trigger", "err-actions"].forEach((id) => ($(id).textContent = ""));
+					$("m-auto-title").textContent = r.id ? "<%= i18n.__('leads.auto.edit') %>" : "<%= i18n.__('leads.auto.add') %>";
+					$("a-id").value = r.id || "";
+					$("a-name").value = r.name || "";
+					$("a-sort").value = r.sort ?? 0;
+					$("a-active").checked = !!Number(r.is_active);
+					const t = r.trigger || {};
+					$("a-event").value = t.event || "stage_enter";
+					$("a-stage").value = t.id_stage || "";
+					$("a-status").value = t.id_status || "";
+					$("a-days").value = t.days || 3;
+					const dm = Number(r.delay_min) || 0;
+					const unit = dm && dm % 1440 === 0 ? 1440 : dm && dm % 60 === 0 ? 60 : 1;
+					$("a-delay-unit").value = String(unit);
+					$("a-delay").value = dm ? dm / unit : "";
+					const c = r.conditions || {};
+					checks("c-sources", c.sources);
+					checks("c-capture", c.capture);
+					checks("c-pipelines", c.pipelines);
+					$("c-vmin").value = c.value_min ?? "";
+					$("c-vmax").value = c.value_max ?? "";
+					$("c-phone").value = (c.phone_prefix || []).join(", ");
+					$("a-actions").innerHTML = "";
+					(r.actions || []).forEach(actionRow);
+					$("a-delete").classList.toggle("d-none", !r.id);
+					eventSync();
+					modal.show();
+				}
+				$("btn-new").addEventListener("click", () => open(null));
+
+				$("a-save").addEventListener("click", async (e) => {
+					const btn = e.currentTarget;
+					const ev = $("a-event").value;
+					const body = {
+						id: $("a-id").value,
+						name: $("a-name").value,
+						sort: $("a-sort").value,
+						is_active: $("a-active").checked,
+						trigger: { event: ev, id_stage: $("a-stage").value, id_status: $("a-status").value, days: $("a-days").value },
+						delay_min: (Number($("a-delay").value) || 0) * Number($("a-delay-unit").value),
+						conditions: { sources: checked("c-sources"), capture: checked("c-capture"), pipelines: checked("c-pipelines"), value_min: $("c-vmin").value, value_max: $("c-vmax").value, phone_prefix: $("c-phone").value },
+						actions: readActions(),
+					};
+					btn.disabled = true;
+					try {
+						await post("/api/leads/settings/automations/save/", body);
+						modal.hide();
+						notyf.success("<%= i18n.__('leads.auto.saved') %>");
+						load();
+					} catch (err) {
+						const errors = (err.data && err.data.errors) || {};
+						if (errors.name) $("a-name").classList.add("is-invalid"), ($("a-name").nextElementSibling.textContent = errors.name);
+						if (errors.trigger) $("a-event").classList.add("is-invalid"), ($("err-trigger").textContent = errors.trigger);
+						if (errors.actions) $("err-actions").textContent = errors.actions;
+						notyf.error(err.message);
+					} finally {
+						btn.disabled = false;
+					}
+				});
+
+				/* ── Журнал і видалення ── */
+				const logModal = bootstrap.Modal.getOrCreateInstance($("m-log"));
+				const REASON = { moved: "<%= i18n.__('leads.auto.reason.moved') %>", inactive: "<%= i18n.__('leads.auto.reason.inactive') %>", lead: "<%= i18n.__('leads.auto.reason.lead') %>", deleted: "<%= i18n.__('leads.auto.reason.deleted') %>", interrupted: "<%= i18n.__('leads.auto.reason.interrupted') %>" };
+				const RES_CLS = { success: "text-bg-success", error: "text-bg-danger", skipped: "text-bg-secondary", pending: "text-bg-primary", running: "text-bg-warning" };
+				$("auto-table").addEventListener("click", async (e) => {
+					const a = e.target.closest("[data-log]");
+					if (!a) return;
+					e.preventDefault();
+					const row = table.getData().find((x) => String(x.id) === a.dataset.log);
+					$("m-log-title").textContent = row ? row.name : "";
+					try {
+						const d = await post("/api/leads/settings/automations/log/", { id: a.dataset.log });
+						$("log-rows").innerHTML = d.rows.length
+							? d.rows.map((r) => "<tr><td class=\"small\">" + esc(String(r.date_add || "").slice(0, 16)) + (r.result === "pending" && r.run_at ? '<br><span class="text-muted">→ ' + esc(String(r.run_at).slice(0, 16)) + "</span>" : "") + "</td>" +
+								'<td><a href="/leads/' + Number(r.id_lead) + '/">#' + Number(r.id_lead) + " " + esc(r.title || "") + "</a></td>" +
+								'<td><span class="badge rounded-0 ' + (RES_CLS[r.result] || "text-bg-secondary") + '">' + esc(T.result[r.result] || r.result) + "</span>" + (r.error ? '<div class="small text-muted">' + esc(REASON[r.error] || r.error) + "</div>" : "") + "</td></tr>").join("")
+							: '<tr><td colspan="3" class="text-muted small p-3"><%= i18n.__('leads.auto.log_empty') %></td></tr>';
+						logModal.show();
+					} catch (err) {
+						notyf.error(err.message);
+					}
+				});
+				const del = bootstrap.Modal.getOrCreateInstance($("m-del"));
+				$("a-delete").addEventListener("click", () => {
+					$("m-del-text").textContent = $("a-name").value;
+					modal.hide();
+					del.show();
+				});
+				$("m-del-ok").addEventListener("click", async (e) => {
+					const btn = e.currentTarget;
+					btn.disabled = true;
+					try {
+						await post("/api/leads/settings/automations/delete/", { id: $("a-id").value });
+						del.hide();
+						notyf.success("<%= i18n.__('leads.work.n.deleted') %>");
+						load();
+					} catch (err) {
+						notyf.error(err.message);
+					} finally {
+						btn.disabled = false;
+					}
+				});
+			})();
+		</script>
+	</body>
+</html>

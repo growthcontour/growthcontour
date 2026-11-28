@@ -1,0 +1,89 @@
+{
+    "users": {
+        "profile": {
+            "title": "Користувач",
+            "title_self": "Мій профіль",
+            "home": "Головна",
+            "users": "Користувачі",
+            "edit": "Редагувати",
+            "back": "До списку користувачів",
+
+            "photo": "Фото профілю",
+            "avatar_change": "Змінити",
+            "avatar_delete": "Видалити фото",
+            "avatar_hint": "JPG, PNG, WEBP · до 5 МБ",
+
+            "general": "Загальна інформація",
+            "status": "Статус",
+            "status_0": "Неактивний",
+            "status_1": "Активний",
+            "status_2": "Заблокований",
+            "status_3": "Запрошений",
+            "gender": "Стать",
+            "gender_0": "Не вказано",
+            "gender_1": "Чоловік",
+            "gender_2": "Жінка",
+            "birthday": "Дата народження",
+            "phone": "Телефон",
+            "language": "Мова",
+            "lang_1": "Українська",
+            "lang_2": "English",
+            "on": "Увімкнено",
+            "off": "Вимкнено",
+            "failed_logins": "Невдалих входів",
+            "groups": "Групи",
+
+            "activity": "Активність",
+            "activity_registered": "Зареєстрований",
+            "activity_last_login": "Останній вхід",
+            "activity_online_since": "Онлайн з",
+            "activity_last_seen": "Останній раз онлайн",
+
+            "sessions": "Активні сесії",
+            "sessions_revoke_others": "Завершити всі інші",
+            "sessions_revoke_all": "Завершити всі",
+
+            "login_log": "Журнал входів",
+
+            "js": {
+                "error_network": "Помилка з'єднання з сервером",
+                "avatar_too_big": "Файл більший за 5 МБ",
+                "avatar_saved": "Фото профілю оновлено",
+                "avatar_upload_failed": "Не вдалося завантажити фото",
+                "avatar_delete_confirm": "Видалити фото профілю?",
+
+                "this_device": "Цей пристрій",
+                "signed_in": "вхід",
+                "last_active": "активність",
+                "sign_out": "Завершити",
+                "no_sessions": "Немає активних сесій",
+                "sessions_revoke_confirm": "Завершити сесії? На цих пристроях доведеться увійти заново.",
+
+                "device_desktop": "Комп'ютер",
+                "device_mobile": "Телефон",
+                "device_tablet": "Планшет",
+
+                "reason_password": "Невірний пароль",
+                "reason_2fa": "Невірний код 2FA",
+                "reason_blocked": "Акаунт заблоковано",
+                "reason_inactive": "Акаунт неактивний",
+
+                "no_records": "Немає записів",
+                "page_first": "Перша",
+                "page_last": "Остання",
+                "page_prev": "Попередня",
+                "page_next": "Наступна",
+                "page_all": "Всі",
+                "page_size": "Рядків",
+
+                "col_date": "Дата",
+                "col_country": "Країна",
+                "col_city": "Місто",
+                "col_device": "Пристрій",
+                "col_status": "Статус",
+                "status_success": "Успішно",
+                "status_failed": "Невдала"
+            }
+        }
+    }
+}

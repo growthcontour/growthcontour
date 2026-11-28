@@ -1,0 +1,164 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('leads.rules.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.req-menu { max-height: 340px; overflow-y: auto; min-width: 260px; }
+			.req-chip { font-weight: 500; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('leads.rules.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('leads.intake.breadcrumb.home') %></span></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/leads/"><%= i18n.__('leads.intake.breadcrumb.leads') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/leads/settings/"><%= i18n.__('leads.intake.breadcrumb.settings') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= i18n.__('leads.rules.title') %></li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/leads/settings/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3 mb-4">
+			<div class="alert alert-light border rounded-0 small"><i class="fa-solid fa-circle-info me-1 text-primary"></i><%= i18n.__('leads.rules.intro') %></div>
+			<div class="card border-primary rounded-0">
+				<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center gap-2">
+					<span><%= i18n.__('leads.rules.title') %></span>
+					<% if (pipelines.length) { %>
+					<select class="form-select form-select-sm rounded-0" id="pipeline" style="max-width: 280px">
+						<% pipelines.forEach(function (p) { %>
+						<option value="<%= p.id %>"<%= current && current.id === p.id ? ' selected' : '' %>><%= p.name %></option>
+						<% }); %>
+					</select>
+					<% } %>
+				</div>
+				<% if (!pipelines.length) { %>
+				<div class="card-body"><p class="text-muted mb-0"><%= i18n.__('leads.kanban.no_pipelines') %></p></div>
+				<% } else { %>
+				<div class="table-responsive">
+					<table class="table table-bordered align-middle mb-0">
+						<thead class="table-light">
+							<tr>
+								<th><%= i18n.__('leads.rules.stage') %></th>
+								<th style="width: 170px"><%= i18n.__('leads.rules.sla_hours') %></th>
+								<th style="width: 170px" class="text-center"><%= i18n.__('leads.rules.lock_back') %></th>
+								<th><%= i18n.__('leads.rules.required') %></th>
+							</tr>
+						</thead>
+						<tbody id="rows"><tr><td colspan="4"><span class="spinner-border spinner-border-sm"></span></td></tr></tbody>
+					</table>
+				</div>
+				<div class="card-body border-top d-flex align-items-center gap-3">
+					<button type="button" class="btn btn-primary rounded-0" id="btn-save"><i class="fa-solid fa-floppy-disk me-1"></i><%= i18n.__('leads.view.save') %></button>
+					<small class="text-muted"><%= i18n.__('leads.rules.loss_hint') %></small>
+				</div>
+				<% } %>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<% if (pipelines.length) { %>
+		<script>
+			(function () {
+				"use strict";
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const color = (c, def) => (/^#?[0-9a-f]{3,8}$/i.test(String(c || "")) ? (String(c)[0] === "#" ? c : "#" + c) : def);
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000, types: [{ type: "success", dismissible: true, icon: false }, { type: "error", background: "indianred", dismissible: true, icon: false }] });
+				const FIELDS = <%- JSON.stringify(fields) %>;
+				const LABEL = <%- JSON.stringify(labels).replace(/</g, '\\u003c') %>;
+				// Назва поля за ключем («contact.phone» → LABEL.contact.phone)
+				const label = (k) => LABEL[k] || k;
+				const SYS = { won: "<%= i18n.__('leads.rules.sys_won') %>", lost: "<%= i18n.__('leads.rules.sys_lost') %>" };
+				let stages = [];
+
+				async function post(url, body) {
+					const r = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body) });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok) throw new Error(j.message || "<%= i18n.__('leads.server.server') %>");
+					return j;
+				}
+
+				function chips(s) {
+					return s.required_fields.length ? s.required_fields.map((k) => '<span class="badge rounded-0 text-bg-light border req-chip me-1">' + esc(label(k)) + "</span>").join("") : '<span class="text-muted small"><%= i18n.__('leads.rules.none') %></span>';
+				}
+
+				function render() {
+					$("rows").innerHTML = stages.length
+						? stages
+								.map((s, i) => {
+									const menu = FIELDS.map((k) => '<li><label class="dropdown-item d-flex gap-2"><input class="form-check-input" type="checkbox" data-i="' + i + '" data-k="' + k + '"' + (s.required_fields.includes(k) ? " checked" : "") + "> " + esc(label(k)) + "</label></li>").join("");
+									return (
+										"<tr" + (Number(s.is_active) ? "" : ' class="text-muted"') + ">" +
+										'<td><span class="d-inline-block me-2" style="width:10px;height:10px;background:' + color(s.color, "#6c757d") + '"></span>' + esc(s.name) +
+										(SYS[s.system_type] ? ' <span class="badge rounded-0 text-bg-secondary">' + esc(SYS[s.system_type]) + "</span>" : "") +
+										(Number(s.is_active) ? "" : ' <span class="badge rounded-0 text-bg-light border"><%= i18n.__('leads.rules.inactive') %></span>') + "</td>" +
+										'<td><input type="number" class="form-control form-control-sm rounded-0" min="0" max="8760" step="1" data-sla="' + i + '" value="' + Number(s.sla_hours || 0) + '"></td>' +
+										'<td class="text-center"><div class="form-check form-switch d-inline-block"><input class="form-check-input" type="checkbox" role="switch" data-lock="' + i + '"' + (Number(s.lock_back) ? " checked" : "") + "></div></td>" +
+										'<td><div class="d-flex flex-wrap align-items-center gap-1"><span id="chips-' + i + '">' + chips(s) + "</span>" +
+										'<div class="dropdown ms-auto"><button type="button" class="btn btn-sm btn-outline-primary rounded-0" data-bs-toggle="dropdown" data-bs-auto-close="outside"><%= i18n.__('leads.rules.choose') %> <i class="fa-solid fa-angle-down"></i></button>' +
+										'<ul class="dropdown-menu dropdown-menu-end rounded-0 req-menu">' + menu + "</ul></div></div></td>" +
+										"</tr>"
+									);
+								})
+								.join("")
+						: '<tr><td colspan="4" class="text-muted"><%= i18n.__('leads.kanban.empty') %></td></tr>';
+				}
+
+				async function load() {
+					const u = new URL(location.href);
+					u.searchParams.set("pipeline", $("pipeline").value);
+					history.replaceState(null, "", u);
+					try {
+						stages = (await post("/api/leads/settings/stages/", { pipeline: $("pipeline").value })).rows;
+						render();
+					} catch (e) {
+						notyf.error(e.message);
+					}
+				}
+
+				$("rows").addEventListener("change", (e) => {
+					const el = e.target;
+					if (el.dataset.k !== undefined) {
+						const s = stages[Number(el.dataset.i)];
+						const set = new Set(s.required_fields);
+						el.checked ? set.add(el.dataset.k) : set.delete(el.dataset.k);
+						s.required_fields = FIELDS.filter((k) => set.has(k));
+						$("chips-" + el.dataset.i).innerHTML = chips(s);
+					} else if (el.dataset.sla !== undefined) stages[Number(el.dataset.sla)].sla_hours = Math.max(0, parseInt(el.value, 10) || 0);
+					else if (el.dataset.lock !== undefined) stages[Number(el.dataset.lock)].lock_back = el.checked ? 1 : 0;
+				});
+				$("btn-save").addEventListener("click", async (e) => {
+					const btn = e.currentTarget;
+					btn.disabled = true;
+					try {
+						await post("/api/leads/settings/stages/save/", { pipeline: $("pipeline").value, stages: stages.map((s) => ({ id: s.id, sla_hours: s.sla_hours, lock_back: s.lock_back, required_fields: s.required_fields })) });
+						notyf.success("<%= i18n.__('leads.rules.saved') %>");
+					} catch (err) {
+						notyf.error(err.message);
+					} finally {
+						btn.disabled = false;
+					}
+				});
+				$("pipeline").addEventListener("change", load);
+				load();
+			})();
+		</script>
+		<% } %>
+	</body>
+</html>

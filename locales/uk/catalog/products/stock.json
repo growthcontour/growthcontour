@@ -1,0 +1,60 @@
+{
+	"catalog": {
+		"stock": {
+			"types": {
+				"receipt": "Прихід",
+				"transfer": "Переміщення",
+				"writeoff": "Списання",
+				"inventory": "Інвентаризація",
+				"return": "Повернення",
+				"adjustment": "Коригування"
+			},
+			"move_types": {
+				"receipt": "Прихід",
+				"sale": "Продаж",
+				"return": "Повернення",
+				"transfer_in": "Переміщення (надходження)",
+				"transfer_out": "Переміщення (вибуття)",
+				"adjustment": "Коригування",
+				"writeoff": "Списання",
+				"inventory": "Інвентаризація",
+				"reserve": "Резерв",
+				"unreserve": "Зняття резерву"
+			},
+			"status": {
+				"draft": "Чернетка",
+				"posted": "Проведено",
+				"cancelled": "Скасовано"
+			},
+			"f": {
+				"number": "Номер",
+				"type": "Тип",
+				"status": "Статус",
+				"date_document": "Дата",
+				"warehouse": "Склад",
+				"warehouse_from": "Склад-відправник",
+				"warehouse_to": "Склад-отримувач",
+				"supplier": "Постачальник",
+				"external_number": "Номер накладної",
+				"currency": "Валюта",
+				"comment": "Коментар",
+				"lines": "Рядків",
+				"qty_total": "Кількість",
+				"author": "Автор",
+				"posted": "Провів",
+				"product": "Товар",
+				"qty": "Кількість",
+				"qty_signed": "Кількість ±",
+				"qty_expected": "За обліком",
+				"qty_counted": "Фактично",
+				"difference": "Різниця",
+				"cost_price": "Собівартість",
+				"batch_no": "Партія",
+				"expiry_date": "Придатний до",
+				"location": "Комірка",
+				"serials": "Серійні номери",
+				"serials_hint": "Кожен з нового рядка"
+			}
+		}
+	}
+}

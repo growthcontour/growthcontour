@@ -1,0 +1,19 @@
+{
+	"deals": {
+		"server": {
+			"deal_not_found": "Угода не знайдена",
+			"server": "Помилка сервера",
+			"bad_value": "Невірне значення",
+			"no_pipeline": "Немає жодної активної воронки",
+			"no_stage": "Немає жодної стадії у воронці",
+			"new_deal": "Нова угода",
+			"field_name_required": "Вкажіть назву поля",
+			"field_type_required": "Оберіть тип поля",
+			"field_key_exists": "Поле з таким ключем вже існує",
+			"required_fields": "Заповніть обовʼязкові поля",
+			"dates_required": "Дати обовʼязкові",
+			"number_prefix": "УГ",
+			"auto_from_stage": "Автоматично від стадії"
+		}
+	}
+}

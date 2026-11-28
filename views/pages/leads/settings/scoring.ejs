@@ -1,0 +1,329 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('leads.scoring.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<style>
+			.section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #6c757d; letter-spacing: 0.5px; margin-bottom: 4px; }
+			.chk-box { max-height: 180px; overflow-y: auto; border: 1px solid #dee2e6; padding: 6px 10px; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('leads.scoring.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('leads.intake.breadcrumb.home') %></span></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/leads/"><%= i18n.__('leads.intake.breadcrumb.leads') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/leads/settings/"><%= i18n.__('leads.intake.breadcrumb.settings') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= i18n.__('leads.scoring.title') %></li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/leads/settings/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3 mb-4">
+			<div class="alert alert-light border rounded-0 small"><i class="fa-solid fa-circle-info me-1 text-primary"></i><%= i18n.__('leads.scoring.intro') %></div>
+			<% ['fit', 'activity'].forEach(function (type) { %>
+			<div class="card border-primary rounded-0 mb-3">
+				<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+					<span><%= i18n.__('leads.scoring.type.' + type) %> <small class="opacity-75"><%= i18n.__('leads.scoring.type_hint.' + type) %></small></span>
+					<button type="button" class="btn btn-sm btn-light rounded-0" data-new="<%= type %>"><i class="fa-solid fa-plus me-1"></i><%= i18n.__('leads.scoring.add') %></button>
+				</div>
+				<div id="table-<%= type %>"></div>
+			</div>
+			<% }); %>
+		</div>
+
+		<!-- Модалка: правило -->
+		<div class="modal fade" id="m-rule" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered modal-lg">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5" id="m-rule-title"></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" id="r-id" /><input type="hidden" id="r-type" />
+						<div class="row g-3">
+							<div class="col-md-6">
+								<label class="section-title d-block" for="r-name"><%= i18n.__('leads.routing.f.name') %></label>
+								<input type="text" class="form-control rounded-0" id="r-name" maxlength="255" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-2">
+								<label class="section-title d-block" for="r-delta"><%= i18n.__('leads.scoring.f.delta') %></label>
+								<input type="number" class="form-control rounded-0" id="r-delta" min="-100" max="100" step="1" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-2">
+								<label class="section-title d-block" for="r-sort"><%= i18n.__('leads.routing.f.sort') %></label>
+								<input type="number" class="form-control rounded-0" id="r-sort" min="0" step="1" />
+							</div>
+							<div class="col-md-2 d-flex align-items-end">
+								<div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="r-active" /><label class="form-check-label" for="r-active"><%= i18n.__('leads.routing.f.active') %></label></div>
+							</div>
+						</div>
+
+						<!-- Дані ліда -->
+						<div class="row g-3 mt-1" id="box-fit">
+							<div class="col-md-6">
+								<label class="section-title d-block" for="r-crit"><%= i18n.__('leads.scoring.f.criterion') %></label>
+								<select class="form-select rounded-0" id="r-crit">
+									<optgroup label="<%= i18n.__('leads.scoring.g.filled') %>">
+										<% filled.forEach(function (f) { %><option value="filled:<%= f %>"><%= i18n.__('leads.scoring.c.filled', { field: i18n.__('leads.scoring.field.' + f.replace('.', '_')) }) %></option><% }); %>
+										<option value="corporate:contact.email"><%= i18n.__('leads.scoring.c.corporate') %></option>
+									</optgroup>
+									<optgroup label="<%= i18n.__('leads.scoring.g.value') %>">
+										<option value="gte:value"><%= i18n.__('leads.scoring.c.gte') %></option>
+										<option value="lte:value"><%= i18n.__('leads.scoring.c.lte') %></option>
+									</optgroup>
+									<optgroup label="<%= i18n.__('leads.scoring.g.dict') %>">
+										<% inFields.forEach(function (f) { %><option value="in:<%= f %>"><%= i18n.__('leads.scoring.c.in', { field: i18n.__('leads.scoring.field.' + f) }) %></option><% }); %>
+										<option value="has:tag"><%= i18n.__('leads.scoring.c.has_tag') %></option>
+										<option value="starts:phone"><%= i18n.__('leads.scoring.c.phone') %></option>
+									</optgroup>
+									<optgroup label="UTM">
+										<% utm.forEach(function (f) { %>
+										<option value="eq:<%= f %>"><%= f %> = …</option>
+										<option value="contains:<%= f %>"><%= i18n.__('leads.scoring.c.contains', { field: f }) %></option>
+										<% }); %>
+									</optgroup>
+								</select>
+							</div>
+							<div class="col-md-6" id="crit-value"></div>
+							<div class="col-12"><div class="invalid-feedback d-block" id="err-condition"></div></div>
+						</div>
+
+						<!-- Активність -->
+						<div class="row g-3 mt-1 d-none" id="box-activity">
+							<div class="col-md-4">
+								<label class="section-title d-block" for="r-act-type"><%= i18n.__('leads.work.f.type') %></label>
+								<select class="form-select rounded-0" id="r-act-type">
+									<% actTypes.forEach(function (t) { %><option value="<%= t %>"><%= t === 'any' ? i18n.__('leads.scoring.any_activity') : i18n.__('leads.work.type.' + t) %></option><% }); %>
+								</select>
+							</div>
+							<div class="col-md-3">
+								<label class="section-title d-block" for="r-act-dir"><%= i18n.__('leads.work.f.direction') %></label>
+								<select class="form-select rounded-0" id="r-act-dir">
+									<option value="any"><%= i18n.__('leads.scoring.any_dir') %></option>
+									<option value="inbound"><%= i18n.__('leads.work.dir.inbound') %></option>
+									<option value="outbound"><%= i18n.__('leads.work.dir.outbound') %></option>
+								</select>
+							</div>
+							<div class="col-md-2">
+								<label class="section-title d-block" for="r-act-days"><%= i18n.__('leads.scoring.f.days') %></label>
+								<input type="number" class="form-control rounded-0" id="r-act-days" min="1" max="365" step="1" />
+							</div>
+							<div class="col-md-3">
+								<label class="section-title d-block" for="r-act-max"><%= i18n.__('leads.scoring.f.max') %></label>
+								<input type="number" class="form-control rounded-0" id="r-act-max" min="0" max="100" step="1" />
+							</div>
+							<div class="col-12 form-text"><%= i18n.__('leads.scoring.activity_hint') %></div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-danger rounded-0 me-auto d-none" id="r-delete"><i class="fa-solid fa-trash me-1"></i><%= i18n.__('leads.work.delete') %></button>
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('leads.view.cancel') %></button>
+						<button type="button" class="btn btn-primary rounded-0" id="r-save"><i class="fa-solid fa-floppy-disk me-1"></i><%= i18n.__('leads.view.save') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="modal fade" id="m-del" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5"><%= i18n.__('leads.scoring.delete_title') %></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body"><p class="mb-0" id="m-del-text"></p></div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('leads.view.cancel') %></button>
+						<button type="button" class="btn btn-danger rounded-0" id="m-del-ok"><%= i18n.__('leads.work.delete') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000, types: [{ type: "success", dismissible: true, icon: false }, { type: "error", background: "indianred", dismissible: true, icon: false }] });
+				const DICT = <%- JSON.stringify({
+					id_source: sources.map(function (x) { return [x.id, x.name]; }),
+					id_pipeline: pipelines.map(function (x) { return [x.id, x.name]; }),
+					id_priority: priorities.map(function (x) { return [x.id, x.name]; }),
+					id_temperature: temperatures.map(function (x) { return [x.id, x.name]; }),
+					id_qualification: qualifications.map(function (x) { return [x.id, x.name]; }),
+					capture_type: capture.map(function (x) { return [x, i18n.__('leads.routing.capture.' + x.replace('-', '_'))]; }),
+					tag: tags.map(function (x) { return [x.id, x.name]; })
+				}).replace(/</g, '\\u003c') %>;
+				const NAME = Object.fromEntries(Object.entries(DICT).map(([k, l]) => [k, Object.fromEntries(l)]));
+				const ACT = <%- JSON.stringify(Object.fromEntries(actTypes.map(function (t) { return [t, t === 'any' ? i18n.__('leads.scoring.any_activity') : i18n.__('leads.work.type.' + t)]; }))).replace(/</g, '\\u003c') %>;
+				const DIR = { any: "", inbound: "<%= i18n.__('leads.work.dir.inbound') %>", outbound: "<%= i18n.__('leads.work.dir.outbound') %>" };
+				const T = { err: "<%= i18n.__('leads.server.server') %>", days: "<%= i18n.__('leads.scoring.in_days') %>", max: "<%= i18n.__('leads.scoring.max_short') %>", value_ph: "<%= i18n.__('leads.scoring.value_ph') %>", text_ph: "<%= i18n.__('leads.scoring.text_ph') %>", phone_ph: "+48, +1" };
+
+				async function post(url, body) {
+					const r = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok) throw Object.assign(new Error(j.message || T.err), { data: j });
+					return j;
+				}
+
+				/** Опис умови для таблиці — з тексту пункту списку критеріїв */
+				function condText(r) {
+					const c = r.condition || {};
+					if (r.score_type === "activity") return (ACT[c.type] || c.type) + (DIR[c.direction] ? " · " + DIR[c.direction] : "") + " · " + T.days.replace("{{n}}", c.days) + (Number(c.max) ? " · " + T.max.replace("{{n}}", c.max) : "");
+					const opt = $("r-crit").querySelector('option[value="' + c.op + ":" + c.field + '"]');
+					let s = opt ? opt.textContent.replace(/\s*…$/, "") : c.op + " " + c.field;
+					if (c.op === "gte" || c.op === "lte") s += " " + Number(c.value);
+					if (c.op === "in") s += ": " + c.value.map((v) => (NAME[c.field] || {})[v] || "#" + v).join(", ");
+					if (c.op === "has") s += ": " + ((NAME.tag || {})[c.value] || "#" + c.value);
+					if (c.op === "starts") s += ": " + c.value.join(", ");
+					if (c.op === "eq" || c.op === "contains") s += " «" + c.value + "»";
+					return s;
+				}
+
+				const tables = {};
+				["fit", "activity"].forEach((type) => {
+					tables[type] = new Tabulator("#table-" + type, {
+						layout: "fitColumns",
+						placeholder: "<%= i18n.__('leads.scoring.empty') %>",
+						columns: [
+							{ title: "<%= i18n.__('leads.routing.f.sort') %>", field: "sort", width: 90, hozAlign: "center" },
+							{ title: "<%= i18n.__('leads.routing.f.name') %>", field: "name", minWidth: 180, formatter: (c) => esc(c.getValue()) },
+							{ title: "<%= i18n.__('leads.scoring.f.condition') %>", field: "condition", minWidth: 260, headerSort: false, formatter: (c) => esc(condText(c.getRow().getData())) },
+							{ title: "<%= i18n.__('leads.scoring.f.delta') %>", field: "score_delta", width: 100, hozAlign: "center", formatter: (c) => { const v = Number(c.getValue()); return '<span class="fw-semibold ' + (v < 0 ? "text-danger" : "text-success") + '">' + (v > 0 ? "+" : "") + v + "</span>"; } },
+							{ title: "<%= i18n.__('leads.routing.f.active') %>", field: "is_active", width: 100, hozAlign: "center", formatter: (c) => (Number(c.getValue()) ? '<i class="fa-solid fa-check text-success"></i>' : '<i class="fa-solid fa-minus text-muted"></i>') },
+							{ title: "", field: "id", width: 60, hozAlign: "center", headerSort: false, formatter: () => '<button type="button" class="btn btn-sm btn-outline-primary rounded-0"><i class="fa-solid fa-pen"></i></button>', cellClick: (e, cell) => open(cell.getRow().getData()) },
+						],
+					});
+				});
+				let all = [];
+				const load = () =>
+					post("/api/leads/settings/scoring/list/")
+						.then((d) => {
+							all = d.rows;
+							["fit", "activity"].forEach((t) => tables[t].replaceData(all.filter((r) => r.score_type === t)));
+						})
+						.catch((e) => notyf.error(e.message));
+				let built = 0;
+				Object.values(tables).forEach((t) => t.on("tableBuilt", () => ++built === 2 && load()));
+
+				/* ── Значення умови: поле за критерієм ── */
+				function critValue(cond) {
+					const [op, field] = $("r-crit").value.split(":");
+					const v = cond && cond.op === op && cond.field === field ? cond.value : undefined;
+					let html = "";
+					if (op === "gte" || op === "lte") html = '<input type="number" class="form-control rounded-0" id="cv" min="0" step="0.01" placeholder="' + esc(T.value_ph) + '" value="' + (v ?? "") + '">';
+					else if (op === "in") html = '<div class="chk-box" id="cv">' + (DICT[field] || []).map(([id, n]) => '<div class="form-check"><input class="form-check-input" type="checkbox" value="' + esc(id) + '"' + ((v || []).map(String).includes(String(id)) ? " checked" : "") + '><label class="form-check-label">' + esc(n) + "</label></div>").join("") + "</div>";
+					else if (op === "has") html = '<select class="form-select rounded-0" id="cv">' + (DICT.tag || []).map(([id, n]) => '<option value="' + Number(id) + '"' + (String(v) === String(id) ? " selected" : "") + ">" + esc(n) + "</option>").join("") + "</select>";
+					else if (op === "starts") html = '<input type="text" class="form-control rounded-0" id="cv" placeholder="' + T.phone_ph + '" value="' + esc((v || []).join(", ")) + '">';
+					else if (op === "eq" || op === "contains") html = '<input type="text" class="form-control rounded-0" id="cv" maxlength="255" placeholder="' + esc(T.text_ph) + '" value="' + esc(v || "") + '">';
+					$("crit-value").innerHTML = html ? '<div class="section-title">&nbsp;</div>' + html : "";
+				}
+				$("r-crit").addEventListener("change", () => critValue(null));
+				function readCondition() {
+					if ($("r-type").value === "activity") return { type: $("r-act-type").value, direction: $("r-act-dir").value, days: $("r-act-days").value, max: $("r-act-max").value };
+					const [op, field] = $("r-crit").value.split(":");
+					const cv = $("cv");
+					let value;
+					if (op === "in") value = [...cv.querySelectorAll("input:checked")].map((i) => i.value);
+					else if (op === "starts") value = cv.value.split(/[\s,;]+/).filter(Boolean);
+					else if (cv) value = cv.value;
+					return { op, field, value };
+				}
+
+				const modal = bootstrap.Modal.getOrCreateInstance($("m-rule"));
+				function open(r, type) {
+					type = r ? r.score_type : type;
+					r = r || { is_active: 1, score_delta: 10, condition: type === "activity" ? { type: "any", direction: "any", days: 30, max: 30 } : { op: "filled", field: "contact.phone" }, sort: (all.filter((x) => x.score_type === type).reduce((m, x) => Math.max(m, Number(x.sort) || 0), 0) || 0) + 10 };
+					$("m-rule").querySelectorAll(".is-invalid").forEach((x) => x.classList.remove("is-invalid"));
+					$("err-condition").textContent = "";
+					$("m-rule-title").textContent = (r.id ? "<%= i18n.__('leads.scoring.edit') %>" : "<%= i18n.__('leads.scoring.add') %>") + " · " + (type === "fit" ? "<%= i18n.__('leads.scoring.type.fit') %>" : "<%= i18n.__('leads.scoring.type.activity') %>");
+					$("r-id").value = r.id || "";
+					$("r-type").value = type;
+					$("r-name").value = r.name || "";
+					$("r-delta").value = r.score_delta;
+					$("r-sort").value = r.sort ?? 0;
+					$("r-active").checked = !!Number(r.is_active);
+					$("box-fit").classList.toggle("d-none", type !== "fit");
+					$("box-activity").classList.toggle("d-none", type !== "activity");
+					const c = r.condition || {};
+					if (type === "fit") {
+						$("r-crit").value = c.op + ":" + c.field;
+						if (!$("r-crit").value) $("r-crit").selectedIndex = 0;
+						critValue(c);
+					} else {
+						$("r-act-type").value = c.type || "any";
+						$("r-act-dir").value = c.direction || "any";
+						$("r-act-days").value = c.days || 30;
+						$("r-act-max").value = c.max ?? 0;
+					}
+					$("r-delete").classList.toggle("d-none", !r.id);
+					modal.show();
+				}
+				document.querySelectorAll("[data-new]").forEach((b) => b.addEventListener("click", () => open(null, b.dataset.new)));
+
+				$("r-save").addEventListener("click", async (e) => {
+					const btn = e.currentTarget;
+					btn.disabled = true;
+					try {
+						await post("/api/leads/settings/scoring/save/", { id: $("r-id").value, score_type: $("r-type").value, name: $("r-name").value, score_delta: $("r-delta").value, sort: $("r-sort").value, is_active: $("r-active").checked, condition: readCondition() });
+						modal.hide();
+						notyf.success("<%= i18n.__('leads.scoring.saved') %>");
+						load();
+					} catch (err) {
+						const errors = (err.data && err.data.errors) || {};
+						if (errors.name) $("r-name").classList.add("is-invalid"), ($("r-name").nextElementSibling.textContent = errors.name);
+						if (errors.score_delta) $("r-delta").classList.add("is-invalid"), ($("r-delta").nextElementSibling.textContent = errors.score_delta);
+						if (errors.condition) $("err-condition").textContent = errors.condition;
+						notyf.error(err.message);
+					} finally {
+						btn.disabled = false;
+					}
+				});
+
+				const del = bootstrap.Modal.getOrCreateInstance($("m-del"));
+				$("r-delete").addEventListener("click", () => {
+					$("m-del-text").textContent = $("r-name").value;
+					modal.hide();
+					del.show();
+				});
+				$("m-del-ok").addEventListener("click", async (e) => {
+					const btn = e.currentTarget;
+					btn.disabled = true;
+					try {
+						await post("/api/leads/settings/scoring/delete/", { id: $("r-id").value });
+						del.hide();
+						notyf.success("<%= i18n.__('leads.work.n.deleted') %>");
+						load();
+					} catch (err) {
+						notyf.error(err.message);
+					} finally {
+						btn.disabled = false;
+					}
+				});
+			})();
+		</script>
+	</body>
+</html>

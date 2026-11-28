@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>
+        <%= i18n.__('register.title') %> — Growth Contour
+    </title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+    <style>
+        a {
+            text-decoration: none;
+        }
+
+        .form-control:focus {
+            box-shadow: none;
+        }
+    </style>
+</head>
+
+<body class="d-flex flex-column h-100 bg-body-tertiary">
+
+    <div class="d-flex align-items-center justify-content-center vh-100">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-12 col-lg-5">
+                    <div style="background:#fff; padding:24px 28px;">
+
+                        <p class="text-primary mb-1" style="font-size:26px; font-weight:bold;">
+                            Growth Contour
+                        </p>
+                        <p class="text-muted mb-4" style="font-size:14px;">
+                            <%= i18n.__('register.title') %>
+                        </p>
+
+                        <% if (message==='invalid' ) { %>
+
+                            <div class="alert alert-danger rounded-0">
+                                <%= i18n.__('register.link_invalid') %>
+                            </div>
+
+                            <% } else if (message==='expired' ) { %>
+
+                                <div class="alert alert-warning rounded-0">
+                                    <%= i18n.__('register.link_expired') %>
+                                </div>
+
+                                <% } else if (message==='already_registered' ) { %>
+
+                                    <div class="alert alert-info rounded-0">
+                                        <%= i18n.__('register.already_registered') %>
+                                            <a href="/login/">
+                                                <%= i18n.__('register.go_to_login') %>
+                                            </a>
+                                    </div>
+
+                                    <% } else { %>
+
+                                        <p class="text-muted mb-3" style="font-size:14px;">
+                                            <%= i18n.__('register.subtitle') %>
+                                        </p>
+
+                                        <form id="register_form" autocomplete="off">
+                                            <input type="hidden" id="token" name="token" value="<%= token %>" />
+
+                                            <div class="mb-3">
+                                                <label class="form-label">
+                                                    <%= i18n.__('register.email') %>
+                                                </label>
+                                                <input type="text" class="form-control rounded-0 bg-light"
+                                                    value="<%= email %>" disabled />
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label">
+                                                    <%= i18n.__('register.last_name') %>
+                                                        <span class="text-danger">*</span>
+                                                </label>
+                                                <input type="text" class="form-control rounded-0" id="last_name"
+                                                    name="last_name" />
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label">
+                                                    <%= i18n.__('register.first_name') %>
+                                                        <span class="text-danger">*</span>
+                                                </label>
+                                                <input type="text" class="form-control rounded-0" id="first_name"
+                                                    name="first_name" />
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label">
+                                                    <%= i18n.__('register.patronymic') %>
+                                                </label>
+                                                <input type="text" class="form-control rounded-0" id="patronymic"
+                                                    name="patronymic" />
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label">
+                                                    <%= i18n.__('register.password') %>
+                                                        <span class="text-danger">*</span>
+                                                </label>
+                                                <input type="password" class="form-control rounded-0" id="password"
+                                                    name="password" />
+                                                <div class="form-text">
+                                                    <%= i18n.__('register.password_hint') %>
+                                                </div>
+                                            </div>
+
+                                            <div class="mb-4">
+                                                <label class="form-label">
+                                                    <%= i18n.__('register.password_confirm') %>
+                                                        <span class="text-danger">*</span>
+                                                </label>
+                                                <input type="password" class="form-control rounded-0"
+                                                    id="password_confirm" name="password_confirm" />
+                                            </div>
+
+                                            <button type="submit" class="btn btn-primary rounded-0 w-100"
+                                                id="btn_register">
+                                                <%= i18n.__('register.submit') %>
+                                            </button>
+
+                                        </form>
+
+                                        <% } %>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="/assets/js/notyf/notyf.min.js"></script>
+    <script>
+        const notyf = new Notyf({
+            position: { x: "right", y: "top" },
+            duration: 4000,
+            types: [
+                { type: "success", dismissible: true, icon: false },
+                { type: "error", background: "indianred", dismissible: true, icon: false },
+            ],
+        });
+
+        const errorMessages = {
+            "please_fill_field": "<%= i18n.__('register.error.please_fill_field') %>",
+            "min_length": "<%= i18n.__('register.error.min_length') %>",
+            "passwords_do_not_match": "<%= i18n.__('register.error.passwords_do_not_match') %>",
+            "token_invalid": "<%= i18n.__('register.error.token_invalid') %>",
+            "fill_all_fields": "<%= i18n.__('register.error.fill_all_fields') %>",
+        };
+
+        function getErrorMsg(msg) {
+            return errorMessages[msg] || msg;
+        }
+
+        function showFieldError(fieldId, msg) {
+            var $input = $("#" + fieldId);
+            $input.addClass("is-invalid");
+            $input.next(".invalid-feedback").remove();
+            $input.after('<div class="invalid-feedback">' + getErrorMsg(msg) + '</div>');
+        }
+
+        function clearErrors() {
+            $(".is-invalid").removeClass("is-invalid");
+            $(".invalid-feedback").remove();
+        }
+
+        function validateForm() {
+            clearErrors();
+
+            const last_name = $("#last_name").val().trim();
+            const first_name = $("#first_name").val().trim();
+            const password = $("#password").val().trim();
+            const password_confirm = $("#password_confirm").val().trim();
+            let hasErrors = false;
+
+            if (!last_name) {
+                showFieldError("last_name", "please_fill_field");
+                hasErrors = true;
+            }
+            if (!first_name) {
+                showFieldError("first_name", "please_fill_field");
+                hasErrors = true;
+            }
+            if (!password) {
+                showFieldError("password", "please_fill_field");
+                hasErrors = true;
+            } else if (password.length < 8) {
+                showFieldError("password", "min_length");
+                hasErrors = true;
+            }
+            if (!password_confirm) {
+                showFieldError("password_confirm", "please_fill_field");
+                hasErrors = true;
+            } else if (password && password !== password_confirm) {
+                showFieldError("password_confirm", "passwords_do_not_match");
+                hasErrors = true;
+            }
+
+            if (hasErrors) {
+                notyf.error(getErrorMsg("fill_all_fields"));
+            }
+
+            return !hasErrors;
+        }
+
+        $(document).ready(function () {
+            $("#register_form").submit(function () {
+
+                if (!validateForm()) {
+                    return false;
+                }
+
+                $("#btn_register").prop("disabled", true);
+
+                var data = {
+                    token: $("#token").val(),
+                    first_name: $("#first_name").val().trim(),
+                    last_name: $("#last_name").val().trim(),
+                    patronymic: $("#patronymic").val().trim(),
+                    password: $("#password").val().trim(),
+                    password_confirm: $("#password_confirm").val().trim(),
+                };
+
+                $.ajax({
+                    type: "POST",
+                    url: "/api/register",
+                    data: data,
+                    dataType: "json",
+
+                    success: function (data) {
+                        if (data.status === "success") {
+                            notyf.success("<%= i18n.__('register.success') %>");
+                            setTimeout(function () {
+                                window.location.href = "/login/";
+                            }, 1500);
+                        }
+                    },
+
+                    error: function (XHR) {
+                        $("#btn_register").prop("disabled", false);
+
+                        const response = XHR.responseJSON || {};
+
+                        if (response.errors) {
+                            let hasFieldErrors = false;
+
+                            $.each(response.errors, function (i, item) {
+                                if (item.field === "token") {
+                                    notyf.error(getErrorMsg(item.msg));
+                                } else {
+                                    showFieldError(item.field, item.msg);
+                                    hasFieldErrors = true;
+                                }
+                            });
+
+                            if (hasFieldErrors) {
+                                notyf.error(getErrorMsg("fill_all_fields"));
+                            }
+                        } else {
+                            notyf.error(getErrorMsg("fill_all_fields"));
+                        }
+                    },
+                });
+
+                return false;
+            });
+        });
+    </script>
+
+</body>
+
+</html>

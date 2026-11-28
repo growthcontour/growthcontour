@@ -1,0 +1,30 @@
+{
+  "contact_center": {
+    "chat": {
+      "tab_chat": "Chat",
+      "tab_settings": "Settings",
+      "tab_media": "Media",
+      "user_info": "User information",
+      "archive_chat": "Archive chat",
+      "delete_chat": "Delete chat",
+      "delegate_chat": "Delegate chat",
+      "btn_take_work": "Take to work",
+      "take_work_notice": "This conversation is available for processing. Click the button to assign it to yourself.",
+      "already_assigned": "The chat is already assigned to another manager.\nAccess is restricted to prevent duplicate responses to the client.",
+      "other_manager_notice": "This conversation is already being handled by another manager. You cannot edit it.",
+      "select_media": "Select media type",
+      "close": "Close",
+      "archive": "Archive",
+      "delete": "Delete",
+      "delegate": "Delegate",
+      "confirm_archive": "Are you sure you want to archive this chat?",
+      "confirm_delete": "Are you sure you want to delete this chat?",
+      "confirm_delete_note": "Once deleted, it cannot be restored. All conversations and files will be deleted.",
+      "confirm_delegate": "Are you sure you want to delegate this chat?",
+      "confirm_delegate_note": "Once delegated, it cannot be restored. All conversations and files will be deleted.",
+      "managers_list": "List managers",
+      "send": "Send",
+      "message_placeholder": "Message..."
+    }
+  }
+}

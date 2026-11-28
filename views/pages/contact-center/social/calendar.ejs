@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('contact_center.social_calendar.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			#social_calendar .fc-event { cursor: pointer; border-radius: 0; }
+			#social_calendar .fc-event.ev-locked { cursor: default; }
+			.ev-body { display: flex; align-items: flex-start; gap: 4px; overflow: hidden; padding: 1px 2px; font-size: 0.8rem; line-height: 1.25; }
+			.ev-cover { width: 28px; height: 28px; object-fit: cover; flex: 0 0 28px; }
+			.ev-text { overflow: hidden; text-overflow: ellipsis; }
+			.ev-time { font-weight: 600; margin-right: 2px; }
+			.ev-nets i { margin-right: 2px; }
+			/* Колір за статусом публікації */
+			.ev-draft { background: #f8f9fa !important; border-color: #adb5bd !important; color: #495057 !important; }
+			.ev-review { background: #fff3cd !important; border-color: #fd7e14 !important; color: #664d03 !important; }
+			.ev-scheduled { background: #cfe2ff !important; border-color: #0d6efd !important; color: #052c65 !important; }
+			.ev-publishing { background: #fff3cd !important; border-color: #ffc107 !important; color: #664d03 !important; }
+			.ev-published { background: #d1e7dd !important; border-color: #198754 !important; color: #0a3622 !important; }
+			.ev-partial { background: #fff3cd !important; border-color: #dc3545 !important; color: #664d03 !important; }
+			.ev-failed { background: #f8d7da !important; border-color: #dc3545 !important; color: #58151c !important; }
+			.ev-canceled { background: #e9ecef !important; border-color: #6c757d !important; color: #6c757d !important; text-decoration: line-through; }
+			.legend span { display: inline-flex; align-items: center; gap: 4px; margin-right: 12px; font-size: 0.85rem; }
+			.legend i.sw { width: 12px; height: 12px; display: inline-block; border: 1px solid; }
+		</style>
+	</head>
+
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('contact_center.social_calendar.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('contact_center.social_calendar.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/contact-center/"><%= i18n.__('contact_center.social_calendar.breadcrumb.contact_center') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/contact-center/social/"><%= i18n.__('contact_center.social_calendar.breadcrumb.posts') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('contact_center.social_calendar.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/contact-center/social/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3 mb-4">
+			<div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+				<% if (data.perms.add) { %>
+				<a href="/contact-center/social/new/" class="btn btn-primary rounded-0"><i class="fa-solid fa-plus me-1"></i><%= i18n.__('contact_center.social_calendar.add') %></a>
+				<% } %>
+				<select class="form-select rounded-0 w-auto" id="f_account">
+					<option value=""><%= i18n.__('contact_center.social_calendar.filter_account') %>: <%= i18n.__('contact_center.social_calendar.all') %></option>
+					<% data.accounts.forEach(function (a) { %>
+					<option value="<%= a.id %>"><%= i18n.__('contact_center.social.networks.' + a.network) %> · <%= a.name %></option>
+					<% }); %>
+				</select>
+				<select class="form-select rounded-0 w-auto" id="f_status">
+					<option value=""><%= i18n.__('contact_center.social_calendar.filter_status') %>: <%= i18n.__('contact_center.social_calendar.all') %></option>
+					<% ['draft', 'review', 'scheduled', 'publishing', 'published', 'partial', 'failed', 'canceled'].forEach(function (s) { %>
+					<option value="<%= s %>"><%= i18n.__('contact_center.social.statuses.' + s) %></option>
+					<% }); %>
+				</select>
+				<div class="legend ms-auto">
+					<% [['draft', '#adb5bd'], ['review', '#fd7e14'], ['scheduled', '#0d6efd'], ['published', '#198754'], ['failed', '#dc3545']].forEach(function (x) { %>
+					<span><i class="sw ev-<%= x[0] %>" style="border-color: <%= x[1] %>"></i><%= i18n.__('contact_center.social.statuses.' + x[0]) %></span>
+					<% }); %>
+				</div>
+			</div>
+
+			<div class="card border-primary rounded-0">
+				<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between">
+					<span><%= i18n.__('contact_center.social_calendar.title') %></span>
+					<span class="small"><% if (data.perms.edit) { %><%= i18n.__('contact_center.social_calendar.drag_hint') %><% } %></span>
+				</div>
+				<div class="card-body">
+					<div id="social_calendar"></div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %> <%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.15/locales/<%= i18n.__('lang_iso') %>.global.min.js"></script>
+		<script>
+			(function () {
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000 });
+				const CAN_EDIT = <%= data.perms.edit ? 'true' : 'false' %>;
+				const CAN_ADD = <%= data.perms.add ? 'true' : 'false' %>;
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const ICONS = { instagram: "fa-brands fa-instagram", facebook: "fa-brands fa-facebook", telegram: "fa-brands fa-telegram", viber: "fa-brands fa-viber" };
+				const post = (url, body) =>
+					fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) })
+						.then((r) => r.json())
+						.then((d) => {
+							if (!d.ok) throw new Error(d.error || "Error");
+							return d;
+						});
+				const statusName = (s) =>
+					({
+						draft: "<%= i18n.__('contact_center.social.statuses.draft') %>",
+						review: "<%= i18n.__('contact_center.social.statuses.review') %>",
+						scheduled: "<%= i18n.__('contact_center.social.statuses.scheduled') %>",
+						publishing: "<%= i18n.__('contact_center.social.statuses.publishing') %>",
+						published: "<%= i18n.__('contact_center.social.statuses.published') %>",
+						partial: "<%= i18n.__('contact_center.social.statuses.partial') %>",
+						failed: "<%= i18n.__('contact_center.social.statuses.failed') %>",
+						canceled: "<%= i18n.__('contact_center.social.statuses.canceled') %>",
+					})[s] || s;
+
+				// Останній вигляд календаря — для цього користувача в цьому браузері
+				let savedView = "dayGridMonth";
+				try {
+					savedView = localStorage.getItem("social_calendar_view") || savedView;
+				} catch (e) {}
+
+				const calendar = new FullCalendar.Calendar($("social_calendar"), {
+					initialView: savedView,
+					locale: "<%= i18n.__('lang_iso') %>",
+					firstDay: 1,
+					height: "auto",
+					themeSystem: "bootstrap5",
+					nowIndicator: true,
+					editable: CAN_EDIT,
+					eventDurationEditable: false,
+					selectable: CAN_ADD,
+					dayMaxEvents: 5,
+					slotMinTime: "06:00:00",
+					slotMaxTime: "24:00:00",
+					slotDuration: "00:30:00",
+					snapDuration: "00:05:00",
+					displayEventEnd: false,
+					headerToolbar: { left: "prev,next today", center: "title", right: "dayGridMonth,timeGridWeek,listWeek" },
+					buttonText: {
+						today: "<%= i18n.__('contact_center.social_calendar.fc.today') %>",
+						month: "<%= i18n.__('contact_center.social_calendar.fc.month') %>",
+						week: "<%= i18n.__('contact_center.social_calendar.fc.week') %>",
+						list: "<%= i18n.__('contact_center.social_calendar.fc.list') %>",
+					},
+					noEventsContent: "<%= i18n.__('contact_center.social_calendar.empty') %>",
+					datesSet: (info) => {
+						try {
+							localStorage.setItem("social_calendar_view", info.view.type);
+						} catch (e) {}
+					},
+
+					events: (info, success, failure) => {
+						post("/api/contact-center/social/posts/calendar/", { start: info.start.toISOString(), end: info.end.toISOString(), id_account: $("f_account").value, status: $("f_status").value })
+							.then((d) =>
+								success(
+									d.data.map((p) => ({
+										id: String(p.id),
+										start: p.publish_at,
+										// Публікація — момент у часі; 30 хв — лише для відображення в тижні
+										end: new Date(new Date(p.publish_at).getTime() + 30 * 60000),
+										title: p.title || "#" + p.id,
+										startEditable: CAN_EDIT && p.movable,
+										classNames: ["ev-" + p.status, p.movable ? "" : "ev-locked"],
+										extendedProps: p,
+									}))
+								)
+							)
+							.catch((e) => {
+								notyf.error(e.message);
+								failure(e);
+							});
+					},
+
+					eventContent: (arg) => {
+						const p = arg.event.extendedProps;
+						const time = arg.event.start ? arg.event.start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+						const nets = '<span class="ev-nets">' + p.networks.map((n) => '<i class="' + ICONS[n] + '"></i>').join("") + "</span>";
+						const cover = p.cover && arg.view.type !== "dayGridMonth" ? '<img class="ev-cover" src="/contact-center/social/media/' + Number(p.cover) + '/thumb/" alt="" loading="lazy" />' : "";
+						return { html: '<div class="ev-body">' + cover + '<div class="ev-text"><span class="ev-time">' + esc(time) + "</span>" + nets + " " + esc(arg.event.title) + "</div></div>" };
+					},
+
+					eventDidMount: (info) => {
+						const p = info.event.extendedProps;
+						info.el.title = statusName(p.status) + "\n" + p.targets.map((x) => x.name + " · " + x.format + " · " + x.status).join("\n");
+					},
+
+					eventClick: (info) => {
+						info.jsEvent.preventDefault();
+						location.href = "/contact-center/social/" + Number(info.event.id) + "/";
+					},
+
+					// Перетягування — новий час публікації
+					eventDrop: (info) => {
+						const p = info.event.extendedProps;
+						const msg = "<%= i18n.__('contact_center.social_calendar.move_confirm') %>".replace("{date}", info.event.start.toLocaleString());
+						if ((p.status === "scheduled" || p.status === "review") && !confirm(msg)) return info.revert();
+						post("/api/contact-center/social/posts/" + Number(info.event.id) + "/reschedule/", { publish_at: info.event.start.toISOString() })
+							.then(() => notyf.success("<%= i18n.__('contact_center.social_calendar.moved') %>"))
+							.catch((e) => {
+								notyf.error(e.message);
+								info.revert();
+							});
+					},
+
+					// Клік або виділення порожнього місця — нова публікація на цей час
+					select: (info) => {
+						let at = info.start;
+						// У місяці час не обрано — ставимо 10:00 цього дня
+						if (info.allDay) at = new Date(at.getFullYear(), at.getMonth(), at.getDate(), 10, 0);
+						if (at.getTime() < Date.now()) return calendar.unselect();
+						location.href = "/contact-center/social/new/?at=" + encodeURIComponent(at.toISOString());
+					},
+				});
+				calendar.render();
+
+				$("f_account").addEventListener("change", () => calendar.refetchEvents());
+				$("f_status").addEventListener("change", () => calendar.refetchEvents());
+				// Статуси змінюються у фоні (черга публікацій)
+				setInterval(() => calendar.refetchEvents(), 60000);
+			})();
+		</script>
+	</body>
+</html>

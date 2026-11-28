@@ -1,0 +1,630 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__(module + '.settings.title') %></title>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/monolith.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<style>
+			/* Рамки таблиць — як на сторінці статусів замовлень */
+			.dict-table .tabulator-col,
+			.dict-table .tabulator-cell {
+				border-right: 1px solid #dee2e6;
+				border-bottom: 1px solid #dee2e6;
+			}
+			.dict-table .tabulator-col:last-child,
+			.dict-table .tabulator-cell:last-child {
+				border-right: none;
+			}
+			.dict-table .tabulator-row:last-child .tabulator-cell {
+				border-bottom: none;
+			}
+			/* Вкладки довідників — колір системи */
+			#dict-tabs .list-group-item.active {
+				background-color: #0057b8;
+				border-color: #0057b8;
+				color: #fff;
+			}
+			#dict-tabs .list-group-item:not(.active):hover {
+				color: #0057b8;
+			}
+			/* Колірний пікер — як на сторінці статусів замовлень */
+			.pickr .pcr-button {
+				border: 1px solid #eee;
+				border-radius: 0;
+			}
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+		<% const defLang = langs.length ? langs[0].id : 1; %>
+
+		<!-- ─── ХЛІБНІ КРИХТИ ─────────────────────────────────────────── -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__(module + '.settings.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__(module + '.settings.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="<%= back %>"><%= i18n.__(module + '.settings.breadcrumb.module') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__(module + '.settings.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="<%= back %>" class="btn btn-primary rounded-0">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- ─── ОСНОВНИЙ КОНТЕНТ ──────────────────────────────────────── -->
+		<div class="container-fluid mt-3">
+			<div class="row">
+				<% if (!dicts.length) { %>
+				<div class="col-12 mb-3"><div class="alert alert-secondary rounded-0"><%= i18n.__('dicts.empty_dicts') %></div></div>
+				<% } else { %>
+				<!-- Довідники модуля: вкладки зліва -->
+				<div class="col-lg-3 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__(module + '.settings.breadcrumb.current') %></div>
+						<div class="list-group list-group-flush rounded-0" id="dict-tabs" role="tablist">
+							<% dicts.forEach(function (d) { %>
+							<button type="button" class="list-group-item list-group-item-action<%= d.key === cur.key ? ' active' : '' %>" data-bs-toggle="list" data-bs-target="#pane-<%= d.key %>" data-dict="<%= d.key %>" role="tab"><%= i18n.__('dicts.' + module + '.' + d.key) %></button>
+							<% }) %>
+							<% (typeof links !== 'undefined' ? links : []).forEach(function (l) { %>
+							<a class="list-group-item list-group-item-action" href="<%= l.href %>"><i class="<%= l.icon %> me-2 text-muted"></i><%= i18n.__(l.label) %></a>
+							<% }) %>
+						</div>
+					</div>
+				</div>
+				<div class="col-lg-9 mb-3">
+					<div class="tab-content">
+						<% dicts.forEach(function (d) { %>
+						<div class="tab-pane fade<%= d.key === cur.key ? ' show active' : '' %>" id="pane-<%= d.key %>" role="tabpanel">
+							<% if (canEdit) { %>
+							<button type="button" class="btn btn-primary rounded-0 mb-3" id="<%= d.key %>-d-add"><%= i18n.__('dicts.add') %></button>
+							<% } %>
+							<div class="card border-primary rounded-0">
+								<div class="card-header text-bg-primary rounded-0"><%= i18n.__('dicts.' + module + '.' + d.key) %></div>
+								<div id="<%= d.key %>-d-table" class="dict-table"></div>
+							</div>
+							<div class="small text-muted mt-2"><%= i18n.__(canEdit ? 'dicts.hint_edit' : 'dicts.hint_view') %></div>
+						</div>
+						<% }) %>
+					</div>
+				</div>
+				<% } %>
+			</div>
+		</div>
+
+		<!-- ─── МОДАЛКА: ВИДАЛЕННЯ (як на /orders/status/) ───────────── -->
+		<div class="modal fade" id="m-delete" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5"><%= i18n.__('dicts.delete') %></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<p class="mb-0"><%= i18n.__('dicts.delete_q') %></p>
+						<p class="mb-0"><strong>ID: <span id="m-delete-id"></span></strong></p>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('dicts.close') %></button>
+						<button type="button" class="btn btn-danger rounded-0" id="m-delete-ok"><%= i18n.__('dicts.delete') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<% dicts.forEach(function (cur) {
+			const dis = canEdit ? '' : ' disabled';
+			const visual = cur.fields.filter(function (f) { return f.type === 'color' || f.name === 'icon'; });
+			const other = cur.fields.filter(function (f) { return f.type !== 'color' && f.name !== 'icon'; });
+			const hasLang = cur.lang.length || (cur.children && cur.children.i18n);
+		%>
+		<!-- ─── МОДАЛКА: ЗАПИС ДОВІДНИКА (як на /orders/status/) ─────── -->
+		<div class="modal fade" id="<%= cur.key %>-m-edit" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered modal-lg">
+				<form class="modal-content rounded-0" id="<%= cur.key %>-f-edit">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5">
+							<%= i18n.__('dicts.' + module + '.' + cur.key) %>
+							<span class="text-muted d-none" id="<%= cur.key %>-f-__idwrap">#<span id="<%= cur.key %>-f-__idtext"></span></span>
+						</h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+
+					<div class="modal-body">
+						<input type="hidden" id="<%= cur.key %>-f-__id" />
+
+						<!-- Назви (багатомовні поля; мова — перемикач унизу) -->
+						<% cur.lang.forEach(function (f) { %>
+						<div class="mb-3">
+							<label class="form-label"><%= i18n.__('dicts.f.' + f.name) %><%= f.required ? ' *' : '' %></label>
+							<% langs.forEach(function (l, i) { %>
+							<div class="lang-block<%= i ? ' d-none' : '' %>" data-lang-block="<%= l.id %>">
+								<% if (f.type === 'textarea') { %>
+								<textarea class="form-control rounded-0" rows="2" data-lang="<%= l.id %>" data-field="<%= f.name %>"<%= dis %>></textarea>
+								<% } else { %>
+								<input type="text" maxlength="<%= f.max || 255 %>" class="form-control rounded-0" data-lang="<%= l.id %>" data-field="<%= f.name %>"<%= dis %> />
+								<% } %>
+							</div>
+							<% }) %>
+						</div>
+						<% }) %>
+
+						<% if (cur.children && cur.children.i18n) { %>
+						<div class="mb-3">
+							<label class="form-label"><%= i18n.__('dicts.options') %></label>
+							<% langs.forEach(function (l, i) { %>
+							<div class="lang-block<%= i ? ' d-none' : '' %>" data-lang-block="<%= l.id %>">
+								<textarea class="form-control rounded-0" rows="5" data-lang="<%= l.id %>" data-options="1"<%= dis %>></textarea>
+							</div>
+							<% }) %>
+							<div class="form-text"><%= i18n.__('dicts.options_hint') %></div>
+						</div>
+						<% } %>
+
+						<% if (visual.length) { %>
+						<!-- Кольори й іконка -->
+						<div class="row">
+							<% visual.forEach(function (f) { %>
+							<div class="col-12 col-md-4 mb-3">
+								<% if (f.name === 'icon') { %>
+								<label class="form-label d-block"><%= i18n.__('dicts.f.icon') %></label>
+								<button type="button" class="btn btn-outline-secondary rounded-0 icon-trigger" data-target="<%= cur.key %>-f-icon"<%= dis %>>
+									<i class="fa-regular fa-circle-question icon-preview"></i>
+								</button>
+								<input type="hidden" id="<%= cur.key %>-f-icon" data-field="icon" data-type="icon" />
+								<% } else { %>
+								<label class="form-label"><%= i18n.__('dicts.f.' + f.name) %></label>
+								<div class="pickr-color" data-target="<%= cur.key %>-f-<%= f.name %>"></div>
+								<input type="hidden" id="<%= cur.key %>-f-<%= f.name %>" data-field="<%= f.name %>" data-type="color" data-default="<%= f.name === 'color_text' ? '#ffffff' : '#6c757d' %>" />
+								<% } %>
+							</div>
+							<% }) %>
+						</div>
+						<% } %>
+
+						<!-- Інші поля -->
+						<div class="row">
+							<% other.forEach(function (f) { %>
+							<% if (f.type === 'bool') { %>
+							<div class="col-12 col-md-6">
+								<div class="form-check mb-2">
+									<input type="checkbox" class="form-check-input rounded-0" id="<%= cur.key %>-f-<%= f.name %>" data-field="<%= f.name %>" data-type="bool"<%= dis %> />
+									<label class="form-check-label" for="<%= cur.key %>-f-<%= f.name %>"><%= i18n.__('dicts.f.' + f.name) %></label>
+								</div>
+							</div>
+							<% } else if (f.type === 'textarea') { %>
+							<div class="col-12 mb-3">
+								<label class="form-label" for="<%= cur.key %>-f-<%= f.name %>"><%= i18n.__('dicts.f.' + f.name) %><%= f.required ? ' *' : '' %></label>
+								<textarea class="form-control rounded-0" rows="2" id="<%= cur.key %>-f-<%= f.name %>" data-field="<%= f.name %>"<%= dis %>></textarea>
+							</div>
+							<% } else { %>
+							<div class="col-12 col-md-6 mb-3"<% if (f.name === 'code') { %> data-code="1"<% } %>>
+								<label class="form-label" for="<%= cur.key %>-f-<%= f.name %>"><%= i18n.__('dicts.f.' + f.name) %><%= f.required ? ' *' : '' %></label>
+								<% if (f.type === 'select') { %>
+								<select class="form-select rounded-0" id="<%= cur.key %>-f-<%= f.name %>" data-field="<%= f.name %>"<%= dis %>>
+									<% f.options.forEach(function (o) { %><option value="<%= o %>"><%= i18n.__('dicts.o.' + o) %></option><% }) %>
+								</select>
+								<% } else if (f.type === 'ref') { %>
+								<select class="form-select rounded-0" id="<%= cur.key %>-f-<%= f.name %>" data-field="<%= f.name %>" data-type="ref"<%= dis %>>
+									<option value="">—</option>
+									<% (refs[f.ref] || []).forEach(function (r) { %><option value="<%= r.id %>"><%= r.label %></option><% }) %>
+								</select>
+								<% } else if (f.type === 'number') { %>
+								<input type="number" step="<%= f.step || '1' %>" class="form-control rounded-0" id="<%= cur.key %>-f-<%= f.name %>" data-field="<%= f.name %>"<%= dis %> />
+								<% } else if (f.type === 'date') { %>
+								<input type="date" class="form-control rounded-0" id="<%= cur.key %>-f-<%= f.name %>" data-field="<%= f.name %>" data-type="date"<%= dis %> />
+								<% } else { %>
+								<input type="text" maxlength="<%= f.max || 255 %>" class="form-control rounded-0" id="<%= cur.key %>-f-<%= f.name %>" data-field="<%= f.name %>"<%= dis %> />
+								<% } %>
+							</div>
+							<% } %>
+							<% }) %>
+
+							<% if (cur.children && !cur.children.i18n) { %>
+							<div class="col-12 mb-3">
+								<label class="form-label" for="<%= cur.key %>-f-__options"><%= i18n.__('dicts.options') %></label>
+								<textarea class="form-control rounded-0" rows="5" id="<%= cur.key %>-f-__options"<%= dis %>></textarea>
+								<div class="form-text"><%= i18n.__('dicts.options_hint') %></div>
+							</div>
+							<% } %>
+
+							<% if (cur.active) { %>
+							<div class="col-12 col-md-6">
+								<div class="form-check mb-2">
+									<input type="checkbox" class="form-check-input rounded-0" id="<%= cur.key %>-f-__active"<%= dis %> />
+									<label class="form-check-label" for="<%= cur.key %>-f-__active"><%= i18n.__('dicts.active') %></label>
+								</div>
+							</div>
+							<% } %>
+						</div>
+						<div class="small text-muted d-none" id="<%= cur.key %>-f-__used"><%= i18n.__('dicts.used') %>: <span></span></div>
+					</div>
+
+					<div class="modal-footer">
+						<% if (hasLang && langs.length > 1) { %>
+						<!-- Перемикач мов -->
+						<div class="dropdown me-auto">
+							<button class="btn btn-secondary rounded-0" type="button" data-bs-toggle="dropdown">
+								<span class="lang-current"><%= langs[0].name %></span> <i class="fa-solid fa-angle-down ms-1"></i>
+							</button>
+							<ul class="dropdown-menu rounded-0">
+								<% langs.forEach(function (l, i) { %>
+								<li><a class="dropdown-item lang-switch<%= i ? '' : ' active' %>" href="#" data-lang="<%= l.id %>"><%= l.name %></a></li>
+								<% }) %>
+							</ul>
+						</div>
+						<% } %>
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('dicts.close') %></button>
+						<% if (canEdit) { %><button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('dicts.save') %></button><% } %>
+					</div>
+				</form>
+			</div>
+		</div>
+		<% }) %>
+
+		<!-- Пікер іконок (як на /orders/status/) -->
+		<div id="iconPickerPopup" class="border bg-white p-2 shadow-sm" style="display: none; position: absolute; z-index: 2000; width: 280px; max-height: 240px; overflow-y: auto">
+			<div class="d-flex flex-wrap gap-1" id="iconPickerGrid"></div>
+		</div>
+
+		<%- include('../../partials/footer'); %>
+		<%- include('../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
+		<% if (cur) { %>
+		<script>
+			"use strict";
+			// Довідники: кожна вкладка — своя таблиця й форма; таблиця створюється при першому відкритті вкладки
+			const INIT = {};
+			const notyf = new Notyf({
+				position: { x: "right", y: "top" },
+				duration: 4000,
+				types: [
+					{ type: "success", dismissible: true, icon: false },
+					{ type: "error", background: "indianred", dismissible: true, icon: false },
+				],
+			});
+
+			// Іконка Font Awesome: у старих записах лише назва («fa-star») — без стилю вона не малюється, додаємо fa-solid
+			function faIcon(cls) {
+				const c = String(cls || "").trim();
+				if (!/^[a-z0-9 -]+$/i.test(c)) return "";
+				return /(^|\s)(fa-(solid|regular|brands|light|thin|duotone)|fas|far|fab|fal)(\s|$)/.test(c) ? c : "fa-solid " + c;
+			}
+
+			// ── Пікер іконок Font Awesome (як на /orders/status/) ──
+			const FA_ICONS = ["fa-solid fa-box", "fa-solid fa-boxes-stacked", "fa-solid fa-truck", "fa-solid fa-truck-fast", "fa-solid fa-check", "fa-solid fa-circle-check", "fa-solid fa-clock", "fa-solid fa-hourglass-half", "fa-solid fa-credit-card", "fa-solid fa-money-bill", "fa-solid fa-coins", "fa-solid fa-wallet", "fa-solid fa-cart-shopping", "fa-solid fa-bag-shopping", "fa-solid fa-gift", "fa-solid fa-tag", "fa-solid fa-xmark", "fa-solid fa-circle-xmark", "fa-solid fa-ban", "fa-solid fa-triangle-exclamation", "fa-solid fa-rotate-left", "fa-solid fa-arrow-rotate-left", "fa-solid fa-undo", "fa-solid fa-recycle", "fa-solid fa-envelope", "fa-solid fa-paper-plane", "fa-solid fa-file-invoice", "fa-solid fa-receipt", "fa-solid fa-warehouse", "fa-solid fa-dolly", "fa-solid fa-clipboard-check", "fa-solid fa-list-check", "fa-solid fa-hand-holding-dollar", "fa-solid fa-thumbs-up", "fa-solid fa-thumbs-down", "fa-solid fa-star", "fa-solid fa-flag", "fa-solid fa-bell", "fa-solid fa-user-check", "fa-solid fa-shield-halved",
+				// для лідів: температура, кваліфікація, контакт
+				"fa-solid fa-snowflake", "fa-solid fa-sun", "fa-solid fa-fire", "fa-solid fa-user", "fa-solid fa-trophy", "fa-solid fa-phone", "fa-solid fa-handshake", "fa-solid fa-bullseye"];
+			const DEFAULT_ICON = "fa-regular fa-circle-question";
+			const iconGrid = document.getElementById("iconPickerGrid");
+			const iconPopup = document.getElementById("iconPickerPopup");
+			let activeIconTarget = null;
+			FA_ICONS.forEach((cls) => {
+				const btn = document.createElement("button");
+				btn.type = "button";
+				btn.className = "btn btn-light btn-sm rounded-0 icon-choice";
+				btn.style.width = "40px";
+				btn.style.height = "40px";
+				btn.dataset.icon = cls;
+				btn.innerHTML = '<i class="' + cls + '"></i>';
+				iconGrid.appendChild(btn);
+			});
+			document.querySelectorAll(".icon-trigger").forEach((trigger) => {
+				trigger.addEventListener("click", function (e) {
+					e.stopPropagation();
+					activeIconTarget = this.dataset.target;
+					const rect = this.getBoundingClientRect();
+					iconPopup.style.top = window.scrollY + rect.bottom + 4 + "px";
+					iconPopup.style.left = window.scrollX + rect.left + "px";
+					iconPopup.style.display = "block";
+				});
+			});
+			iconGrid.addEventListener("click", function (e) {
+				const choice = e.target.closest(".icon-choice");
+				if (!choice || !activeIconTarget) return;
+				setIconTrigger(activeIconTarget, choice.dataset.icon);
+				iconPopup.style.display = "none";
+				activeIconTarget = null;
+			});
+			document.addEventListener("click", function (e) {
+				if (!iconPopup.contains(e.target) && !e.target.closest(".icon-trigger")) iconPopup.style.display = "none";
+			});
+			// Значення іконки в поле й прев'ю на кнопці (порожнє — знак питання, у базу — порожньо)
+			function setIconTrigger(targetId, iconClass) {
+				const cls = faIcon(iconClass);
+				document.getElementById(targetId).value = cls;
+				const trigger = document.querySelector('.icon-trigger[data-target="' + targetId + '"]');
+				if (trigger) trigger.querySelector(".icon-preview").className = (cls || DEFAULT_ICON) + " icon-preview";
+			}
+
+			// ── Кольори: Pickr, як на /orders/status/ (створюються при першому відкритті форми) ──
+			const PICKRS = {};
+			function pickrFor(inputId, color) {
+				if (!PICKRS[inputId]) {
+					const input = document.getElementById(inputId);
+					const pickr = Pickr.create({
+						el: '.pickr-color[data-target="' + inputId + '"]',
+						theme: "monolith",
+						default: color,
+						swatches: ["#0057b8", "#2fb25c", "#e74c3c", "#3498db", "#8e44ad", "#27ae60", "#f1c40f", "#e67e22", "#7f8c8d", "#34495e"],
+						components: { preview: true, opacity: false, hue: true, interaction: { input: true, save: true } },
+					});
+					pickr.on("save", (c) => {
+						if (c) input.value = c.toHEXA().toString(0).slice(0, 7);
+						pickr.hide();
+					});
+					PICKRS[inputId] = pickr;
+				}
+				return PICKRS[inputId];
+			}
+			function setColor(inputId, color) {
+				document.getElementById(inputId).value = color;
+				pickrFor(inputId, color).setColor(color);
+			}
+
+			// ── Перемикач мов у формі ──
+			document.addEventListener("click", (e) => {
+				const a = e.target.closest(".lang-switch");
+				if (!a) return;
+				e.preventDefault();
+				showLang(a.closest(".modal-content"), a.dataset.lang);
+			});
+			function showLang(box, lang) {
+				box.querySelectorAll("[data-lang-block]").forEach((el) => el.classList.toggle("d-none", el.dataset.langBlock !== String(lang)));
+				box.querySelectorAll(".lang-switch").forEach((el) => el.classList.toggle("active", el.dataset.lang === String(lang)));
+				const cur = box.querySelector('.lang-switch[data-lang="' + lang + '"]');
+				const label = box.querySelector(".lang-current");
+				if (cur && label) label.textContent = cur.textContent.trim();
+			}
+
+			// Модалки форм — без утримання фокуса (інакше поле пошуку в Pickr не отримує фокус)
+			document.querySelectorAll('[id$="-m-edit"]').forEach((el) => bootstrap.Modal.getOrCreateInstance(el, { focus: false }));
+
+			// Підтвердження видалення: одна модалка на сторінку
+			let onDelete = null;
+			function askDelete(id, fn) {
+				onDelete = fn;
+				document.getElementById("m-delete-id").textContent = id;
+				bootstrap.Modal.getOrCreateInstance(document.getElementById("m-delete")).show();
+			}
+			document.getElementById("m-delete-ok").addEventListener("click", async (e) => {
+				const btn = e.currentTarget;
+				if (!onDelete || btn.disabled) return;
+				btn.disabled = true;
+				try {
+					await onDelete();
+					bootstrap.Modal.getOrCreateInstance(document.getElementById("m-delete")).hide();
+				} catch (err) {
+					notyf.error(err.message);
+				} finally {
+					btn.disabled = false;
+					onDelete = null;
+				}
+			});
+		</script>
+		<% dicts.forEach(function (cur) { %>
+		<script>
+			INIT["<%= cur.key %>"] = function () {
+				const API = "/api/<%= module %>/settings/dicts/<%= cur.key %>/";
+				const P = "<%= cur.key %>-";
+				const DEF_LANG = "<%= defLang %>";
+				const $ = (id) => document.getElementById(P + id);
+				const form = $("f-edit");
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const modal = () => bootstrap.Modal.getOrCreateInstance($("m-edit"));
+				// Назва запису: переклад основною мовою, інакше поле основної таблиці
+				const nameOf = (r) => {
+					const t = (r.i18n && r.i18n[DEF_LANG]) || {};
+					return t.name || t.title || t.label || r.name || r.title || r.label || r.code || "#" + r.id;
+				};
+				// Підпис посилання — з варіантів випадного списку у формі
+				const refText = (field, v) => {
+					const o = form.querySelector('#' + P + 'f-' + field + ' option[value="' + v + '"]');
+					return o && v ? esc(o.textContent) : "";
+				};
+
+				async function post(url, body) {
+					const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+					const r = await res.json().catch(() => ({}));
+					if (!res.ok || r.ok === false) throw new Error(r.error || "<%= i18n.__('dicts.error') %>");
+					return r;
+				}
+
+				const table = new Tabulator("#" + P + "d-table", {
+					layout: "fitColumns",
+					placeholder: "<%= i18n.__('dicts.empty') %>",
+					ajaxURL: API + "list/",
+					ajaxConfig: "POST",
+					ajaxResponse: (url, params, r) => r.rows || [],
+					movableRows: <%= canEdit && cur.sort ? 'true' : 'false' %>,
+					<% if (!cur.sort) { %>pagination: true,
+					paginationSize: 20,
+					paginationSizeSelector: [20, 50, 100],<% } %>
+					columns: [
+						<% if (canEdit && cur.sort) { %>{ rowHandle: true, formatter: "handle", headerSort: false, frozen: true, width: 30, minWidth: 30 },<% } %>
+						{ title: "ID", field: "id", width: 70 },
+						{
+							title: "<%= i18n.__('dicts.name') %>",
+							field: "id",
+							formatter: (c) => {
+								const r = c.getData();
+								const bg = r.color_background || r.color || null;
+								const fg = r.color_text || "#fff";
+								return bg ? '<span class="badge rounded-0" style="background:' + esc(bg) + ";color:" + esc(fg) + '">' + (faIcon(r.icon) ? '<i class="' + faIcon(r.icon) + ' me-1"></i>' : "") + esc(nameOf(r)) + "</span>" : esc(nameOf(r));
+							},
+						},
+						<% if (cur.fields.some(function (f) { return f.name === 'code'; })) { %>{ title: "<%= i18n.__('dicts.f.code') %>", field: "code", width: 140 },<% } %>
+						<% cur.fields.filter(function (f) { return f.type === 'ref'; }).forEach(function (f) { %>{ title: "<%= i18n.__('dicts.f.' + f.name) %>", field: "<%= f.name %>", width: 160, formatter: (c) => refText("<%= f.name %>", c.getValue()) },
+						<% }) %>
+						<% if (cur.children) { %>{
+							title: "<%= i18n.__('dicts.options') %>",
+							field: "options",
+							width: 220,
+							formatter: (c) => {
+								const v = c.getValue();
+								const list = Array.isArray(v) ? v : (v && v[DEF_LANG]) || [];
+								return '<span class="small text-muted">' + esc(list.join(", ")) + "</span>";
+							},
+						},<% } %>
+						{ title: "<%= i18n.__('dicts.used') %>", field: "used", width: 110, hozAlign: "right" },
+						<% if (cur.active) { %>{ title: "<%= i18n.__('dicts.active') %>", field: "<%= cur.active %>", width: 100, hozAlign: "center", formatter: (c) => (Number(c.getValue()) ? '<i class="fa-solid fa-check text-success"></i>' : '<i class="fa-solid fa-xmark text-muted"></i>') },<% } %>
+						{
+							title: "",
+							field: "id",
+							width: 100,
+							headerSort: false,
+							hozAlign: "center",
+							formatter: (c) => {
+								const r = c.getData();
+								const sys = Number(r.is_system) === 1;
+								return (
+									'<div class="d-flex justify-content-center gap-2">' +
+									'<a href="#" class="text-primary" data-edit="' + r.id + '"><i class="fa-regular fa-pen-to-square"></i></a>' +
+									<% if (canEdit) { %>(sys ? '<i class="fa-solid fa-lock text-muted" title="<%= i18n.__('dicts.system') %>"></i>' : '<a href="#" class="text-danger" data-delete="' + r.id + '"><i class="fa-regular fa-trash-can"></i></a>') +<% } %>
+									"</div>"
+								);
+							},
+						},
+					],
+				});
+
+				<% if (canEdit && cur.sort) { %>
+				table.on("rowMoved", async () => {
+					try {
+						await post(API + "sort/", { ids: table.getData().map((r) => r.id) });
+					} catch (e) {
+						notyf.error(e.message);
+					}
+				});
+				<% } %>
+
+				// Заповнення форми: порожня — новий запис, з даними рядка — редагування
+				function fill(r) {
+					const v = r || {};
+					const sys = Number(v.is_system) === 1;
+					$("f-__id").value = r ? r.id : "";
+					$("f-__idtext").textContent = r ? r.id : "";
+					$("f-__idwrap").classList.toggle("d-none", !r);
+					showLang(form, "<%= defLang %>");
+					form.querySelectorAll("[data-field]:not([data-lang])").forEach((el) => {
+						const val = v[el.dataset.field];
+						if (el.dataset.type === "bool") el.checked = !!Number(val);
+						else if (el.dataset.type === "color") setColor(el.id, /^#[0-9a-f]{6}$/i.test(val || "") ? val : el.dataset.default);
+						else if (el.dataset.type === "icon") setIconTrigger(el.id, val);
+						else if (el.dataset.type === "date") el.value = String(val || "").slice(0, 10);
+						else if (el.tagName === "SELECT" && !r) el.selectedIndex = 0;
+						else el.value = val ?? "";
+					});
+					// Код системного запису не змінюється
+					const code = form.querySelector('[data-code="1"]');
+					if (code) code.classList.toggle("d-none", sys);
+					form.querySelectorAll("[data-lang][data-field]").forEach((el) => {
+						el.value = ((v.i18n || {})[el.dataset.lang] || {})[el.dataset.field] ?? "";
+					});
+					form.querySelectorAll("[data-options]").forEach((el) => {
+						el.value = (((v.options || {})[el.dataset.lang]) || []).join("\n");
+					});
+					if ($("f-__options")) $("f-__options").value = (Array.isArray(v.options) ? v.options : []).join("\n");
+					if ($("f-__active")) $("f-__active").checked = !r || !!Number(v["<%= cur.active || 'active' %>"]);
+					$("f-__used").classList.toggle("d-none", !(r && r.used));
+					$("f-__used").querySelector("span").textContent = r && r.used ? Number(r.used) : "";
+					modal().show();
+				}
+
+				$("d-table").addEventListener("click", async (e) => {
+					const ed = e.target.closest("[data-edit]");
+					const del = e.target.closest("[data-delete]");
+					if (!ed && !del) return;
+					e.preventDefault();
+					const id = Number((ed || del).dataset.edit || (ed || del).dataset.delete);
+					const row = table.getData().find((x) => x.id === id);
+					if (ed) return fill(row);
+					// Підтвердження — модалка сторінки (спільна для всіх довідників)
+					askDelete(id, async () => {
+						await post(API + "delete/", { id });
+						notyf.success("<%= i18n.__('dicts.deleted') %>");
+						table.replaceData();
+					});
+				});
+
+				<% if (canEdit) { %>
+				$("d-add").addEventListener("click", () => fill(null));
+
+				form.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					const b = { id: $("f-__id").value ? Number($("f-__id").value) : null, i18n: {} };
+					form.querySelectorAll("[data-field]:not([data-lang])").forEach((el) => {
+						if (el.closest(".d-none")) return;
+						b[el.dataset.field] = el.dataset.type === "bool" ? el.checked : el.value;
+					});
+					form.querySelectorAll("[data-lang][data-field]").forEach((el) => {
+						(b.i18n[el.dataset.lang] = b.i18n[el.dataset.lang] || {})[el.dataset.field] = el.value;
+					});
+					const opt = form.querySelectorAll("[data-options]");
+					if (opt.length) {
+						b.options = {};
+						opt.forEach((el) => (b.options[el.dataset.lang] = el.value.split("\n")));
+					}
+					if ($("f-__options")) b.options = $("f-__options").value.split("\n");
+					if ($("f-__active")) b.active = $("f-__active").checked;
+					try {
+						await post(API + "save/", b);
+						modal().hide();
+						notyf.success("<%= i18n.__('dicts.saved') %>");
+						table.replaceData();
+					} catch (err) {
+						notyf.error(err.message);
+					}
+				});
+				<% } %>
+			};
+		</script>
+		<% }) %>
+		<script>
+			// Вкладки: перше відкриття створює таблицю; відкритий довідник — у адресі (?d=) для оновлення сторінки
+			(function () {
+				const done = new Set();
+				const open = (key) => {
+					if (done.has(key) || !INIT[key]) return;
+					done.add(key);
+					INIT[key]();
+				};
+				document.querySelectorAll("#dict-tabs [data-dict]").forEach((btn) =>
+					btn.addEventListener("shown.bs.tab", () => {
+						open(btn.dataset.dict);
+						const u = new URL(location.href);
+						u.searchParams.set("d", btn.dataset.dict);
+						history.replaceState(null, "", u);
+					})
+				);
+				open("<%= cur.key %>");
+			})();
+		</script>
+		<% } %>
+	</body>
+</html>

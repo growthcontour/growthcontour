@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+<head>
+    <%- include('../../partials/head'); %>
+</head>
+<body class="d-flex flex-column h-100">
+<%- include('../../partials/header'); %>
+
+<div class="container-fluid py-3">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/customers">Customers</a></li>
+            <li class="breadcrumb-item active" id="bc-name">...</li>
+        </ol>
+    </nav>
+
+    <!-- Header row -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div class="d-flex align-items-center gap-3">
+            <!-- Avatar -->
+            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold fs-4"
+                 style="width:56px;height:56px;flex-shrink:0" id="hdr-avatar">?</div>
+            <div>
+                <h5 class="mb-0 fw-bold" id="hdr-name">—</h5>
+                <small class="text-muted" id="hdr-uid">—</small>
+                <span class="badge bg-danger ms-2 d-none" id="hdr-blocked">Blocked</span>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary btn-sm" onclick="history.back()">
+                <i class="fa-solid fa-arrow-left"></i> Back
+            </button>
+            <button class="btn btn-primary btn-sm" id="btn-save">
+                <i class="fa-solid fa-floppy-disk"></i> Save
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-3">
+
+        <!-- LEFT COLUMN -->
+        <div class="col-12 col-xl-8">
+
+            <!-- General info -->
+            <div class="card rounded-0 border-0 shadow-sm mb-3">
+                <div class="card-header bg-primary text-white rounded-0 fw-semibold">
+                    <i class="fa-solid fa-user me-2"></i>General Information
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label text-muted small">Last name</label>
+                            <input type="text" class="form-control form-control-sm rounded-0" id="f-last-name">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label text-muted small">First name</label>
+                            <input type="text" class="form-control form-control-sm rounded-0" id="f-first-name">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label text-muted small">Middle name</label>
+                            <input type="text" class="form-control form-control-sm rounded-0" id="f-middle-name">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted small">Gender</label>
+                            <select class="form-select form-select-sm rounded-0" id="f-gender">
+                                <option value="">— not specified —</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted small">Birthday</label>
+                            <input type="date" class="form-control form-control-sm rounded-0" id="f-birthday">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted small">Type</label>
+                            <select class="form-select form-select-sm rounded-0" id="f-type">
+                                <option value="individual">Individual</option>
+                                <option value="company">Company</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted small">Language</label>
+                            <select class="form-select form-select-sm rounded-0" id="f-language">
+                                <option value="uk">UA</option>
+                                <option value="en">EN</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label text-muted small">Notes</label>
+                            <textarea class="form-control form-control-sm rounded-0" id="f-notes" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contacts -->
+            <div class="card rounded-0 border-0 shadow-sm mb-3">
+                <div class="card-header bg-primary text-white rounded-0 fw-semibold d-flex justify-content-between align-items-center">
+                    <span><i class="fa-solid fa-address-book me-2"></i>Contacts</span>
+                    <button class="btn btn-sm btn-light rounded-0" id="btn-add-contact">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3" style="width:110px">Type</th>
+                                <th>Value</th>
+                                <th style="width:90px">Label</th>
+                                <th style="width:70px" class="text-center">Primary</th>
+                                <th style="width:70px" class="text-center">Verified</th>
+                                <th style="width:40px"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="contacts-tbody">
+                            <tr><td colspan="6" class="text-center text-muted py-3">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Addresses -->
+            <div class="card rounded-0 border-0 shadow-sm mb-3">
+                <div class="card-header bg-primary text-white rounded-0 fw-semibold d-flex justify-content-between align-items-center">
+                    <span><i class="fa-solid fa-location-dot me-2"></i>Addresses</span>
+                    <button class="btn btn-sm btn-light rounded-0" id="btn-add-address">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3" style="width:100px">Type</th>
+                                <th>Address</th>
+                                <th style="width:90px">Carrier</th>
+                                <th style="width:70px" class="text-center">Default</th>
+                                <th style="width:40px"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="addresses-tbody">
+                            <tr><td colspan="5" class="text-center text-muted py-3">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="card rounded-0 border-0 shadow-sm mb-3">
+                <div class="card-header bg-primary text-white rounded-0 fw-semibold d-flex justify-content-between align-items-center">
+                    <span><i class="fa-solid fa-note-sticky me-2"></i>Notes</span>
+                    <button class="btn btn-sm btn-light rounded-0" id="btn-add-note">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+                <div class="card-body" id="notes-body">
+                    <p class="text-muted small mb-0">Loading...</p>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="col-12 col-xl-4">
+
+            <!-- CRM status -->
+            <div class="card rounded-0 border-0 shadow-sm mb-3">
+                <div class="card-header bg-secondary text-white rounded-0 fw-semibold">
+                    <i class="fa-solid fa-sliders me-2"></i>CRM Status
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <label class="form-label text-muted small">Segment</label>
+                            <input type="text" class="form-control form-control-sm rounded-0" id="f-segment">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label text-muted small">Groups</label>
+                            <div id="groups-badges" class="mb-1"></div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted small">Payment discipline</label>
+                            <select class="form-select form-select-sm rounded-0" id="f-payment-discipline">
+                                <option value="good">Good</option>
+                                <option value="average">Average</option>
+                                <option value="bad">Bad</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted small">Credit limit</label>
+                            <input type="number" class="form-control form-control-sm rounded-0" id="f-credit-limit">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label text-muted small">Assigned to</label>
+                            <input type="text" class="form-control form-control-sm rounded-0" id="f-assigned-to">
+                        </div>
+                        <div class="col-12 mt-1">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="f-blacklisted">
+                                <label class="form-check-label text-danger small" for="f-blacklisted">Blacklisted</label>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="f-do-not-call">
+                                <label class="form-check-label small" for="f-do-not-call">Do not call</label>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="f-do-not-email">
+                                <label class="form-check-label small" for="f-do-not-email">Do not email</label>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="f-do-not-sms">
+                                <label class="form-check-label small" for="f-do-not-sms">Do not SMS</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loyalty -->
+            <div class="card rounded-0 border-0 shadow-sm mb-3">
+                <div class="card-header bg-warning text-dark rounded-0 fw-semibold">
+                    <i class="fa-solid fa-star me-2"></i>Loyalty
+                </div>
+                <div class="card-body" id="loyalty-body">
+                    <p class="text-muted small mb-0">Loading...</p>
+                </div>
+            </div>
+
+            <!-- Analytics -->
+            <div class="card rounded-0 border-0 shadow-sm mb-3">
+                <div class="card-header bg-info text-white rounded-0 fw-semibold">
+                    <i class="fa-solid fa-chart-simple me-2"></i>Analytics
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0">
+                        <tbody id="analytics-tbody">
+                            <tr><td class="text-muted text-center py-3">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Social -->
+            <div class="card rounded-0 border-0 shadow-sm mb-3">
+                <div class="card-header bg-secondary text-white rounded-0 fw-semibold">
+                    <i class="fa-solid fa-share-nodes me-2"></i>Social
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <label class="form-label text-muted small"><i class="fa-brands fa-telegram me-1"></i>Telegram</label>
+                            <input type="text" class="form-control form-control-sm rounded-0" id="f-telegram" placeholder="@username">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label text-muted small"><i class="fa-brands fa-instagram me-1"></i>Instagram</label>
+                            <input type="text" class="form-control form-control-sm rounded-0" id="f-instagram" placeholder="username">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted small"><i class="fa-brands fa-viber me-1"></i>Viber</label>
+                            <input type="text" class="form-control form-control-sm rounded-0" id="f-viber" placeholder="+380...">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted small"><i class="fa-brands fa-whatsapp me-1"></i>WhatsApp</label>
+                            <input type="text" class="form-control form-control-sm rounded-0" id="f-whatsapp" placeholder="+380...">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label text-muted small"><i class="fa-brands fa-facebook me-1"></i>Facebook</label>
+                            <input type="text" class="form-control form-control-sm rounded-0" id="f-facebook">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Meta -->
+            <div class="card rounded-0 border-0 shadow-sm">
+                <div class="card-body">
+                    <p class="mb-1 small text-muted">Created: <span id="meta-created" class="text-dark">—</span></p>
+                    <p class="mb-1 small text-muted">Updated: <span id="meta-updated" class="text-dark">—</span></p>
+                    <p class="mb-0 small text-muted">Source: <span id="meta-source" class="text-dark">—</span></p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<%- include('../../partials/footer'); %>
+<%- include('../../partials/script'); %>
+
+<script>
+const CUSTOMER_ID = window.location.pathname.split('/').filter(Boolean).pop();
+const API_BASE    = '/api/customers';
+
+// ── Helpers ──────────────────────────────────────────────────────
+function fmt(v) { return v || '—'; }
+function fmtDate(v) {
+    if (!v) return '—';
+    return new Date(v).toLocaleDateString('uk-UA');
+}
+function fmtMoney(v) {
+    if (v == null) return '—';
+    return parseFloat(v).toLocaleString('uk-UA', {minimumFractionDigits: 2}) + ' ₴';
+}
+function initials(first, last) {
+    return ((first || '')[0] || '') + ((last || '')[0] || '') || '?';
+}
+
+// ── Load customer ────────────────────────────────────────────────
+async function loadCustomer() {
+    const r = await fetch(API_BASE + '/' + CUSTOMER_ID + '/data', {method:'POST'});
+    const d = await r.json();
+    if (d.error) { alert(d.error); return; }
+    fillPage(d);
+}
+
+function fillPage(d) {
+    const c = d.customer;
+
+    // Header
+    const fullName = [c.last_name, c.first_name, c.middle_name].filter(Boolean).join(' ');
+    document.getElementById('hdr-name').textContent   = fullName || '—';
+    document.getElementById('hdr-uid').textContent    = c.uid || '';
+    document.getElementById('hdr-avatar').textContent = initials(c.first_name, c.last_name);
+    if (c.blacklisted) document.getElementById('hdr-blocked').classList.remove('d-none');
+    document.getElementById('bc-name').textContent    = fullName || 'Customer';
+
+    // General
+    document.getElementById('f-last-name').value   = c.last_name   || '';
+    document.getElementById('f-first-name').value  = c.first_name  || '';
+    document.getElementById('f-middle-name').value = c.middle_name || '';
+    document.getElementById('f-birthday').value    = c.birthday ? c.birthday.slice(0,10) : '';
+    document.getElementById('f-gender').value      = c.gender    || '';
+    document.getElementById('f-type').value        = c.type      || 'individual';
+    document.getElementById('f-language').value    = c.language  || 'uk';
+    document.getElementById('f-notes').value       = c.notes     || '';
+
+    // CRM
+    document.getElementById('f-segment').value            = c.segment            || '';
+    document.getElementById('f-payment-discipline').value = c.payment_discipline || 'good';
+    document.getElementById('f-credit-limit').value       = c.credit_limit       || 0;
+    document.getElementById('f-assigned-to').value        = c.assigned_to        || '';
+    document.getElementById('f-blacklisted').checked      = !!c.blacklisted;
+    document.getElementById('f-do-not-call').checked      = !!c.do_not_call;
+    document.getElementById('f-do-not-email').checked     = !!c.do_not_email;
+    document.getElementById('f-do-not-sms').checked       = !!c.do_not_sms;
+
+    // Social
+    document.getElementById('f-telegram').value  = c.social_telegram  || '';
+    document.getElementById('f-instagram').value = c.social_instagram || '';
+    document.getElementById('f-viber').value     = c.social_viber     || '';
+    document.getElementById('f-whatsapp').value  = c.social_whatsapp  || '';
+    document.getElementById('f-facebook').value  = c.social_facebook  || '';
+
+    // Meta
+    document.getElementById('meta-created').textContent = fmtDate(c.created_at);
+    document.getElementById('meta-updated').textContent = fmtDate(c.updated_at);
+    document.getElementById('meta-source').textContent  = fmt(c.source);
+
+    // Groups badges
+    const gb = document.getElementById('groups-badges');
+    gb.innerHTML = '';
+    (d.groups || []).forEach(function(g) {
+        var s = document.createElement('span');
+        s.className = 'badge rounded-0 me-1 mb-1';
+        s.style.color      = g.color_text       || '#fff';
+        s.style.background = g.color_background || '#999';
+        s.textContent      = g.text;
+        gb.appendChild(s);
+    });
+    if (!d.groups || !d.groups.length) gb.innerHTML = '<span class="text-muted small">—</span>';
+
+    // Contacts
+    renderContacts(d.contacts || []);
+
+    // Addresses
+    renderAddresses(d.addresses || []);
+
+    // Loyalty
+    renderLoyalty(d.loyalty);
+
+    // Analytics
+    renderAnalytics(d.analytics);
+
+    // Notes
+    renderNotes(d.notes || []);
+}
+
+// ── Contacts ─────────────────────────────────────────────────────
+function renderContacts(contacts) {
+    var tb = document.getElementById('contacts-tbody');
+    if (!contacts.length) {
+        tb.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No contacts</td></tr>';
+        return;
+    }
+    tb.innerHTML = contacts.map(function(c) {
+        return '<tr>'
+            + '<td class="ps-3"><span class="badge bg-secondary rounded-0">' + c.type + '</span></td>'
+            + '<td class="fw-semibold">' + fmt(c.value) + '</td>'
+            + '<td><small class="text-muted">' + fmt(c.label_name) + '</small></td>'
+            + '<td class="text-center">' + (c.is_primary ? '<i class="fa-solid fa-check text-success"></i>' : '') + '</td>'
+            + '<td class="text-center">' + (c.is_verified ? '<i class="fa-solid fa-shield-halved text-primary"></i>' : '<i class="fa-solid fa-shield text-muted"></i>') + '</td>'
+            + '<td><a href="#" class="text-danger" onclick="deleteContact(' + c.id + ');return false"><i class="fa-solid fa-xmark"></i></a></td>'
+            + '</tr>';
+    }).join('');
+}
+
+// ── Addresses ────────────────────────────────────────────────────
+function renderAddresses(addresses) {
+    var tb = document.getElementById('addresses-tbody');
+    if (!addresses.length) {
+        tb.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No addresses</td></tr>';
+        return;
+    }
+    tb.innerHTML = addresses.map(function(a) {
+        var parts = [a.city, a.street, a.building, a.apartment].filter(Boolean);
+        var addr  = parts.join(', ') || '—';
+        var np    = a.np_warehouse_num ? ' <small class="text-muted">(NP #' + a.np_warehouse_num + ')</small>' : '';
+        return '<tr>'
+            + '<td class="ps-3"><span class="badge bg-secondary rounded-0">' + a.type + '</span></td>'
+            + '<td>' + addr + np + '</td>'
+            + '<td><small class="text-muted">' + fmt(a.carrier) + '</small></td>'
+            + '<td class="text-center">' + (a.is_default ? '<i class="fa-solid fa-check text-success"></i>' : '') + '</td>'
+            + '<td><a href="#" class="text-danger" onclick="deleteAddress(' + a.id + ');return false"><i class="fa-solid fa-xmark"></i></a></td>'
+            + '</tr>';
+    }).join('');
+}
+
+// ── Loyalty ──────────────────────────────────────────────────────
+function renderLoyalty(loy) {
+    var el = document.getElementById('loyalty-body');
+    if (!loy) { el.innerHTML = '<p class="text-muted small mb-0">No loyalty data</p>'; return; }
+    var levelColor = loy.level_color || '#ccc';
+    el.innerHTML = ''
+        + '<div class="d-flex align-items-center justify-content-between mb-2">'
+        + '  <span class="badge rounded-0 px-3 py-2" style="background:' + levelColor + ';color:#fff;font-size:.85rem">'
+        +      (loy.level_name || '—')
+        + '  </span>'
+        + '  <span class="fw-bold text-warning">' + (loy.points_balance || 0) + ' pts</span>'
+        + '</div>'
+        + '<div class="progress rounded-0 mb-2" style="height:6px">'
+        + '  <div class="progress-bar bg-warning" style="width:' + (loy.progress_pct || 0) + '%"></div>'
+        + '</div>'
+        + '<small class="text-muted d-block mb-2">' + (loy.points_to_next_level || 0) + ' pts to next level</small>'
+        + '<table class="table table-sm mb-0"><tbody>'
+        + '<tr><td class="text-muted">Earned total</td><td class="text-end fw-semibold">' + (loy.points_earned_total || 0) + '</td></tr>'
+        + '<tr><td class="text-muted">Spent total</td><td class="text-end fw-semibold">' + (loy.points_spent_total || 0) + '</td></tr>'
+        + '<tr><td class="text-muted">Cashback</td><td class="text-end fw-semibold">' + fmtMoney(loy.cashback_balance) + '</td></tr>'
+        + '</tbody></table>';
+}
+
+// ── Analytics ────────────────────────────────────────────────────
+function renderAnalytics(an) {
+    var tb = document.getElementById('analytics-tbody');
+    if (!an) { tb.innerHTML = '<tr><td class="text-muted text-center py-3">No analytics</td></tr>'; return; }
+    var churnColor = an.churn_risk_level === 'high' ? 'danger' : an.churn_risk_level === 'medium' ? 'warning' : 'success';
+    tb.innerHTML = ''
+        + row('Total orders',       an.total_orders || 0)
+        + row('Total spent',        fmtMoney(an.total_spent))
+        + row('Avg order value',    fmtMoney(an.average_order_value))
+        + row('Last order',         fmtDate(an.last_order_at))
+        + row('Predicted LTV',      fmtMoney(an.predicted_ltv))
+        + row('Repeat probability', an.repeat_probability != null ? (an.repeat_probability * 100).toFixed(0) + '%' : '—')
+        + row('Churn risk',         '<span class="badge bg-' + churnColor + ' rounded-0">' + (an.churn_risk_level || '—') + '</span>')
+        + row('RFM segment',        an.rfm_segment || '—');
+}
+function row(label, val) {
+    return '<tr><td class="text-muted ps-3">' + label + '</td><td class="text-end pe-3 fw-semibold">' + val + '</td></tr>';
+}
+
+// ── Notes ────────────────────────────────────────────────────────
+function renderNotes(notes) {
+    var el = document.getElementById('notes-body');
+    if (!notes.length) { el.innerHTML = '<p class="text-muted small mb-0">No notes</p>'; return; }
+    el.innerHTML = notes.map(function(n) {
+        var pinned = n.is_pinned ? '<i class="fa-solid fa-thumbtack text-warning me-2"></i>' : '';
+        return '<div class="border-start border-2 ps-3 mb-3 ' + (n.is_pinned ? 'border-warning' : 'border-secondary') + '">'
+            + '<div class="d-flex justify-content-between align-items-start">'
+            + '  <p class="mb-1 small">' + pinned + n.body + '</p>'
+            + '  <a href="#" class="text-danger ms-2 flex-shrink-0" onclick="deleteNote(' + n.id + ');return false"><i class="fa-solid fa-xmark"></i></a>'
+            + '</div>'
+            + '<small class="text-muted">' + fmt(n.author_name) + ' · ' + fmtDate(n.created_at) + '</small>'
+            + '</div>';
+    }).join('');
+}
+
+// ── Save ─────────────────────────────────────────────────────────
+document.getElementById('btn-save').addEventListener('click', async function() {
+    const payload = {
+        last_name:          document.getElementById('f-last-name').value,
+        first_name:         document.getElementById('f-first-name').value,
+        middle_name:        document.getElementById('f-middle-name').value,
+        gender:             document.getElementById('f-gender').value,
+        birthday:           document.getElementById('f-birthday').value,
+        type:               document.getElementById('f-type').value,
+        language:           document.getElementById('f-language').value,
+        notes:              document.getElementById('f-notes').value,
+        segment:            document.getElementById('f-segment').value,
+        payment_discipline: document.getElementById('f-payment-discipline').value,
+        credit_limit:       document.getElementById('f-credit-limit').value,
+        assigned_to:        document.getElementById('f-assigned-to').value,
+        blacklisted:        document.getElementById('f-blacklisted').checked ? 1 : 0,
+        do_not_call:        document.getElementById('f-do-not-call').checked ? 1 : 0,
+        do_not_email:       document.getElementById('f-do-not-email').checked ? 1 : 0,
+        do_not_sms:         document.getElementById('f-do-not-sms').checked ? 1 : 0,
+        social_telegram:    document.getElementById('f-telegram').value,
+        social_instagram:   document.getElementById('f-instagram').value,
+        social_viber:       document.getElementById('f-viber').value,
+        social_whatsapp:    document.getElementById('f-whatsapp').value,
+        social_facebook:    document.getElementById('f-facebook').value,
+    };
+    const r = await fetch(API_BASE + '/' + CUSTOMER_ID + '/update', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    if (d.success) {
+        loadCustomer();
+    } else {
+        alert(d.error || 'Save error');
+    }
+});
+
+// ── Stubs ─────────────────────────────────────────────────────────
+function deleteContact(id)  { if(confirm('Delete contact?'))  loadCustomer(); }
+function deleteAddress(id)  { if(confirm('Delete address?'))  loadCustomer(); }
+function deleteNote(id)     { if(confirm('Delete note?'))     loadCustomer(); }
+
+loadCustomer();
+</script>
+</body>
+</html>

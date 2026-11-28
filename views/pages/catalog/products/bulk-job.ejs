@@ -1,0 +1,330 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('catalog.bulk_job.title') %> #<%= job.id %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('catalog.bulk_job.title') %> #<%= job.id %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('catalog.bulk_job.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/catalog/"><%= i18n.__('catalog.bulk_job.breadcrumb.catalog') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/catalog/bulk/"><%= i18n.__('catalog.bulk_job.breadcrumb.bulk') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('catalog.bulk_job.breadcrumb.current') %> #<%= job.id %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/catalog/bulk/" class="btn btn-primary rounded-0">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3">
+			<div class="row">
+				<div class="col-12 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+							<span>
+								<% if (job.kind === 'revert') { %><i class="fa-solid fa-rotate-left me-1"></i> <%= i18n.__('catalog.bulk_job.revert_of') %> <a class="link-light" href="/catalog/bulk/<%= job.id_source %>/">#<%= job.id_source %></a><% } else { %><%= job.title || i18n.__('catalog.bulk_job.untitled') %><% } %>
+								<span class="badge rounded-0 ms-2 <%= { queued: 'text-bg-secondary', running: 'text-bg-light', done: 'text-bg-success', cancelled: 'text-bg-warning', failed: 'text-bg-danger' }[job.status] %>" id="bj-status"><%= job.scheduled ? i18n.__('catalog.bulk_jobs.st.scheduled') : i18n.__('catalog.bulk_jobs.st.' + job.status) %></span>
+							</span>
+							<div class="d-flex gap-2">
+								<% if (perms.edit && job.can_cancel) { %>
+								<button type="button" class="btn btn-sm btn-light rounded-0" id="bj-cancel"<% if (job.cancel_requested) { %> disabled<% } %>><i class="fa-solid fa-stop me-1"></i> <%= i18n.__('catalog.bulk_job.cancel') %></button>
+								<% } %>
+								<a class="btn btn-sm btn-light rounded-0" href="/catalog/bulk/<%= job.id %>/report.xlsx"><i class="fa-solid fa-file-excel me-1"></i> <%= i18n.__('catalog.bulk_job.export') %></a>
+								<% if (perms.edit && job.kind === 'edit') { %>
+								<button type="button" class="btn btn-sm btn-light rounded-0" id="bj-template" data-on="<%= job.is_template ? 1 : 0 %>"><i class="<%= job.is_template ? 'fa-solid' : 'fa-regular' %> fa-star me-1"></i> <span><%= i18n.__(job.is_template ? 'catalog.bulk_job.template_off' : 'catalog.bulk_job.template_on') %></span></button>
+								<a class="btn btn-sm btn-light rounded-0" href="/catalog/bulk/new/?from=<%= job.id %>"><i class="fa-solid fa-copy me-1"></i> <%= i18n.__('catalog.bulk_job.repeat') %></a>
+								<% } %>
+								<% if (perms.edit && job.can_resume) { %>
+								<button type="button" class="btn btn-sm btn-light rounded-0" id="bj-resume"><i class="fa-solid fa-play me-1"></i> <%= i18n.__('catalog.bulk_job.resume') %></button>
+								<% } %>
+								<% if (perms.edit && job.can_revert && (!job.stock || perms.stockDelete)) { %>
+								<button type="button" class="btn btn-sm btn-light rounded-0" data-bs-toggle="modal" data-bs-target="#bj-revert-modal"><i class="fa-solid fa-rotate-left me-1"></i> <%= i18n.__('catalog.bulk_job.revert') %></button>
+								<% } %>
+								<% if (job.kind === 'edit' && job.id_reverted_by) { %>
+								<a class="btn btn-sm btn-light rounded-0" href="/catalog/bulk/<%= job.id_reverted_by %>/"><i class="fa-solid fa-rotate-left me-1"></i> <%= i18n.__('catalog.bulk_job.reverted_by') %> #<%= job.id_reverted_by %></a>
+								<% } %>
+							</div>
+						</div>
+						<div class="card-body">
+							<div class="row g-3">
+								<div class="col-12 col-lg-6">
+									<table class="table table-sm mb-0">
+										<tbody>
+											<tr><th class="fw-normal text-secondary w-25"><%= i18n.__('catalog.bulk_job.author') %></th><td><%= job.user_name || ('#' + job.id_user) %></td></tr>
+											<tr><th class="fw-normal text-secondary"><%= i18n.__('catalog.bulk_job.created') %></th><td data-date="<%= job.date_add ? new Date(job.date_add).toISOString() : '' %>"></td></tr>
+											<% if (job.scheduled) { %>
+											<tr><th class="fw-normal text-secondary"><%= i18n.__('catalog.bulk_job.run_at') %></th><td data-date="<%= job.run_at %>"></td></tr>
+											<% } %>
+											<% if (job.kind === 'edit' && !job.id_reverted_by) { %>
+											<tr>
+												<th class="fw-normal text-secondary"><%= i18n.__('catalog.bulk_job.revert_at') %></th>
+												<td>
+													<% if (perms.edit) { %>
+													<div class="input-group input-group-sm">
+														<input type="datetime-local" class="form-control rounded-0" id="bj-revert-at" data-value="<%= job.revert_at || '' %>" />
+														<button type="button" class="btn btn-outline-primary rounded-0" id="bj-revert-at-save"><%= i18n.__('catalog.bulk_job.save') %></button>
+														<% if (job.revert_at) { %><button type="button" class="btn btn-outline-secondary rounded-0" id="bj-revert-at-clear"><%= i18n.__('catalog.bulk_job.clear') %></button><% } %>
+													</div>
+													<div class="form-text"><%= i18n.__('catalog.bulk_job.revert_at_hint') %></div>
+													<% } else { %><span data-date="<%= job.revert_at || '' %>"></span><% } %>
+												</td>
+											</tr>
+											<% } %>
+											<tr><th class="fw-normal text-secondary"><%= i18n.__('catalog.bulk_job.finished') %></th><td data-date="<%= job.finished_at ? new Date(job.finished_at).toISOString() : '' %>" id="bj-finished"></td></tr>
+											<% if (job.kind === 'edit') { %>
+											<tr>
+												<th class="fw-normal text-secondary"><%= i18n.__('catalog.bulk_job.selection') %></th>
+												<td>
+													<% if (job.selection && job.selection.mode === 'filter') { %><%= i18n.__('catalog.bulk_job.sel_filter') %><% } else if (job.selection && job.selection.mode === 'list') { %><%= i18n.__('catalog.bulk_job.sel_list') %> (<%= job.selection.count %>)<% } else { %><%= i18n.__('catalog.bulk_job.sel_ids') %><% } %>
+												</td>
+											</tr>
+											<tr>
+												<th class="fw-normal text-secondary"><%= i18n.__('catalog.bulk_job.operations') %></th>
+												<td>
+													<ol class="mb-0 ps-3">
+														<% opTexts.forEach(function (text) { %><li><%= text %></li><% }) %>
+													</ol>
+												</td>
+											</tr>
+											<% } %>
+											<% if (job.stock && job.documents && job.documents.length) { %>
+											<tr>
+												<th class="fw-normal text-secondary"><%= i18n.__('catalog.bulk_job.documents') %></th>
+												<td>
+													<% job.documents.slice().reverse().forEach(function (d) { %>
+													<a class="me-2 text-nowrap" href="/catalog/stock/documents/<%= d.id %>/" target="_blank"><%= d.number %></a><% if (d.status === 'cancelled') { %><span class="badge rounded-0 text-bg-light border me-2"><%= i18n.__('catalog.bulk_job.doc_cancelled') %></span><% } %>
+													<% }) %>
+												</td>
+											</tr>
+											<% } %>
+											<% if (job.error) { %>
+											<tr><th class="fw-normal text-secondary"><%= i18n.__('catalog.bulk_job.error') %></th><td class="text-danger"><%= job.error %></td></tr>
+											<% } %>
+										</tbody>
+									</table>
+								</div>
+								<div class="col-12 col-lg-6">
+									<div class="d-flex justify-content-between small mb-1">
+										<span><%= i18n.__('catalog.bulk_job.progress') %></span>
+										<span><span id="bj-processed"><%= job.status === 'done' ? job.total : job.processed %></span> / <%= job.total %></span>
+									</div>
+									<div class="progress rounded-0 mb-3" style="height: 1.25rem">
+										<div class="progress-bar<% if (job.status === 'running') { %> progress-bar-striped progress-bar-animated<% } %>" id="bj-bar" style="width: <%= job.total ? Math.min(100, Math.round(((job.status === 'done' ? job.total : job.processed) / job.total) * 100)) : 0 %>%"></div>
+									</div>
+									<div class="row g-2 text-center">
+										<div class="col-6 col-md-3"><div class="border p-2"><div class="fs-4 text-success" id="bj-changed"><%= job.changed %></div><div class="small text-secondary"><%= i18n.__(job.kind === 'revert' ? 'catalog.bulk_job.reverted_count' : 'catalog.bulk_jobs.changed') %></div></div></div>
+										<div class="col-6 col-md-3"><div class="border p-2"><div class="fs-4 text-secondary" id="bj-unchanged"><%= job.unchanged %></div><div class="small text-secondary"><%= i18n.__('catalog.bulk_jobs.unchanged') %></div></div></div>
+										<div class="col-6 col-md-3"><div class="border p-2"><div class="fs-4 text-warning" id="bj-skipped"><%= job.skipped %></div><div class="small text-secondary"><%= i18n.__('catalog.bulk_jobs.skipped') %></div></div></div>
+										<div class="col-6 col-md-3"><div class="border p-2"><div class="fs-4 text-danger" id="bj-errors"><%= job.errors %></div><div class="small text-secondary"><%= i18n.__('catalog.bulk_jobs.errors') %></div></div></div>
+									</div>
+									<% if (job.status === 'running' || job.status === 'queued') { %>
+									<div class="form-text mt-2"><%= i18n.__('catalog.bulk_job.running_hint') %></div>
+									<% } %>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="col-12 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('catalog.bulk_job.report') %></div>
+						<div id="bj-report"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<% if (perms.edit && job.can_revert && (!job.stock || perms.stockDelete)) { %>
+		<div class="modal fade" id="bj-revert-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5"><%= i18n.__('catalog.bulk_job.revert_title') %></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<p class="mb-2"><%= i18n.__('catalog.bulk_job.revert_text', { n: String(job.changed) }) %></p>
+						<div class="form-text"><%= i18n.__(job.stock ? 'catalog.bulk_job.revert_hint_stock' : 'catalog.bulk_job.revert_hint') %></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('catalog.bulk_job.close') %></button>
+						<button type="button" class="btn btn-danger rounded-0" id="bj-revert"><%= i18n.__('catalog.bulk_job.revert') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<% } %>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const JOB = <%= job.id %>;
+				const TOTAL = <%= Number(job.total) || 0 %>;
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s === null || s === undefined ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const notyf = new Notyf({ duration: 5000, position: { x: "right", y: "top" } });
+
+				// Дати — у поясі людини
+				document.querySelectorAll("[data-date]").forEach((el) => (el.textContent = el.dataset.date ? new Date(el.dataset.date).toLocaleString() : "—"));
+
+				async function api(url, body) {
+					const res = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					let j = {};
+					try {
+						j = await res.json();
+					} catch (e) {}
+					if (!res.ok || !j.ok) throw new Error(j.error || "Error");
+					return j;
+				}
+
+				// Звіт: пропущені й помилки (успішні не показуємо — їх видно в історії кожного товару)
+				const report = new Tabulator("#bj-report", {
+					layout: "fitColumns",
+					placeholder: "<%= i18n.__('catalog.bulk_job.report_empty') %>",
+					pagination: true,
+					paginationSize: 50,
+					paginationSizeSelector: [50, 100, 500],
+					ajaxURL: "/api/catalog/bulk/jobs/" + JOB + "/",
+					ajaxConfig: { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" } },
+					ajaxContentType: "json",
+					ajaxResponse: (url, params, resp) => (resp && resp.job ? resp.job.report : []),
+					columns: [
+						{ title: "<%= i18n.__('catalog.bulk_job.col_product') %>", field: "name", headerSort: false, widthGrow: 3, formatter: (c) => { const r = c.getRow().getData(); return `${esc(r.name)}${r.sku ? ` <span class="text-secondary small">${esc(r.sku)}</span>` : ""}`; } },
+						{ title: "<%= i18n.__('catalog.bulk_job.col_status') %>", field: "status", headerSort: false, width: 140, formatter: (c) => (c.getValue() === "error" ? `<span class="badge rounded-0 text-bg-danger"><%= i18n.__('catalog.bulk_jobs.errors') %></span>` : `<span class="badge rounded-0 text-bg-warning"><%= i18n.__('catalog.bulk_jobs.skipped') %></span>`) },
+						{ title: "<%= i18n.__('catalog.bulk_job.col_message') %>", field: "message_text", headerSort: false, widthGrow: 4, formatter: (c) => { const r = c.getRow().getData(); return esc([r.message_text, r.user_name, r.fields_text].filter(Boolean).join(": ")); } },
+						{ title: "", field: "id", headerSort: false, width: 60, hozAlign: "center", formatter: (c) => `<a class="btn btn-sm btn-primary rounded-0" href="/catalog/products/${Number(c.getValue())}/" target="_blank" title="<%= i18n.__('catalog.bulk_job.open_product') %>"><i class="fa-solid fa-pen-to-square"></i></a>` },
+					],
+				});
+
+				// Живий прогрес; після завершення — сторінка заново (стан, кнопки, звіт)
+				if (typeof socket !== "undefined") {
+					socket.emit("room", "catalog:bulk");
+					socket.on("catalog:bulk", (d) => {
+						if (Number(d.id) !== JOB) return;
+						if (d.status !== "running") return location.reload();
+						const done = Number(d.processed) || 0;
+						$("bj-processed").textContent = done;
+						$("bj-bar").style.width = (TOTAL ? Math.min(100, Math.round((done / TOTAL) * 100)) : 0) + "%";
+						["changed", "unchanged", "skipped", "errors"].forEach((k) => d[k] !== undefined && ($("bj-" + k).textContent = d[k]));
+						$("bj-status").textContent = "<%= i18n.__('catalog.bulk_jobs.st.running') %>";
+					});
+				}
+
+				// Шаблон: зберегти зміну, щоб починати з неї нові (вибір у конструкторі)
+				const tplBtn = $("bj-template");
+				if (tplBtn)
+					tplBtn.addEventListener("click", async () => {
+						tplBtn.disabled = true;
+						try {
+							const on = tplBtn.dataset.on !== "1";
+							await api(`/api/catalog/bulk/jobs/${JOB}/template/`, { on });
+							tplBtn.dataset.on = on ? "1" : "0";
+							tplBtn.querySelector("i").className = `${on ? "fa-solid" : "fa-regular"} fa-star me-1`;
+							tplBtn.querySelector("span").textContent = on ? "<%= i18n.__('catalog.bulk_job.template_off') %>" : "<%= i18n.__('catalog.bulk_job.template_on') %>";
+							notyf.success(on ? "<%= i18n.__('catalog.bulk_job.template_saved') %>" : "<%= i18n.__('catalog.bulk_job.template_removed') %>");
+						} catch (e) {
+							notyf.error(e.message);
+						} finally {
+							tplBtn.disabled = false;
+						}
+					});
+
+				const cancelBtn = $("bj-cancel");
+				if (cancelBtn)
+					cancelBtn.addEventListener("click", async () => {
+						cancelBtn.disabled = true;
+						try {
+							const r = await api(`/api/catalog/bulk/jobs/${JOB}/cancel/`);
+							if (r.status === "cancelled") location.reload();
+							else notyf.success("<%= i18n.__('catalog.bulk_job.cancel_requested') %>");
+						} catch (e) {
+							cancelBtn.disabled = false;
+							notyf.error(e.message);
+						}
+					});
+
+				// Автоматична відміна: поле — у поясі людини
+				const ra = $("bj-revert-at");
+				if (ra) {
+					const pad = (n) => String(n).padStart(2, "0");
+					if (ra.dataset.value) {
+						const d = new Date(ra.dataset.value);
+						ra.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+					}
+					const saveRa = async (value) => {
+						try {
+							await api(`/api/catalog/bulk/jobs/${JOB}/revert-at/`, { revert_at: value });
+							location.reload();
+						} catch (e) {
+							notyf.error(e.message);
+						}
+					};
+					$("bj-revert-at-save").addEventListener("click", () => (ra.value ? saveRa(new Date(ra.value).toISOString()) : notyf.error("<%= i18n.__('catalog.bulk_new.e_revert_at') %>")));
+					if ($("bj-revert-at-clear")) $("bj-revert-at-clear").addEventListener("click", () => saveRa(null));
+				}
+
+				const resumeBtn = $("bj-resume");
+				if (resumeBtn)
+					resumeBtn.addEventListener("click", async () => {
+						resumeBtn.disabled = true;
+						try {
+							await api(`/api/catalog/bulk/jobs/${JOB}/resume/`);
+							location.reload();
+						} catch (e) {
+							resumeBtn.disabled = false;
+							notyf.error(e.message);
+						}
+					});
+
+				const revertBtn = $("bj-revert");
+				if (revertBtn)
+					revertBtn.addEventListener("click", async () => {
+						revertBtn.disabled = true;
+						try {
+							const r = await api(`/api/catalog/bulk/jobs/${JOB}/revert/`);
+							location.assign(`/catalog/bulk/${Number(r.id)}/`);
+						} catch (e) {
+							revertBtn.disabled = false;
+							notyf.error(e.message);
+						}
+					});
+			})();
+		</script>
+	</body>
+</html>

@@ -1,0 +1,599 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('modules.telegramshop.title') %></title>
+		<%- include('../../../views/partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<style>
+			/* Таблиці — як «Статуси замовлень»: рамки між колонками й рядками */
+			#shops-table .tabulator-col,
+			#shops-table .tabulator-cell { border-right: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; }
+			#shops-table .tabulator-col:last-child,
+			#shops-table .tabulator-cell:last-child { border-right: none; }
+			#shops-table .tabulator-row:last-child .tabulator-cell { border-bottom: none; }
+
+			.section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #6c757d; letter-spacing: 0.5px; margin-bottom: 4px; }
+			.step-num { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; background: #0057b8; color: #fff; font-size: 12px; margin-right: 6px; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../views/partials/header'); %>
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('modules.telegramshop.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('modules.telegramshop.home') %></span></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/modules/"><%= i18n.__('modules.telegramshop.modules') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= i18n.__('modules.telegramshop.title') %></li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto"><a href="/modules/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a></div>
+				</div>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pt-3 pb-5">
+				<div class="alert alert-light border rounded-0 small"><i class="fa-solid fa-circle-info me-1 text-primary"></i><%= i18n.__('modules.telegramshop.help') %></div>
+				<% if (!appUrlOk) { %><div class="alert alert-warning rounded-0 small"><i class="fa-solid fa-triangle-exclamation me-1"></i><%= i18n.__('modules.telegramshop.e.https') %></div><% } %>
+				<% if (perms.edit) { %><button type="button" class="btn btn-primary rounded-0 mb-3" id="btn-new"><%= i18n.__('modules.telegramshop.add') %></button><% } %>
+				<div class="card border-primary rounded-0">
+					<div class="card-header text-bg-primary rounded-0"><%= i18n.__('modules.telegramshop.shops') %></div>
+					<div id="shops-table"></div>
+				</div>
+			</div>
+		</main>
+
+		<% if (perms.edit) { %>
+		<!-- Новий магазин -->
+		<div class="modal fade" id="m-new" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5"><%= i18n.__('modules.telegramshop.add') %></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<div class="mb-3">
+							<label class="section-title d-block" for="n-name"><%= i18n.__('modules.telegramshop.f.name') %></label>
+							<input type="text" class="form-control rounded-0" id="n-name" maxlength="128" />
+						</div>
+						<div class="row g-2">
+							<div class="col-8">
+								<label class="section-title d-block" for="n-status"><%= i18n.__('modules.telegramshop.f.default_status') %></label>
+								<select class="form-select rounded-0" id="n-status">
+									<% statuses.forEach(function (s) { %><option value="<%= s.id %>"><%= s.name %></option><% }); %>
+								</select>
+							</div>
+							<div class="col-4">
+								<label class="section-title d-block" for="n-prefix"><%= i18n.__('modules.telegramshop.f.prefix') %></label>
+								<input type="text" class="form-control rounded-0" id="n-prefix" maxlength="16" value="TG" />
+							</div>
+						</div>
+						<div class="form-text mt-2"><%= i18n.__('modules.telegramshop.new_hint') %></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('modules.telegramshop.cancel') %></button>
+						<button type="button" class="btn btn-primary rounded-0" id="n-save"><i class="fa-solid fa-plus me-1"></i><%= i18n.__('modules.telegramshop.create') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<% } %>
+
+		<!-- Магазин -->
+		<div class="modal fade" id="m-shop" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5" id="s-title"></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<div class="row g-4">
+							<div class="col-lg-6">
+								<h6><span class="step-num">1</span><%= i18n.__('modules.telegramshop.step_bot') %></h6>
+								<div id="bot-box"></div>
+								<h6 class="mt-4"><span class="step-num">2</span><%= i18n.__('modules.telegramshop.step_catalog') %></h6>
+								<p class="small text-muted mb-1"><%= i18n.__('modules.telegramshop.catalog_hint') %></p>
+								<a href="/settings/integrations/" class="btn btn-sm btn-outline-primary rounded-0" id="s-integration" target="_blank"><i class="fa-solid fa-sliders me-1"></i><span></span></a>
+								<h6 class="mt-4"><span class="step-num">3</span><%= i18n.__('modules.telegramshop.step_open') %></h6>
+								<div class="d-flex flex-wrap gap-2 align-items-center">
+									<select class="form-select form-select-sm rounded-0 w-auto" id="s-status" <%= perms.edit ? '' : 'disabled' %>>
+										<option value="draft"><%= i18n.__('modules.telegramshop.st.draft') %></option>
+										<option value="active"><%= i18n.__('modules.telegramshop.st.active') %></option>
+										<option value="disabled"><%= i18n.__('modules.telegramshop.st.disabled') %></option>
+									</select>
+									<a href="#" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary rounded-0 d-none" id="s-bot-link"><i class="fa-brands fa-telegram me-1"></i><%= i18n.__('modules.telegramshop.open_bot') %></a>
+								</div>
+								<div class="form-text"><%= i18n.__('modules.telegramshop.status_hint') %></div>
+								<h6 class="mt-4"><span class="step-num">4</span><%= i18n.__('modules.telegramshop.cc.title') %></h6>
+								<p class="small text-muted mb-2"><%= i18n.__('modules.telegramshop.cc.hint') %></p>
+								<div id="cc-box"></div>
+							</div>
+							<div class="col-lg-6">
+								<h6><%= i18n.__('modules.telegramshop.texts') %></h6>
+								<div class="mb-2">
+									<label class="section-title d-block" for="s-name"><%= i18n.__('modules.telegramshop.f.name') %></label>
+									<input type="text" class="form-control form-control-sm rounded-0" id="s-name" maxlength="128" />
+								</div>
+								<div class="mb-2">
+									<label class="section-title d-block" for="s-welcome"><%= i18n.__('modules.telegramshop.f.welcome') %></label>
+									<textarea class="form-control form-control-sm rounded-0" id="s-welcome" rows="3" maxlength="2000" placeholder="<%= i18n.__('modules.telegramshop.welcome_ph') %>"></textarea>
+								</div>
+								<div class="row g-2 mb-2">
+									<div class="col-6">
+										<label class="section-title d-block" for="s-button"><%= i18n.__('modules.telegramshop.f.button') %></label>
+										<input type="text" class="form-control form-control-sm rounded-0" id="s-button" maxlength="32" placeholder="<%= i18n.__('modules.telegramshop.bot.open_shop') %>" />
+									</div>
+									<div class="col-6">
+										<label class="section-title d-block" for="s-min"><%= i18n.__('modules.telegramshop.f.min_order') %></label>
+										<input type="number" class="form-control form-control-sm rounded-0" id="s-min" min="0" step="0.01" />
+									</div>
+								</div>
+								<div class="mb-2">
+									<label class="section-title d-block" for="s-short"><%= i18n.__('modules.telegramshop.f.about_short') %></label>
+									<input type="text" class="form-control form-control-sm rounded-0" id="s-short" maxlength="120" />
+								</div>
+								<div class="mb-2">
+									<label class="section-title d-block" for="s-about"><%= i18n.__('modules.telegramshop.f.about') %></label>
+									<textarea class="form-control form-control-sm rounded-0" id="s-about" rows="2" maxlength="512"></textarea>
+								</div>
+								<div class="mb-2">
+									<label class="section-title d-block" for="s-support"><%= i18n.__('modules.telegramshop.f.support') %></label>
+									<input type="text" class="form-control form-control-sm rounded-0" id="s-support" maxlength="255" placeholder="<%= i18n.__('modules.telegramshop.support_ph') %>" />
+								</div>
+								<div class="form-check"><input class="form-check-input" type="checkbox" id="s-notify" /><label class="form-check-label small" for="s-notify"><%= i18n.__('modules.telegramshop.f.notify_manager') %></label></div>
+								<div class="form-check"><input class="form-check-input" type="checkbox" id="s-notify-status" /><label class="form-check-label small" for="s-notify-status"><%= i18n.__('modules.telegramshop.f.notify_status') %></label></div>
+								<div class="form-check"><input class="form-check-input" type="checkbox" id="s-back" /><label class="form-check-label small" for="s-back"><%= i18n.__('modules.telegramshop.f.back_in_stock') %></label></div>
+								<div class="d-flex align-items-center gap-2 mt-2">
+									<label class="small text-nowrap" for="s-abandoned"><%= i18n.__('modules.telegramshop.f.abandoned') %></label>
+									<select class="form-select form-select-sm rounded-0 w-auto" id="s-abandoned">
+										<% abandonedHours.forEach(function (h) { %><option value="<%= h %>"><%= h ? i18n.__('modules.telegramshop.abandoned_after').replace('{{n}}', h) : i18n.__('modules.telegramshop.abandoned_off') %></option><% }); %>
+									</select>
+								</div>
+							</div>
+						</div>
+						<hr />
+						<div class="row g-4">
+							<div class="col-lg-6">
+								<div class="d-flex align-items-center justify-content-between mb-2">
+									<h6 class="mb-0"><%= i18n.__('modules.telegramshop.delivery') %></h6>
+									<% if (perms.edit) { %><button type="button" class="btn btn-sm btn-outline-primary rounded-0" id="d-add"><i class="fa-solid fa-plus me-1"></i><%= i18n.__('modules.telegramshop.add_method') %></button><% } %>
+								</div>
+								<div class="form-text mt-0 mb-2"><%= i18n.__('modules.telegramshop.delivery_hint') %></div>
+								<div id="w-warn"></div>
+								<div id="d-list"></div>
+							</div>
+							<div class="col-lg-6">
+								<div class="d-flex align-items-center justify-content-between mb-2">
+									<h6 class="mb-0"><%= i18n.__('modules.telegramshop.payments') %></h6>
+									<% if (perms.edit) { %><button type="button" class="btn btn-sm btn-outline-primary rounded-0" id="p-add"><i class="fa-solid fa-plus me-1"></i><%= i18n.__('modules.telegramshop.add_method') %></button><% } %>
+								</div>
+								<div class="form-text mt-0 mb-2"><%= i18n.__('modules.telegramshop.payments_hint') %></div>
+								<div id="p-list"></div>
+								<div class="row g-2 mt-1">
+									<div class="col-sm-6">
+										<label class="section-title d-block" for="s-status-paid"><%= i18n.__('modules.telegramshop.f.status_paid') %></label>
+										<select class="form-select form-select-sm rounded-0" id="s-status-paid">
+											<option value=""><%= i18n.__('modules.telegramshop.status_paid_none') %></option>
+											<% statuses.forEach(function (s) { %><option value="<%= s.id %>"><%= s.name %></option><% }); %>
+										</select>
+									</div>
+								</div>
+								<div class="form-text"><%= i18n.__('modules.telegramshop.status_paid_hint') %></div>
+								<div class="mt-2">
+									<label class="section-title d-block" for="s-co-note"><%= i18n.__('modules.telegramshop.f.checkout_note') %></label>
+									<textarea class="form-control form-control-sm rounded-0" id="s-co-note" rows="2" maxlength="1000"></textarea>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('modules.telegramshop.cancel') %></button>
+						<% if (perms.edit) { %><button type="button" class="btn btn-primary rounded-0" id="s-save"><i class="fa-solid fa-floppy-disk me-1"></i><%= i18n.__('modules.telegramshop.save') %></button><% } %>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Підтвердження відключення бота -->
+		<div class="modal fade" id="m-confirm" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5"><%= i18n.__('modules.telegramshop.disconnect') %></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body"><p class="mb-0"><%= i18n.__('modules.telegramshop.disconnect_q') %></p></div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('modules.telegramshop.cancel') %></button>
+						<button type="button" class="btn btn-danger rounded-0" id="c-ok"><%= i18n.__('modules.telegramshop.disconnect') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../../views/partials/footer'); %>
+		<%- include('../../../views/partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000, types: [{ type: "success", dismissible: true, icon: false }, { type: "error", background: "indianred", dismissible: true, icon: false }] });
+				const EDIT = <%= perms.edit ? 'true' : 'false' %>;
+				const L = <%- JSON.stringify(i18n.__('modules.telegramshop')).replace(/</g, '\\u003c') %>;
+				const API = "/api/module/telegramshop";
+				async function post(url, body) {
+					const r = await fetch(API + url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok || j.ok === false) throw new Error(j.error || L.e.server);
+					return j;
+				}
+				const D_KINDS = <%- JSON.stringify(deliveryKinds) %>;
+				const PRICE_MODES = ["fixed", "weight", "carrier", "api"];
+				const P_KINDS = <%- JSON.stringify(paymentKinds) %>;
+				const ST_BADGE = { draft: "text-bg-secondary", active: "text-bg-success", disabled: "text-bg-danger" };
+
+				const table = new Tabulator("#shops-table", {
+					layout: "fitColumns",
+					pagination: true,
+					paginationSize: 10,
+					paginationSizeSelector: [10, 20, 30, 40],
+					movableColumns: true,
+					columnDefaults: { headerSort: false },
+					placeholder: L.empty,
+					columns: [
+						{ title: "ID", field: "id", width: 70 },
+						{ title: L.f.name, field: "name", widthGrow: 3, minWidth: 180, formatter: (c) => esc(c.getValue()) },
+						{ title: L.bot, field: "bot_username", minWidth: 160, formatter: (c) => { const d = c.getRow().getData(); return d.bot_username ? '<a href="' + esc(d.bot_url) + '" target="_blank" rel="noopener">@' + esc(d.bot_username) + "</a>" + (d.webhook_ok ? "" : ' <i class="fa-solid fa-triangle-exclamation text-warning" title="' + esc(L.webhook_bad) + '"></i>') : '<span class="text-muted">' + esc(L.not_connected) + "</span>"; } },
+						{ title: L.f.status, field: "status", width: 140, formatter: (c) => '<span class="badge rounded-0 ' + (ST_BADGE[c.getValue()] || "") + '">' + esc(L.st[c.getValue()] || c.getValue()) + "</span>" },
+						{ title: L.customers, field: "customers", width: 120, hozAlign: "right" },
+						{ title: L.orders, field: "orders", width: 120, hozAlign: "right" },
+						{ title: "", field: "id", width: 100, formatter: () => '<div class="d-flex justify-content-center gap-2"><button type="button" class="bg-transparent border-0 text-primary"><i class="fa-regular fa-pen-to-square"></i></button></div>', cellClick: (e, cell) => e.target.closest("button") && open(cell.getRow().getData()) },
+					],
+				});
+				const load = () => post("/shops/list/").then((d) => table.replaceData(d.rows)).catch((e) => notyf.error(e.message));
+				table.on("tableBuilt", load);
+
+				// ── Новий магазин ──
+				if (EDIT) {
+					const mNew = bootstrap.Modal.getOrCreateInstance($("m-new"));
+					$("btn-new").addEventListener("click", () => { $("n-name").value = ""; mNew.show(); });
+					$("n-save").addEventListener("click", async (e) => {
+						const btn = e.currentTarget;
+						btn.disabled = true;
+						try {
+							const d = await post("/shops/create/", { name: $("n-name").value, default_status_id: $("n-status").value, order_prefix: $("n-prefix").value });
+							mNew.hide();
+							notyf.success(L.created);
+							await load();
+							setTimeout(() => open(d.shop), 400);
+						} catch (err) {
+							notyf.error(err.message);
+						} finally {
+							btn.disabled = false;
+						}
+					});
+				}
+
+				// ── Магазин ──
+				const mShop = bootstrap.Modal.getOrCreateInstance($("m-shop"));
+				let cur = null;
+				function botBox() {
+					const s = cur;
+					if (!s.connected) {
+						$("bot-box").innerHTML =
+							'<ol class="small text-muted ps-3 mb-2"><li>' + L.howto_1 + "</li><li>" + L.howto_2 + "</li><li>" + L.howto_3 + "</li></ol>" +
+							(EDIT ? '<div class="input-group input-group-sm"><input type="password" class="form-control rounded-0" id="b-token" autocomplete="off" placeholder="123456789:AA..."><button type="button" class="btn btn-primary rounded-0" id="b-connect"><i class="fa-brands fa-telegram me-1"></i>' + esc(L.connect) + "</button></div>" : "");
+						return;
+					}
+					$("bot-box").innerHTML =
+						'<div class="d-flex align-items-center gap-2 mb-2"><i class="fa-brands fa-telegram fs-4" style="color:#0088cc"></i><div><a href="' + esc(s.bot_url) + '" target="_blank" rel="noopener" class="fw-semibold">@' + esc(s.bot_username) + '</a><div class="small text-muted">' + esc(L.token_end) + " …" + esc(s.token_last4 || "") + "</div></div></div>" +
+						(s.webhook_ok ? '<div class="small text-success mb-2"><i class="fa-solid fa-check me-1"></i>' + esc(L.webhook_ok) + "</div>" : '<div class="small text-danger mb-2"><i class="fa-solid fa-triangle-exclamation me-1"></i>' + esc(L.webhook_bad) + (s.webhook_error ? ": " + esc(s.webhook_error) : "") + "</div>") +
+						'<div class="small text-muted mb-2">' + esc(L.app_url) + ': <code class="user-select-all">' + esc(s.app_url) + "</code></div>" +
+						(EDIT ? '<div class="d-flex gap-2"><button type="button" class="btn btn-sm btn-outline-primary rounded-0" id="b-check"><i class="fa-solid fa-rotate me-1"></i>' + esc(L.check) + '</button><button type="button" class="btn btn-sm btn-outline-danger rounded-0" id="b-disconnect">' + esc(L.disconnect) + "</button></div>" : "");
+				}
+				function fill(s) {
+					cur = s;
+					$("s-title").textContent = s.name;
+					$("s-name").value = s.name;
+					$("s-status").value = s.status;
+					$("s-welcome").value = s.settings.welcome || "";
+					$("s-button").value = s.settings.button || "";
+					$("s-min").value = s.settings.min_order || "";
+					$("s-short").value = s.settings.about_short || "";
+					$("s-about").value = s.settings.about || "";
+					$("s-support").value = s.settings.support || "";
+					$("s-notify").checked = !!s.settings.notify_manager;
+					$("s-notify-status").checked = !!s.settings.notify_status;
+					$("s-status-paid").value = s.settings.status_paid || "";
+					$("s-co-note").value = s.settings.checkout_note || "";
+					$("s-back").checked = !!s.settings.back_in_stock;
+					$("s-abandoned").value = String(s.settings.abandoned_hours || 0);
+					dl = (s.settings.delivery || []).map((x) => ({
+						...x,
+						price_mode: x.price_mode || (String(x.kind).startsWith("np_") ? "carrier" : "fixed"),
+						rates: (x.rates || []).map((r) => ({ ...r })),
+					}));
+					pl = (s.settings.payments || []).map((x) => ({ ...x }));
+					weights = null;
+					renderMethods();
+					post("/shops/" + Number(s.id) + "/weights/", {})
+						.then((r) => {
+							if (cur !== s) return;
+							weights = r.weights;
+							renderWeights();
+						})
+						.catch(() => {});
+					$("s-integration").querySelector("span").textContent = (s.integration_name || L.integration) + " — " + L.integration_open;
+					$("s-integration").href = s.id_integration ? "/settings/integrations/" + Number(s.id_integration) + "/" : "/settings/integrations/";
+					$("s-bot-link").classList.toggle("d-none", !s.bot_url);
+					if (s.bot_url) $("s-bot-link").href = s.bot_url;
+					botBox();
+				}
+				// ── Доставка й оплата: редагування списків у формі, збереження — разом з магазином ──
+				let dl = [];
+				let pl = [];
+				// Товари вітрини без ваги: попередження, коли ціна доставки залежить від ваги (за вагою / розрахунок Нової пошти)
+				let weights = null;
+				function renderWeights() {
+					const need = dl.some((d) => d.active && (d.price_mode === "weight" || d.price_mode === "api"));
+					const box = $("w-warn");
+					if (!box) return;
+					if (!need || !weights || !weights.count) return (box.innerHTML = "");
+					box.innerHTML =
+						'<div class="alert alert-warning rounded-0 small py-2 px-3 mb-2"><i class="fa-solid fa-triangle-exclamation me-1"></i>' + esc(L.m.no_weight.replace("{{n}}", weights.count)) +
+						'<div class="mt-1">' + weights.sample.map((p) => '<a href="/catalog/products/' + Number(p.id) + '/" target="_blank" rel="noopener" class="me-2">' + esc(p.name) + "</a>").join("") + (weights.count > weights.sample.length ? "…" : "") + "</div></div>";
+				}
+				const dis = EDIT ? "" : " disabled";
+				// Ставки за вагою: «до N кг — ціна»; важчий кошик — остання ставка
+				function ratesBox(d) {
+					const rates = Array.isArray(d.rates) ? d.rates : (d.rates = []);
+					return '<div class="col-12"><div class="small text-muted mb-1">' + esc(L.m.rates_hint) + "</div>" +
+						rates.map((r, j) =>
+							'<div class="input-group input-group-sm mb-1" data-rate="' + j + '">' +
+							'<span class="input-group-text rounded-0">' + esc(L.m.rate_to) + '</span><input type="number" min="0" step="0.001" class="form-control rounded-0" data-rk="to" value="' + esc(r.to || "") + '"' + dis + '><span class="input-group-text rounded-0">' + esc(L.m.kg) + "</span>" +
+							'<input type="number" min="0" step="0.01" class="form-control rounded-0" data-rk="price" placeholder="' + esc(L.m.price) + '" value="' + esc(r.price === undefined ? "" : r.price) + '"' + dis + ">" +
+							(EDIT ? '<button type="button" class="btn btn-outline-danger rounded-0" data-rdel="' + j + '" title="' + esc(L.m.remove) + '"><i class="fa-regular fa-trash-can"></i></button>' : "") +
+							"</div>"
+						).join("") +
+						(EDIT ? '<button type="button" class="btn btn-sm btn-outline-primary rounded-0" data-radd="1"><i class="fa-solid fa-plus me-1"></i>' + esc(L.m.rate_add) + "</button>" : "") +
+						"</div>";
+				}
+				function renderMethods() {
+					$("d-list").innerHTML = dl.length
+						? dl.map((d, i) =>
+								'<div class="border p-2 mb-2" data-d="' + i + '"><div class="row g-2">' +
+								'<div class="col-7"><input class="form-control form-control-sm rounded-0" data-k="name" maxlength="64" placeholder="' + esc(L.m.name) + '" value="' + esc(d.name) + '"' + dis + "></div>" +
+								'<div class="col-5"><select class="form-select form-select-sm rounded-0" data-k="kind"' + dis + ">" + D_KINDS.map((k) => '<option value="' + k + '"' + (d.kind === k ? " selected" : "") + ">" + esc(L.dk[k]) + "</option>").join("") + "</select></div>" +
+								'<div class="col-4"><select class="form-select form-select-sm rounded-0" data-k="price_mode" title="' + esc(L.m.price_mode) + '"' + dis + ">" + PRICE_MODES.filter((k) => k !== "api" || String(d.kind).startsWith("np_")).map((k) => '<option value="' + k + '"' + (d.price_mode === k ? " selected" : "") + ">" + esc(L.m["pm_" + k]) + "</option>").join("") + "</select></div>" +
+								(d.price_mode === "fixed"
+									? '<div class="col-4"><input type="number" min="0" step="0.01" class="form-control form-control-sm rounded-0" data-k="price" placeholder="' + esc(L.m.price) + '" title="' + esc(L.m.price) + '" value="' + esc(d.price || "") + '"' + dis + "></div>"
+									: '<div class="col-4"></div>') +
+								'<div class="col-4"><input type="number" min="0" step="0.01" class="form-control form-control-sm rounded-0" data-k="free_from" placeholder="' + esc(L.m.free_from) + '" title="' + esc(L.m.free_from_hint) + '" value="' + esc(d.free_from || "") + '"' + dis + "></div>" +
+								(d.price_mode === "weight"
+									? ratesBox(d)
+									: d.price_mode === "carrier"
+										? '<div class="col-12"><div class="form-text mt-0">' + esc(L.m.carrier_hint) + "</div></div>"
+										: d.price_mode === "api"
+											? '<div class="col-12"><div class="form-check mb-0"><input class="form-check-input" type="checkbox" data-k="api_include"' + (d.api_include ? " checked" : "") + dis + '><label class="form-check-label small">' + esc(L.m.api_include) + '</label></div><div class="form-text mt-0">' + esc(L.m.api_hint) + "</div></div>"
+											: "") +
+								'<div class="col-12 d-flex align-items-center gap-2"><div class="form-check mb-0"><input class="form-check-input" type="checkbox" data-k="active"' + (d.active ? " checked" : "") + dis + '><label class="form-check-label small">' + esc(L.m.active) + "</label></div>" +
+								(EDIT ? '<button type="button" class="btn btn-sm btn-outline-danger rounded-0 ms-auto" data-del="1" title="' + esc(L.m.remove) + '"><i class="fa-solid fa-trash"></i></button>' : "") + "</div>" +
+								'<div class="col-12"><input class="form-control form-control-sm rounded-0" data-k="note" maxlength="500" placeholder="' + esc(L.m.note) + '" value="' + esc(d.note) + '"' + dis + "></div>" +
+								"</div></div>"
+						  ).join("")
+						: '<div class="small text-muted">' + esc(L.m.no_delivery) + "</div>";
+					$("p-list").innerHTML = pl.length
+						? pl.map((p, i) =>
+								'<div class="border p-2 mb-2" data-p="' + i + '"><div class="row g-2">' +
+								'<div class="col-7"><input class="form-control form-control-sm rounded-0" data-k="name" maxlength="64" placeholder="' + esc(L.m.name) + '" value="' + esc(p.name) + '"' + dis + "></div>" +
+								'<div class="col-5"><select class="form-select form-select-sm rounded-0" data-k="kind"' + dis + ">" + P_KINDS.map((k) => '<option value="' + k + '"' + (p.kind === k ? " selected" : "") + ">" + esc(L.pk[k]) + "</option>").join("") + "</select></div>" +
+								(p.kind === "telegram"
+									? '<div class="col-12"><input type="password" autocomplete="off" class="form-control form-control-sm rounded-0" data-k="token" placeholder="' + esc(p.has_token ? L.m.token_set + " …" + (p.token_last4 || "") : L.m.token) + '"' + dis + '><div class="form-text">' + esc(L.m.token_hint) + "</div></div>"
+									: p.kind === "monobank"
+										? '<div class="col-12 small text-muted">' + esc(L.m.mono_hint) + "</div>"
+										: '<div class="col-12"><textarea class="form-control form-control-sm rounded-0" rows="2" data-k="text" maxlength="1000" placeholder="' + esc(p.kind === "requisites" ? L.m.requisites : L.m.text) + '"' + dis + ">" + esc(p.text) + "</textarea></div>") +
+								(p.kind === "cod"
+									? '<div class="col-6"><input type="number" min="0" step="0.01" class="form-control form-control-sm rounded-0" data-k="fee_fixed" placeholder="' + esc(L.m.fee_fixed) + '" title="' + esc(L.m.fee_fixed) + '" value="' + esc(p.fee_fixed || "") + '"' + dis + "></div>" +
+									  '<div class="col-6"><input type="number" min="0" max="20" step="0.01" class="form-control form-control-sm rounded-0" data-k="fee_percent" placeholder="' + esc(L.m.fee_percent) + '" title="' + esc(L.m.fee_percent) + '" value="' + esc(p.fee_percent || "") + '"' + dis + '></div><div class="col-12"><div class="form-text mt-0">' + esc(L.m.fee_hint) + "</div></div>"
+									: "") +
+								'<div class="col-12 d-flex align-items-center"><div class="form-check mb-0"><input class="form-check-input" type="checkbox" data-k="active"' + (p.active ? " checked" : "") + dis + '><label class="form-check-label small">' + esc(L.m.active) + "</label></div>" +
+								(EDIT ? '<button type="button" class="btn btn-sm btn-outline-danger rounded-0 ms-auto" data-del="1" title="' + esc(L.m.remove) + '"><i class="fa-solid fa-trash"></i></button>' : "") + "</div>" +
+								"</div></div>"
+						  ).join("")
+						: '<div class="small text-muted">' + esc(L.m.no_payments) + "</div>";
+					renderWeights();
+				}
+				function bindList(boxId, attr, list, rerenderOn) {
+					const box = $(boxId);
+					const at = (el) => {
+						const row = el.closest("[data-" + attr + "]");
+						return row ? Number(row.dataset[attr]) : -1;
+					};
+					box.addEventListener("input", (e) => {
+						const i = at(e.target);
+						const k = e.target.dataset.k;
+						if (i < 0 || !k) return;
+						list()[i][k] = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+					});
+					box.addEventListener("change", (e) => {
+						const i = at(e.target);
+						const k = e.target.dataset.k;
+						if (i < 0 || !k) return;
+						list()[i][k] = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+						if (rerenderOn.includes(k)) renderMethods();
+					});
+					box.addEventListener("click", (e) => {
+						const b = e.target.closest("[data-del]");
+						if (!b) return;
+						list().splice(at(b), 1);
+						renderMethods();
+					});
+				}
+				bindList("d-list", "d", () => dl, ["price_mode", "kind", "active"]);
+				// Тип доставки: Нова пошта без ціни — одразу «за тарифами перевізника»
+				$("d-list").addEventListener("change", (e) => {
+					if (e.target.dataset.k !== "kind") return;
+					const row = e.target.closest("[data-d]");
+					const d = row ? dl[Number(row.dataset.d)] : null;
+					if (d && String(d.kind).startsWith("np_") && d.price_mode === "fixed" && !(Number(d.price) > 0)) {
+						d.price_mode = "carrier";
+						renderMethods();
+					}
+					// Розрахунок Нової пошти — лише для способів Нової пошти
+					if (d && !String(d.kind).startsWith("np_") && d.price_mode === "api") {
+						d.price_mode = "fixed";
+						renderMethods();
+					}
+				});
+				// Ставки за вагою
+				$("d-list").addEventListener("input", (e) => {
+					const k = e.target.dataset.rk;
+					const rr = e.target.closest("[data-rate]");
+					const row = e.target.closest("[data-d]");
+					if (!k || !rr || !row) return;
+					dl[Number(row.dataset.d)].rates[Number(rr.dataset.rate)][k] = e.target.value;
+				});
+				$("d-list").addEventListener("click", (e) => {
+					const row = e.target.closest("[data-d]");
+					if (!row) return;
+					const d = dl[Number(row.dataset.d)];
+					const add = e.target.closest("[data-radd]");
+					const del = e.target.closest("[data-rdel]");
+					if (add) {
+						const last = d.rates[d.rates.length - 1];
+						d.rates.push({ to: last ? Number(last.to) * 2 || "" : 1, price: "" });
+						renderMethods();
+					} else if (del) {
+						d.rates.splice(Number(del.dataset.rdel), 1);
+						renderMethods();
+					}
+				});
+				bindList("p-list", "p", () => pl, ["kind"]);
+				if ($("d-add")) $("d-add").addEventListener("click", () => { dl.push({ name: "", kind: "address", price_mode: "fixed", price: 0, rates: [], free_from: 0, note: "", active: true }); renderMethods(); });
+				if ($("p-add")) $("p-add").addEventListener("click", () => { pl.push({ name: "", kind: "cod", text: "", active: true }); renderMethods(); });
+
+				// ── Переписка в контакт-центрі ──
+				function ccBox(st) {
+					const box = $("cc-box");
+					if (!cur.connected) return (box.innerHTML = '<div class="small text-muted">' + esc(L.cc.need_bot) + "</div>");
+					if (!st)
+						return (box.innerHTML =
+							'<div class="small text-muted mb-2">' + esc(L.cc.off) + "</div>" +
+							(EDIT ? '<button type="button" class="btn btn-sm btn-outline-primary rounded-0" id="cc-link"><i class="fa-solid fa-comments me-1"></i>' + esc(L.cc.link) + "</button>" : ""));
+					box.innerHTML =
+						'<div class="small mb-2 ' + (st.active ? "text-success" : "text-warning") + '"><i class="fa-solid ' + (st.active ? "fa-check" : "fa-triangle-exclamation") + ' me-1"></i>' + esc(st.active ? L.cc.on : L.cc.paused) + "</div>" +
+						'<div class="d-flex flex-wrap gap-2"><a class="btn btn-sm btn-outline-primary rounded-0" target="_blank" href="' + esc(st.url) + '"><i class="fa-solid fa-sliders me-1"></i>' + esc(st.name) + "</a>" +
+						(EDIT ? (st.active ? "" : '<button type="button" class="btn btn-sm btn-outline-primary rounded-0" id="cc-link">' + esc(L.cc.relink) + "</button>") + '<button type="button" class="btn btn-sm btn-outline-danger rounded-0" id="cc-unlink">' + esc(L.cc.unlink) + "</button>" : "") +
+						"</div>";
+				}
+				function loadCc() {
+					$("cc-box").innerHTML = "";
+					if (!cur.connected) return ccBox(null);
+					post("/shops/" + cur.id + "/support/").then((d) => ccBox(d.support)).catch((e) => notyf.error(e.message));
+				}
+				$("cc-box").addEventListener("click", async (e) => {
+					const b = e.target.closest("button");
+					if (!b || !cur) return;
+					b.disabled = true;
+					try {
+						const d = await post("/shops/" + cur.id + "/support/" + (b.id === "cc-unlink" ? "unlink/" : "link/"));
+						cur = d.shop;
+						ccBox(d.support);
+						notyf.success(b.id === "cc-unlink" ? L.cc.unlinked : L.cc.linked);
+					} catch (err) {
+						notyf.error(err.message);
+					} finally {
+						b.disabled = false;
+					}
+				});
+
+				function open(s) {
+					fill(s);
+					loadCc();
+					mShop.show();
+				}
+				$("bot-box").addEventListener("click", async (e) => {
+					const b = e.target.closest("button");
+					if (!b || !cur) return;
+					if (b.id === "b-disconnect") return bootstrap.Modal.getOrCreateInstance($("m-confirm")).show();
+					b.disabled = true;
+					try {
+						if (b.id === "b-connect") {
+							const d = await post("/shops/" + cur.id + "/connect/", { token: $("b-token").value });
+							fill(d.shop);
+							notyf[d.shop.webhook_ok ? "success" : "error"](d.shop.webhook_ok ? L.connected : L.webhook_bad);
+						} else if (b.id === "b-check") {
+							const d = await post("/shops/" + cur.id + "/check/");
+							fill(d.shop);
+							notyf[d.ok ? "success" : "error"](d.ok ? L.webhook_ok : L.webhook_bad + (d.last_error ? ": " + d.last_error : ""));
+						}
+						load();
+					} catch (err) {
+						notyf.error(err.message);
+					} finally {
+						b.disabled = false;
+					}
+				});
+				if ($("c-ok")) $("c-ok").addEventListener("click", async (e) => {
+					const btn = e.currentTarget;
+					btn.disabled = true;
+					try {
+						const d = await post("/shops/" + cur.id + "/disconnect/");
+						bootstrap.Modal.getOrCreateInstance($("m-confirm")).hide();
+						fill(d.shop);
+						load();
+					} catch (err) {
+						notyf.error(err.message);
+					} finally {
+						btn.disabled = false;
+					}
+				});
+				if ($("s-save")) $("s-save").addEventListener("click", async (e) => {
+					const btn = e.currentTarget;
+					btn.disabled = true;
+					try {
+						const d = await post("/shops/" + cur.id + "/save/", {
+							name: $("s-name").value,
+							status: $("s-status").value,
+							settings: {
+								welcome: $("s-welcome").value,
+								button: $("s-button").value,
+								min_order: $("s-min").value,
+								about_short: $("s-short").value,
+								about: $("s-about").value,
+								support: $("s-support").value,
+								notify_manager: $("s-notify").checked,
+								notify_status: $("s-notify-status").checked,
+								status_paid: $("s-status-paid").value || null,
+								checkout_note: $("s-co-note").value,
+								back_in_stock: $("s-back").checked,
+								abandoned_hours: Number($("s-abandoned").value),
+								delivery: dl,
+								payments: pl.map(({ has_token, ...p }) => p),
+							},
+						});
+						fill(d.shop);
+						notyf.success(L.saved);
+						load();
+					} catch (err) {
+						notyf.error(err.message);
+					} finally {
+						btn.disabled = false;
+					}
+				});
+			})();
+		</script>
+	</body>
+</html>

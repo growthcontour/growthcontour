@@ -1,0 +1,369 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('leads.routing.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<style>
+			.section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #6c757d; letter-spacing: 0.5px; margin-bottom: 4px; }
+			.chk-box { max-height: 170px; overflow-y: auto; border: 1px solid #dee2e6; padding: 6px 10px; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('leads.routing.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('leads.intake.breadcrumb.home') %></span></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/leads/"><%= i18n.__('leads.intake.breadcrumb.leads') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/leads/settings/"><%= i18n.__('leads.intake.breadcrumb.settings') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= i18n.__('leads.routing.title') %></li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/leads/settings/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3 mb-4">
+			<div class="alert alert-light border rounded-0 small"><i class="fa-solid fa-circle-info me-1 text-primary"></i><%= i18n.__('leads.routing.intro') %></div>
+			<div class="card border-primary rounded-0">
+				<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+					<span><%= i18n.__('leads.routing.title') %></span>
+					<button type="button" class="btn btn-sm btn-light rounded-0" id="btn-new"><i class="fa-solid fa-plus me-1"></i><%= i18n.__('leads.routing.add') %></button>
+				</div>
+				<div id="rules-table"></div>
+			</div>
+		</div>
+
+		<!-- Модалка: правило -->
+		<div class="modal fade" id="m-rule" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered modal-xl">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5" id="m-rule-title"></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" id="r-id" />
+						<div class="row g-3">
+							<div class="col-md-7">
+								<label class="section-title d-block" for="r-name"><%= i18n.__('leads.routing.f.name') %></label>
+								<input type="text" class="form-control rounded-0" id="r-name" maxlength="255" />
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-2">
+								<label class="section-title d-block" for="r-sort"><%= i18n.__('leads.routing.f.sort') %></label>
+								<input type="number" class="form-control rounded-0" id="r-sort" min="0" step="1" />
+							</div>
+							<div class="col-md-3 d-flex align-items-end">
+								<div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="r-active" /><label class="form-check-label" for="r-active"><%= i18n.__('leads.routing.f.active') %></label></div>
+							</div>
+						</div>
+
+						<h6 class="mt-4 mb-2"><%= i18n.__('leads.routing.when') %> <small class="text-muted fw-normal"><%= i18n.__('leads.routing.when_hint') %></small></h6>
+						<div class="row g-3">
+							<div class="col-md-4">
+								<div class="section-title"><%= i18n.__('leads.routing.f.sources') %></div>
+								<div class="chk-box" id="r-sources">
+									<% sources.forEach(function (x) { %><div class="form-check"><input class="form-check-input" type="checkbox" value="<%= x.id %>" id="src-<%= x.id %>" /><label class="form-check-label" for="src-<%= x.id %>"><%= x.name %></label></div><% }); %>
+									<% if (!sources.length) { %><span class="text-muted small">—</span><% } %>
+								</div>
+							</div>
+							<div class="col-md-4">
+								<div class="section-title"><%= i18n.__('leads.routing.f.capture') %></div>
+								<div class="chk-box" id="r-capture">
+									<% capture.forEach(function (x) { %><div class="form-check"><input class="form-check-input" type="checkbox" value="<%= x %>" id="cap-<%= x %>" /><label class="form-check-label" for="cap-<%= x %>"><%= i18n.__('leads.routing.capture.' + x.replace('-', '_')) %></label></div><% }); %>
+								</div>
+							</div>
+							<div class="col-md-4">
+								<div class="section-title"><%= i18n.__('leads.routing.f.pipelines') %></div>
+								<div class="chk-box" id="r-pipelines">
+									<% pipelines.forEach(function (x) { %><div class="form-check"><input class="form-check-input" type="checkbox" value="<%= x.id %>" id="pl-<%= x.id %>" /><label class="form-check-label" for="pl-<%= x.id %>"><%= x.name %></label></div><% }); %>
+								</div>
+							</div>
+							<div class="col-md-4">
+								<label class="section-title d-block" for="r-phone"><%= i18n.__('leads.routing.f.phone_prefix') %></label>
+								<input type="text" class="form-control rounded-0" id="r-phone" placeholder="+48, +380, +1" />
+								<div class="form-text"><%= i18n.__('leads.routing.phone_hint') %></div>
+							</div>
+							<div class="col-md-4">
+								<div class="section-title"><%= i18n.__('leads.routing.f.value') %></div>
+								<div class="input-group">
+									<input type="number" class="form-control rounded-0" id="r-vmin" min="0" step="0.01" placeholder="<%= i18n.__('leads.routing.from') %>" />
+									<input type="number" class="form-control rounded-0" id="r-vmax" min="0" step="0.01" placeholder="<%= i18n.__('leads.routing.to') %>" />
+								</div>
+								<div class="invalid-feedback d-block" id="err-value_max"></div>
+							</div>
+							<div class="col-md-4">
+								<div class="section-title"><%= i18n.__('leads.routing.f.time') %></div>
+								<div class="input-group">
+									<input type="time" class="form-control rounded-0" id="r-tfrom" />
+									<input type="time" class="form-control rounded-0" id="r-tto" />
+								</div>
+								<div class="invalid-feedback d-block" id="err-time_to"></div>
+							</div>
+							<div class="col-12">
+								<div class="section-title"><%= i18n.__('leads.routing.f.days') %></div>
+								<div class="d-flex flex-wrap gap-3" id="r-days">
+									<% [1, 2, 3, 4, 5, 6, 7].forEach(function (d) { %><div class="form-check"><input class="form-check-input" type="checkbox" value="<%= d %>" id="day-<%= d %>" /><label class="form-check-label" for="day-<%= d %>"><%= i18n.__('leads.routing.day.' + d) %></label></div><% }); %>
+								</div>
+							</div>
+						</div>
+
+						<h6 class="mt-4 mb-2"><%= i18n.__('leads.routing.then') %></h6>
+						<div class="row g-3">
+							<div class="col-md-4">
+								<label class="section-title d-block" for="r-mode"><%= i18n.__('leads.routing.f.mode') %></label>
+								<select class="form-select rounded-0" id="r-mode">
+									<% modes.forEach(function (m) { %><option value="<%= m %>"><%= i18n.__('leads.routing.mode.' + m) %></option><% }); %>
+								</select>
+							</div>
+							<div class="col-md-4" id="box-manager">
+								<label class="section-title d-block" for="r-manager"><%= i18n.__('leads.list.manager') %></label>
+								<select class="form-select rounded-0" id="r-manager">
+									<option value="">—</option>
+									<% managers.forEach(function (m) { %><option value="<%= m.id %>"><%= m.name || ('#' + m.id) %></option><% }); %>
+								</select>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4 d-none" id="box-team">
+								<label class="section-title d-block" for="r-team"><%= i18n.__('leads.routing.f.team') %></label>
+								<select class="form-select rounded-0" id="r-team">
+									<option value="">—</option>
+									<% groups.forEach(function (g) { %><option value="<%= g.id %>"><%= g.name %></option><% }); %>
+								</select>
+								<div class="invalid-feedback"></div>
+							</div>
+							<div class="col-md-4">
+								<label class="section-title d-block" for="r-stage"><%= i18n.__('leads.routing.f.move') %></label>
+								<select class="form-select rounded-0" id="r-stage">
+									<option value=""><%= i18n.__('leads.routing.no_move') %></option>
+									<% pipelines.forEach(function (p) { %>
+									<optgroup label="<%= p.name %>">
+										<% stages.filter(function (s) { return Number(s.id_pipeline) === Number(p.id) && s.system_type === 'regular'; }).forEach(function (s) { %><option value="<%= s.id %>" data-pipeline="<%= p.id %>"><%= s.name %></option><% }); %>
+									</optgroup>
+									<% }); %>
+								</select>
+								<div class="invalid-feedback"></div>
+							</div>
+						</div>
+						<div class="form-text mt-2" id="mode-hint"></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-danger rounded-0 me-auto d-none" id="r-delete"><i class="fa-solid fa-trash me-1"></i><%= i18n.__('leads.work.delete') %></button>
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('leads.view.cancel') %></button>
+						<button type="button" class="btn btn-primary rounded-0" id="r-save"><i class="fa-solid fa-floppy-disk me-1"></i><%= i18n.__('leads.view.save') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Модалка: підтвердження видалення -->
+		<div class="modal fade" id="m-del" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5"><%= i18n.__('leads.routing.delete_title') %></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body"><p class="mb-0" id="m-del-text"></p></div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('leads.view.cancel') %></button>
+						<button type="button" class="btn btn-danger rounded-0" id="m-del-ok"><%= i18n.__('leads.work.delete') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000, types: [{ type: "success", dismissible: true, icon: false }, { type: "error", background: "indianred", dismissible: true, icon: false }] });
+				const ERR = "<%= i18n.__('leads.server.server') %>";
+				const NAMES = {
+					source: Object.fromEntries(<%- JSON.stringify(sources.map(function (x) { return [x.id, x.name]; })).replace(/</g, '\\u003c') %>),
+					pipeline: Object.fromEntries(<%- JSON.stringify(pipelines.map(function (x) { return [x.id, x.name]; })).replace(/</g, '\\u003c') %>),
+					stage: Object.fromEntries(<%- JSON.stringify(stages.map(function (x) { return [x.id, x.name]; })).replace(/</g, '\\u003c') %>),
+					team: Object.fromEntries(<%- JSON.stringify(groups.map(function (x) { return [x.id, x.name]; })).replace(/</g, '\\u003c') %>),
+					capture: { api: "<%= i18n.__('leads.routing.capture.api') %>", webchat: "<%= i18n.__('leads.routing.capture.webchat') %>", "contact-center": "<%= i18n.__('leads.routing.capture.contact_center') %>", manual: "<%= i18n.__('leads.routing.capture.manual') %>" },
+					mode: { fixed: "<%= i18n.__('leads.routing.mode.fixed') %>", round_robin: "<%= i18n.__('leads.routing.mode.round_robin') %>", least_loaded: "<%= i18n.__('leads.routing.mode.least_loaded') %>" },
+					day: { 1: "<%= i18n.__('leads.routing.day.1') %>", 2: "<%= i18n.__('leads.routing.day.2') %>", 3: "<%= i18n.__('leads.routing.day.3') %>", 4: "<%= i18n.__('leads.routing.day.4') %>", 5: "<%= i18n.__('leads.routing.day.5') %>", 6: "<%= i18n.__('leads.routing.day.6') %>", 7: "<%= i18n.__('leads.routing.day.7') %>" },
+				};
+				const HINT = { fixed: "<%= i18n.__('leads.routing.hint.fixed') %>", round_robin: "<%= i18n.__('leads.routing.hint.round_robin') %>", least_loaded: "<%= i18n.__('leads.routing.hint.least_loaded') %>" };
+				const C = { sources: "<%= i18n.__('leads.routing.f.sources') %>", capture: "<%= i18n.__('leads.routing.f.capture') %>", pipelines: "<%= i18n.__('leads.routing.f.pipelines') %>", phone: "<%= i18n.__('leads.routing.f.phone_prefix') %>", value: "<%= i18n.__('leads.routing.f.value') %>", days: "<%= i18n.__('leads.routing.f.days') %>", time: "<%= i18n.__('leads.routing.f.time') %>", any: "<%= i18n.__('leads.routing.any') %>" };
+
+				async function post(url, body) {
+					const r = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok) throw Object.assign(new Error(j.message || ERR), { data: j });
+					return j;
+				}
+
+				/** Короткий опис умов для таблиці */
+				function summary(c) {
+					const out = [];
+					const names = (list, dict) => list.map((x) => dict[x] || "#" + x).join(", ");
+					if (c.sources && c.sources.length) out.push(C.sources + ": " + names(c.sources, NAMES.source));
+					if (c.capture && c.capture.length) out.push(C.capture + ": " + names(c.capture, NAMES.capture));
+					if (c.pipelines && c.pipelines.length) out.push(C.pipelines + ": " + names(c.pipelines, NAMES.pipeline));
+					if (c.phone_prefix && c.phone_prefix.length) out.push(C.phone + ": " + c.phone_prefix.join(", "));
+					if (c.value_min != null || c.value_max != null) out.push(C.value + ": " + (c.value_min ?? "…") + " – " + (c.value_max ?? "…"));
+					if (c.days && c.days.length) out.push(C.days + ": " + names(c.days, NAMES.day));
+					if (c.time_from && c.time_to) out.push(C.time + ": " + c.time_from + "–" + c.time_to);
+					return out.length ? out.map(esc).join("<br>") : '<span class="text-muted">' + esc(C.any) + "</span>";
+				}
+
+				const table = new Tabulator("#rules-table", {
+					layout: "fitColumns",
+					placeholder: "<%= i18n.__('leads.routing.empty') %>",
+					columns: [
+						{ title: "<%= i18n.__('leads.routing.f.sort') %>", field: "sort", width: 90, hozAlign: "center" },
+						{ title: "<%= i18n.__('leads.routing.f.name') %>", field: "name", minWidth: 180, formatter: (c) => esc(c.getValue()) },
+						{ title: "<%= i18n.__('leads.routing.when') %>", field: "conditions", minWidth: 260, formatter: (c) => summary(c.getValue() || {}), variableHeight: true, headerSort: false },
+						{
+							title: "<%= i18n.__('leads.routing.then') %>",
+							field: "assign_mode",
+							minWidth: 220,
+							headerSort: false,
+							formatter: (c) => {
+								const d = c.getRow().getData();
+								const who = d.assign_mode === "fixed" ? d.manager_name || "#" + d.id_manager : NAMES.team[d.id_team] || "#" + d.id_team;
+								return esc(NAMES.mode[d.assign_mode] || d.assign_mode) + ": <strong>" + esc(who) + "</strong>" + (d.id_stage ? '<br><small class="text-muted">→ ' + esc(NAMES.stage[d.id_stage] || "#" + d.id_stage) + "</small>" : "");
+							},
+						},
+						{ title: "<%= i18n.__('leads.routing.f.active') %>", field: "is_active", width: 110, hozAlign: "center", formatter: (c) => (Number(c.getValue()) ? '<i class="fa-solid fa-check text-success"></i>' : '<i class="fa-solid fa-minus text-muted"></i>') },
+						{ title: "", field: "id", width: 60, hozAlign: "center", headerSort: false, formatter: () => '<button type="button" class="btn btn-sm btn-outline-primary rounded-0"><i class="fa-solid fa-pen"></i></button>', cellClick: (e, cell) => open(cell.getRow().getData()) },
+					],
+				});
+				const load = () => post("/api/leads/settings/routing/list/").then((d) => table.replaceData(d.rows)).catch((e) => notyf.error(e.message));
+				table.on("tableBuilt", load);
+
+				const modal = bootstrap.Modal.getOrCreateInstance($("m-rule"));
+				const checks = (box, vals) => $(box).querySelectorAll("input").forEach((i) => (i.checked = (vals || []).map(String).includes(i.value)));
+				const checked = (box) => [...$(box).querySelectorAll("input:checked")].map((i) => i.value);
+				function modeSync() {
+					const m = $("r-mode").value;
+					$("box-manager").classList.toggle("d-none", m !== "fixed");
+					$("box-team").classList.toggle("d-none", m === "fixed");
+					$("mode-hint").textContent = HINT[m] || "";
+				}
+				$("r-mode").addEventListener("change", modeSync);
+				function clearErr() {
+					$("m-rule").querySelectorAll(".is-invalid").forEach((x) => x.classList.remove("is-invalid"));
+					["err-value_max", "err-time_to"].forEach((id) => ($(id).textContent = ""));
+				}
+				function open(r) {
+					r = r || { is_active: 1, assign_mode: "fixed", conditions: {}, sort: (table.getData().reduce((m, x) => Math.max(m, Number(x.sort) || 0), 0) || 0) + 10 };
+					const c = r.conditions || {};
+					clearErr();
+					$("m-rule-title").textContent = r.id ? "<%= i18n.__('leads.routing.edit') %>" : "<%= i18n.__('leads.routing.add') %>";
+					$("r-id").value = r.id || "";
+					$("r-name").value = r.name || "";
+					$("r-sort").value = r.sort ?? 0;
+					$("r-active").checked = !!Number(r.is_active);
+					checks("r-sources", c.sources);
+					checks("r-capture", c.capture);
+					checks("r-pipelines", c.pipelines);
+					checks("r-days", c.days);
+					$("r-phone").value = (c.phone_prefix || []).join(", ");
+					$("r-vmin").value = c.value_min ?? "";
+					$("r-vmax").value = c.value_max ?? "";
+					$("r-tfrom").value = c.time_from || "";
+					$("r-tto").value = c.time_to || "";
+					$("r-mode").value = r.assign_mode || "fixed";
+					$("r-manager").value = r.id_manager || "";
+					$("r-team").value = r.id_team || "";
+					$("r-stage").value = r.id_stage || "";
+					$("r-delete").classList.toggle("d-none", !r.id);
+					modeSync();
+					modal.show();
+				}
+				$("btn-new").addEventListener("click", () => open(null));
+
+				$("r-save").addEventListener("click", async (e) => {
+					const btn = e.currentTarget;
+					const stOpt = $("r-stage").selectedOptions[0];
+					const body = {
+						id: $("r-id").value,
+						name: $("r-name").value,
+						sort: $("r-sort").value,
+						is_active: $("r-active").checked,
+						assign_mode: $("r-mode").value,
+						id_manager: $("r-manager").value,
+						id_team: $("r-team").value,
+						id_stage: $("r-stage").value,
+						id_pipeline: stOpt && stOpt.dataset.pipeline ? stOpt.dataset.pipeline : "",
+						conditions: {
+							sources: checked("r-sources"),
+							capture: checked("r-capture"),
+							pipelines: checked("r-pipelines"),
+							days: checked("r-days"),
+							phone_prefix: $("r-phone").value,
+							value_min: $("r-vmin").value,
+							value_max: $("r-vmax").value,
+							time_from: $("r-tfrom").value,
+							time_to: $("r-tto").value,
+						},
+					};
+					clearErr();
+					btn.disabled = true;
+					try {
+						await post("/api/leads/settings/routing/save/", body);
+						modal.hide();
+						notyf.success("<%= i18n.__('leads.routing.saved') %>");
+						load();
+					} catch (err) {
+						const errors = (err.data && err.data.errors) || {};
+						const map = { name: "r-name", id_manager: "r-manager", id_team: "r-team", id_stage: "r-stage" };
+						Object.entries(errors).forEach(([k, msg]) => {
+							if (map[k]) {
+								$(map[k]).classList.add("is-invalid");
+								const fb = $(map[k]).parentElement.querySelector(".invalid-feedback");
+								if (fb) fb.textContent = msg;
+							} else if ($("err-" + k)) $("err-" + k).textContent = msg;
+						});
+						notyf.error(err.message);
+					} finally {
+						btn.disabled = false;
+					}
+				});
+
+				const del = bootstrap.Modal.getOrCreateInstance($("m-del"));
+				$("r-delete").addEventListener("click", () => {
+					$("m-del-text").textContent = $("r-name").value;
+					modal.hide();
+					del.show();
+				});
+				$("m-del-ok").addEventListener("click", async (e) => {
+					const btn = e.currentTarget;
+					btn.disabled = true;
+					try {
+						await post("/api/leads/settings/routing/delete/", { id: $("r-id").value });
+						del.hide();
+						notyf.success("<%= i18n.__('leads.work.n.deleted') %>");
+						load();
+					} catch (err) {
+						notyf.error(err.message);
+					} finally {
+						btn.disabled = false;
+					}
+				});
+			})();
+		</script>
+	</body>
+</html>

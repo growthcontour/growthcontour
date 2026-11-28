@@ -1,0 +1,483 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('leads.kanban.title') %></title>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<style>
+			.section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #6c757d; letter-spacing: 0.5px; margin-bottom: 4px; }
+			/* Дошка: колонки етапів у рядок із горизонтальною прокруткою */
+			#board { display: flex; gap: 12px; overflow-x: auto; padding: 12px; min-height: 60vh; align-items: flex-start; }
+			.kb-col { flex: 0 0 290px; background: #f1f3f5; border-top: 4px solid #6c757d; display: flex; flex-direction: column; max-height: calc(100vh - 260px); }
+			.kb-head { padding: 8px 10px; border-bottom: 1px solid #dee2e6; background: #fff; }
+			.kb-head .kb-name { font-weight: 600; font-size: 14px; }
+			.kb-head .kb-meta { font-size: 12px; color: #6c757d; }
+			.kb-list { padding: 8px; overflow-y: auto; flex: 1 1 auto; min-height: 60px; }
+			.kb-card { background: #fff; border: 1px solid #dee2e6; border-left: 3px solid transparent; padding: 8px 10px; margin-bottom: 8px; font-size: 13px; cursor: grab; }
+			.kb-card:hover { border-color: #0057b8; }
+			.kb-card.kb-sla { border-left-color: #dc3545; }
+			.kb-card.kb-saving { opacity: 0.5; pointer-events: none; }
+			.kb-card .kb-title { font-weight: 600; color: #212529; text-decoration: none; word-break: break-word; }
+			.kb-card .kb-title:hover { color: #0057b8; }
+			.kb-ghost { opacity: 0.35; background: #e7f0fb; }
+			.kb-more { margin: 0 8px 8px; }
+			body.kb-readonly .kb-card { cursor: default; }
+		</style>
+	</head>
+
+	<body class="d-flex flex-column h-100<%= canEdit ? '' : ' kb-readonly' %>">
+		<%- include('../../partials/header'); %>
+		<!-- Breadcrumb -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('leads.kanban.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('leads.list.breadcrumb.home') %></span></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/leads"><%= i18n.__('leads.list.breadcrumb.current') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('leads.kanban.crumb') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto d-flex gap-2">
+						<div class="btn-group">
+							<a href="/leads" class="btn btn-outline-primary rounded-0" title="<%= i18n.__('leads.kanban.view_list') %>"><i class="fa-solid fa-list"></i></a>
+							<span class="btn btn-primary rounded-0" title="<%= i18n.__('leads.kanban.view_board') %>"><i class="fa-solid fa-table-columns"></i></span>
+						</div>
+						<a href="/leads" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- END Breadcrumb -->
+
+		<div class="container-fluid mt-3">
+			<div class="card border-primary rounded-0 mb-3">
+				<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+					<span><%= i18n.__('leads.kanban.title') %> <span id="kb-total"></span></span>
+					<div class="d-flex gap-2">
+					<% if (canAdd && pipelines.length) { %><a href="/leads/new/?pipeline=<%= current ? current.id : '' %>" class="btn btn-sm btn-light rounded-0" id="kb-new"><i class="fa-solid fa-plus me-1"></i><%= i18n.__('leads.new.button') %></a><% } %>
+					<button class="btn btn-sm btn-light rounded-0" type="button" data-bs-toggle="collapse" data-bs-target="#kb-filters"><i class="fa-solid fa-filter me-1"></i> <%= i18n.__('leads.list.filters') %> <span class="badge rounded-0 text-bg-primary d-none" id="filters-count"></span></button>
+					</div>
+				</div>
+
+				<% if (!pipelines.length) { %>
+				<div class="card-body"><p class="text-muted mb-0"><%= i18n.__('leads.kanban.no_pipelines') %></p></div>
+				<% } else { %>
+				<form class="card-body border-bottom bg-light" id="kb-form" autocomplete="off">
+					<div class="row g-2 align-items-end">
+						<div class="col-12 col-md-3">
+							<label class="section-title d-block" for="f-pipeline"><%= i18n.__('leads.list.pipeline') %></label>
+							<select id="f-pipeline" name="pipeline" class="form-select form-select-sm rounded-0">
+								<% pipelines.forEach(function (p) { %>
+								<option value="<%= p.id %>"<%= current && current.id === p.id ? ' selected' : '' %>><%= p.name %></option>
+								<% }); %>
+							</select>
+						</div>
+						<div class="col-12 col-md-3">
+							<label class="section-title d-block" for="f-search"><%= i18n.__('leads.list.search') %></label>
+							<input type="text" id="f-search" name="search" class="form-control form-control-sm rounded-0" placeholder="<%= i18n.__('leads.list.search_ph') %>" />
+						</div>
+						<div class="col-auto">
+							<div class="form-check mb-1"><input class="form-check-input" type="checkbox" id="f-mine" name="mine" value="1" /><label class="form-check-label small" for="f-mine"><%= i18n.__('leads.list.mine') %></label></div>
+						</div>
+						<div class="col-auto">
+							<button type="submit" class="btn btn-primary btn-sm rounded-0"><i class="fa-solid fa-check me-1"></i><%= i18n.__('leads.list.apply') %></button>
+						</div>
+					</div>
+					<div class="collapse mt-2" id="kb-filters">
+						<div class="row g-2">
+							<div class="col-6 col-md-2">
+								<label class="section-title d-block" for="f-status"><%= i18n.__('leads.list.status') %></label>
+								<select id="f-status" name="status" class="form-select form-select-sm rounded-0"><option value=""><%= i18n.__('leads.list.all') %></option></select>
+							</div>
+							<div class="col-6 col-md-2">
+								<label class="section-title d-block" for="f-manager"><%= i18n.__('leads.list.manager') %></label>
+								<select id="f-manager" name="manager" class="form-select form-select-sm rounded-0">
+									<option value=""><%= i18n.__('leads.list.all') %></option>
+									<option value="none"><%= i18n.__('leads.list.manager_none') %></option>
+								</select>
+							</div>
+							<div class="col-6 col-md-2">
+								<label class="section-title d-block" for="f-source"><%= i18n.__('leads.list.source') %></label>
+								<select id="f-source" name="source" class="form-select form-select-sm rounded-0"><option value=""><%= i18n.__('leads.list.all') %></option></select>
+							</div>
+							<div class="col-6 col-md-2">
+								<label class="section-title d-block" for="f-tag"><%= i18n.__('leads.list.tag') %></label>
+								<select id="f-tag" name="tag" class="form-select form-select-sm rounded-0"><option value=""><%= i18n.__('leads.list.all') %></option></select>
+							</div>
+							<div class="col-6 col-md-2">
+								<label class="section-title d-block" for="f-temperature"><%= i18n.__('leads.list.temperature') %></label>
+								<select id="f-temperature" name="temperature" class="form-select form-select-sm rounded-0">
+									<option value=""><%= i18n.__('leads.list.all') %></option>
+									<% ['cold', 'warm', 'hot'].forEach(function (t) { %><option value="<%= t %>"><%= i18n.__('leads.list.temp.' + t) %></option><% }) %>
+								</select>
+							</div>
+							<div class="col-6 col-md-2">
+								<label class="section-title d-block" for="f-converted"><%= i18n.__('leads.list.converted') %></label>
+								<select id="f-converted" name="converted" class="form-select form-select-sm rounded-0">
+									<option value=""><%= i18n.__('leads.list.all') %></option>
+									<option value="1"><%= i18n.__('leads.list.converted_1') %></option>
+									<option value="0"><%= i18n.__('leads.list.converted_0') %></option>
+								</select>
+							</div>
+						</div>
+					</div>
+				</form>
+				<div id="kb-unstaged" class="alert alert-warning rounded-0 m-3 mb-0 d-none"></div>
+				<div id="board"><div class="text-muted p-2"><span class="spinner-border spinner-border-sm me-1"></span></div></div>
+				<% } %>
+			</div>
+		</div>
+
+		<% if (canEdit) { %>
+		<!-- Поля, яких вимагає етап (правила етапів) -->
+		<div class="modal fade" id="m-req" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5"><%= i18n.__('leads.rules.modal_title') %></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<p class="small text-muted" id="m-req-hint"></p>
+						<div id="m-req-fields"></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('leads.view.cancel') %></button>
+						<button type="button" class="btn btn-primary rounded-0" id="m-req-ok"><i class="fa-solid fa-floppy-disk me-1"></i><%= i18n.__('leads.view.save') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<% } %>
+
+		<%- include('../../partials/footer'); %>
+		<%- include('../../partials/script'); %>
+		<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<% if (pipelines.length) { %>
+		<script>
+			(function () {
+				"use strict";
+				const CAN_EDIT = <%= canEdit ? 'true' : 'false' %>;
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const color = (c, def) => (/^#?[0-9a-f]{3,8}$/i.test(String(c || "")) ? (String(c)[0] === "#" ? c : "#" + c) : def);
+				const faIcon = (cls) => {
+					const c = String(cls || "").trim();
+					if (!/^[a-z0-9 -]+$/i.test(c)) return "";
+					return /(^|\s)(fa-(solid|regular|brands|light|thin|duotone)|fas|far|fab|fal)(\s|$)/.test(c) ? c : "fa-solid " + c;
+				};
+				const MONEY = new Intl.NumberFormat("uk-UA", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000, types: [{ type: "success", dismissible: true, icon: false }, { type: "error", background: "indianred", dismissible: true, icon: false }] });
+				const TEMP = { cold: "fa-snowflake text-info", warm: "fa-sun text-warning", hot: "fa-fire text-danger" };
+				const PRIO = { 2: ["text-bg-warning", "<%= i18n.__('leads.list.prio.2') %>"], 3: ["text-bg-danger", "<%= i18n.__('leads.list.prio.3') %>"] };
+				const T = {
+					more: "<%= i18n.__('leads.kanban.more') %>",
+					empty: "<%= i18n.__('leads.kanban.empty') %>",
+					moved: "<%= i18n.__('leads.kanban.moved') %>",
+					conflict: "<%= i18n.__('leads.kanban.conflict') %>",
+					sla: "<%= i18n.__('leads.kanban.sla') %>",
+					unstaged: "<%= i18n.__('leads.kanban.unstaged') %>",
+					err: "<%= i18n.__('leads.server.server') %>",
+					leads: "<%= i18n.__('leads.kanban.leads') %>",
+					no_next: "<%= i18n.__('leads.list.no_next_short') %>",
+				};
+
+				const form = $("kb-form");
+				function filters() {
+					const f = {};
+					new FormData(form).forEach((v, k) => String(v).trim() !== "" && (f[k] = String(v).trim()));
+					return f;
+				}
+				// Фільтри — в адресі (оновлення сторінки й посилання їх тримають)
+				const initial = Object.fromEntries(new URLSearchParams(location.search));
+				Object.entries(initial).forEach(([k, v]) => {
+					const el = form.elements[k];
+					if (!el || k === "pipeline") return;
+					if (el.type === "checkbox") el.checked = v === "1";
+					else el.value = v;
+				});
+				if (["status", "manager", "source", "tag", "temperature", "converted"].some((k) => initial[k])) $("kb-filters").classList.add("show");
+				function syncUrl(f) {
+					const u = new URL(location.href);
+					u.search = new URLSearchParams(f).toString();
+					history.replaceState(null, "", u);
+					const n = Object.keys(f).filter((k) => k !== "pipeline").length;
+					$("filters-count").textContent = n;
+					$("filters-count").classList.toggle("d-none", !n);
+				}
+
+				async function post(url, body) {
+					const r = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body) });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok) throw Object.assign(new Error(j.message || j.error || T.err), { status: r.status, data: j });
+					return j;
+				}
+
+				// Дані карток: id → { date_edit, value }, щоб зберігати переміщення з контролем одночасних змін
+				const cards = new Map();
+				const cols = new Map();
+
+				// Наступний крок картки: найближча запланована активність або попередження, що її немає
+				function nextLine(c) {
+					const closed = Number(c.is_converted) || c.status_system_type === "won" || c.status_system_type === "lost";
+					if (!c.next_at) return closed ? "" : '<div class="small text-warning mt-1"><i class="fa-solid fa-triangle-exclamation me-1"></i>' + esc(T.no_next) + "</div>";
+					const late = Number(c.next_left) < 0;
+					return '<div class="small mt-1 ' + (late ? "text-danger" : "text-muted") + '"><i class="' + (late ? "fa-solid fa-clock" : "fa-regular fa-calendar") + ' me-1"></i>' + esc(String(c.next_at).slice(0, 16)) + "</div>";
+				}
+
+				function cardHtml(c) {
+					cards.set(String(c.id), c);
+					const ci = c.contact_info || {};
+					// Залишок часу на першу відповідь рахує сервер (секунди) — не залежить від часового поясу браузера
+					const late = c.sla_left !== null && c.sla_left !== undefined && Number(c.sla_left) < 0;
+					const pr = PRIO[c.priority];
+					return (
+						'<div class="kb-card' + (late ? " kb-sla" : "") + '" data-id="' + Number(c.id) + '">' +
+						'<div class="d-flex justify-content-between gap-2"><a class="kb-title" href="/leads/' + Number(c.id) + '/">' + esc(c.title || "#" + c.id) + "</a>" +
+						'<small class="text-muted">#' + Number(c.id) + "</small></div>" +
+						(ci.name || ci.phone ? '<div class="text-muted small">' + esc([ci.name, ci.phone].filter(Boolean).join(" · ")) + "</div>" : "") +
+						'<div class="d-flex flex-wrap align-items-center gap-1 mt-1">' +
+						(Number(c.value) ? '<span class="fw-semibold me-1">' + MONEY.format(Number(c.value)) + "</span>" : "") +
+						(c.status_name ? '<span class="badge rounded-0" style="color:' + color(c.status_color_text, "#fff") + ";background:" + color(c.status_color_background, "#6c757d") + '">' + esc(c.status_name) + "</span>" : "") +
+						(pr ? '<span class="badge rounded-0 ' + pr[0] + '">' + esc(pr[1]) + "</span>" : "") +
+						(TEMP[c.temperature] ? '<i class="fa-solid ' + TEMP[c.temperature] + '"></i>' : "") +
+						(c.is_converted ? '<i class="fa-solid fa-check-circle text-success"></i>' : "") +
+						(c.is_duplicate ? '<i class="fa-solid fa-copy text-warning"></i>' : "") +
+						(late ? '<i class="fa-solid fa-clock text-danger" title="' + esc(T.sla) + '"></i>' : "") +
+						"</div>" +
+						nextLine(c) +
+						'<div class="d-flex justify-content-between mt-1 small text-muted"><span><i class="fa-regular fa-user me-1"></i>' + esc(c.manager_name || "—") + "</span><span>" + esc(String(c.date_add || "").slice(0, 10)) + "</span></div>" +
+						"</div>"
+					);
+				}
+
+				function headMeta(col) {
+					$("kb-meta-" + col.id).textContent = col.count + " · " + MONEY.format(col.total);
+				}
+				function moreBtn(col) {
+					const btn = $("kb-more-" + col.id);
+					btn.classList.toggle("d-none", col.loaded >= col.count);
+				}
+
+				let current = filters();
+				async function load() {
+					current = filters();
+					syncUrl(current);
+					const board = $("board");
+					try {
+						const d = await post("/api/leads/kanban/", current);
+						cards.clear();
+						cols.clear();
+						board.innerHTML = d.columns.length
+							? d.columns
+									.map((c) => {
+										cols.set(String(c.id), { id: c.id, count: c.count, total: c.total, loaded: c.cards.length, system_type: c.system_type });
+										const icon = faIcon(c.icon);
+										return (
+											'<div class="kb-col" style="border-top-color:' + color(c.color, "#6c757d") + '">' +
+											'<div class="kb-head"><div class="kb-name">' + (icon ? '<i class="' + icon + ' me-1"></i>' : "") + esc(c.name) +
+											(c.probability ? ' <small class="text-muted">' + Number(c.probability) + "%</small>" : "") + "</div>" +
+											'<div class="kb-meta" id="kb-meta-' + Number(c.id) + '"></div></div>' +
+											'<div class="kb-list" data-stage="' + Number(c.id) + '">' + c.cards.map(cardHtml).join("") + "</div>" +
+											'<button type="button" class="btn btn-outline-primary btn-sm rounded-0 kb-more d-none" id="kb-more-' + Number(c.id) + '" data-stage="' + Number(c.id) + '">' + esc(T.more) + "</button>" +
+											"</div>"
+										);
+									})
+									.join("")
+							: '<div class="text-muted p-2">' + esc(T.empty) + "</div>";
+						let total = 0;
+						cols.forEach((c) => {
+							headMeta(c);
+							moreBtn(c);
+							total += c.count;
+						});
+						$("kb-total").textContent = "(" + total.toLocaleString("uk-UA") + ")";
+						$("kb-unstaged").classList.toggle("d-none", !d.unstaged);
+						if (d.unstaged) $("kb-unstaged").innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i>' + esc(T.unstaged.replace("{{n}}", d.unstaged)) + ' <a href="/leads?pipeline=' + encodeURIComponent(current.pipeline) + '">' + esc(T.leads) + "</a>";
+						if (CAN_EDIT) board.querySelectorAll(".kb-list").forEach(initSortable);
+					} catch (e) {
+						board.innerHTML = "";
+						notyf.error(e.message);
+					}
+				}
+
+				async function more(stage, btn) {
+					const col = cols.get(String(stage));
+					btn.disabled = true;
+					try {
+						const d = await post("/api/leads/kanban/column/", { ...current, stage, offset: col.loaded });
+						const list = document.querySelector('.kb-list[data-stage="' + Number(stage) + '"]');
+						// Картки, які вже є (перетягнуті сюди), не дублюємо
+						const fresh = d.cards.filter((c) => !list.querySelector('[data-id="' + Number(c.id) + '"]'));
+						list.insertAdjacentHTML("beforeend", fresh.map(cardHtml).join(""));
+						col.loaded += d.cards.length;
+						if (!d.cards.length) col.loaded = col.count;
+						moreBtn(col);
+					} catch (e) {
+						notyf.error(e.message);
+					} finally {
+						btn.disabled = false;
+					}
+				}
+
+				function initSortable(list) {
+					Sortable.create(list, {
+						group: "leads",
+						animation: 150,
+						ghostClass: "kb-ghost",
+						filter: "a",
+						preventOnFilter: false,
+						onEnd: (ev) => {
+							if (ev.from === ev.to) return;
+							move(ev.item, ev.from, ev.to, ev.oldIndex);
+						},
+					});
+				}
+
+				// Переміщення = звичайне збереження ліда (етап), з версією картки — чужі зміни не перезаписуються
+				async function move(el, from, to, oldIndex) {
+					const id = el.dataset.id;
+					const c = cards.get(id);
+					const src = cols.get(from.dataset.stage);
+					const dst = cols.get(to.dataset.stage);
+					const value = Number(c.value) || 0;
+					const shift = (k) => {
+						src.count -= k; src.total -= k * value; src.loaded -= k;
+						dst.count += k; dst.total += k * value; dst.loaded += k;
+						headMeta(src); headMeta(dst);
+					};
+					shift(1);
+					el.classList.add("kb-saving");
+					const back = () => {
+						shift(-1);
+						from.insertBefore(el, from.children[oldIndex] || null);
+					};
+					const save = async (extra) => {
+						const r = await post("/api/leads/" + Number(id) + "/save/", { date_edit: c.date_edit, changes: { id_stage: to.dataset.stage, ...(extra || {}) } });
+						c.date_edit = r.date_edit;
+						c.id_stage = Number(to.dataset.stage);
+						notyf.success(T.moved);
+						// Автоматизації етапу могли змінити лід (етап, відповідального…) — перечитуємо дошку
+						if (r.automated) setTimeout(load, 600);
+					};
+					try {
+						await save();
+					} catch (e) {
+						// Етап вимагає поля — питаємо їх у вікні; інакше — картку на місце
+						const missing = (e.data && e.data.missing) || [];
+						if (e.status === 400 && missing.length && CAN_EDIT) askMissing(c, to, missing, save, back);
+						else {
+							back();
+							notyf.error(e.status === 409 ? T.conflict : e.message);
+						}
+					} finally {
+						el.classList.remove("kb-saving");
+					}
+				}
+
+
+				// ── Вікно обов'язкових полів етапу ──
+				const RL = <%- JSON.stringify(typeof labels !== 'undefined' ? labels : {}).replace(/</g, '\\u003c') %>;
+				const rlabel = (k) => RL[k] || k;
+				const OPTS = {};
+				const OPT_KEY = { id_source: "sources", id_manager: "managers", id_loss_reason: "loss_reasons", id_priority: "priorities", id_temperature: "temperatures", id_qualification: "qualifications" };
+				let reqCtx = null;
+				const reqModal = $("m-req") ? bootstrap.Modal.getOrCreateInstance($("m-req")) : null;
+				function askMissing(c, to, missing, save, back) {
+					const stageName = to.closest(".kb-col").querySelector(".kb-name").textContent.trim();
+					$("m-req-hint").textContent = "<%= i18n.__('leads.rules.modal_hint') %>".replace("{{stage}}", stageName);
+					const ci = c.contact_info || {};
+					$("m-req-fields").innerHTML = missing.map((k) => {
+						const id = "rq-" + k.replace(".", "-");
+						let input;
+						if (OPT_KEY[k]) input = '<select class="form-select rounded-0" id="' + id + '" data-k="' + k + '"><option value="">—</option>' + (OPTS[OPT_KEY[k]] || []).map((o) => '<option value="' + Number(o.id) + '">' + esc(o.name || "#" + o.id) + "</option>").join("") + "</select>";
+						else if (k === "note") input = '<textarea class="form-control rounded-0" rows="3" id="' + id + '" data-k="' + k + '"></textarea>';
+						else if (k === "contact.any") input = '<div class="row g-2"><div class="col"><input type="tel" class="form-control rounded-0" placeholder="<%= i18n.__('leads.rules.f.contact.phone') %>" data-k="contact.phone" value="' + esc(ci.phone || "") + '"></div><div class="col"><input type="email" class="form-control rounded-0" placeholder="Email" data-k="contact.email" value="' + esc(ci.email || "") + '"></div></div>';
+						else input = '<input type="' + (k === "value" ? "number" : k === "expected_close_date" ? "date" : "text") + '" class="form-control rounded-0" id="' + id + '" data-k="' + k + '"' + (k === "value" ? ' min="0" step="0.01"' : "") + ">";
+						return '<div class="mb-3"><label class="form-label" for="' + id + '">' + esc(rlabel(k)) + "</label>" + input + "</div>";
+					}).join("");
+					reqCtx = { c, save, back, done: false };
+					reqModal.show();
+				}
+				if ($("m-req")) {
+					$("m-req").addEventListener("hidden.bs.modal", () => {
+						if (reqCtx && !reqCtx.done) reqCtx.back();
+						reqCtx = null;
+					});
+					$("m-req-ok").addEventListener("click", async (e) => {
+						if (!reqCtx) return;
+						const btn = e.currentTarget;
+						const extra = {};
+						const contact = { ...(reqCtx.c.contact_info || {}) };
+						let touchedContact = false;
+						$("m-req-fields").querySelectorAll("[data-k]").forEach((el) => {
+							const k = el.dataset.k;
+							if (k.startsWith("contact.")) {
+								contact[k.slice(8)] = el.value.trim();
+								touchedContact = true;
+							} else extra[k] = el.value.trim();
+						});
+						if (touchedContact) extra.contact_info = Object.fromEntries(["name", "phone", "email", "company", "position"].filter((k) => contact[k]).map((k) => [k, contact[k]]));
+						btn.disabled = true;
+						try {
+							await reqCtx.save(extra);
+							if (extra.value !== undefined) reqCtx.c.value = extra.value;
+							if (extra.contact_info) reqCtx.c.contact_info = { ...reqCtx.c.contact_info, ...extra.contact_info };
+							reqCtx.done = true;
+							reqModal.hide();
+						} catch (err) {
+							notyf.error(err.status === 409 ? T.conflict : err.message);
+							Object.keys((err.data && err.data.errors) || {}).forEach((k) => $("m-req-fields").querySelectorAll('[data-k="' + k + '"]').forEach((x) => x.classList.add("is-invalid")));
+						} finally {
+							btn.disabled = false;
+						}
+					});
+				}
+
+				$("board").addEventListener("click", (e) => {
+					const b = e.target.closest(".kb-more");
+					if (b) more(b.dataset.stage, b);
+				});
+				form.addEventListener("submit", (e) => {
+					e.preventDefault();
+					load();
+				});
+				$("f-pipeline").addEventListener("change", () => {
+					if ($("kb-new")) $("kb-new").href = "/leads/new/?pipeline=" + encodeURIComponent($("f-pipeline").value);
+					load();
+				});
+
+				// Варіанти фільтрів — ті самі, що в списку
+				fetch("/api/leads/list-filters/", { method: "POST" })
+					.then((r) => r.json())
+					.then((d) => {
+						const add = (id, list) => {
+							const sel = $(id);
+							(list || []).forEach((x) => sel.add(new Option(x.name || "#" + x.id, x.id)));
+							if (initial[sel.name]) sel.value = initial[sel.name];
+						};
+						add("f-status", d.statuses);
+						add("f-source", d.sources);
+						add("f-tag", d.tags);
+						add("f-manager", d.managers);
+						Object.values(OPT_KEY).forEach((k) => (OPTS[k] = d[k] || []));
+					})
+					.finally(load);
+			})();
+		</script>
+		<% } %>
+	</body>
+</html>

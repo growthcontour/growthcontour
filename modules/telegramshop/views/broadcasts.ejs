@@ -1,0 +1,111 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('modules.telegramshop.bc.title') %></title>
+		<%- include('../../../views/partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<style>
+			/* Таблиці — як «Статуси замовлень»: рамки між колонками й рядками */
+			#bc-table .tabulator-col,
+			#bc-table .tabulator-cell { border-right: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; }
+			#bc-table .tabulator-col:last-child,
+			#bc-table .tabulator-cell:last-child { border-right: none; }
+			#bc-table .tabulator-row:last-child .tabulator-cell { border-bottom: none; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../views/partials/header'); %>
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('modules.telegramshop.bc.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('modules.telegramshop.home') %></span></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/mailing/"><%= i18n.__('modules.telegramshop.bc.mailing') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= i18n.__('modules.telegramshop.bc.title') %></li>
+							</ul>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pt-3 pb-5">
+				<div class="alert alert-light border rounded-0 small"><i class="fa-solid fa-circle-info me-1 text-primary"></i><%= i18n.__('modules.telegramshop.bc.help') %></div>
+				<div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+					<div><% if (perms.edit) { %><a class="btn btn-primary rounded-0" href="/modules/telegramshop/broadcasts/0/"><%= i18n.__('modules.telegramshop.bc.new') %></a><% } %></div>
+					<select class="form-select rounded-0 w-auto" id="f-status">
+						<option value=""><%= i18n.__('modules.telegramshop.bc.all_statuses') %></option>
+						<% ['draft','scheduled','sending','paused','sent','cancelled','failed'].forEach(function (s) { %><option value="<%= s %>"><%= i18n.__('modules.telegramshop.bc.st.' + s) %></option><% }); %>
+					</select>
+				</div>
+				<div class="card border-primary rounded-0">
+					<div class="card-header text-bg-primary rounded-0"><%= i18n.__('modules.telegramshop.bc.title') %></div>
+					<% if (!shops.length) { %><div class="p-3 small text-muted"><%= i18n.__('modules.telegramshop.bc.no_shops') %> <a href="/modules/telegramshop/"><%= i18n.__('modules.telegramshop.title') %></a></div><% } %>
+					<div id="bc-table"></div>
+				</div>
+			</div>
+		</main>
+
+		<%- include('../../../views/partials/footer'); %>
+		<%- include('../../../views/partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s === null || s === undefined ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000, types: [{ type: "success", dismissible: true, icon: false }, { type: "error", background: "indianred", dismissible: true, icon: false }] });
+				const L = <%- JSON.stringify(i18n.__('modules.telegramshop.bc')).replace(/</g, '\\u003c') %>;
+				const API = "/api/module/telegramshop/broadcasts/";
+				async function post(url, body) {
+					const r = await fetch(API + url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok || j.ok === false) throw new Error(j.error || L.e_server);
+					return j;
+				}
+				const BADGE = { draft: "text-bg-secondary", scheduled: "text-bg-info", preparing: "text-bg-info", sending: "text-bg-primary", paused: "text-bg-warning", sent: "text-bg-success", cancelled: "text-bg-dark", failed: "text-bg-danger" };
+				const pct = (a, b) => (b ? Math.round((a / b) * 1000) / 10 + "%" : "—");
+				// Дата запланованої відправки — UTC; решта — час сервера
+				const dt = (v, utc) => {
+					if (!v) return "";
+					const d = new Date(String(v).replace(" ", "T") + (utc ? "Z" : ""));
+					return isNaN(d) ? esc(v) : d.toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
+				};
+				const table = new Tabulator("#bc-table", {
+					layout: "fitColumns",
+					pagination: true,
+					paginationSize: 10,
+					paginationSizeSelector: [10, 20, 30, 40],
+					movableColumns: true,
+					columnDefaults: { headerSort: false },
+					placeholder: L.empty,
+					columns: [
+						{ title: "ID", field: "id", width: 70 },
+						{ title: L.f_name, field: "name", widthGrow: 3, minWidth: 200, formatter: (c) => esc(c.getValue()) },
+						{ title: L.f_status, field: "status", width: 140, formatter: (c) => '<span class="badge rounded-0 ' + (BADGE[c.getValue()] || "") + '">' + esc((L.st || {})[c.getValue()] || c.getValue()) + "</span>" },
+						{ title: L.c_total, field: "cnt_total", width: 110, hozAlign: "right" },
+						{ title: L.c_sent, field: "cnt_sent", width: 120, hozAlign: "right", formatter: (c) => { const d = c.getRow().getData(); return d.cnt_sent + ' <span class="text-muted small">' + pct(d.cnt_sent, d.cnt_total) + "</span>"; } },
+						{ title: L.c_clicked, field: "cnt_clicked", width: 130, hozAlign: "right", formatter: (c) => { const d = c.getRow().getData(); return d.cnt_clicked + ' <span class="text-muted small">' + pct(d.cnt_clicked, d.cnt_sent) + "</span>"; } },
+						{ title: L.c_orders, field: "cnt_orders", width: 110, hozAlign: "right" },
+						{ title: L.c_date, field: "date_launched", width: 160, formatter: (c) => { const d = c.getRow().getData(); return d.date_launched ? dt(d.date_launched) : d.date_scheduled ? dt(d.date_scheduled, true) : dt(d.date_add); } },
+						{ title: "", field: "id", width: 100, formatter: (c) => '<div class="d-flex justify-content-center gap-2"><a class="bg-transparent border-0 text-primary" href="/modules/telegramshop/broadcasts/' + c.getValue() + '/"><i class="fa-regular fa-pen-to-square"></i></a></div>' },
+					],
+				});
+				const load = () => post("list/", { status: $("f-status").value }).then((d) => table.replaceData(d.rows)).catch((e) => notyf.error(e.message));
+				table.on("tableBuilt", load);
+				$("f-status").addEventListener("change", load);
+				// Поки йде відправка — оновлювати лічильники
+				setInterval(() => {
+					if (table.getData().some((r) => ["scheduled", "preparing", "sending"].includes(r.status))) load();
+				}, 10000);
+			})();
+		</script>
+	</body>
+</html>

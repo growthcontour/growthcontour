@@ -1,0 +1,519 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('leads.list.title') %></title>
+		<%- include('../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<style>
+			/* Рамки таблиці — як у списку замовлень */
+			#leads-table .tabulator-col,
+			#leads-table .tabulator-cell {
+				border-right: 1px solid #dee2e6;
+				border-bottom: 1px solid #dee2e6;
+			}
+			#leads-table .tabulator-col:last-child,
+			#leads-table .tabulator-cell:last-child {
+				border-right: none;
+			}
+			#leads-table .tabulator-row:last-child .tabulator-cell {
+				border-bottom: none;
+			}
+			.section-title {
+				font-size: 11px;
+				font-weight: 700;
+				text-transform: uppercase;
+				color: #6c757d;
+				letter-spacing: 0.5px;
+				margin-bottom: 4px;
+			}
+		</style>
+	</head>
+
+	<body class="d-flex flex-column h-100">
+		<%- include('../../partials/header'); %>
+		<!-- Breadcrumb -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('leads.list.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/">
+										<i class="fas fa-home"></i>
+										<span><%= i18n.__('leads.list.breadcrumb.home') %></span>
+									</a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('leads.list.breadcrumb.current') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto d-flex gap-2">
+						<div class="btn-group">
+							<span class="btn btn-primary rounded-0" title="<%= i18n.__('leads.kanban.view_list') %>"><i class="fa-solid fa-list"></i></span>
+							<a href="/leads/kanban/" class="btn btn-outline-primary rounded-0" id="to-kanban" title="<%= i18n.__('leads.kanban.view_board') %>"><i class="fa-solid fa-table-columns"></i></a>
+						</div>
+						<a href="/" class="btn btn-primary rounded-0">
+							<i class="fa-solid fa-angle-left"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- END Breadcrumb -->
+
+		<div class="container-fluid mt-3">
+			<div class="row">
+				<div class="col-12 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+							<span><%= i18n.__('leads.list.t.lidy') %> <span id="leads-total"></span></span>
+							<div class="d-flex gap-2">
+							<% if (canAdd) { %><a href="/leads/new/" class="btn btn-sm btn-light rounded-0"><i class="fa-solid fa-plus me-1"></i><%= i18n.__('leads.new.button') %></a>
+							<a href="/leads/import/" class="btn btn-sm btn-light rounded-0" title="<%= i18n.__('leads.import.title') %>"><i class="fa-solid fa-file-import"></i></a><% } %>
+							<button class="btn btn-sm btn-light rounded-0" type="button" data-bs-toggle="collapse" data-bs-target="#leads-filters"><i class="fa-solid fa-filter me-1"></i> <%= i18n.__('leads.list.filters') %> <span class="badge rounded-0 text-bg-primary d-none" id="filters-count"></span></button>
+							</div>
+						</div>
+
+						<!-- Панель фільтрів -->
+						<div class="collapse" id="leads-filters">
+							<form class="card-body border-bottom bg-light" id="filters-form" autocomplete="off">
+								<div class="row g-2">
+									<div class="col-12 col-md-4">
+										<label class="section-title d-block" for="f-search"><%= i18n.__('leads.list.search') %></label>
+										<input type="text" id="f-search" name="search" class="form-control form-control-sm rounded-0" placeholder="<%= i18n.__('leads.list.search_ph') %>" />
+									</div>
+									<div class="col-6 col-md-2">
+										<label class="section-title d-block" for="f-status"><%= i18n.__('leads.list.status') %></label>
+										<select id="f-status" name="status" class="form-select form-select-sm rounded-0"><option value=""><%= i18n.__('leads.list.all') %></option></select>
+									</div>
+									<div class="col-6 col-md-2">
+										<label class="section-title d-block" for="f-pipeline"><%= i18n.__('leads.list.pipeline') %></label>
+										<select id="f-pipeline" name="pipeline" class="form-select form-select-sm rounded-0"><option value=""><%= i18n.__('leads.list.all') %></option></select>
+									</div>
+									<div class="col-6 col-md-2">
+										<label class="section-title d-block" for="f-stage"><%= i18n.__('leads.list.stage') %></label>
+										<select id="f-stage" name="stage" class="form-select form-select-sm rounded-0"><option value=""><%= i18n.__('leads.list.all') %></option></select>
+									</div>
+									<div class="col-6 col-md-2">
+										<label class="section-title d-block" for="f-source"><%= i18n.__('leads.list.source') %></label>
+										<select id="f-source" name="source" class="form-select form-select-sm rounded-0"><option value=""><%= i18n.__('leads.list.all') %></option></select>
+									</div>
+									<div class="col-6 col-md-2">
+										<label class="section-title d-block" for="f-manager"><%= i18n.__('leads.list.manager') %></label>
+										<select id="f-manager" name="manager" class="form-select form-select-sm rounded-0">
+											<option value=""><%= i18n.__('leads.list.all') %></option>
+											<option value="none"><%= i18n.__('leads.list.manager_none') %></option>
+										</select>
+									</div>
+									<div class="col-6 col-md-2">
+										<label class="section-title d-block" for="f-temperature"><%= i18n.__('leads.list.temperature') %></label>
+										<select id="f-temperature" name="temperature" class="form-select form-select-sm rounded-0">
+											<option value=""><%= i18n.__('leads.list.all') %></option>
+											<% ['cold', 'warm', 'hot'].forEach(function (t) { %><option value="<%= t %>"><%= i18n.__('leads.list.temp.' + t) %></option><% }) %>
+										</select>
+									</div>
+									<div class="col-6 col-md-2">
+										<label class="section-title d-block" for="f-priority"><%= i18n.__('leads.list.priority') %></label>
+										<select id="f-priority" name="priority" class="form-select form-select-sm rounded-0">
+											<option value=""><%= i18n.__('leads.list.all') %></option>
+											<% [0, 1, 2, 3].forEach(function (p) { %><option value="<%= p %>"><%= i18n.__('leads.list.prio.' + p) %></option><% }) %>
+										</select>
+									</div>
+									<div class="col-6 col-md-2">
+										<label class="section-title d-block" for="f-tag"><%= i18n.__('leads.list.tag') %></label>
+										<select id="f-tag" name="tag" class="form-select form-select-sm rounded-0"><option value=""><%= i18n.__('leads.list.all') %></option></select>
+									</div>
+									<div class="col-6 col-md-2">
+										<label class="section-title d-block" for="f-converted"><%= i18n.__('leads.list.converted') %></label>
+										<select id="f-converted" name="converted" class="form-select form-select-sm rounded-0">
+											<option value=""><%= i18n.__('leads.list.all') %></option>
+											<option value="1"><%= i18n.__('leads.list.converted_1') %></option>
+											<option value="0"><%= i18n.__('leads.list.converted_0') %></option>
+										</select>
+									</div>
+									<div class="col-6 col-md-2">
+										<label class="section-title d-block" for="f-date-from"><%= i18n.__('leads.list.date_from') %></label>
+										<input type="date" id="f-date-from" name="date_from" class="form-control form-control-sm rounded-0" />
+									</div>
+									<div class="col-6 col-md-2">
+										<label class="section-title d-block" for="f-date-to"><%= i18n.__('leads.list.date_to') %></label>
+										<input type="date" id="f-date-to" name="date_to" class="form-control form-control-sm rounded-0" />
+									</div>
+									<div class="col-12 d-flex flex-wrap align-items-end gap-3">
+										<div class="form-check mb-1"><input class="form-check-input" type="checkbox" id="f-mine" name="mine" value="1" /><label class="form-check-label small" for="f-mine"><%= i18n.__('leads.list.mine') %></label></div>
+										<div class="form-check mb-1"><input class="form-check-input" type="checkbox" id="f-duplicate" name="duplicate" value="1" /><label class="form-check-label small" for="f-duplicate"><%= i18n.__('leads.list.duplicate') %></label></div>
+										<div class="form-check mb-1"><input class="form-check-input" type="checkbox" id="f-no_next" name="no_next" value="1" /><label class="form-check-label small" for="f-no_next"><%= i18n.__('leads.list.no_next') %></label></div>
+										<button type="submit" class="btn btn-primary btn-sm rounded-0"><i class="fa-solid fa-check me-1"></i><%= i18n.__('leads.list.apply') %></button>
+										<button type="button" class="btn btn-outline-secondary btn-sm rounded-0" id="btn-reset"><i class="fa-solid fa-xmark me-1"></i><%= i18n.__('leads.list.reset') %></button>
+									</div>
+								</div>
+							</form>
+						</div>
+
+<% if (canEdit || canDelete) { %>
+						<!-- Масові дії: над вибраними рядками -->
+						<div class="d-flex flex-wrap align-items-center gap-2 px-3 py-2 border-bottom" id="bulk">
+							<span class="small text-muted me-1"><%= i18n.__('leads.bulk.selected') %>: <strong id="bulk-count">0</strong></span>
+							<% if (canEdit) { %>
+							<div class="dropdown">
+								<button class="btn btn-sm btn-outline-primary rounded-0" type="button" data-bs-toggle="dropdown" data-need disabled><i class="fa-solid fa-flag me-1"></i><%= i18n.__('leads.bulk.status') %> <i class="fa-solid fa-angle-down"></i></button>
+								<ul class="dropdown-menu rounded-0" id="bulk-status" style="max-height:320px;overflow-y:auto"></ul>
+							</div>
+							<div class="dropdown">
+								<button class="btn btn-sm btn-outline-primary rounded-0" type="button" data-bs-toggle="dropdown" data-need disabled><i class="fa-regular fa-user me-1"></i><%= i18n.__('leads.bulk.manager') %> <i class="fa-solid fa-angle-down"></i></button>
+								<ul class="dropdown-menu rounded-0" id="bulk-manager" style="max-height:320px;overflow-y:auto">
+									<li><button class="dropdown-item" type="button" data-bulk="manager" data-value="none"><%= i18n.__('leads.list.manager_none') %></button></li>
+									<li><hr class="dropdown-divider" /></li>
+								</ul>
+							</div>
+							<div class="dropdown">
+								<button class="btn btn-sm btn-outline-primary rounded-0" type="button" data-bs-toggle="dropdown" data-need disabled><i class="fa-solid fa-tag me-1"></i><%= i18n.__('leads.bulk.tag_add') %> <i class="fa-solid fa-angle-down"></i></button>
+								<ul class="dropdown-menu rounded-0" id="bulk-tag_add" style="max-height:320px;overflow-y:auto"></ul>
+							</div>
+							<div class="dropdown">
+								<button class="btn btn-sm btn-outline-secondary rounded-0" type="button" data-bs-toggle="dropdown" data-need disabled><i class="fa-solid fa-tag me-1"></i><%= i18n.__('leads.bulk.tag_remove') %> <i class="fa-solid fa-angle-down"></i></button>
+								<ul class="dropdown-menu rounded-0" id="bulk-tag_remove" style="max-height:320px;overflow-y:auto"></ul>
+							</div>
+							<% } %>
+							<% if (canDelete) { %>
+							<button class="btn btn-sm btn-outline-danger rounded-0" type="button" data-bulk="delete" data-need disabled><i class="fa-solid fa-trash me-1"></i><%= i18n.__('leads.bulk.delete') %></button>
+							<% } %>
+							<small class="text-muted ms-auto"><%= i18n.__('leads.bulk.hint') %></small>
+						</div>
+						<% } %>
+
+						<div id="leads-table"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+<% if (canEdit || canDelete) { %>
+		<div class="modal fade" id="m-bulk" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5"><%= i18n.__('leads.bulk.confirm_title') %></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body"><p class="mb-0" id="m-bulk-text"></p></div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('leads.bulk.cancel') %></button>
+						<button type="button" class="btn btn-primary rounded-0" id="m-bulk-ok"><%= i18n.__('leads.bulk.apply') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<% } %>
+
+		<%- include('../../partials/footer'); %>
+		<%- include('../../partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+
+		<script>
+			(function () {
+				"use strict";
+				const $ = (id) => document.getElementById(id);
+				// Екранування: дані лідів приходять і з зовнішніх форм — лише як текст
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const color = (c, def) => (/^#?[0-9a-f]{3,8}$/i.test(String(c || "")) ? (String(c)[0] === "#" ? c : "#" + c) : def);
+				// Іконка Font Awesome: у старих записах лише назва («fa-star») — без стилю вона не малюється, додаємо fa-solid
+				const faIcon = (cls) => {
+					const c = String(cls || "").trim();
+					if (!/^[a-z0-9 -]+$/i.test(c)) return "";
+					return /(^|\s)(fa-(solid|regular|brands|light|thin|duotone)|fas|far|fab|fal)(\s|$)/.test(c) ? c : "fa-solid " + c;
+				};
+				const BULK = <%= (canEdit || canDelete) ? 'true' : 'false' %>;
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4000, types: [{ type: "success", dismissible: true, icon: false }, { type: "error", background: "indianred", dismissible: true, icon: false }] });
+				// Наступний крок: найближча запланована активність; у відкритого ліда без неї — попередження
+				function nextStep(d) {
+					const closed = Number(d.is_converted) || d.status_system_type === "won" || d.status_system_type === "lost";
+					if (!d.next_at) return closed ? '<span class="text-muted">—</span>' : '<span class="text-warning" title="<%= i18n.__('leads.list.no_next_hint') %>"><i class="fa-solid fa-triangle-exclamation me-1"></i><%= i18n.__('leads.list.no_next_short') %></span>';
+					const late = Number(d.next_left) < 0;
+					return '<span class="' + (late ? "text-danger fw-semibold" : "") + '"' + (late ? ' title="<%= i18n.__('leads.work.overdue') %>"' : "") + ">" + (late ? '<i class="fa-solid fa-clock me-1"></i>' : '<i class="fa-regular fa-calendar me-1 text-muted"></i>') + esc(String(d.next_at).slice(0, 16)) + "</span>" + (Number(d.next_count) > 1 ? ' <small class="text-muted">+' + (Number(d.next_count) - 1) + "</small>" : "");
+				}
+				// Час на першу відповідь (секунди від сервера): минув — червоний годинник, лишилось < 1 год — жовтий
+				const slaIcon = (left) => {
+					if (left === null || left === undefined) return "";
+					const n = Number(left);
+					if (n < 0) return ' <i class="fa-solid fa-clock text-danger ms-1" title="<%= i18n.__('leads.sla.overdue') %>"></i>';
+					if (n < 3600) return ' <i class="fa-solid fa-clock text-warning ms-1" title="<%= i18n.__('leads.sla.soon') %>"></i>';
+					return "";
+				};
+				const MONEY = new Intl.NumberFormat("uk-UA", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+				const TEMP = {
+					cold: '<i class="fa-solid fa-snowflake text-info" title="<%= i18n.__('leads.list.temp.cold') %>"></i>',
+					warm: '<i class="fa-solid fa-sun text-warning" title="<%= i18n.__('leads.list.temp.warm') %>"></i>',
+					hot: '<i class="fa-solid fa-fire text-danger" title="<%= i18n.__('leads.list.temp.hot') %>"></i>',
+				};
+				const PRIO = {
+					0: '<span class="badge rounded-0 text-bg-secondary"><%= i18n.__('leads.list.prio.0') %></span>',
+					1: '<span class="badge rounded-0 text-bg-primary"><%= i18n.__('leads.list.prio.1') %></span>',
+					2: '<span class="badge rounded-0 text-bg-warning"><%= i18n.__('leads.list.prio.2') %></span>',
+					3: '<span class="badge rounded-0 text-bg-danger"><%= i18n.__('leads.list.prio.3') %></span>',
+				};
+
+				// ── Фільтри: значення форми; зберігаються в адресі, щоб оновлення сторінки й посилання їх тримали ──
+				const form = $("filters-form");
+				// Значення з адреси для списків, чиї варіанти ще вантажаться (перший запит таблиці вже їх враховує)
+				let pending = {};
+				function filters() {
+					const f = { ...pending };
+					new FormData(form).forEach((v, k) => {
+						if (String(v).trim() !== "") f[k] = String(v).trim();
+					});
+					return f;
+				}
+				function syncUrl(f) {
+					const u = new URL(location.href);
+					u.search = new URLSearchParams(f).toString();
+					history.replaceState(null, "", u);
+					const n = Object.keys(f).length;
+					$("filters-count").textContent = n;
+					$("filters-count").classList.toggle("d-none", !n);
+				}
+				// Початкові значення — з адреси
+				const initial = Object.fromEntries(new URLSearchParams(location.search));
+				Object.entries(initial).forEach(([k, v]) => {
+					const el = form.elements[k];
+					if (!el) return;
+					if (el.type === "checkbox") el.checked = v === "1";
+					else el.value = v;
+				});
+				["status", "pipeline", "stage", "source", "tag", "manager"].forEach((k) => initial[k] && (pending[k] = initial[k]));
+				if (Object.keys(initial).length) $("leads-filters").classList.add("show");
+
+				const table = new Tabulator("#leads-table", {
+					layout: "fitColumns",
+					placeholder: "<%= i18n.__('leads.list.empty') %>",
+					ajaxURL: "/api/leads/list/",
+					ajaxConfig: "POST",
+					ajaxContentType: "json",
+					ajaxParams: () => filters(),
+					pagination: true,
+					paginationMode: "remote",
+					paginationSize: 20,
+					paginationSizeSelector: [10, 20, 50, 100],
+					sortMode: "remote",
+					initialSort: [{ column: "date_add", dir: "desc" }],
+					dataLoaderLoading: '<span class="spinner-border spinner-border-sm me-1"></span>',
+					ajaxResponse: (url, params, r) => {
+						$("leads-total").textContent = "(" + Number(r.total || 0).toLocaleString("uk-UA") + ")";
+						return r;
+					},
+					movableColumns: true,
+					selectable: BULK ? <%= Number(bulkMax) || 100 %> : false,
+					columns: [
+						...(BULK ? [{ formatter: "rowSelection", titleFormatter: "rowSelection", hozAlign: "center", headerHozAlign: "center", headerSort: false, width: 44 }] : []),
+						{ title: "ID", field: "id", width: 70 },
+						{
+							title: "<%= i18n.__('leads.list.t.nazva') %>",
+							field: "title",
+							widthGrow: 2,
+							formatter: (cell) => {
+								const d = cell.getData();
+								return (
+									'<a href="/leads/' + Number(d.id) + '/" class="text-reset">' + esc(cell.getValue()) + "</a>" +
+									(d.is_converted ? ' <i class="fa-solid fa-check-circle text-success ms-1" title="<%= i18n.__('leads.list.t.konvertovano') %>"></i>' : "") +
+									(d.is_duplicate ? ' <i class="fa-solid fa-copy text-warning ms-1" title="<%= i18n.__('leads.list.t.dublikat') %>"></i>' : "") +
+									slaIcon(d.sla_left)
+								);
+							},
+						},
+						{
+							title: "<%= i18n.__('leads.list.t.kontakt') %>",
+							field: "contact_info",
+							widthGrow: 2,
+							headerSort: false,
+							formatter: (cell) => {
+								const ci = cell.getValue() || {};
+								const lines = [];
+								if (ci.name) lines.push("<strong>" + esc(ci.name) + "</strong>");
+								if (ci.phone) lines.push('<a href="tel:' + esc(String(ci.phone).replace(/[^\d+]/g, "")) + '">' + esc(ci.phone) + "</a>");
+								if (ci.email) lines.push('<a href="mailto:' + esc(ci.email) + '">' + esc(ci.email) + "</a>");
+								if (ci.company) lines.push('<small class="text-muted">' + esc(ci.company) + "</small>");
+								return lines.join("<br>");
+							},
+						},
+						{
+							title: "<%= i18n.__('leads.list.t.status') %>",
+							field: "status_name",
+							widthGrow: 1,
+							formatter: (cell) => {
+								const d = cell.getData();
+								if (!d.status_name) return "—";
+								const icon = faIcon(d.status_icon) ? '<i class="' + faIcon(d.status_icon) + ' me-1"></i>' : "";
+								return '<span class="badge rounded-0" style="color:' + color(d.status_color_text, "#fff") + ";background:" + color(d.status_color_background, "#6c757d") + '">' + icon + esc(d.status_name) + "</span>";
+							},
+						},
+						{
+							title: "<%= i18n.__('leads.list.stage_col') %>",
+							field: "stage_name",
+							widthGrow: 1,
+							formatter: (cell) => {
+								const d = cell.getData();
+								return d.stage_name ? '<span class="badge rounded-0" style="background:' + color(d.stage_color, "#6c757d") + '">' + esc(d.stage_name) + "</span>" : "—";
+							},
+						},
+						{
+							title: "<%= i18n.__('leads.list.next') %>",
+							field: "next_at",
+							width: 150,
+							formatter: (cell) => nextStep(cell.getData()),
+						},
+						{ title: "<%= i18n.__('leads.list.temperature') %>", titleFormatter: () => '<i class="fa-solid fa-temperature-half" title="<%= i18n.__('leads.list.temperature') %>"></i>', field: "temperature", width: 60, headerSort: false, hozAlign: "center", formatter: (cell) => TEMP[cell.getValue()] || esc(cell.getValue()) },
+						{
+							title: "<%= i18n.__('leads.list.score') %>",
+							field: "score",
+							width: 90,
+							hozAlign: "center",
+							formatter: (cell) => {
+								const d = cell.getData();
+								const c = { A: "success", B: "primary", C: "warning", D: "secondary" }[d.grade] || "secondary";
+								return '<span class="badge rounded-0 text-bg-' + c + '">' + Number(cell.getValue() || 0) + " <strong>" + esc(d.grade) + "</strong></span>";
+							},
+						},
+						{ title: "<%= i18n.__('leads.list.t.suma') %>", field: "value", width: 120, hozAlign: "right", formatter: (cell) => MONEY.format(Number(cell.getValue()) || 0) },
+						{ title: "<%= i18n.__('leads.list.t.priorytet') %>", field: "priority", width: 110, hozAlign: "center", formatter: (cell) => PRIO[cell.getValue()] || "—" },
+						{ title: "<%= i18n.__('leads.list.t.dzherelo') %>", field: "source_name", widthGrow: 1, formatter: (cell) => esc(cell.getValue() || "—") },
+						{
+							title: "<%= i18n.__('leads.list.t.tehy') %>",
+							field: "tags",
+							widthGrow: 1,
+							headerSort: false,
+							formatter: (cell) => {
+								const tags = cell.getValue() || [];
+								return tags.length ? tags.map((t) => '<span class="badge rounded-0 me-1" style="background:' + color(t.color, "#6c757d") + '">' + esc(t.name) + "</span>").join("") : "—";
+							},
+						},
+						{ title: "<%= i18n.__('leads.list.t.dodano') %>", field: "date_add", width: 150 },
+						{
+							title: "",
+							field: "id",
+							width: 50,
+							headerSort: false,
+							hozAlign: "center",
+							formatter: (cell) => '<a href="/leads/' + Number(cell.getValue()) + '/" class="text-primary" title="<%= i18n.__('leads.list.open') %>"><i class="fa-regular fa-pen-to-square"></i></a>',
+						},
+					],
+				});
+
+				form.addEventListener("submit", (e) => {
+					e.preventDefault();
+					syncUrl(filters());
+					table.setPage(1);
+				});
+				$("btn-reset").addEventListener("click", () => {
+					pending = {};
+					form.reset();
+					fillStages();
+					syncUrl({});
+					table.setPage(1);
+				});
+				syncUrl(filters());
+
+				// Варіанти випадних списків; етапи — лише вибраної воронки
+				let stages = [];
+				function fillStages() {
+					const sel = $("f-stage");
+					const keep = sel.value || initial.stage || "";
+					const p = $("f-pipeline").value;
+					sel.length = 1;
+					stages.filter((s) => !p || String(s.id_pipeline) === p).forEach((s) => sel.add(new Option(s.name, s.id)));
+					sel.value = [...sel.options].some((o) => o.value === keep) ? keep : "";
+					initial.stage = "";
+				}
+				fetch("/api/leads/list-filters/", { method: "POST" })
+					.then((r) => r.json())
+					.then((d) => {
+						const add = (id, list) => {
+							const sel = $(id);
+							(list || []).forEach((x) => sel.add(new Option(x.name || "#" + x.id, x.id)));
+							if (initial[sel.name]) sel.value = initial[sel.name];
+						};
+						add("f-status", d.statuses);
+						add("f-pipeline", d.pipelines);
+						add("f-source", d.sources);
+						add("f-tag", d.tags);
+						add("f-manager", d.managers);
+						fillBulk(d);
+						stages = d.stages || [];
+						fillStages();
+						pending = {};
+					});
+				$("f-pipeline").addEventListener("change", fillStages);
+
+				// Перехід на канбан — з тими ж фільтрами (воронка обирається на дошці)
+				$("to-kanban").addEventListener("click", (e) => {
+					const f = filters();
+					delete f.stage;
+					e.currentTarget.href = "/leads/kanban/" + (Object.keys(f).length ? "?" + new URLSearchParams(f) : "");
+				});
+
+				// ── Масові дії над вибраними рядками ──
+				function fillBulk(d) {
+					if (!BULK) return;
+					const item = (action, x) => '<li><button class="dropdown-item" type="button" data-bulk="' + action + '" data-value="' + Number(x.id) + '">' + esc(x.name || "#" + x.id) + "</button></li>";
+					if ($("bulk-status")) $("bulk-status").innerHTML = (d.statuses || []).map((x) => item("status", x)).join("");
+					if ($("bulk-manager")) $("bulk-manager").insertAdjacentHTML("beforeend", (d.managers || []).map((x) => item("manager", x)).join(""));
+					["tag_add", "tag_remove"].forEach((a) => $("bulk-" + a) && ($("bulk-" + a).innerHTML = (d.tags || []).map((x) => item(a, x)).join("")));
+				}
+				if (BULK) {
+					const box = $("bulk");
+					const modal = bootstrap.Modal.getOrCreateInstance($("m-bulk"));
+					let pendingBulk = null;
+					const ACTION_TEXT = {
+						status: "<%= i18n.__('leads.bulk.q.status') %>",
+						manager: "<%= i18n.__('leads.bulk.q.manager') %>",
+						tag_add: "<%= i18n.__('leads.bulk.q.tag_add') %>",
+						tag_remove: "<%= i18n.__('leads.bulk.q.tag_remove') %>",
+						delete: "<%= i18n.__('leads.bulk.q.delete') %>",
+					};
+					table.on("rowSelectionChanged", (data) => {
+						$("bulk-count").textContent = data.length;
+						box.querySelectorAll("[data-need]").forEach((b) => (b.disabled = !data.length));
+					});
+					// Нова сторінка / фільтр — вибір скидається (дія завжди над тим, що видно)
+					table.on("dataLoaded", () => table.deselectRow());
+					box.addEventListener("click", (e) => {
+						const b = e.target.closest("[data-bulk]");
+						if (!b) return;
+						const ids = table.getSelectedData().map((r) => r.id);
+						if (!ids.length) return;
+						pendingBulk = { ids, action: b.dataset.bulk, value: b.dataset.value };
+						$("m-bulk-text").textContent = ACTION_TEXT[pendingBulk.action].replace("{{n}}", ids.length).replace("{{value}}", b.dataset.value ? b.textContent.trim() : "");
+						$("m-bulk-ok").className = "btn rounded-0 " + (pendingBulk.action === "delete" ? "btn-danger" : "btn-primary");
+						modal.show();
+					});
+					$("m-bulk-ok").addEventListener("click", async (e) => {
+						const btn = e.currentTarget;
+						if (!pendingBulk) return;
+						btn.disabled = true;
+						try {
+							const r = await fetch("/api/leads/bulk/", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(pendingBulk) });
+							const j = await r.json().catch(() => ({}));
+							if (!r.ok) throw new Error(j.message || j.error || "<%= i18n.__('leads.server.server') %>");
+							modal.hide();
+							notyf.success("<%= i18n.__('leads.bulk.done') %>".replace("{{n}}", j.changed) + (j.skipped ? " " + "<%= i18n.__('leads.bulk.skipped') %>".replace("{{n}}", j.skipped) : ""));
+							pendingBulk = null;
+							table.replaceData();
+						} catch (err) {
+							notyf.error(err.message);
+						} finally {
+							btn.disabled = false;
+						}
+					});
+				}
+			})();
+		</script>
+	</body>
+</html>

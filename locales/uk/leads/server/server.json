@@ -1,0 +1,11 @@
+{
+	"leads": {
+		"server": {
+			"not_found": "Не знайдено.",
+			"server": "Помилка сервера.",
+			"bad_id": "Невірний ID.",
+			"request_title": "Заявка: {{name}}",
+			"no_name": "без імені"
+		}
+	}
+}

@@ -1,0 +1,282 @@
+<% const isNew = !hookId; %><!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__(isNew ? 'leads.webhooks.new' : 'leads.webhooks.edit_title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<style>
+			pre.code { background: #f8f9fa; border: 1px solid #dee2e6; padding: 12px; font-size: 12px; white-space: pre-wrap; word-break: break-all; margin: 0; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__(isNew ? 'leads.webhooks.new' : 'leads.webhooks.edit_title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('leads.intake.breadcrumb.home') %></span></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/leads/settings/"><%= i18n.__('leads.intake.breadcrumb.settings') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/leads/settings/webhooks/"><%= i18n.__('leads.webhooks.title') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= isNew ? i18n.__('leads.webhooks.new') : '#' + hookId %></li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/leads/settings/webhooks/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3">
+			<div class="row">
+				<div class="col-12 col-xl-7" id="wh-form">
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('leads.webhooks.cards.general') %></div>
+						<div class="card-body">
+							<div class="row">
+								<div class="col-12 col-md-6 mb-3">
+									<label class="form-label" for="f-name"><%= i18n.__('leads.webhooks.f.name') %></label>
+									<input type="text" class="form-control rounded-0" id="f-name" maxlength="100" placeholder="<%= i18n.__('leads.webhooks.ph.name') %>" />
+								</div>
+								<div class="col-12 col-md-6 mb-3 d-flex align-items-end">
+									<div class="form-check form-switch mb-2">
+										<input class="form-check-input" type="checkbox" role="switch" id="f-is_active" checked />
+										<label class="form-check-label" for="f-is_active"><%= i18n.__('leads.intake.f.is_active') %></label>
+									</div>
+								</div>
+								<div class="col-9 col-md-10 mb-3">
+									<label class="form-label" for="f-url"><%= i18n.__('leads.webhooks.f.url') %> *</label>
+									<input type="url" class="form-control rounded-0" id="f-url" maxlength="1000" placeholder="https://example.com/hooks/leads" />
+								</div>
+								<div class="col-3 col-md-2 mb-3">
+									<label class="form-label" for="f-method"><%= i18n.__('leads.webhooks.f.method') %></label>
+									<select class="form-select rounded-0" id="f-method"><option>POST</option><option>PUT</option></select>
+								</div>
+							</div>
+							<div class="mb-3">
+								<div class="form-label"><%= i18n.__('leads.webhooks.f.events') %> *</div>
+								<div class="row">
+									<% events.forEach(function (e) { %>
+									<div class="col-12 col-md-6">
+										<div class="form-check mb-2">
+											<input class="form-check-input wh-event" type="checkbox" id="ev-<%= e %>" value="<%= e %>" />
+											<label class="form-check-label" for="ev-<%= e %>"><%= i18n.__('leads.webhooks.ev.' + e.replace('.', '_')) %> <code class="small text-muted"><%= e %></code></label>
+										</div>
+									</div>
+									<% }) %>
+								</div>
+							</div>
+							<div>
+								<label class="form-label" for="f-note"><%= i18n.__('leads.intake.f.note') %></label>
+								<input type="text" class="form-control rounded-0" id="f-note" maxlength="999" />
+							</div>
+						</div>
+					</div>
+
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('leads.webhooks.cards.security') %></div>
+						<div class="card-body">
+							<div class="mb-3">
+								<label class="form-label" for="f-secret"><%= i18n.__('leads.webhooks.f.secret') %></label>
+								<div class="input-group">
+									<input type="text" class="form-control rounded-0 font-monospace" id="f-secret" maxlength="255" placeholder="<%= i18n.__('leads.webhooks.ph.secret') %>" />
+									<button type="button" class="btn btn-outline-secondary rounded-0" id="btn-gen-secret" title="<%= i18n.__('leads.webhooks.gen_secret') %>"><i class="fa-solid fa-rotate"></i></button>
+								</div>
+								<small class="text-muted"><%= i18n.__('leads.webhooks.hint.secret') %></small>
+							</div>
+							<div>
+								<label class="form-label" for="f-headers"><%= i18n.__('leads.webhooks.f.headers') %></label>
+								<textarea class="form-control rounded-0 font-monospace" id="f-headers" rows="3" placeholder="Authorization: Bearer xxx&#10;X-Source: growthcontour"></textarea>
+								<small class="text-muted"><%= i18n.__('leads.webhooks.hint.headers') %></small>
+							</div>
+						</div>
+					</div>
+
+					<div class="d-flex gap-2 mb-3">
+						<button type="button" class="btn btn-primary rounded-0" id="btn-save"><%= i18n.__('leads.intake.save') %></button>
+						<% if (!isNew) { %><button type="button" class="btn btn-outline-primary rounded-0" id="btn-test"><i class="fa-solid fa-paper-plane me-1"></i><%= i18n.__('leads.webhooks.test') %></button><% } %>
+						<a href="/leads/settings/webhooks/" class="btn btn-secondary rounded-0"><%= i18n.__('leads.intake.close') %></a>
+					</div>
+				</div>
+
+				<div class="col-12 col-xl-5">
+					<div class="card border-primary rounded-0 mb-3">
+						<div class="card-header text-bg-primary rounded-0"><%= i18n.__('leads.webhooks.cards.format') %></div>
+						<div class="card-body">
+							<p class="small text-muted"><%= i18n.__('leads.webhooks.hint.format') %></p>
+							<pre class="code">POST https://example.com/hooks/leads
+Content-Type: application/json
+X-GC-Event: lead.created
+X-GC-Delivery: 8812
+X-GC-Timestamp: 1764000000
+X-GC-Signature: sha256=…
+
+{
+  "event": "lead.created",
+  "occurred_at": "2026-11-22T10:00:00.000Z",
+  "lead": {
+    "id": 1532, "title": "Заявка: Олена", "value": 0,
+    "status": { "id": 1, "name": "Новий" },
+    "stage": { "id": 3, "name": "Перший контакт" },
+    "manager": { "id": 5, "name": "Іван", "email": "…" },
+    "contact": { "name": "Олена", "phone": "+380…", "email": "…" },
+    "utm": { … }, "tags": [ … ], "url": "…/leads/1532/"
+  },
+  "changes": ["id_status"]          // лише для lead.updated
+}</pre>
+							<p class="small text-muted mt-3 mb-1"><%= i18n.__('leads.webhooks.hint.verify') %></p>
+							<pre class="code">$sig = 'sha256=' . hash_hmac('sha256', file_get_contents('php://input'), $secret);
+if (!hash_equals($sig, $_SERVER['HTTP_X_GC_SIGNATURE'] ?? '')) { http_response_code(401); exit; }</pre>
+							<p class="small text-muted mt-3 mb-0"><%= i18n.__('leads.webhooks.hint.retry') %></p>
+						</div>
+					</div>
+				</div>
+
+				<% if (!isNew) { %>
+				<div class="col-12 mb-3">
+					<div class="card border-primary rounded-0">
+						<div class="card-header text-bg-primary rounded-0 d-flex align-items-center gap-2">
+							<span class="me-auto"><%= i18n.__('leads.webhooks.log') %></span>
+							<select class="form-select form-select-sm rounded-0 w-auto" id="log-result">
+								<option value=""><%= i18n.__('leads.intake.res.all') %></option>
+								<% ['success', 'pending', 'failed'].forEach(function (r) { %><option value="<%= r %>"><%= i18n.__('leads.webhooks.res.' + r) %></option><% }) %>
+							</select>
+						</div>
+						<div id="log-table"></div>
+						<div class="card-footer small text-muted rounded-0"><%= i18n.__('leads.webhooks.log_retention') %></div>
+					</div>
+				</div>
+				<% } %>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<% if (!isNew) { %><script src="/assets/js/tabulator/tabulator.min.js"></script><% } %>
+		<script>
+			(function () {
+				"use strict";
+				let HOOK_ID = <%= hookId ? Number(hookId) : 'null' %>;
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 5000, types: [{ type: "success", dismissible: true, icon: false }, { type: "error", background: "indianred", dismissible: true, icon: false }] });
+				const FIELDS = ["name", "url", "method", "secret", "headers", "note"];
+				async function post(url, body) {
+					const r = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+					const d = await r.json().catch(() => ({}));
+					if (!r.ok) throw new Error(d.message || "Error");
+					return d;
+				}
+				async function busy(btn, fn) {
+					if (btn.disabled) return;
+					const html = btn.innerHTML;
+					btn.disabled = true;
+					btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+					try {
+						await fn();
+					} catch (e) {
+						notyf.error(e.message);
+					} finally {
+						btn.disabled = false;
+						btn.innerHTML = html;
+					}
+				}
+				const randomSecret = () => [...crypto.getRandomValues(new Uint8Array(24))].map((b) => b.toString(16).padStart(2, "0")).join("");
+				$("btn-gen-secret").addEventListener("click", () => ($("f-secret").value = randomSecret()));
+				if (!HOOK_ID) {
+					$("f-secret").value = randomSecret();
+					$("ev-lead.created").checked = true;
+				}
+
+				if (HOOK_ID) {
+					post("/api/leads/settings/webhooks/get/", { id: HOOK_ID })
+						.then((w) => {
+							FIELDS.forEach((f) => ($("f-" + f).value = w[f] ?? ""));
+							$("f-is_active").checked = !!Number(w.is_active);
+							document.querySelectorAll(".wh-event").forEach((x) => (x.checked = (w.events || []).includes(x.value)));
+						})
+						.catch((e) => notyf.error(e.message));
+				}
+
+				$("btn-save").addEventListener("click", function () {
+					busy(this, async () => {
+						const body = { id: HOOK_ID, is_active: $("f-is_active").checked ? 1 : 0, events: [...document.querySelectorAll(".wh-event:checked")].map((x) => x.value) };
+						FIELDS.forEach((f) => (body[f] = $("f-" + f).value));
+						const d = await post("/api/leads/settings/webhooks/save/", body);
+						notyf.success("<%= i18n.__('leads.intake.saved') %>");
+						if (!HOOK_ID) location.href = "/leads/settings/webhooks/" + Number(d.id) + "/";
+					});
+				});
+
+				if (HOOK_ID) {
+					// Пробна доставка: одразу, з останнім лідом; відповідь сервера — у повідомленні й журналі
+					$("btn-test").addEventListener("click", function () {
+						busy(this, async () => {
+							const r = await post("/api/leads/settings/webhooks/test/", { id: HOOK_ID });
+							if (r.ok) notyf.success("<%= i18n.__('leads.webhooks.test_ok') %> " + (r.code || ""));
+							else notyf.error("<%= i18n.__('leads.webhooks.test_fail') %> " + (r.code || r.error || ""));
+							logTable.setData();
+						});
+					});
+
+					const RES = {
+						success: ["text-bg-success", "<%= i18n.__('leads.webhooks.res.success') %>"],
+						pending: ["text-bg-warning", "<%= i18n.__('leads.webhooks.res.pending') %>"],
+						sending: ["text-bg-info", "<%= i18n.__('leads.webhooks.res.pending') %>"],
+						failed: ["text-bg-danger", "<%= i18n.__('leads.webhooks.res.failed') %>"],
+						cancelled: ["text-bg-secondary", "<%= i18n.__('leads.webhooks.res.cancelled') %>"],
+					};
+					const logTable = new Tabulator("#log-table", {
+						layout: "fitColumns",
+						ajaxURL: "/api/leads/settings/webhooks/log/",
+						ajaxRequestFunc: (url, cfg, params) => post(url, { id: HOOK_ID, result: $("log-result").value, page: params.page, size: params.size }),
+						pagination: true,
+						paginationMode: "remote",
+						paginationSize: 20,
+						paginationSizeSelector: [20, 50, 100],
+						placeholder: "<%= i18n.__('leads.intake.log_empty') %>",
+						columns: [
+							{ title: "<%= i18n.__('leads.intake.col_date') %>", field: "date_add", headerSort: false, width: 150 },
+							{ title: "<%= i18n.__('leads.webhooks.col_event') %>", field: "event", headerSort: false, width: 170, formatter: (c) => "<code>" + esc(c.getValue()) + "</code>" },
+							{ title: "<%= i18n.__('leads.intake.col_lead') %>", field: "id_lead", headerSort: false, width: 90, formatter: (c) => (c.getValue() ? '<a href="/leads/' + Number(c.getValue()) + '/">#' + Number(c.getValue()) + "</a>" : "—") },
+							{
+								title: "<%= i18n.__('leads.intake.col_result') %>", field: "result", headerSort: false, width: 200,
+								formatter: (c) => {
+									const r = c.getData();
+									const s = RES[r.result] || RES.pending;
+									const extra = r.result === "pending" && r.next_attempt_at ? '<div class="small text-muted"><%= i18n.__('leads.webhooks.next_try') %> ' + esc(r.next_attempt_at) + "</div>" : "";
+									return '<span class="badge rounded-0 ' + s[0] + '">' + s[1] + "</span> <small class=\"text-muted\">× " + Number(r.attempt || 0) + "</small>" + extra;
+								},
+							},
+							{ title: "HTTP", field: "response_code", headerSort: false, width: 70, formatter: (c) => esc(c.getValue() || "—") },
+							{ title: "<%= i18n.__('leads.webhooks.col_response') %>", field: "response_body", headerSort: false, widthGrow: 3, formatter: (c) => { const r = c.getData(); return '<code class="small text-wrap">' + esc(String(r.error ? r.error + " " : "") + String(r.response_body || "").slice(0, 300)) + "</code>"; } },
+							{
+								title: "", field: "id", headerSort: false, width: 50, hozAlign: "center",
+								formatter: (c) => (["failed", "cancelled"].includes(c.getData().result) ? '<button type="button" class="bg-transparent border-0 text-primary p-0 js-retry" data-id="' + Number(c.getValue()) + '" title="<%= i18n.__('leads.webhooks.retry') %>"><i class="fa-solid fa-rotate-right"></i></button>' : ""),
+							},
+						],
+					});
+					$("log-result").addEventListener("change", () => logTable.setData());
+					document.addEventListener("click", async (e) => {
+						const b = e.target.closest(".js-retry");
+						if (!b) return;
+						try {
+							await post("/api/leads/settings/webhooks/retry/", { id: Number(b.dataset.id) });
+							notyf.success("<%= i18n.__('leads.webhooks.retried') %>");
+							setTimeout(() => logTable.setData(), 1500);
+						} catch (err) {
+							notyf.error(err.message);
+						}
+					});
+				}
+			})();
+		</script>
+	</body>
+</html>

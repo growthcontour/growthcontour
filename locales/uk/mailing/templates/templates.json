@@ -1,0 +1,17 @@
+{
+	"mailing": {
+		"templates": {
+			"title": "Шаблони",
+			"breadcrumb": {
+				"home": "Головна",
+				"mailing": "Розсилки",
+				"current": "Шаблони"
+			},
+			"add": "Новий шаблон",
+			"modal_title": "Шаблон",
+			"name": "Назва",
+			"langs": "Мови",
+			"edited": "Змінено"
+		}
+	}
+}

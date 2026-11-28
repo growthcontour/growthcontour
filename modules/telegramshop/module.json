@@ -1,0 +1,8 @@
+{
+	"name": "telegramshop",
+	"version": "1.0.0",
+	"description": "Магазин у Telegram: бот і вітрина (Mini App) з каталогу системи, замовлення — в систему",
+	"author": "Growth Contour",
+	"hasConfig": false,
+	"config": {}
+}

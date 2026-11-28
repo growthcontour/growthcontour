@@ -1,0 +1,465 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('modules.monobank.payments.title') %></title>
+		<%- include('../../../views/partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../views/partials/header'); %>
+
+		<!-- Breadcrumb -->
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('modules.monobank.payments.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item">
+									<a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('modules.monobank.payments.breadcrumb.home') %></span></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/modules/"><%= i18n.__('modules.monobank.payments.breadcrumb.modules') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<a href="/modules/monobank/"><%= i18n.__('modules.monobank.payments.breadcrumb.monobank') %></a>
+								</li>
+								<li class="list-inline-item">
+									<i class="fas fa-chevron-right"></i>
+									<%= i18n.__('modules.monobank.payments.title') %>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto">
+						<a href="/modules/monobank/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- END Breadcrumb -->
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pt-3 pb-5">
+				<!-- Фільтри, спільні для всіх вкладок -->
+				<div class="card rounded-0 mb-3">
+					<div class="card-body">
+						<div class="row g-2 align-items-end">
+							<div class="col-md-2">
+								<label class="form-label small mb-1"><%= i18n.__('modules.monobank.payments.account') %></label>
+								<select class="form-select form-select-sm rounded-0" id="f-account">
+									<option value=""><%= i18n.__('modules.monobank.payments.all') %></option>
+									<% accounts.forEach(function (a) { %><option value="<%= a.id %>"><%= a.name %></option><% }); %>
+								</select>
+							</div>
+							<div class="col-md-2"><label class="form-label small mb-1"><%= i18n.__('modules.monobank.payments.from') %></label><input type="date" class="form-control form-control-sm rounded-0" id="f-from" /></div>
+							<div class="col-md-2"><label class="form-label small mb-1"><%= i18n.__('modules.monobank.payments.to') %></label><input type="date" class="form-control form-control-sm rounded-0" id="f-to" /></div>
+							<div class="col-md-2 f-list">
+								<label class="form-label small mb-1"><%= i18n.__('modules.monobank.payments.status') %></label>
+								<select class="form-select form-select-sm rounded-0" id="f-status">
+									<option value=""><%= i18n.__('modules.monobank.payments.all') %></option>
+									<option value="success"><%= i18n.__('modules.monobank.payments.st_success') %></option>
+									<option value="hold"><%= i18n.__('modules.monobank.payments.st_hold') %></option>
+									<option value="processing"><%= i18n.__('modules.monobank.payments.st_processing') %></option>
+									<option value="failure"><%= i18n.__('modules.monobank.payments.st_failure') %></option>
+								</select>
+							</div>
+							<div class="col-md-2 f-list">
+								<label class="form-label small mb-1"><%= i18n.__('modules.monobank.payments.matched') %></label>
+								<select class="form-select form-select-sm rounded-0" id="f-matched">
+									<option value=""><%= i18n.__('modules.monobank.payments.all') %></option>
+									<option value="yes"><%= i18n.__('modules.monobank.payments.matched_yes') %></option>
+									<option value="no"><%= i18n.__('modules.monobank.payments.matched_no') %></option>
+								</select>
+							</div>
+							<div class="col-md-2 f-list"><label class="form-label small mb-1"><%= i18n.__('modules.monobank.payments.search') %></label><input type="search" class="form-control form-control-sm rounded-0" id="f-q" placeholder="<%= i18n.__('modules.monobank.payments.search_ph') %>" /></div>
+						</div>
+						<div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+							<div class="small me-auto" id="sync-state"></div>
+							<% if (perms.edit) { %><button type="button" class="btn btn-sm btn-outline-primary rounded-0" id="btn-sync"><i class="fa-solid fa-rotate"></i> <%= i18n.__('modules.monobank.payments.sync') %></button><% } %>
+						</div>
+					</div>
+				</div>
+
+				<ul class="nav nav-tabs mb-0" role="tablist">
+					<li class="nav-item"><button class="nav-link active rounded-0" data-bs-toggle="tab" data-bs-target="#tab-list" type="button" data-tab="list"><%= i18n.__('modules.monobank.payments.tab_list') %></button></li>
+					<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#tab-reconcile" type="button" data-tab="reconcile"><%= i18n.__('modules.monobank.payments.tab_reconcile') %> <span class="badge text-bg-danger rounded-0 d-none" id="rec-count"></span></button></li>
+					<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#tab-report" type="button" data-tab="report"><%= i18n.__('modules.monobank.payments.tab_report') %></button></li>
+				</ul>
+				<div class="tab-content border border-top-0 bg-body">
+					<div class="tab-pane fade show active p-0" id="tab-list"><div id="pay-table"></div></div>
+					<div class="tab-pane fade p-3" id="tab-reconcile">
+						<h6><%= i18n.__('modules.monobank.payments.rec_unmatched') %></h6>
+						<div class="form-text mt-0 mb-2"><%= i18n.__('modules.monobank.payments.rec_unmatched_help') %></div>
+						<div id="rec-unmatched" class="mb-4"></div>
+						<h6><%= i18n.__('modules.monobank.payments.rec_missing') %></h6>
+						<div class="form-text mt-0 mb-2"><%= i18n.__('modules.monobank.payments.rec_missing_help') %></div>
+						<div id="rec-missing" class="mb-4"></div>
+						<h6><%= i18n.__('modules.monobank.payments.rec_mismatch') %></h6>
+						<div class="form-text mt-0 mb-2"><%= i18n.__('modules.monobank.payments.rec_mismatch_help') %></div>
+						<div id="rec-mismatch"></div>
+					</div>
+					<div class="tab-pane fade p-3" id="tab-report">
+						<div class="row g-3 mb-3" id="rep-cards"></div>
+						<h6><%= i18n.__('modules.monobank.payments.rep_daily') %></h6>
+						<div id="rep-daily"></div>
+					</div>
+				</div>
+			</div>
+		</main>
+
+		<!-- Прив'язка до замовлення -->
+		<div class="modal fade" id="attach-modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog">
+				<form class="modal-content rounded-0" id="attach-form" autocomplete="off">
+					<div class="modal-header"><h5 class="modal-title"><%= i18n.__('modules.monobank.payments.attach_title') %></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+					<div class="modal-body">
+						<div class="small mb-2" id="attach-info"></div>
+						<label class="form-label"><%= i18n.__('modules.monobank.payments.order') %></label>
+						<input class="form-control rounded-0" name="order" required maxlength="64" />
+						<div class="form-text"><%= i18n.__('modules.monobank.payments.attach_help') %></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('modules.monobank.payments.cancel') %></button>
+						<button type="submit" class="btn btn-primary rounded-0"><%= i18n.__('modules.monobank.payments.attach') %></button>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<%- include('../../../views/partials/footer'); %>
+		<%- include('../../../views/partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const EDIT = <%- perms.edit ? 'true' : 'false' %>;
+				const B = "/api/module/monobank/payments";
+				const notyf = new Notyf({ duration: 4000, position: { x: "right", y: "top" } });
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s === null || s === undefined ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const money = (v, cur) => Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " " + esc(cur || "");
+				const date = (v) => (v ? new Date(v).toLocaleString() : "");
+				const day = (v) => (v ? new Date(v).toLocaleDateString() : "");
+				const BADGE = { success: "success", hold: "primary", processing: "info", failure: "danger" };
+				const STATUS = {
+					success: "<%= i18n.__('modules.monobank.payments.st_success') %>",
+					hold: "<%= i18n.__('modules.monobank.payments.st_hold') %>",
+					processing: "<%= i18n.__('modules.monobank.payments.st_processing') %>",
+					failure: "<%= i18n.__('modules.monobank.payments.st_failure') %>",
+					created: "<%= i18n.__('modules.monobank.payments.st_created') %>",
+					reversed: "<%= i18n.__('modules.monobank.payments.st_reversed') %>",
+					expired: "<%= i18n.__('modules.monobank.payments.st_expired') %>",
+					removed: "<%= i18n.__('modules.monobank.payments.st_removed') %>",
+				};
+				const MATCH = {
+					invoice: "<%= i18n.__('modules.monobank.payments.m_invoice') %>",
+					auto: "<%= i18n.__('modules.monobank.payments.m_auto') %>",
+					manual: "<%= i18n.__('modules.monobank.payments.m_manual') %>",
+				};
+				const badge = (s) => `<span class="badge rounded-0 text-bg-${BADGE[s] || "secondary"}">${esc(STATUS[s] || s)}</span>`;
+				const orderLink = (id, ref) => (id ? `<a href="/orders/${id}/" target="_blank">${esc(ref || "#" + id)}</a>` : "");
+
+				async function api(path, body) {
+					const res = await fetch(B + path, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					let j = {};
+					try {
+						j = await res.json();
+					} catch (e) {}
+					if (!res.ok || !j.ok) throw new Error(j.error || "<%= i18n.__('modules.monobank.payments.error') %>");
+					return j;
+				}
+
+				// Період за замовчуванням — останні 30 днів
+				const iso = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+				$("f-to").value = iso(new Date());
+				$("f-from").value = iso(new Date(Date.now() - 30 * 86400000));
+				const filter = () => ({ account: $("f-account").value, from: $("f-from").value, to: $("f-to").value, status: $("f-status").value, matched: $("f-matched").value, q: $("f-q").value.trim() });
+
+				/* ─── Платежі ─── */
+				const table = new Tabulator("#pay-table", {
+					layout: "fitColumns",
+					height: "calc(100vh - 360px)",
+					placeholder: "<%= i18n.__('modules.monobank.payments.empty') %>",
+					ajaxURL: B + "/list/",
+					ajaxConfig: { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" } },
+					ajaxContentType: "json",
+					ajaxParams: () => ({ filter: filter() }),
+					pagination: true,
+					paginationMode: "remote",
+					paginationSize: 50,
+					paginationSizeSelector: [25, 50, 100, 200],
+					sortMode: "remote",
+					initialSort: [{ column: "date", dir: "desc" }],
+					columns: [
+						{ title: "<%= i18n.__('modules.monobank.payments.col_date') %>", field: "date", width: 160, formatter: (c) => esc(date(c.getValue())) },
+						{ title: "<%= i18n.__('modules.monobank.payments.col_account') %>", field: "account", width: 150, formatter: (c) => esc(c.getValue()) },
+						{
+							title: "<%= i18n.__('modules.monobank.payments.col_amount') %>",
+							field: "amount",
+							width: 140,
+							hozAlign: "right",
+							formatter: (c) => {
+								const d = c.getRow().getData();
+								return `<b>${money(d.amount, d.currency)}</b>` + (d.refunded ? `<div class="small text-danger">−${money(d.refunded, d.currency)}</div>` : "");
+							},
+						},
+						{ title: "<%= i18n.__('modules.monobank.payments.col_fee') %>", field: "fee", width: 110, hozAlign: "right", headerSort: false, formatter: (c) => (c.getValue() === null ? "—" : money(c.getValue(), c.getRow().getData().currency)) },
+						{ title: "<%= i18n.__('modules.monobank.payments.col_status') %>", field: "status", width: 130, formatter: (c) => badge(c.getValue()) },
+						{
+							title: "<%= i18n.__('modules.monobank.payments.col_card') %>",
+							field: "masked_pan",
+							width: 170,
+							headerSort: false,
+							formatter: (c) => {
+								const d = c.getRow().getData();
+								return esc(d.masked_pan || "—") + (d.rrn ? `<div class="small text-secondary">RRN ${esc(d.rrn)}</div>` : "") + (d.qr ? `<div class="small text-secondary">QR ${esc(d.qr)}</div>` : "");
+							},
+						},
+						{
+							title: "<%= i18n.__('modules.monobank.payments.col_purpose') %>",
+							field: "destination",
+							minWidth: 220,
+							headerSort: false,
+							formatter: (c) => {
+								const d = c.getRow().getData();
+								return esc(d.destination || "") + (d.reference ? `<div class="small text-secondary">${esc(d.reference)}</div>` : "");
+							},
+						},
+						{
+							title: "<%= i18n.__('modules.monobank.payments.col_order') %>",
+							field: "id_order",
+							width: 190,
+							headerSort: false,
+							formatter: (c) => {
+								const d = c.getRow().getData();
+								if (d.id_order) {
+									const un = EDIT && d.match_type !== "invoice" ? ` <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-1" data-detach="${d.id}" title="<%= i18n.__('modules.monobank.payments.detach') %>"><i class="fa-solid fa-link-slash"></i></button>` : "";
+									return `${orderLink(d.id_order, d.order_reference)}${un}<div class="small text-secondary">${esc(MATCH[d.match_type] || "")}</div>`;
+								}
+								if (EDIT && (d.status === "success" || d.status === "hold")) return `<button type="button" class="btn btn-sm btn-outline-primary rounded-0" data-attach="${d.id}"><i class="fa-solid fa-link me-1"></i><%= i18n.__('modules.monobank.payments.attach') %></button>`;
+								return "—";
+							},
+						},
+					],
+				});
+				let rows = [];
+				table.on("dataLoaded", (d) => (rows = d || []));
+				const reload = () => table.setData();
+
+				/* ─── Прив'язка / відв'язка ─── */
+				const modal = new bootstrap.Modal($("attach-modal"));
+				const form = $("attach-form");
+				let attachId = 0;
+				function openAttach(r) {
+					attachId = r.id;
+					form.reset();
+					$("attach-info").innerHTML = `${esc(date(r.date))} · <b>${money(r.amount, r.currency)}</b> · ${esc(r.masked_pan || "")}<div class="text-secondary">${esc(r.destination || "")} ${esc(r.reference || "")}</div>`;
+					modal.show();
+				}
+				form.addEventListener("submit", async (e) => {
+					e.preventDefault();
+					const btn = form.querySelector("[type=submit]");
+					btn.disabled = true;
+					try {
+						await api(`/${attachId}/attach/`, { order: form.order.value });
+						notyf.success("<%= i18n.__('modules.monobank.payments.attached') %>");
+						modal.hide();
+						reload();
+						loadReconcile();
+					} catch (err) {
+						notyf.error(err.message);
+					} finally {
+						btn.disabled = false;
+					}
+				});
+				document.addEventListener("click", async (e) => {
+					const a = e.target.closest("[data-attach]");
+					if (a) {
+						const id = Number(a.dataset.attach);
+						return openAttach(rows.find((r) => r.id === id) || recUnmatched.find((r) => r.id === id));
+					}
+					const d = e.target.closest("[data-detach]");
+					if (d && confirm("<%= i18n.__('modules.monobank.payments.confirm_detach') %>")) {
+						try {
+							await api(`/${d.dataset.detach}/detach/`);
+							notyf.success("<%= i18n.__('modules.monobank.payments.detached') %>");
+							reload();
+							loadReconcile();
+						} catch (err) {
+							notyf.error(err.message);
+						}
+						return;
+					}
+					const f = e.target.closest("[data-fix]");
+					if (f) {
+						f.disabled = true;
+						try {
+							await api(`/invoice/${f.dataset.fix}/refresh/`);
+							notyf.success("<%= i18n.__('modules.monobank.payments.fixed') %>");
+							loadReconcile();
+						} catch (err) {
+							notyf.error(err.message);
+						} finally {
+							f.disabled = false;
+						}
+					}
+				});
+
+				/* ─── Звірка ─── */
+				let recUnmatched = [];
+				const tbl = (head, body) => `<div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
+				const none = `<div class="small text-success"><i class="fa-solid fa-check me-1"></i><%= i18n.__('modules.monobank.payments.rec_ok') %></div>`;
+				async function loadReconcile() {
+					let r;
+					try {
+						r = await api("/reconcile/", filter());
+					} catch (e) {
+						return notyf.error(e.message);
+					}
+					recUnmatched = r.unmatched;
+					const n = r.unmatched.length + r.missing.length + r.mismatch.length;
+					$("rec-count").textContent = n;
+					$("rec-count").classList.toggle("d-none", !n);
+					$("rec-unmatched").innerHTML = r.unmatched.length
+						? tbl(
+								["<%= i18n.__('modules.monobank.payments.col_date') %>", "<%= i18n.__('modules.monobank.payments.col_account') %>", "<%= i18n.__('modules.monobank.payments.col_amount') %>", "<%= i18n.__('modules.monobank.payments.col_status') %>", "<%= i18n.__('modules.monobank.payments.col_card') %>", "<%= i18n.__('modules.monobank.payments.col_purpose') %>", ""],
+								r.unmatched
+									.map(
+										(x) =>
+											`<tr><td>${esc(date(x.date))}</td><td>${esc(x.account)}</td><td class="text-end"><b>${money(x.amount, x.currency)}</b></td><td>${badge(x.status)}</td><td>${esc(x.masked_pan || "")}</td><td>${esc(x.destination || "")}<div class="small text-secondary">${esc(x.reference || "")}</div></td><td class="text-end">${EDIT ? `<button type="button" class="btn btn-sm btn-outline-primary rounded-0" data-attach="${x.id}"><i class="fa-solid fa-link me-1"></i><%= i18n.__('modules.monobank.payments.attach') %></button>` : ""}</td></tr>`
+									)
+									.join("")
+							)
+						: none;
+					$("rec-missing").innerHTML = r.missing.length
+						? tbl(
+								["<%= i18n.__('modules.monobank.payments.col_order') %>", "<%= i18n.__('modules.monobank.payments.col_account') %>", "<%= i18n.__('modules.monobank.payments.col_amount') %>", "<%= i18n.__('modules.monobank.payments.col_paid_at') %>", ""],
+								r.missing
+									.map(
+										(x) =>
+											`<tr><td>${orderLink(x.id_order, x.order_reference)}</td><td>${esc(x.account)}</td><td class="text-end">${money(x.amount, x.currency)}</td><td>${esc(date(x.paid_at))}</td><td class="text-end">${EDIT ? `<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-fix="${x.id}"><i class="fa-solid fa-rotate me-1"></i><%= i18n.__('modules.monobank.payments.refresh') %></button>` : ""}</td></tr>`
+									)
+									.join("")
+							)
+						: none;
+					$("rec-mismatch").innerHTML = r.mismatch.length
+						? tbl(
+								["<%= i18n.__('modules.monobank.payments.col_order') %>", "<%= i18n.__('modules.monobank.payments.col_account') %>", "<%= i18n.__('modules.monobank.payments.col_ours') %>", "<%= i18n.__('modules.monobank.payments.col_bank') %>", ""],
+								r.mismatch
+									.map(
+										(x) =>
+											`<tr><td>${orderLink(x.id_order, x.order_reference)}</td><td>${esc(x.account)}</td><td>${badge(x.our_status)} ${money(x.our_amount, x.currency)}</td><td>${badge(x.bank_status)} ${money(x.bank_amount, x.currency)}</td><td class="text-end">${EDIT ? `<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-fix="${x.id}"><i class="fa-solid fa-rotate me-1"></i><%= i18n.__('modules.monobank.payments.refresh') %></button>` : ""}</td></tr>`
+									)
+									.join("")
+							)
+						: none;
+				}
+
+				/* ─── Звіт ─── */
+				let daily = null;
+				async function loadReport() {
+					let r;
+					try {
+						r = await api("/report/", filter());
+					} catch (e) {
+						return notyf.error(e.message);
+					}
+					const card = (label, value, sub) => `<div class="col-sm-6 col-xl-3"><div class="card rounded-0 h-100"><div class="card-body"><div class="small text-secondary">${label}</div><div class="fs-5 fw-semibold">${value}</div>${sub ? `<div class="small text-secondary">${sub}</div>` : ""}</div></div></div>`;
+					let h = "";
+					r.totals.forEach((x) => {
+						h += card("<%= i18n.__('modules.monobank.payments.rep_received') %>", money(x.amount, x.currency), `<%= i18n.__('modules.monobank.payments.rep_count') %>: ${x.count}`);
+						h += card("<%= i18n.__('modules.monobank.payments.rep_refunded') %>", money(x.refunded, x.currency));
+						h += card("<%= i18n.__('modules.monobank.payments.rep_fee') %>", money(x.fee, x.currency));
+						h += card("<%= i18n.__('modules.monobank.payments.rep_net') %>", money(x.net, x.currency), x.unmatched ? `<span class="text-danger"><%= i18n.__('modules.monobank.payments.rep_unmatched') %>: ${x.unmatched}</span>` : "");
+					});
+					if (!r.totals.length) h += `<div class="col-12 small text-secondary"><%= i18n.__('modules.monobank.payments.empty') %></div>`;
+					const l = r.links;
+					h += card("<%= i18n.__('modules.monobank.payments.rep_links') %>", `${l.paid} / ${l.created}`, `<%= i18n.__('modules.monobank.payments.rep_conversion') %>: ${l.conversion}%`);
+					h += card("<%= i18n.__('modules.monobank.payments.rep_avg') %>", l.avg_minutes === null ? "—" : l.avg_minutes < 120 ? `${l.avg_minutes} <%= i18n.__('modules.monobank.payments.minutes') %>` : `${Math.round(l.avg_minutes / 6) / 10} <%= i18n.__('modules.monobank.payments.hours') %>`);
+					h += card("<%= i18n.__('modules.monobank.payments.rep_lost') %>", String(l.lost), `<%= i18n.__('modules.monobank.payments.rep_failed') %>: ${l.failed} · <%= i18n.__('modules.monobank.payments.st_hold') %>: ${l.hold}`);
+					$("rep-cards").innerHTML = h;
+					if (!daily)
+						daily = new Tabulator("#rep-daily", {
+							layout: "fitColumns",
+							placeholder: "<%= i18n.__('modules.monobank.payments.empty') %>",
+							data: [],
+							columns: [
+								{ title: "<%= i18n.__('modules.monobank.payments.col_day') %>", field: "day", formatter: (c) => esc(day(c.getValue())) },
+								{ title: "<%= i18n.__('modules.monobank.payments.rep_count') %>", field: "count", hozAlign: "right" },
+								{ title: "<%= i18n.__('modules.monobank.payments.rep_received') %>", field: "amount", hozAlign: "right", formatter: (c) => money(c.getValue(), c.getRow().getData().currency) },
+								{ title: "<%= i18n.__('modules.monobank.payments.rep_refunded') %>", field: "refunded", hozAlign: "right", formatter: (c) => money(c.getValue(), c.getRow().getData().currency) },
+								{ title: "<%= i18n.__('modules.monobank.payments.rep_fee') %>", field: "fee", hozAlign: "right", formatter: (c) => money(c.getValue(), c.getRow().getData().currency) },
+								{ title: "<%= i18n.__('modules.monobank.payments.rep_net') %>", field: "net", hozAlign: "right", formatter: (c) => `<b>${money(c.getValue(), c.getRow().getData().currency)}</b>` },
+							],
+						});
+					daily.setData(r.daily);
+				}
+
+				/* ─── Стан завантаження виписки ─── */
+				let syncTimer = null;
+				let wasRunning = false;
+				async function loadState() {
+					clearTimeout(syncTimer);
+					try {
+						const s = await api("/state/");
+						$("sync-state").innerHTML =
+							(s.running ? `<span class="text-primary"><i class="fa-solid fa-spinner fa-spin me-1"></i><%= i18n.__('modules.monobank.payments.syncing') %></span> · ` : "") +
+							s.accounts
+								.map(
+									(a) =>
+										`${esc(a.name)}: ${a.synced_to ? `<%= i18n.__('modules.monobank.payments.synced_to') %> ${esc(date(a.synced_to))}` : `<%= i18n.__('modules.monobank.payments.never') %>`}${a.message ? ` <span class="text-danger">(${esc(a.message)})</span>` : ""}`
+								)
+								.join(" · ");
+						if (wasRunning && !s.running) refreshAll();
+						wasRunning = s.running;
+						syncTimer = setTimeout(loadState, s.running ? 3000 : 60000);
+					} catch (e) {
+						$("sync-state").innerHTML = `<span class="text-danger">${esc(e.message)}</span>`;
+					}
+				}
+				if ($("btn-sync"))
+					$("btn-sync").addEventListener("click", async () => {
+						try {
+							await api("/sync/");
+							notyf.success("<%= i18n.__('modules.monobank.payments.sync_started') %>");
+							loadState();
+						} catch (e) {
+							notyf.error(e.message);
+						}
+					});
+
+				/* ─── Вкладки й фільтри ─── */
+				let tab = "list";
+				function refreshAll() {
+					if (tab === "list") reload();
+					else if (tab === "reconcile") loadReconcile();
+					else loadReport();
+				}
+				document.querySelectorAll("[data-tab]").forEach((b) =>
+					b.addEventListener("shown.bs.tab", () => {
+						tab = b.dataset.tab;
+						document.querySelectorAll(".f-list").forEach((el) => el.classList.toggle("d-none", tab !== "list"));
+						if (tab === "list") table.redraw();
+						refreshAll();
+					})
+				);
+				let qTimer = null;
+				["f-account", "f-from", "f-to", "f-status", "f-matched"].forEach((id) => $(id).addEventListener("change", refreshAll));
+				$("f-q").addEventListener("input", () => {
+					clearTimeout(qTimer);
+					qTimer = setTimeout(refreshAll, 400);
+				});
+
+				loadState();
+				loadReconcile();
+			})();
+		</script>
+	</body>
+</html>

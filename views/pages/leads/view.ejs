@@ -1,0 +1,1648 @@
+<!DOCTYPE html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+<head>
+    <title><%= i18n.__('leads.view.title') %> #<%= lead.id %></title>
+    <%- include('../../partials/head'); %>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+    <link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+    <link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+    <style>
+        /* Перегляд / редагування: у перегляді полів форми не видно — випадково змінити нічого не можна */
+        body:not(.lead-editing) .edit-only { display: none !important; }
+        body.lead-editing .view-only { display: none !important; }
+        .field-view { min-height: 24px; white-space: pre-wrap; word-break: break-word; }
+        /* Змінене, ще не збережене поле */
+        .is-dirty { border-color: #ffc107 !important; box-shadow: 0 0 0 .15rem rgba(255, 193, 7, .35) !important; }
+        /* Панель збереження: закріплена знизу, поки лід редагується */
+        #edit-bar { position: sticky; bottom: 0; z-index: 1020; }
+        .pipeline-steps { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; }
+        .pipeline-step {
+            padding: 5px 14px;
+            border-radius: 0;
+            font-size: 12px;
+            border: 2px solid transparent;
+            opacity: .55;
+            transition: opacity .15s;
+            cursor: default;
+        }
+        .pipeline-step.active { opacity: 1; border-color: rgba(0,0,0,.25); }
+        body.lead-editing .pipeline-step { cursor: pointer; }
+        body.lead-editing .pipeline-step:hover { opacity: .85; }
+        .score-bar { height: 6px; border-radius: 3px; background: #e9ecef; }
+        .score-bar-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+        .tab-content { min-height: 300px; }
+        .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase;
+                         color: #6c757d; letter-spacing: .5px; margin-bottom: 8px; }
+        #history-table .tabulator-col, #history-table .tabulator-cell { border-right: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; }
+        #history-table .tabulator-col:last-child, #history-table .tabulator-cell:last-child { border-right: none; }
+    </style>
+</head>
+<body class="d-flex flex-column h-100">
+<%- include('../../partials/header'); %>
+<%
+    // Іконка Font Awesome: у старих записах лише назва («fa-star») — додаємо стиль fa-solid
+    function fa(cls) {
+        var c = String(cls || '').trim();
+        if (!/^[a-z0-9 -]+$/i.test(c)) return '';
+        return /(^|\s)(fa-(solid|regular|brands|light|thin|duotone)|fas|far|fab|fal)(\s|$)/.test(c) ? c : 'fa-solid ' + c;
+    }
+    function hex(c, def) { return /^#[0-9a-f]{3,8}$/i.test(String(c || '')) ? c : def; }
+    var ci = lead.contact_info || {};
+    var tagIds = tags.map(function (t) { return Number(t.id); });
+    var closeDate = lead.expected_close_date ? String(lead.expected_close_date).slice(0, 10) : '';
+%>
+    <!-- ─── ХЛІБНІ КРИХТИ ─────────────────────────────────────────── -->
+    <div class="breadcrumbs pt-3 pb-3">
+      <div class="container-fluid">
+        <div class="row align-items-center">
+          <div class="col">
+            <span><%= '#' + lead.id + ' ' + (lead.title || '') %></span>
+            <div>
+              <ul class="list-inline mb-0">
+                <li class="list-inline-item">
+                  <a href="/">
+                    <i class="fas fa-home"></i>
+                    <span><%= i18n.__('leads.view.breadcrumb.home') %></span>
+                  </a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <a href="/leads/"><%= i18n.__('leads.view.breadcrumb.leads') %></a>
+                </li>
+                <li class="list-inline-item">
+                  <i class="fas fa-chevron-right"></i>
+                  <%= '#' + lead.id + ' ' + (lead.title || '') %>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-auto">
+            <a href="/leads/" class="btn btn-primary rounded-0">
+              <i class="fa-solid fa-angle-left"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<div class="container-fluid py-3" id="lead-form">
+    <input type="hidden" id="lead-date-edit" value="<%= lead.date_edit %>" />
+
+    <!-- Етапи воронки: змінюються лише в режимі редагування -->
+    <div class="pipeline-steps" id="pipeline-steps">
+        <input type="hidden" data-f="id_stage" value="<%= lead.id_stage || '' %>" />
+        <% stages.forEach(function(st) { %>
+        <button type="button" class="pipeline-step <%= lead.id_stage == st.id ? 'active' : '' %>" style="background:<%= hex(st.color, '#6c757d') %>;color:#fff" data-stage="<%= st.id %>" data-system="<%= st.system_type %>">
+            <% if (fa(st.icon)) { %><i class="<%= fa(st.icon) %> me-1"></i><% } %><%= st.name %>
+            <small class="ms-1 opacity-75"><%= st.probability %>%</small>
+        </button>
+        <% }); %>
+    </div>
+
+    <div class="row g-3">
+        <!-- ЛІВА КОЛОНКА -->
+        <div class="col-12 col-xl-8">
+            <!-- Заголовок і основне -->
+            <div class="card rounded-0 border-primary mb-3">
+                <div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center gap-2">
+                    <div class="flex-grow-1">
+                        <span class="view-only fw-bold fs-5 field-view" data-show="title"></span>
+                        <input type="text" maxlength="500" class="form-control rounded-0 edit-only" data-f="title" value="<%= lead.title %>" placeholder="<%= i18n.__('leads.view.f.title') %>" />
+                    </div>
+                    <div class="d-flex gap-2 align-items-center flex-shrink-0">
+                        <% if (lead.is_converted) { %>
+                        <span class="badge bg-success rounded-0"><i class="fa-solid fa-circle-check me-1"></i><%= i18n.__('leads.view.t.konvertovano') %></span>
+                        <% } %>
+                        <% if (lead.is_duplicate) { %>
+                        <span class="badge bg-warning text-dark rounded-0"><i class="fa-solid fa-copy me-1"></i><%= i18n.__('leads.view.t.dublikat') %></span>
+                        <% } %>
+                        <% if (canEdit) { %>
+                        <button type="button" class="btn btn-sm btn-light rounded-0 view-only" id="btn-edit"><i class="fa-solid fa-pen me-1"></i><%= i18n.__('leads.view.edit') %></button>
+                        <button type="button" class="btn btn-sm btn-light rounded-0 view-only" data-action="enrich" title="<%= i18n.__('leads.enrich.hint') %>"><i class="fa-solid fa-wand-magic-sparkles me-1"></i><%= i18n.__('leads.enrich.button') %></button>
+                        <% } %>
+                        <% if (canDelete) { %>
+                        <button type="button" class="btn btn-sm btn-outline-light rounded-0 view-only" id="btn-delete" title="<%= i18n.__('leads.view.t.vydalyty_v_koshyk') %>"><i class="fa-solid fa-trash"></i></button>
+                        <% } %>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3">
+                            <div class="section-title"><%= i18n.__('leads.view.t.status') %></div>
+                            <div class="view-only field-view" data-show="id_status"></div>
+                            <select class="form-select form-select-sm rounded-0 edit-only" data-f="id_status">
+                                <% statuses.forEach(function(s) { %>
+                                <option value="<%= s.id %>" data-fg="<%= hex(s.color_text, '#ffffff') %>" data-bg="<%= hex(s.color_background, '#6c757d') %>" data-icon="<%= fa(s.icon) %>" data-system="<%= s.system_type %>" <%= lead.id_status == s.id ? 'selected' : '' %>><%= s.name %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title"><%= i18n.__('leads.view.t.priorytet') %></div>
+                            <div class="view-only field-view" data-show="id_priority"></div>
+                            <select class="form-select form-select-sm rounded-0 edit-only" data-f="id_priority">
+                                <option value="">—</option>
+                                <% priorities.forEach(function(p) { %>
+                                <option value="<%= p.id %>" data-fg="<%= hex(p.color_text, '#ffffff') %>" data-bg="<%= hex(p.color_background, '#6c757d') %>" data-icon="<%= fa(p.icon) %>" <%= lead.id_priority == p.id ? 'selected' : '' %>><%= p.name %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title"><%= i18n.__('leads.view.t.temperatura') %></div>
+                            <div class="view-only field-view" data-show="id_temperature"></div>
+                            <select class="form-select form-select-sm rounded-0 edit-only" data-f="id_temperature">
+                                <option value="">—</option>
+                                <% temperatures.forEach(function(t) { %>
+                                <option value="<%= t.id %>" data-fg="<%= hex(t.color_text, '#000000') %>" data-bg="<%= hex(t.color_background, '#e9ecef') %>" data-icon="<%= fa(t.icon) %>" <%= lead.id_temperature == t.id ? 'selected' : '' %>><%= t.name %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title"><%= i18n.__('leads.view.t.kvalifikatsiia') %></div>
+                            <div class="view-only field-view" data-show="id_qualification"></div>
+                            <select class="form-select form-select-sm rounded-0 edit-only" data-f="id_qualification">
+                                <option value="">—</option>
+                                <% qualifications.forEach(function(q) { %>
+                                <option value="<%= q.id %>" data-fg="<%= hex(q.color_text, '#ffffff') %>" data-bg="<%= hex(q.color_background, '#6c757d') %>" data-icon="<%= fa(q.icon) %>" <%= lead.id_qualification == q.id ? 'selected' : '' %>><%= q.name %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title"><%= i18n.__('leads.view.t.suma') %></div>
+                            <div class="view-only field-view" data-show="value" data-kind="money"></div>
+                            <input type="number" min="0" step="0.01" class="form-control form-control-sm rounded-0 edit-only" data-f="value" value="<%= Number(lead.value || 0) %>" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title"><%= i18n.__('leads.view.t.data_zakryttia') %></div>
+                            <div class="view-only field-view" data-show="expected_close_date" data-kind="date"></div>
+                            <input type="date" class="form-control form-control-sm rounded-0 edit-only" data-f="expected_close_date" value="<%= closeDate %>" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title"><%= i18n.__('leads.view.t.dzherelo') %></div>
+                            <div class="view-only field-view" data-show="id_source"></div>
+                            <select class="form-select form-select-sm rounded-0 edit-only" data-f="id_source">
+                                <option value="">—</option>
+                                <% sources.forEach(function(src) { %>
+                                <option value="<%= src.id %>" <%= lead.id_source == src.id ? 'selected' : '' %>><%= src.name %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="section-title"><%= i18n.__('leads.view.f.id_manager') %></div>
+                            <div class="view-only field-view" data-show="id_manager"></div>
+                            <select class="form-select form-select-sm rounded-0 edit-only" data-f="id_manager">
+                                <option value="">—</option>
+                                <% managers.forEach(function(m) { %>
+                                <option value="<%= m.id %>" <%= lead.id_manager == m.id ? 'selected' : '' %>><%= m.name || ('#' + m.id) %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="section-title"><%= i18n.__('leads.view.t.sait') %></div>
+                            <div class="view-only field-view" data-show="website" data-kind="url"></div>
+                            <input type="text" maxlength="255" class="form-control form-control-sm rounded-0 edit-only" data-f="website" value="<%= lead.website %>" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Нотатка -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2"><%= i18n.__('leads.view.t.notatka') %></div>
+                <div class="card-body">
+                    <div class="view-only field-view" data-show="note"></div>
+                    <textarea class="form-control rounded-0 edit-only" rows="4" data-f="note"><%= lead.note %></textarea>
+                </div>
+            </div>
+
+            <!-- Контактна інформація -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2"><%= i18n.__('leads.view.t.kontaktna_informatsiia') %></div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <% [
+                            { key: 'name', label: i18n.__('leads.view.t.imia'), type: 'text' },
+                            { key: 'phone', label: i18n.__('leads.view.t.telefon'), type: 'tel' },
+                            { key: 'email', label: 'Email', type: 'email' },
+                            { key: 'company', label: i18n.__('leads.view.t.kompaniia'), type: 'text' },
+                            { key: 'position', label: i18n.__('leads.view.t.posada'), type: 'text' }
+                        ].forEach(function(f) { %>
+                        <div class="col-12 col-md-6">
+                            <div class="section-title"><%= f.label %></div>
+                            <div class="view-only field-view" data-show="contact.<%= f.key %>" data-kind="<%= f.key === 'phone' ? 'tel' : f.key === 'email' ? 'email' : '' %>"></div>
+                            <input type="<%= f.type %>" maxlength="255" class="form-control form-control-sm rounded-0 edit-only" data-f="contact.<%= f.key %>" value="<%= ci[f.key] || '' %>" />
+                            <div class="invalid-feedback"></div>
+                        </div>
+                        <% }); %>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Score -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center">
+                    <span>Score</span>
+                    <span class="badge rounded-0 <%= lead.grade=='A'?'text-bg-success':lead.grade=='B'?'text-bg-primary':lead.grade=='C'?'text-bg-warning':'text-bg-secondary' %>" id="score-badge"><%= lead.score %> / <strong><%= lead.grade %></strong></span>
+                    <button type="button" class="btn btn-sm btn-link p-0 ms-1" data-action="score-why" title="<%= i18n.__('leads.scoring.why') %>"><i class="fa-solid fa-circle-question"></i></button>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="section-title">Fit Score<% if (scoreAuto.fit) { %> <span class="badge rounded-0 text-bg-light border"><%= i18n.__('leads.scoring.auto') %></span><% } %></div>
+                            <div class="view-only field-view" data-show="score_fit"></div>
+                            <input type="number" min="0" max="100" step="1" class="form-control form-control-sm rounded-0 edit-only<%= scoreAuto.fit ? ' bg-light' : '' %>" data-f="score_fit" value="<%= lead.score_fit %>"<%= scoreAuto.fit ? ' readonly' : '' %> />
+                            <div class="score-bar mt-1"><div class="score-bar-fill bg-primary" data-bar="score_fit" style="width:<%= Math.min(lead.score_fit, 100) %>%"></div></div>
+                        </div>
+                        <div class="col-6">
+                            <div class="section-title">Activity Score<% if (scoreAuto.activity) { %> <span class="badge rounded-0 text-bg-light border"><%= i18n.__('leads.scoring.auto') %></span><% } %></div>
+                            <div class="view-only field-view" data-show="score_activity"></div>
+                            <input type="number" min="0" max="100" step="1" class="form-control form-control-sm rounded-0 edit-only<%= scoreAuto.activity ? ' bg-light' : '' %>" data-f="score_activity" value="<%= lead.score_activity %>"<%= scoreAuto.activity ? ' readonly' : '' %> />
+                            <div class="score-bar mt-1"><div class="score-bar-fill bg-info" data-bar="score_activity" style="width:<%= Math.min(lead.score_activity, 100) %>%"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Програш: видно, коли статус «програно» або причину вже вказано -->
+            <div class="card rounded-0 mb-3 d-none" id="loss-section">
+                <div class="card-header fw-semibold py-2 text-danger"><%= i18n.__('leads.view.t.prychyna_prohrashu') %></div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-12 col-md-6">
+                            <div class="section-title"><%= i18n.__('leads.view.t.prychyna') %></div>
+                            <div class="view-only field-view" data-show="id_loss_reason"></div>
+                            <select class="form-select form-select-sm rounded-0 edit-only" data-f="id_loss_reason">
+                                <option value="">—</option>
+                                <% loss_reasons.forEach(function(r) { %>
+                                <option value="<%= r.id %>" <%= lead.id_loss_reason == r.id ? 'selected' : '' %>><%= r.name %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="section-title"><%= i18n.__('leads.view.t.komentar') %></div>
+                            <div class="view-only field-view" data-show="loss_note"></div>
+                            <textarea class="form-control form-control-sm rounded-0 edit-only" rows="2" data-f="loss_note"><%= lead.loss_note || '' %></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Теги -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2"><%= i18n.__('leads.view.t.tehy') %></div>
+                <div class="card-body">
+                    <div class="view-only d-flex flex-wrap gap-2" data-show="tags"></div>
+                    <div class="edit-only d-flex flex-wrap gap-3" data-f="tags">
+                        <% all_tags.forEach(function(t) { %>
+                        <div class="form-check">
+                            <input class="form-check-input tag-check" type="checkbox" id="tag-<%= t.id %>" value="<%= t.id %>" data-bg="<%= hex(t.color, '#6c757d') %>" <%= tagIds.indexOf(Number(t.id)) >= 0 ? 'checked' : '' %> />
+                            <label class="form-check-label" for="tag-<%= t.id %>"><span class="badge rounded-0" style="background:<%= hex(t.color, '#6c757d') %>"><%= t.name %></span></label>
+                        </div>
+                        <% }); %>
+                        <% if (!all_tags.length) { %><span class="text-muted small">—</span><% } %>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ПРАВА КОЛОНКА -->
+        <div class="col-12 col-xl-4">
+            <%- include('../../partials/risk', { riskUrl: '/api/leads/' + lead.id + '/risk/' }) %>
+
+            <!-- Можливі дублі: ліди з тим самим телефоном або email -->
+            <div class="card rounded-0 mb-3 border-warning d-none" id="dupes-card">
+                <div class="card-header fw-semibold py-2 bg-warning-subtle d-flex justify-content-between align-items-center">
+                    <span><i class="fa-solid fa-copy me-1"></i><%= i18n.__('leads.dupes.title') %> <span class="badge rounded-0 text-bg-warning" id="dupes-count"></span></span>
+                    <% if (canEdit) { %>
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-0 d-none" id="dupes-dismiss" title="<%= i18n.__('leads.dupes.dismiss_hint') %>"><%= i18n.__('leads.dupes.dismiss') %></button>
+                    <% } %>
+                </div>
+                <div class="list-group list-group-flush" id="dupes-list"></div>
+            </div>
+
+            <!-- Клієнт -->
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2"><%= i18n.__('leads.view.t.kliient') %></div>
+                <div class="card-body" id="client-card-body">
+                    <% if (lead.id_client) { %>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="fa-solid fa-user text-muted me-1"></i>
+                            <a href="/clients/<%= lead.id_client %>/" class="fw-semibold"><%= lead.client_name || ('#' + lead.id_client) %></a>
+                        </div>
+                        <a href="/clients/<%= lead.id_client %>/" class="btn btn-sm btn-outline-primary rounded-0" title="<%= i18n.__('leads.view.t.kartka_kliienta') %>"><i class="fa-solid fa-up-right-from-square"></i></a>
+                    </div>
+                    <% } else { %>
+                    <span class="text-muted small"><%= i18n.__('leads.view.t.ne_pryviazano_vkazhit_telefon_email') %></span>
+                    <% } %>
+                    <% if (lead.id_client_org) { %>
+                    <div class="mt-2">
+                        <i class="fa-solid fa-building text-muted me-1"></i>
+                        <a href="/clients/<%= lead.id_client_org %>/"><%= lead.client_org_name || ('#' + lead.id_client_org) %></a>
+                    </div>
+                    <% } %>
+                </div>
+            </div>
+
+                        <!-- Заплановано -->
+            <%- include('../../partials/calendar/links', {
+                calType: 'lead',
+                calId: lead.id,
+                calManager: lead.id_manager || 0,
+                calExtra: [lead.id_client ? { type: 'client', id: lead.id_client } : null, lead.id_client_org ? { type: 'client', id: lead.id_client_org } : null].filter(Boolean)
+            }) %>
+
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2">SLA</div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <div class="section-title"><%= i18n.__('leads.view.t.dedlain_vidpovidi') %></div>
+                        <% if (lead.response_deadline) { %>
+                            <span><%= String(lead.response_deadline).slice(0, 16) %></span>
+                            <% if (!lead.first_response_at && !lead.is_converted && lead.sla_left !== null) { %>
+                            <span class="badge rounded-0 ms-1" id="sla-left" data-left="<%= Number(lead.sla_left) %>"></span>
+                            <% } %>
+                        <% } else { %><span class="text-muted"><%= i18n.__('leads.sla.none') %></span><% } %>
+                    </div>
+                    <div>
+                        <div class="section-title"><%= i18n.__('leads.view.t.persha_vidpovid') %></div>
+                        <% if (lead.first_response_at) { %>
+                            <span><%= String(lead.first_response_at).slice(0, 16) %></span>
+                            <% if (lead.response_sec !== null && lead.response_sec >= 0) { %>
+                            <span class="badge rounded-0 ms-1 <%= lead.response_deadline && String(lead.first_response_at) > String(lead.response_deadline) ? 'text-bg-danger' : 'text-bg-success' %>" id="sla-took" data-sec="<%= Number(lead.response_sec) %>"></span>
+                            <% } %>
+                        <% } else { %><span class="text-muted">—</span><% } %>
+                    </div>
+                    <div class="small text-muted mt-2"><%= i18n.__('leads.sla.hint') %></div>
+                </div>
+            </div>
+
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2"><%= i18n.__('leads.view.t.zakhoplennia') %></div>
+                <div class="card-body" style="font-size:13px">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr><td class="text-muted"><%= i18n.__('leads.view.t.typ') %></td>
+                            <td><span class="badge text-bg-secondary rounded-0"><%= lead.capture_type %></span></td></tr>
+                        <tr><td class="text-muted">Ref</td><td><%= lead.capture_ref || '—' %></td></tr>
+                        <tr><td class="text-muted"><%= i18n.__('leads.view.t.sait') %></td><td><%= lead.website || '—' %></td></tr>
+                        <tr><td class="text-muted"><%= i18n.__('leads.view.t.dzherelo') %></td>
+                            <td><%= lead.source_name || lead.lead_source || '—' %></td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card rounded-0 mb-3">
+                <div class="card-header fw-semibold py-2"><%= i18n.__('leads.view.t.daty') %></div>
+                <div class="card-body" style="font-size:13px">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr><td class="text-muted"><%= i18n.__('leads.view.t.stvoreno') %></td>
+                            <td><%= new Date(lead.date_add).toLocaleString('uk-UA') %></td></tr>
+                        <tr><td class="text-muted"><%= i18n.__('leads.view.t.zmineno') %></td>
+                            <td id="lead-date-edit-text"><%= new Date(lead.date_edit).toLocaleString('uk-UA') %></td></tr>
+                        <% if (lead.converted_at) { %>
+                        <tr><td class="text-muted"><%= i18n.__('leads.view.t.konvertovano') %></td>
+                            <td><%= new Date(lead.converted_at).toLocaleString('uk-UA') %></td></tr>
+                        <% } %>
+                        <% if (lead.score_decay_at) { %>
+                        <tr><td class="text-muted">Score decay</td>
+                            <td><%= new Date(lead.score_decay_at).toLocaleString('uk-UA') %></td></tr>
+                        <% } %>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ТАБИ -->
+    <div class="card rounded-0 mt-1">
+        <div class="card-header p-0">
+            <ul class="nav nav-tabs border-0" id="lead-tabs">
+                <li class="nav-item">
+                    <button type="button" class="nav-link active rounded-0" data-bs-toggle="tab"
+                            data-bs-target="#tab-history">
+                        <i class="fa-solid fa-clock-rotate-left me-1"></i> <%= i18n.__('leads.view.t.istoriia') %>
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button type="button" class="nav-link rounded-0" data-bs-toggle="tab"
+        data-bs-target="#tab-activities" data-action="load-activities">
+                        <i class="fa-solid fa-phone me-1"></i> <%= i18n.__('leads.view.t.aktyvnosti') %>
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button type="button" class="nav-link rounded-0" data-bs-toggle="tab"
+        data-bs-target="#tab-files" data-action="load-files">
+                        <i class="fa-solid fa-paperclip me-1"></i> <%= i18n.__('leads.view.t.faily') %>
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button type="button" class="nav-link rounded-0" data-bs-toggle="tab"
+                            data-bs-target="#tab-conversion" data-action="load-conversions">
+                        <i class="fa-solid fa-arrow-right-arrow-left me-1"></i> <%= i18n.__('leads.view.t.konversiia') %>
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button type="button" class="nav-link rounded-0" data-bs-toggle="tab"
+                            data-bs-target="#tab-utm">
+                        <i class="fa-solid fa-chart-line me-1"></i> UTM
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button type="button" class="nav-link rounded-0" data-bs-toggle="tab"
+                            data-bs-target="#tab-fingerprint">
+                        <i class="fa-solid fa-fingerprint me-1"></i> Fingerprint
+                    </button>
+                </li>
+            </ul>
+        </div>
+        <div class="tab-content p-3">
+
+            <!-- ТАБ: Історія -->
+            <div class="tab-pane fade show active" id="tab-history">
+                <div id="history-table"></div>
+            </div>
+
+            <!-- ТАБ: Активності -->
+            <div class="tab-pane fade" id="tab-activities">
+                <% if (canEdit) { %>
+                <div class="mb-3">
+                    <button type="button" class="btn btn-primary btn-sm rounded-0" data-action="act-new">
+                        <i class="fa-solid fa-plus me-1"></i> <%= i18n.__('leads.view.t.dodaty_aktyvnist') %>
+                    </button>
+                </div>
+                <% } %>
+                <div id="activities-list"><p class="text-muted"><%= i18n.__('leads.view.t.zavantazhennia') %></p></div>
+            </div>
+
+            <!-- ТАБ: Файли -->
+            <div class="tab-pane fade" id="tab-files">
+                <% if (canEdit) { %>
+                <div class="mb-3 d-flex gap-2 align-items-center">
+                    <select class="form-select form-select-sm rounded-0" id="file-category" style="max-width:200px">
+                        <% ['document','contract','invoice','photo','other'].forEach(function (c) { %>
+                        <option value="<%= c %>"<%= c === 'document' ? ' selected' : '' %>><%= i18n.__('leads.work.cat.' + c) %></option>
+                        <% }); %>
+                    </select>
+                    <input type="file" id="file-input" class="d-none">
+                    <button type="button" class="btn btn-primary btn-sm rounded-0" data-action="file-pick">
+                        <i class="fa-solid fa-upload me-1"></i> <%= i18n.__('leads.view.t.zavantazhyty_fail') %>
+                    </button>
+                    <small class="text-muted"><%= i18n.__('leads.work.file_hint') %></small>
+                </div>
+                <% } %>
+                <div id="files-list"><p class="text-muted"><%= i18n.__('leads.view.t.zavantazhennia') %></p></div>
+            </div>
+
+            <!-- ТАБ: Конверсія -->
+            <div class="tab-pane fade" id="tab-conversion">
+                <% if (lead.is_converted) { %>
+                <div class="alert alert-success rounded-0">
+                    <i class="fa-solid fa-circle-check me-2"></i>
+                    <%= i18n.__('leads.view.t.lid_skonvertovano') %>
+                    <%= lead.converted_at ? new Date(lead.converted_at).toLocaleString('uk-UA') : '' %>
+                </div>
+                <% } %>
+                <% if (canEdit) { %>
+                <p class="text-muted small"><%= i18n.__('leads.work.convert_hint') %></p>
+                <div class="d-flex gap-2 mb-3">
+                    <button type="button" class="btn btn-success btn-sm rounded-0" data-action="convert-lead" data-target="order">
+                        <i class="fa-solid fa-cart-shopping me-1"></i> <%= i18n.__('leads.view.t.v_zamovlennia') %>
+                    </button>
+                    <button type="button" class="btn btn-outline-success btn-sm rounded-0" data-action="convert-lead" data-target="client">
+                        <i class="fa-solid fa-user me-1"></i> <%= i18n.__('leads.view.t.v_kliienta') %>
+                    </button>
+                    <button type="button" class="btn btn-outline-primary btn-sm rounded-0" data-action="convert-lead" data-target="deal">
+                        <i class="fa-solid fa-handshake me-1"></i> <%= i18n.__('leads.view.t.v_uhodu') %>
+                    </button>
+                </div>
+                <% } %>
+                <div id="conversions-list"></div>
+            </div>
+
+            <!-- ТАБ: UTM -->
+            <div class="tab-pane fade" id="tab-utm">
+                <table class="table table-sm table-bordered mb-0" style="font-size:13px">
+                    <% var utmLabels = {
+                        source:'Source', medium:'Medium', campaign:'Campaign',
+                        term:'Term', content:'Content', referrer:'Referrer'
+                    }; %>
+                    <% Object.keys(utmLabels).forEach(function(k) { %>
+                    <tr>
+                        <td class="text-muted fw-semibold" style="width:120px"><%= utmLabels[k] %></td>
+                        <td><%= lead.utm[k] || '—' %></td>
+                    </tr>
+                    <% }); %>
+                </table>
+            </div>
+
+            <!-- ТАБ: Fingerprint -->
+            <div class="tab-pane fade" id="tab-fingerprint">
+                <table class="table table-sm table-bordered mb-0" style="font-size:13px">
+                    <% var fpLabels = {
+                        ip:'IP', country:i18n.__('leads.view.t.kraina'), city:i18n.__('leads.view.t.misto'), browser:i18n.__('leads.view.t.brauzer'),
+                        os:i18n.__('leads.view.t.os'), device:i18n.__('leads.view.t.prystrii'), page:i18n.__('leads.view.t.storinka'), session_sec:i18n.__('leads.view.t.chas_sesii_sek')
+                    }; %>
+                    <% Object.keys(fpLabels).forEach(function(k) { %>
+                    <tr>
+                        <td class="text-muted fw-semibold" style="width:150px"><%= fpLabels[k] %></td>
+                        <td><%= lead.fingerprint[k] || '—' %></td>
+                    </tr>
+                    <% }); %>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+
+<% if (canEdit) { %>
+<!-- Панель збереження: з'являється в режимі редагування, закріплена знизу -->
+<div id="edit-bar" class="edit-only bg-white border-top shadow-sm">
+    <div class="container-fluid py-2 d-flex align-items-center gap-2">
+        <span class="text-muted small me-auto" id="dirty-info"><%= i18n.__('leads.view.no_changes') %></span>
+        <button type="button" class="btn btn-secondary rounded-0" id="btn-cancel"><%= i18n.__('leads.view.cancel') %></button>
+        <button type="button" class="btn btn-primary rounded-0" id="btn-save" disabled><i class="fa-solid fa-floppy-disk me-1"></i><%= i18n.__('leads.view.save') %></button>
+    </div>
+</div>
+
+<!-- Скасувати незбережені зміни? -->
+<div class="modal fade" id="m-cancel" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-0">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5"><%= i18n.__('leads.view.cancel_title') %></h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body"><p class="mb-0"><%= i18n.__('leads.view.cancel_text') %></p></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('leads.view.keep_editing') %></button>
+                <button type="button" class="btn btn-danger rounded-0" id="m-cancel-ok"><%= i18n.__('leads.view.discard') %></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Лід змінив інший користувач, поки його редагували -->
+<div class="modal fade" id="m-conflict" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-0">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5"><%= i18n.__('leads.view.conflict_title') %></h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2" id="m-conflict-text"></p>
+                <p class="mb-0 text-muted small"><%= i18n.__('leads.view.conflict_hint') %></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary rounded-0" id="m-conflict-reload"><%= i18n.__('leads.view.conflict_reload') %></button>
+                <button type="button" class="btn btn-danger rounded-0" id="m-conflict-force"><%= i18n.__('leads.view.conflict_force') %></button>
+            </div>
+        </div>
+    </div>
+</div>
+<% } %>
+
+<% if (canDelete) { %>
+<!-- Видалення в кошик -->
+<div class="modal fade" id="m-delete" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-0">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5"><%= i18n.__('leads.view.t.vydalyty_v_koshyk') %></h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0"><%= i18n.__('leads.view.t.vydalyty_lid_ioho_mozhna_bude') %></p>
+                <p class="mb-0"><strong>ID: <%= lead.id %></strong></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('leads.view.close') %></button>
+                <button type="button" class="btn btn-danger rounded-0" id="m-delete-ok"><%= i18n.__('leads.view.delete') %></button>
+            </div>
+        </div>
+    </div>
+</div>
+<% } %>
+
+<% if (canEdit) { %>
+<!-- Модалка: активність -->
+<div class="modal fade" id="m-act" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-0">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5"><%= i18n.__('leads.work.act_title') %></h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label"><%= i18n.__('leads.work.f.type') %></label>
+                        <select class="form-select rounded-0" id="act-type">
+                            <% ['call','email','meeting','task','note','whatsapp','telegram','viber','sms','demo','other'].forEach(function (t) { %>
+                            <option value="<%= t %>"><%= i18n.__('leads.work.type.' + t) %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label"><%= i18n.__('leads.work.f.status') %></label>
+                        <select class="form-select rounded-0" id="act-status">
+                            <option value="done"><%= i18n.__('leads.work.status.done') %></option>
+                            <option value="planned"><%= i18n.__('leads.work.status.planned') %></option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label"><%= i18n.__('leads.work.f.direction') %></label>
+                        <select class="form-select rounded-0" id="act-direction">
+                            <option value="outbound"><%= i18n.__('leads.work.dir.outbound') %></option>
+                            <option value="inbound"><%= i18n.__('leads.work.dir.inbound') %></option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label"><%= i18n.__('leads.work.f.subject') %></label>
+                        <input type="text" class="form-control rounded-0" id="act-subject" maxlength="500">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label"><%= i18n.__('leads.work.f.body') %></label>
+                        <textarea class="form-control rounded-0" id="act-body" rows="4"></textarea>
+                    </div>
+                    <div class="col-md-6" id="act-when-box">
+                        <label class="form-label"><%= i18n.__('leads.work.f.when') %></label>
+                        <input type="datetime-local" class="form-control rounded-0" id="act-when">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label"><%= i18n.__('leads.work.f.duration') %></label>
+                        <input type="number" class="form-control rounded-0" id="act-duration" min="0" max="1440" step="1">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('leads.view.cancel') %></button>
+                <button type="button" class="btn btn-primary rounded-0" id="act-save"><i class="fa-solid fa-floppy-disk me-1"></i><%= i18n.__('leads.view.save') %></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модалка: підтвердження (видалення активності/файлу, конвертація в клієнта/угоду) -->
+<div class="modal fade" id="m-confirm" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-0">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="m-confirm-title"></h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body"><p class="mb-0" id="m-confirm-text"></p></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('leads.view.cancel') %></button>
+                <button type="button" class="btn btn-primary rounded-0" id="m-confirm-ok"><%= i18n.__('leads.work.confirm') %></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модалка: конвертація в замовлення -->
+<div class="modal fade" id="m-order" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-0">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5"><%= i18n.__('leads.work.order_title') %></h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label"><%= i18n.__('leads.work.f.source') %></label>
+                    <select class="form-select rounded-0" id="ord-source"></select>
+                </div>
+                <table class="table table-sm table-bordered align-middle mb-2">
+                    <thead><tr><th><%= i18n.__('leads.work.f.item') %></th><th style="width:140px">SKU</th><th style="width:90px"><%= i18n.__('leads.work.f.qty') %></th><th style="width:120px"><%= i18n.__('leads.work.f.price') %></th><th style="width:42px"></th></tr></thead>
+                    <tbody id="ord-items"></tbody>
+                </table>
+                <button type="button" class="btn btn-outline-primary btn-sm rounded-0 mb-3" id="ord-add"><i class="fa-solid fa-plus me-1"></i><%= i18n.__('leads.work.add_item') %></button>
+                <div class="d-flex justify-content-end mb-3"><strong><%= i18n.__('leads.work.total') %>: <span id="ord-total">0</span></strong></div>
+                <label class="form-label"><%= i18n.__('leads.work.f.note') %></label>
+                <textarea class="form-control rounded-0" id="ord-note" rows="2" maxlength="999"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('leads.view.cancel') %></button>
+                <button type="button" class="btn btn-success rounded-0" id="ord-save"><i class="fa-solid fa-cart-shopping me-1"></i><%= i18n.__('leads.work.create_order') %></button>
+            </div>
+        </div>
+    </div>
+</div>
+<% } %>
+
+<% if (canEdit) { %>
+<!-- Модалка: злиття з дублем -->
+<div class="modal fade" id="m-merge" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content rounded-0">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5"><%= i18n.__('leads.dupes.merge_title') %></h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted"><%= i18n.__('leads.dupes.merge_hint') %></p>
+                <table class="table table-sm table-bordered align-middle mb-2">
+                    <thead><tr><th style="width:180px"></th><th id="mg-main-h"></th><th id="mg-other-h"></th></tr></thead>
+                    <tbody id="mg-rows"></tbody>
+                </table>
+                <div class="small" id="mg-moves"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('leads.view.cancel') %></button>
+                <button type="button" class="btn btn-warning rounded-0" id="mg-ok"><i class="fa-solid fa-code-merge me-1"></i><%= i18n.__('leads.dupes.merge') %></button>
+            </div>
+        </div>
+    </div>
+</div>
+<% } %>
+
+<!-- Модалка: з чого склались бали -->
+<div class="modal fade" id="m-score" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-0">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5"><%= i18n.__('leads.scoring.why_title') %></h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="m-score-body"></div>
+        </div>
+    </div>
+</div>
+
+<% if (canEdit) { %>
+<!-- Модалка: збагачення ліда -->
+<div class="modal fade" id="m-enrich" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-0">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5"><%= i18n.__('leads.enrich.title') %></h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="m-enrich-body"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('leads.view.cancel') %></button>
+                <button type="button" class="btn btn-primary rounded-0" id="enrich-apply"><i class="fa-solid fa-check me-1"></i><%= i18n.__('leads.enrich.apply') %></button>
+            </div>
+        </div>
+    </div>
+</div>
+<% } %>
+
+<%- include('../../partials/footer'); %>
+<%- include('../../partials/script'); %>
+<script src="/assets/js/notyf/notyf.min.js"></script>
+<script src="/assets/js/tabulator/tabulator.min.js"></script>
+<script>
+(function () {
+"use strict";
+const LEAD_ID = <%= Number(lead.id) %>;
+const CAN_EDIT = <%= canEdit ? 'true' : 'false' %>;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const MONEY = new Intl.NumberFormat("uk-UA", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const notyf = new Notyf({
+    position: { x: "right", y: "top" },
+    duration: 4000,
+    types: [
+        { type: "success", dismissible: true, icon: false },
+        { type: "error", background: "indianred", dismissible: true, icon: false },
+    ],
+});
+const root = $("lead-form");
+const ctl = (f) => root.querySelector('[data-f="' + f + '"]');
+
+// ============================================================
+// ЗНАЧЕННЯ ФОРМИ: усі поля ліда в одному об'єкті (контакти — як contact_info, теги — масив id)
+// ============================================================
+function collect() {
+    const v = {};
+    root.querySelectorAll("[data-f]").forEach((el) => {
+        const f = el.dataset.f;
+        if (f === "tags") v.tags = [...el.querySelectorAll(".tag-check:checked")].map((x) => Number(x.value)).sort((a, b) => a - b);
+        else if (f.startsWith("contact.")) (v.contact_info = v.contact_info || {})[f.slice(8)] = el.value.trim();
+        else v[f] = el.value.trim();
+    });
+    return v;
+}
+const same = (a, b) => JSON.stringify(a ?? "") === JSON.stringify(b ?? "");
+let saved = collect(); // стан, збережений на сервері
+
+// ============================================================
+// ПЕРЕГЛЯД: текст і бейджі з тих самих полів форми
+// ============================================================
+function badge(opt) {
+    const icon = opt.dataset.icon ? '<i class="' + esc(opt.dataset.icon) + ' me-1"></i>' : "";
+    return '<span class="badge rounded-0" style="color:' + esc(opt.dataset.fg) + ";background:" + esc(opt.dataset.bg) + '">' + icon + esc(opt.textContent.trim()) + "</span>";
+}
+function renderView() {
+    root.querySelectorAll("[data-show]").forEach((box) => {
+        const f = box.dataset.show;
+        const el = ctl(f);
+        let html = "";
+        if (f === "tags") {
+            html = [...el.querySelectorAll(".tag-check:checked")].map((x) => '<span class="badge rounded-0" style="background:' + esc(x.dataset.bg) + '">' + esc(x.nextElementSibling.textContent.trim()) + "</span>").join("");
+        } else if (el.tagName === "SELECT") {
+            const opt = el.selectedOptions[0];
+            if (opt && opt.value) html = opt.dataset.bg ? badge(opt) : esc(opt.textContent.trim());
+        } else {
+            const v = el.value.trim();
+            const kind = box.dataset.kind;
+            if (v === "") html = "";
+            else if (kind === "money") html = esc(MONEY.format(Number(v) || 0));
+            else if (kind === "date") html = esc(new Date(v + "T00:00:00").toLocaleDateString("uk-UA"));
+            else if (kind === "tel") html = '<a href="tel:' + esc(v.replace(/[^\d+]/g, "")) + '">' + esc(v) + "</a>";
+            else if (kind === "email") html = '<a href="mailto:' + esc(v) + '">' + esc(v) + "</a>";
+            else if (kind === "url") html = '<a href="' + esc(/^https?:\/\//i.test(v) ? v : "https://" + v) + '" target="_blank" rel="noopener noreferrer">' + esc(v) + "</a>";
+            else html = esc(v);
+        }
+        box.innerHTML = html || '<span class="text-muted">—</span>';
+    });
+    // Етап воронки
+    const st = ctl("id_stage").value;
+    document.querySelectorAll(".pipeline-step").forEach((b) => b.classList.toggle("active", b.dataset.stage === st));
+    // Смужки балів
+    ["score_fit", "score_activity"].forEach((f) => {
+        const bar = document.querySelector('[data-bar="' + f + '"]');
+        if (bar) bar.style.width = Math.min(100, Math.max(0, Number(ctl(f).value) || 0)) + "%";
+    });
+    // Блок програшу: статус «програно» або причину вже вказано
+    const opt = ctl("id_status").selectedOptions[0];
+    // Етап «програно» теж відкриває блок причини (вона обов'язкова — правила етапів)
+    const stEl = document.querySelector('#pipeline-steps [data-stage="' + ctl("id_stage").value + '"]');
+    const lost = (opt && opt.dataset.system === "lost") || (stEl && stEl.dataset.system === "lost") || ctl("id_loss_reason").value || ctl("loss_note").value.trim();
+    $("loss-section").classList.toggle("d-none", !lost);
+}
+
+// ============================================================
+// РЕЖИМ РЕДАГУВАННЯ: «Редагувати» → форма; «Зберегти» — одним запитом; «Скасувати» — повернути як було
+// ============================================================
+let editing = false;
+function dirtyFields() {
+    const cur = collect();
+    return Object.keys(cur).filter((k) => !same(cur[k], saved[k]));
+}
+function markDirty() {
+    const cur = collect();
+    root.querySelectorAll("[data-f]").forEach((el) => {
+        const f = el.dataset.f;
+        const changed = f.startsWith("contact.") ? !same((cur.contact_info || {})[f.slice(8)], (saved.contact_info || {})[f.slice(8)]) : !same(cur[f], saved[f]);
+        if (f === "id_stage") $("pipeline-steps").classList.toggle("is-dirty", changed);
+        else el.classList.toggle("is-dirty", changed);
+    });
+    const n = dirtyFields().length;
+    if ($("dirty-info")) $("dirty-info").textContent = n ? "<%= i18n.__('leads.view.changed_n') %>".replace("{{n}}", n) : "<%= i18n.__('leads.view.no_changes') %>";
+    if ($("btn-save")) $("btn-save").disabled = !n;
+    renderView();
+}
+function setEditing(on) {
+    editing = on;
+    document.body.classList.toggle("lead-editing", on);
+    root.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+    markDirty();
+    if (on) {
+        const t = ctl("title");
+        t.focus();
+    }
+}
+// Повернути форму до збереженого стану
+function restore() {
+    root.querySelectorAll("[data-f]").forEach((el) => {
+        const f = el.dataset.f;
+        if (f === "tags") el.querySelectorAll(".tag-check").forEach((x) => (x.checked = (saved.tags || []).includes(Number(x.value))));
+        else if (f.startsWith("contact.")) el.value = (saved.contact_info || {})[f.slice(8)] || "";
+        else el.value = saved[f] ?? "";
+    });
+}
+
+if (CAN_EDIT) {
+    $("btn-edit").addEventListener("click", () => setEditing(true));
+    root.addEventListener("input", () => editing && markDirty());
+    root.addEventListener("change", () => editing && markDirty());
+    // Етап — клік по кроку воронки (лише в режимі редагування)
+    $("pipeline-steps").addEventListener("click", (e) => {
+        const b = e.target.closest(".pipeline-step");
+        if (!b || !editing) return;
+        ctl("id_stage").value = b.dataset.stage;
+        markDirty();
+    });
+
+    const cancelModal = bootstrap.Modal.getOrCreateInstance($("m-cancel"));
+    $("btn-cancel").addEventListener("click", () => (dirtyFields().length ? cancelModal.show() : setEditing(false)));
+    $("m-cancel-ok").addEventListener("click", () => {
+        restore();
+        cancelModal.hide();
+        setEditing(false);
+    });
+
+    // Збереження
+    const conflictModal = bootstrap.Modal.getOrCreateInstance($("m-conflict"));
+    let busy = false;
+    async function save(force) {
+        const fields = dirtyFields();
+        if (!fields.length || busy) return;
+        busy = true;
+        $("btn-save").disabled = true;
+        const cur = collect();
+        const body = { date_edit: $("lead-date-edit").value, force: !!force, changes: {} };
+        fields.forEach((f) => (f === "tags" ? (body.tags = cur.tags) : (body.changes[f] = cur[f])));
+        root.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+        try {
+            const r = await fetch("/api/leads/" + LEAD_ID + "/save/", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body) });
+            const d = await r.json().catch(() => ({}));
+            if (r.status === 409 && d.conflict) {
+                $("m-conflict-text").textContent = "<%= i18n.__('leads.view.conflict_text') %>".replace("{{who}}", d.who || "—").replace("{{at}}", d.at ? new Date(String(d.at).replace(" ", "T")).toLocaleString("uk-UA") : "");
+                conflictModal.show();
+                return;
+            }
+            if (!r.ok) {
+                // Помилки по полях — біля полів
+                Object.entries(d.errors || {}).forEach(([f, msg]) => {
+                    const els = f === "contact_info" ? [...root.querySelectorAll('[data-f^="contact."]')] : [ctl(f)];
+                    els.filter(Boolean).forEach((el) => {
+                        el.classList.add("is-invalid");
+                        const fb = el.parentElement.querySelector(".invalid-feedback");
+                        if (fb) fb.textContent = msg;
+                    });
+                });
+                notyf.error(d.message || "<%= i18n.__('leads.server.server') %>");
+                return;
+            }
+            $("lead-date-edit").value = d.date_edit;
+            if ($("lead-date-edit-text")) $("lead-date-edit-text").textContent = new Date(String(d.date_edit).replace(" ", "T")).toLocaleString("uk-UA");
+            // Бали могли перерахуватись правилами скорингу — показуємо серверні значення
+            ["score_fit", "score_activity"].forEach((f) => { if (d[f] !== undefined && ctl(f)) ctl(f).value = d[f]; });
+            saved = collect();
+            if (d.score !== undefined) {
+                const cls = { A: "text-bg-success", B: "text-bg-primary", C: "text-bg-warning" }[d.grade] || "text-bg-secondary";
+                $("score-badge").className = "badge rounded-0 " + cls;
+                $("score-badge").innerHTML = Number(d.score) + " / <strong>" + esc(d.grade) + "</strong>";
+            }
+            if (d.client && fields.includes("contact_info")) renderClient(d.client);
+            setEditing(false);
+            notyf.success(d.changed && d.changed.length ? "<%= i18n.__('leads.view.saved') %>" : "<%= i18n.__('leads.view.no_changes') %>");
+            if (historyTable) historyTable.setData();
+            // Спрацювали автоматизації етапу / статусу — лід міг змінитись на сервері: показуємо актуальний стан
+            if (d.automated) {
+                notyf.success("<%= i18n.__('leads.auto.n.fired') %>");
+                setTimeout(() => location.reload(), 1200);
+            }
+        } catch (e) {
+            notyf.error("<%= i18n.__('leads.server.server') %>");
+        } finally {
+            busy = false;
+            if (editing) $("btn-save").disabled = !dirtyFields().length;
+        }
+    }
+    $("btn-save").addEventListener("click", () => save(false));
+    $("m-conflict-force").addEventListener("click", () => {
+        conflictModal.hide();
+        save(true);
+    });
+    $("m-conflict-reload").addEventListener("click", () => {
+        window.removeEventListener("beforeunload", guard);
+        location.reload();
+    });
+    // Ctrl+S — зберегти; Esc — скасувати
+    document.addEventListener("keydown", (e) => {
+        if (!editing) return;
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+            e.preventDefault();
+            save(false);
+        }
+    });
+    // Незбережені зміни не губляться випадково: браузер питає перед виходом
+    function guard(e) {
+        if (editing && dirtyFields().length) {
+            e.preventDefault();
+            e.returnValue = "";
+        }
+    }
+    window.addEventListener("beforeunload", guard);
+}
+
+// Картка клієнта після зміни контактів (лід перепривʼязується до клієнта на сервері)
+function renderClient(c) {
+    const box = $("client-card-body");
+    if (!box) return;
+    let html = c.id
+        ? '<div class="d-flex justify-content-between align-items-center"><div><i class="fa-solid fa-user text-muted me-1"></i><a href="/clients/' + Number(c.id) + '/" class="fw-semibold">' + esc(c.name || "#" + c.id) + '</a></div><a href="/clients/' + Number(c.id) + '/" class="btn btn-sm btn-outline-primary rounded-0" title="<%= i18n.__('leads.view.t.kartka_kliienta') %>"><i class="fa-solid fa-up-right-from-square"></i></a></div>'
+        : '<span class="text-muted small"><%= i18n.__('leads.view.t.ne_pryviazano_vkazhit_telefon_email') %></span>';
+    if (c.id_org) html += '<div class="mt-2"><i class="fa-solid fa-building text-muted me-1"></i><a href="/clients/' + Number(c.id_org) + '/">' + esc(c.org_name || "#" + c.id_org) + "</a></div>";
+    box.innerHTML = html;
+}
+
+// ============================================================
+// ВИДАЛЕННЯ В КОШИК
+// ============================================================
+if ($("btn-delete")) {
+    const delModal = bootstrap.Modal.getOrCreateInstance($("m-delete"));
+    $("btn-delete").addEventListener("click", () => delModal.show());
+    $("m-delete-ok").addEventListener("click", async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        try {
+            const r = await fetch("/api/leads/" + LEAD_ID + "/delete/", { method: "POST", credentials: "same-origin" });
+            const j = await r.json().catch(() => ({}));
+            if (r.ok && j.ok !== false) location.href = "/leads/";
+            else notyf.error(j.error || j.message || "<%= i18n.__('leads.view.t.pomylka_vydalennia') %>");
+        } catch (err) {
+            notyf.error("<%= i18n.__('leads.view.t.pomylka_vydalennia') %>");
+        } finally {
+            btn.disabled = false;
+        }
+    });
+}
+
+// ============================================================
+// ІСТОРІЯ — назви значень із довідників сторінки
+// ============================================================
+const DICT = {};
+root.querySelectorAll("select[data-f]").forEach((sel) => {
+    DICT[sel.dataset.f] = {};
+    [...sel.options].forEach((o) => o.value && (DICT[sel.dataset.f][o.value] = o.textContent.trim()));
+});
+DICT.tags = {};
+root.querySelectorAll(".tag-check").forEach((x) => (DICT.tags[x.value] = x.nextElementSibling.textContent.trim()));
+DICT.id_stage = {};
+document.querySelectorAll(".pipeline-step").forEach((b) => (DICT.id_stage[b.dataset.stage] = b.childNodes.length ? b.textContent.replace(/\s+\d+%\s*$/, "").trim() : ""));
+
+function histValue(h, v, nameField) {
+    if (v === null || v === undefined || v === "") return "—";
+    if (nameField && h[nameField]) return h[nameField];
+    if (h.field_name === "tags") return String(v).split(",").filter(Boolean).map((id) => DICT.tags[id] || "#" + id).join(", ") || "—";
+    if (DICT[h.field_name]) return DICT[h.field_name][v] || "#" + v;
+    if (h.field_name === "contact_info") {
+        try {
+            return Object.values(JSON.parse(v)).filter(Boolean).join(", ") || "—";
+        } catch (e) {
+            return v;
+        }
+    }
+    return v;
+}
+function renderDiff(h) {
+    if (["utm", "fingerprint", "custom_fields"].includes(h.field_name)) return '<span class="text-muted fst-italic small"><%= i18n.__('leads.view.t.onovleno') %></span>';
+    const o = histValue(h, h.value_old, h.field_name === "id_status" ? "status_old_name" : h.field_name === "id_stage" ? "stage_old_name" : null);
+    const n = histValue(h, h.value_new, h.field_name === "id_status" ? "status_new_name" : h.field_name === "id_stage" ? "stage_new_name" : null);
+    return '<span class="text-muted text-decoration-line-through me-1">' + esc(o) + '</span><i class="fa-solid fa-arrow-right mx-1 text-muted" style="font-size:10px"></i><span class="text-success fw-semibold">' + esc(n) + "</span>";
+}
+const FIELD_LABELS = { title: "<%= i18n.__('leads.view.f.title') %>", note: "<%= i18n.__('leads.view.f.note') %>", value: "<%= i18n.__('leads.view.f.value') %>", website: "<%= i18n.__('leads.view.f.website') %>", expected_close_date: "<%= i18n.__('leads.view.f.expected_close_date') %>", loss_note: "<%= i18n.__('leads.view.f.loss_note') %>", score_fit: "<%= i18n.__('leads.view.f.score_fit') %>", score_activity: "<%= i18n.__('leads.view.f.score_activity') %>", id_status: "<%= i18n.__('leads.view.f.id_status') %>", id_stage: "<%= i18n.__('leads.view.f.id_stage') %>", id_priority: "<%= i18n.__('leads.view.f.id_priority') %>", id_temperature: "<%= i18n.__('leads.view.f.id_temperature') %>", id_qualification: "<%= i18n.__('leads.view.f.id_qualification') %>", id_source: "<%= i18n.__('leads.view.f.id_source') %>", id_loss_reason: "<%= i18n.__('leads.view.f.id_loss_reason') %>", id_manager: "<%= i18n.__('leads.view.f.id_manager') %>", contact_info: "<%= i18n.__('leads.view.f.contact_info') %>", tags: "<%= i18n.__('leads.view.f.tags') %>" };
+const ACTION_LABELS = { field_change: "<%= i18n.__('leads.history.actions.field_change') %>", status_change: "<%= i18n.__('leads.history.actions.status_change') %>", stage_change: "<%= i18n.__('leads.history.actions.stage_change') %>", pipeline_change: "<%= i18n.__('leads.history.actions.pipeline_change') %>", assigned: "<%= i18n.__('leads.history.actions.assigned') %>", unassigned: "<%= i18n.__('leads.history.actions.unassigned') %>", score_change: "<%= i18n.__('leads.history.actions.score_change') %>", converted: "<%= i18n.__('leads.history.actions.converted') %>", comment: "<%= i18n.__('leads.history.actions.comment') %>", comment_pin: "<%= i18n.__('leads.history.actions.comment_pin') %>", file_attached: "<%= i18n.__('leads.history.actions.file_attached') %>", file_deleted: "<%= i18n.__('leads.history.actions.file_deleted') %>", task_created: "<%= i18n.__('leads.history.actions.task_created') %>", email_sent: "<%= i18n.__('leads.history.actions.email_sent') %>", call_logged: "<%= i18n.__('leads.history.actions.call_logged') %>", meeting_logged: "<%= i18n.__('leads.history.actions.meeting_logged') %>", sla_breach: "<%= i18n.__('leads.history.actions.sla_breach') %>", automation_fired: "<%= i18n.__('leads.history.actions.automation_fired') %>", duplicate_marked: "<%= i18n.__('leads.history.actions.duplicate_marked') %>", duplicate_dismissed: "<%= i18n.__('leads.history.actions.duplicate_dismissed') %>", merged: "<%= i18n.__('leads.history.actions.merged') %>", auto_assigned: "<%= i18n.__('leads.history.actions.auto_assigned') %>", imported: "<%= i18n.__('leads.history.actions.imported') %>", sla_warning: "<%= i18n.__('leads.history.actions.sla_warning') %>", deleted: "<%= i18n.__('leads.history.actions.deleted') %>", restored: "<%= i18n.__('leads.history.actions.restored') %>" };
+const SOURCE_LABELS = { web: "<%= i18n.__('leads.history.sources.web') %>", api: "<%= i18n.__('leads.history.sources.api') %>", automation: "<%= i18n.__('leads.history.sources.automation') %>", import: "<%= i18n.__('leads.history.sources.import') %>", system: "<%= i18n.__('leads.history.sources.system') %>" };
+
+const historyTable = new Tabulator("#history-table", {
+    layout: "fitColumns",
+    ajaxURL: "/api/leads/" + LEAD_ID + "/history/",
+    ajaxConfig: "POST",
+    pagination: true,
+    paginationMode: "local",
+    paginationSize: 15,
+    paginationSizeSelector: [15, 30, 50],
+    initialSort: [{ column: "date_add", dir: "desc" }],
+    placeholder: "<%= i18n.__('leads.history.no_data') %>",
+    columns: [
+        {
+            title: "<%= i18n.__('leads.view.t.podiia') %>", field: "action_type", widthGrow: 1,
+            formatter: (cell) => {
+                const h = cell.getRow().getData();
+                const c = { field_change: "warning", status_change: "success", stage_change: "primary", converted: "info", sla_breach: "danger", automation_fired: "secondary", comment: "primary", file_attached: "secondary", deleted: "danger", restored: "success" }[h.action_type] || "secondary";
+                return '<span class="badge rounded-0 text-bg-' + c + '">' + esc(ACTION_LABELS[h.action_type] || h.action_type) + "</span>";
+            },
+        },
+        { title: "<%= i18n.__('leads.view.t.pole') %>", field: "field_name", widthGrow: 1, formatter: (cell) => esc(cell.getValue() ? FIELD_LABELS[cell.getValue()] || cell.getValue() : "—") },
+        {
+            title: "<%= i18n.__('leads.view.t.zmina') %>", field: "value_old", widthGrow: 3, headerSort: false,
+            formatter: (cell) => {
+                const h = cell.getRow().getData();
+                const diff = h.value_old !== null || h.value_new !== null ? renderDiff(h) : "";
+                const comment = h.comment ? '<div class="mt-1 fst-italic text-muted small">' + esc(h.comment) + "</div>" : "";
+                return diff + comment || "—";
+            },
+        },
+        {
+            title: "<%= i18n.__('leads.view.t.khto') %>", field: "manager_name", width: 160,
+            formatter: (cell) => {
+                const h = cell.getRow().getData();
+                const who = String(cell.getValue() || "").trim() || "<%= i18n.__('leads.history.system') %>";
+                const src = SOURCE_LABELS[h.source] || h.source || "";
+                return "<div>" + esc(who) + "</div>" + (src ? '<small class="text-muted">' + esc(src) + "</small>" : "");
+            },
+        },
+        { title: "<%= i18n.__('leads.view.t.data') %>", field: "date_add", width: 145, sorter: "string" },
+    ],
+});
+
+// ============================================================
+// АКТИВНОСТІ, ФАЙЛИ, КОНВЕРТАЦІЯ (вкладки вантажаться при першому відкритті)
+// ============================================================
+const W = {
+    type: { call: "<%= i18n.__('leads.work.type.call') %>", email: "<%= i18n.__('leads.work.type.email') %>", meeting: "<%= i18n.__('leads.work.type.meeting') %>", task: "<%= i18n.__('leads.work.type.task') %>", note: "<%= i18n.__('leads.work.type.note') %>", whatsapp: "WhatsApp", telegram: "Telegram", viber: "Viber", sms: "SMS", demo: "<%= i18n.__('leads.work.type.demo') %>", other: "<%= i18n.__('leads.work.type.other') %>" },
+    status: { planned: "<%= i18n.__('leads.work.status.planned') %>", done: "<%= i18n.__('leads.work.status.done') %>", cancelled: "<%= i18n.__('leads.work.status.cancelled') %>", missed: "<%= i18n.__('leads.work.status.missed') %>" },
+    cat: { document: "<%= i18n.__('leads.work.cat.document') %>", contract: "<%= i18n.__('leads.work.cat.contract') %>", invoice: "<%= i18n.__('leads.work.cat.invoice') %>", photo: "<%= i18n.__('leads.work.cat.photo') %>", other: "<%= i18n.__('leads.work.cat.other') %>" },
+    to: { order: "<%= i18n.__('leads.work.to.order') %>", client: "<%= i18n.__('leads.work.to.client') %>", deal: "<%= i18n.__('leads.work.to.deal') %>" },
+    err: "<%= i18n.__('leads.server.server') %>",
+};
+const TYPE_ICON = { call: "fa-solid fa-phone", email: "fa-solid fa-envelope", meeting: "fa-solid fa-handshake", task: "fa-solid fa-list-check", note: "fa-solid fa-note-sticky", whatsapp: "fa-brands fa-whatsapp", telegram: "fa-brands fa-telegram", viber: "fa-brands fa-viber", sms: "fa-solid fa-comment-sms", demo: "fa-solid fa-desktop", other: "fa-solid fa-circle" };
+const STATUS_BADGE = { planned: "text-bg-primary", done: "text-bg-success", cancelled: "text-bg-secondary", missed: "text-bg-danger" };
+const fmtDate = (s) => (s ? String(s).slice(0, 16) : "");
+const fmtSize = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round((n || 0) / 1024)) + " KB");
+
+async function api(url, body) {
+    const opt = { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" } };
+    if (body instanceof FormData) opt.body = body;
+    else if (body) { opt.headers["Content-Type"] = "application/json"; opt.body = JSON.stringify(body); }
+    const r = await fetch(url, opt);
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.message || j.error || W.err);
+    return j;
+}
+const refreshHistory = () => { try { historyTable.setData(); } catch (e) { /* таблиця ще не готова */ } };
+
+// Підтвердження дії через модалку (без confirm())
+let confirmFn = null;
+const confirmModal = $("m-confirm") ? bootstrap.Modal.getOrCreateInstance($("m-confirm")) : null;
+function ask(title, text, fn) {
+    $("m-confirm-title").textContent = title;
+    $("m-confirm-text").textContent = text;
+    confirmFn = fn;
+    confirmModal.show();
+}
+if ($("m-confirm-ok")) $("m-confirm-ok").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    if (!confirmFn) return;
+    btn.disabled = true;
+    try { await confirmFn(); confirmModal.hide(); }
+    catch (err) { notyf.error(err.message); }
+    finally { btn.disabled = false; }
+});
+
+/* ── Активності ── */
+let activitiesLoaded = false;
+let lastActivities = [];
+// Відкритий лід (не конвертований, не виграний / програний) — має мати запланований наступний крок
+const LEAD_OPEN = <%= (!lead.is_converted && lead.status_system_type !== 'won' && lead.status_system_type !== 'lost') ? 'true' : 'false' %>;
+/** Після виконаної дії: якщо в ліда не лишилось запланованих — запропонувати наступний крок */
+async function promptNext() {
+    await loadActivities(true);
+    if (!CAN_EDIT || !LEAD_OPEN || lastActivities.some((a) => a.status === "planned")) return;
+    ask("<%= i18n.__('leads.work.next_title') %>", "<%= i18n.__('leads.work.next_text') %>", async () => {
+        setTimeout(() => openActivity({ status: "planned", type: "call" }), 350);
+    });
+}
+async function loadActivities(force) {
+    if (activitiesLoaded && !force) return;
+    activitiesLoaded = true;
+    try {
+        const rows = await api("/api/leads/" + LEAD_ID + "/activities/");
+        lastActivities = rows;
+        const noNext = LEAD_OPEN && !rows.some((a) => a.status === "planned");
+        $("activities-list").innerHTML = (noNext ? '<div class="alert alert-warning rounded-0 py-2 small"><i class="fa-solid fa-triangle-exclamation me-1"></i><%= i18n.__('leads.work.no_next') %></div>' : "") + (!rows.length
+            ? '<p class="text-muted"><%= i18n.__('leads.view.t.aktyvnostei_nemaie') %></p>'
+            : rows.map((a) => {
+                const late = a.status === "planned" && a.scheduled_at && new Date(String(a.scheduled_at).replace(" ", "T")) < new Date();
+                const acts = !CAN_EDIT ? "" :
+                    '<div class="btn-group btn-group-sm">' +
+                    (a.status === "planned"
+                        ? '<button type="button" class="btn btn-outline-success rounded-0" data-action="act-status" data-id="' + a.id + '" data-status="done" title="<%= i18n.__('leads.work.mark_done') %>"><i class="fa-solid fa-check"></i></button>' +
+                          '<button type="button" class="btn btn-outline-secondary rounded-0" data-action="act-status" data-id="' + a.id + '" data-status="cancelled" title="<%= i18n.__('leads.work.mark_cancel') %>"><i class="fa-solid fa-ban"></i></button>'
+                        : '<button type="button" class="btn btn-outline-secondary rounded-0" data-action="act-status" data-id="' + a.id + '" data-status="planned" title="<%= i18n.__('leads.work.mark_planned') %>"><i class="fa-solid fa-rotate-left"></i></button>') +
+                    '<button type="button" class="btn btn-outline-danger rounded-0" data-action="act-delete" data-id="' + a.id + '" title="<%= i18n.__('leads.work.delete') %>"><i class="fa-solid fa-trash"></i></button></div>';
+                return '<div class="d-flex gap-3 mb-3 border-bottom pb-3"><div style="width:32px;text-align:center"><i class="' + (TYPE_ICON[a.type] || TYPE_ICON.other) + ' text-primary"></i></div>' +
+                    '<div class="flex-grow-1"><div class="d-flex justify-content-between align-items-start gap-2"><div><strong>' + esc(a.subject || W.type[a.type] || a.type) + '</strong> ' +
+                    '<span class="badge rounded-0 ' + (late ? "text-bg-danger" : STATUS_BADGE[a.status] || "text-bg-secondary") + '">' + esc(late ? "<%= i18n.__('leads.work.overdue') %>" : W.status[a.status] || a.status) + "</span></div>" + acts + "</div>" +
+                    '<small class="text-muted">' + esc(W.type[a.type] || a.type) + " · " + esc(a.manager_name || "—") + " · " +
+                    esc(fmtDate(a.status === "planned" ? a.scheduled_at : a.done_at || a.date_add)) +
+                    (a.duration_sec ? " · " + Math.round(a.duration_sec / 60) + " <%= i18n.__('leads.work.min') %>" : "") + "</small>" +
+                    (a.body ? '<div class="mt-1 small" style="white-space:pre-wrap">' + esc(a.body) + "</div>" : "") + "</div></div>";
+            }).join(""));
+    } catch (err) {
+        activitiesLoaded = false;
+        notyf.error(err.message);
+    }
+}
+const actModal = $("m-act") ? bootstrap.Modal.getOrCreateInstance($("m-act")) : null;
+function actSync() {
+    const planned = $("act-status").value === "planned";
+    $("act-when-box").classList.toggle("d-none", !planned);
+}
+if ($("act-status")) $("act-status").addEventListener("change", actSync);
+function openActivity(preset) {
+    preset = preset || {};
+    $("act-type").value = preset.type || "call";
+    $("act-status").value = preset.status || "done";
+    $("act-direction").value = "outbound";
+    $("act-subject").value = "";
+    $("act-body").value = "";
+    $("act-duration").value = "";
+    const d = new Date(Date.now() + 3600e3);
+    d.setMinutes(0, 0, 0);
+    $("act-when").value = new Date(d.getTime() - d.getTimezoneOffset() * 60e3).toISOString().slice(0, 16);
+    actSync();
+    actModal.show();
+}
+if ($("act-save")) $("act-save").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try {
+        await api("/api/leads/" + LEAD_ID + "/activities/add/", {
+            type: $("act-type").value, status: $("act-status").value, direction: $("act-direction").value,
+            subject: $("act-subject").value, body: $("act-body").value,
+            scheduled_at: $("act-status").value === "planned" ? $("act-when").value : "",
+            duration_min: $("act-duration").value,
+        });
+        const wasDone = $("act-status").value === "done";
+        actModal.hide();
+        notyf.success("<%= i18n.__('leads.work.n.act_added') %>");
+        refreshHistory();
+        if (wasDone) setTimeout(promptNext, 400);
+        else loadActivities(true);
+    } catch (err) {
+        notyf.error(err.message);
+    } finally {
+        btn.disabled = false;
+    }
+});
+
+/* ── Файли ── */
+const MAX_FILE = <%= Number(typeof maxFileSize !== "undefined" ? maxFileSize : 0) || 0 %>;
+let filesLoaded = false;
+async function loadFiles(force) {
+    if (filesLoaded && !force) return;
+    filesLoaded = true;
+    try {
+        const rows = await api("/api/leads/" + LEAD_ID + "/files/");
+        $("files-list").innerHTML = !rows.length
+            ? '<p class="text-muted"><%= i18n.__('leads.view.t.failiv_nemaie') %></p>'
+            : '<table class="table table-sm table-bordered align-middle mb-0"><tbody>' + rows.map((f) => {
+                const url = "/leads/" + LEAD_ID + "/files/" + f.id + "/";
+                return "<tr><td>" + '<i class="fa-solid ' + (/^image\//.test(f.mime) ? "fa-file-image" : f.mime === "application/pdf" ? "fa-file-pdf" : "fa-file") + ' me-2 text-muted"></i>' +
+                    '<a href="' + url + '" target="_blank" rel="noopener">' + esc(f.name) + "</a></td>" +
+                    '<td style="width:130px">' + esc(W.cat[f.category] || f.category || "") + "</td>" +
+                    '<td style="width:90px" class="text-end">' + fmtSize(f.size) + "</td>" +
+                    '<td style="width:180px" class="small text-muted">' + esc(f.manager_name || "—") + "<br>" + esc(fmtDate(f.date_add)) + "</td>" +
+                    '<td style="width:90px" class="text-end"><div class="btn-group btn-group-sm">' +
+                    '<a class="btn btn-outline-primary rounded-0" href="' + url + '?download=1" title="<%= i18n.__('leads.work.download') %>"><i class="fa-solid fa-download"></i></a>' +
+                    (CAN_EDIT ? '<button type="button" class="btn btn-outline-danger rounded-0" data-action="file-delete" data-id="' + f.id + '" data-name="' + esc(f.name) + '" title="<%= i18n.__('leads.work.delete') %>"><i class="fa-solid fa-trash"></i></button>' : "") +
+                    "</div></td></tr>";
+            }).join("") + "</tbody></table>";
+    } catch (err) {
+        filesLoaded = false;
+        notyf.error(err.message);
+    }
+}
+if ($("file-input")) $("file-input").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    if (MAX_FILE && file.size > MAX_FILE) return notyf.error("<%= i18n.__('leads.work.e.file_size') %>");
+    const fd = new FormData();
+    fd.append("category", $("file-category").value);
+    fd.append("file", file);
+    const btn = document.querySelector('[data-action="file-pick"]');
+    btn.disabled = true;
+    try {
+        await api("/api/leads/" + LEAD_ID + "/files/upload/", fd);
+        notyf.success("<%= i18n.__('leads.work.n.file_added') %>");
+        loadFiles(true);
+        refreshHistory();
+    } catch (err) {
+        notyf.error(err.message);
+    } finally {
+        btn.disabled = false;
+    }
+});
+
+/* ── Конвертація ── */
+let conversionsLoaded = false;
+async function loadConversions(force) {
+    if (conversionsLoaded && !force) return;
+    conversionsLoaded = true;
+    try {
+        const rows = await api("/api/leads/" + LEAD_ID + "/conversions/");
+        const href = { order: "/orders/", client: "/clients/", deal: "/deals/" };
+        $("conversions-list").innerHTML = !rows.length ? "" :
+            '<table class="table table-sm table-bordered align-middle mb-0"><thead><tr><th><%= i18n.__('leads.work.f.to') %></th><th><%= i18n.__('leads.work.f.object') %></th><th><%= i18n.__('leads.work.f.manager') %></th><th><%= i18n.__('leads.work.f.date') %></th></tr></thead><tbody>' +
+            rows.map((c) => "<tr><td>" + esc(W.to[c.converted_to] || c.converted_to) + "</td>" +
+                "<td>" + (href[c.converted_to] ? '<a href="' + href[c.converted_to] + Number(c.converted_id) + '/">' + esc(c.label || "#" + c.converted_id) + "</a>" : esc(c.label || c.converted_id)) + "</td>" +
+                "<td>" + esc(c.manager_name || "—") + "</td><td>" + esc(fmtDate(c.date_add)) + "</td></tr>").join("") + "</tbody></table>";
+    } catch (err) {
+        conversionsLoaded = false;
+        notyf.error(err.message);
+    }
+}
+async function convert(target, body) {
+    const j = await api("/api/leads/" + LEAD_ID + "/convert/" + target + "/", body);
+    notyf.success("<%= i18n.__('leads.work.n.converted') %>");
+    // Статус і етап ліда змінились на сервері — оновлюємо сторінку, щоб не зберегти застарілі значення
+    setTimeout(() => (location.href = j.url || location.href), 900);
+}
+
+const LEAD_DEFAULT = <%- JSON.stringify({ title: String(lead.title || ''), value: Number(lead.value || 0), products: (function (p) { if (typeof p === 'string') { try { p = JSON.parse(p); } catch (e) { p = null; } } return Array.isArray(p) ? p.slice(0, 200) : []; })(lead.products) }).replace(/</g, '\\u003c') %>;
+const orderModal = $("m-order") ? bootstrap.Modal.getOrCreateInstance($("m-order")) : null;
+function orderRow(it) {
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+        '<td><input type="text" class="form-control form-control-sm rounded-0" data-k="name" maxlength="255"></td>' +
+        '<td><input type="text" class="form-control form-control-sm rounded-0" data-k="sku" maxlength="120"></td>' +
+        '<td><input type="number" class="form-control form-control-sm rounded-0" data-k="quantity" min="1" step="1"></td>' +
+        '<td><input type="number" class="form-control form-control-sm rounded-0" data-k="price" min="0" step="0.01"></td>' +
+        '<td class="text-center"><button type="button" class="btn btn-outline-danger btn-sm rounded-0" data-action="ord-del"><i class="fa-solid fa-xmark"></i></button></td>';
+    tr.querySelector('[data-k="name"]').value = it.name || "";
+    tr.querySelector('[data-k="sku"]').value = it.sku || "";
+    tr.querySelector('[data-k="quantity"]').value = it.quantity || 1;
+    tr.querySelector('[data-k="price"]').value = it.price ?? "";
+    $("ord-items").appendChild(tr);
+}
+function orderItems() {
+    return [...$("ord-items").querySelectorAll("tr")].map((tr) => {
+        const v = (k) => tr.querySelector('[data-k="' + k + '"]').value.trim();
+        return { name: v("name"), sku: v("sku"), quantity: v("quantity"), price: v("price") };
+    });
+}
+function orderTotal() {
+    const t = orderItems().reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(String(i.price).replace(",", ".")) || 0), 0);
+    $("ord-total").textContent = MONEY.format(t);
+}
+async function openOrder() {
+    let sources;
+    try { sources = await api("/api/leads/" + LEAD_ID + "/convert/sources/"); }
+    catch (err) { return notyf.error(err.message); }
+    if (!sources.length) return notyf.error("<%= i18n.__('leads.work.e.no_sources') %>");
+    $("ord-source").innerHTML = sources.map((s) => '<option value="' + Number(s.id) + '">' + esc(s.name) + "</option>").join("");
+    $("ord-items").innerHTML = "";
+    const prods = LEAD_DEFAULT.products.filter((p) => p && (p.name || p.title));
+    if (prods.length) prods.forEach((p) => orderRow({ name: p.name || p.title, sku: p.sku || p.model || "", quantity: p.quantity || p.qty || 1, price: p.price ?? "" }));
+    else orderRow({ name: LEAD_DEFAULT.title, quantity: 1, price: LEAD_DEFAULT.value || "" });
+    $("ord-note").value = "";
+    orderTotal();
+    orderModal.show();
+}
+if ($("m-order")) {
+    $("ord-add").addEventListener("click", () => { orderRow({ quantity: 1 }); orderTotal(); });
+    $("ord-items").addEventListener("input", orderTotal);
+    $("ord-save").addEventListener("click", async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        try {
+            await convert("order", { id_integration: $("ord-source").value, items: orderItems(), note: $("ord-note").value });
+            orderModal.hide();
+        } catch (err) {
+            notyf.error(err.message);
+            btn.disabled = false;
+        }
+    });
+}
+
+document.addEventListener("click", (e) => {
+    const el = e.target.closest("[data-action]");
+    if (!el) return;
+    const a = el.dataset.action;
+    if (a === "load-activities") loadActivities();
+    else if (a === "load-files") loadFiles();
+    else if (a === "load-conversions") loadConversions();
+    else if (a === "act-new") openActivity();
+    else if (a === "act-status") {
+        el.disabled = true;
+        api("/api/leads/" + LEAD_ID + "/activities/" + el.dataset.id + "/status/", { status: el.dataset.status })
+            .then(() => {
+                notyf.success("<%= i18n.__('leads.work.n.act_updated') %>");
+                if (el.dataset.status === "done" || el.dataset.status === "cancelled") promptNext();
+                else loadActivities(true);
+            })
+            .catch((err) => { el.disabled = false; notyf.error(err.message); });
+    } else if (a === "act-delete") {
+        ask("<%= i18n.__('leads.work.act_delete_title') %>", "<%= i18n.__('leads.work.act_delete_text') %>", async () => {
+            await api("/api/leads/" + LEAD_ID + "/activities/" + el.dataset.id + "/delete/");
+            notyf.success("<%= i18n.__('leads.work.n.deleted') %>");
+            loadActivities(true);
+        });
+    } else if (a === "file-pick") $("file-input").click();
+    else if (a === "file-delete") {
+        ask("<%= i18n.__('leads.work.file_delete_title') %>", el.dataset.name, async () => {
+            await api("/api/leads/" + LEAD_ID + "/files/" + el.dataset.id + "/delete/");
+            notyf.success("<%= i18n.__('leads.work.n.deleted') %>");
+            loadFiles(true);
+            refreshHistory();
+        });
+    } else if (a === "ord-del") {
+        el.closest("tr").remove();
+        orderTotal();
+    } else if (a === "convert-lead") {
+        if (document.body.classList.contains("lead-editing")) return notyf.error("<%= i18n.__('leads.work.e.editing') %>");
+        const t = el.dataset.target;
+        if (t === "order") openOrder();
+        else ask(W.to[t], t === "client" ? "<%= i18n.__('leads.work.confirm_client') %>" : "<%= i18n.__('leads.work.confirm_deal') %>", () => convert(t));
+    }
+});
+
+// ============================================================
+// SLA: залишок часу на першу відповідь (секунди від сервера, без залежності від поясу браузера)
+// ============================================================
+const dur = (sec) => {
+    sec = Math.abs(Math.round(sec));
+    const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
+    return (d ? d + " <%= i18n.__('leads.sla.d') %> " : "") + (d || h ? h + " <%= i18n.__('leads.sla.h') %> " : "") + m + " <%= i18n.__('leads.sla.m') %>";
+};
+if ($("sla-took")) $("sla-took").textContent = "<%= i18n.__('leads.sla.took') %> " + dur(Number($("sla-took").dataset.sec));
+if ($("sla-left")) {
+    const el = $("sla-left");
+    const end = Date.now() + Number(el.dataset.left) * 1000;
+    const draw = () => {
+        const left = (end - Date.now()) / 1000;
+        el.className = "badge rounded-0 ms-1 " + (left < 0 ? "text-bg-danger" : left < 3600 ? "text-bg-warning" : "text-bg-success");
+        el.textContent = left < 0 ? "<%= i18n.__('leads.sla.late_by') %> " + dur(left) : "<%= i18n.__('leads.sla.left') %> " + dur(left);
+    };
+    draw();
+    setInterval(draw, 30000);
+}
+
+// ============================================================
+// ДУБЛІКАТИ: ліди з тим самим телефоном / email, «не дубль», злиття
+// ============================================================
+const DUP_BY = { phone: "<%= i18n.__('leads.dupes.by_phone') %>", email: "<%= i18n.__('leads.dupes.by_email') %>" };
+async function loadDupes() {
+    try {
+        const d = await api("/api/leads/" + LEAD_ID + "/duplicates/");
+        const rows = d.rows || [];
+        $("dupes-card").classList.toggle("d-none", !rows.length);
+        if (!rows.length) return;
+        $("dupes-count").textContent = rows.length;
+        if ($("dupes-dismiss")) $("dupes-dismiss").classList.toggle("d-none", !<%= lead.is_duplicate ? 'true' : 'false' %>);
+        $("dupes-list").innerHTML = rows.map((r) => {
+            const ci = r.contact_info || {};
+            return '<div class="list-group-item rounded-0"><div class="d-flex justify-content-between gap-2">' +
+                '<div class="small"><a class="fw-semibold" href="/leads/' + Number(r.id) + '/">#' + Number(r.id) + " " + esc(r.title || "") + "</a>" +
+                (Number(d.of) === Number(r.id) ? ' <span class="badge rounded-0 text-bg-warning"><%= i18n.__('leads.dupes.original') %></span>' : "") +
+                '<div class="text-muted">' + esc([ci.name, ci.phone, ci.email].filter(Boolean).join(" · ")) + "</div>" +
+                '<div class="text-muted">' + esc(DUP_BY[r.by] || "") + " · " + esc(String(r.date_add || "").slice(0, 16)) + " · " + esc(r.status_name || "—") + " · " + esc(r.manager_name || "—") + "</div></div>" +
+                (CAN_EDIT ? '<div><button type="button" class="btn btn-sm btn-outline-warning rounded-0 text-nowrap" data-action="merge-open" data-id="' + Number(r.id) + '"><i class="fa-solid fa-code-merge me-1"></i><%= i18n.__('leads.dupes.merge') %></button></div>' : "") +
+                "</div></div>";
+        }).join("");
+    } catch (err) {
+        /* картка дублів необов'язкова — сторінка працює без неї */
+    }
+}
+loadDupes();
+if ($("dupes-dismiss")) $("dupes-dismiss").addEventListener("click", () => {
+    ask("<%= i18n.__('leads.dupes.dismiss') %>", "<%= i18n.__('leads.dupes.dismiss_hint') %>", async () => {
+        await api("/api/leads/" + LEAD_ID + "/duplicates/dismiss/");
+        notyf.success("<%= i18n.__('leads.dupes.n.dismissed') %>");
+        setTimeout(() => location.reload(), 700);
+    });
+});
+
+const MG_LABEL = {
+    title: "<%= i18n.__('leads.view.f.title') %>", value: "<%= i18n.__('leads.view.f.value') %>", note: "<%= i18n.__('leads.view.f.note') %>",
+    id_status: "<%= i18n.__('leads.view.f.id_status') %>", id_manager: "<%= i18n.__('leads.view.f.id_manager') %>", id_source: "<%= i18n.__('leads.view.f.id_source') %>",
+    expected_close_date: "<%= i18n.__('leads.view.f.expected_close_date') %>",
+    "contact.name": "<%= i18n.__('leads.dupes.f.name') %>", "contact.phone": "<%= i18n.__('leads.dupes.f.phone') %>", "contact.email": "Email",
+    "contact.company": "<%= i18n.__('leads.dupes.f.company') %>", "contact.position": "<%= i18n.__('leads.dupes.f.position') %>",
+};
+const mergeModal = $("m-merge") ? bootstrap.Modal.getOrCreateInstance($("m-merge")) : null;
+let mergeOther = 0;
+function mgShow(lead, f) {
+    if (f.startsWith("contact.")) return (lead.contact_info || {})[f.slice(8)] || "";
+    if (f === "value") return Number(lead.value) ? MONEY.format(Number(lead.value)) : "";
+    if (lead[f + "_name"] !== undefined) return lead[f + "_name"] || (lead[f] ? "#" + lead[f] : "");
+    return lead[f] == null ? "" : String(lead[f]);
+}
+async function openMerge(idOther) {
+    if (document.body.classList.contains("lead-editing")) return notyf.error("<%= i18n.__('leads.work.e.editing') %>");
+    let d;
+    try { d = await api("/api/leads/" + LEAD_ID + "/merge/preview/", { other: idOther }); }
+    catch (err) { return notyf.error(err.message); }
+    mergeOther = idOther;
+    $("mg-main-h").innerHTML = "<%= i18n.__('leads.dupes.main') %> · #" + Number(d.main.id);
+    $("mg-other-h").innerHTML = "<%= i18n.__('leads.dupes.other') %> · #" + Number(d.other.id);
+    const rows = d.fields.map((f) => {
+        const a = mgShow(d.main, f), b = mgShow(d.other, f);
+        if (a === b || !b) return "";
+        const name = "mg-" + f.replace(".", "-");
+        // Порожнє в основному заповнюється з другого (контакти — завжди), інакше за замовчуванням лишається основне
+        const takeOther = !a;
+        const cell = (side, v, checked) => '<td><label class="d-flex gap-2"><input class="form-check-input mt-1" type="radio" name="' + name + '" data-f="' + f + '" value="' + side + '"' + (checked ? " checked" : "") + '><span style="white-space:pre-wrap">' + (v ? esc(v) : '<span class="text-muted">—</span>') + "</span></label></td>";
+        return "<tr><th class=\"small\">" + esc(MG_LABEL[f] || f) + "</th>" + cell("main", a, !takeOther) + cell("other", b, takeOther) + "</tr>" +
+            (f === "note" && a ? '<tr><th></th><td colspan="2"><label class="d-flex gap-2 small"><input class="form-check-input" type="radio" name="' + name + '" data-f="note" value="both"><span><%= i18n.__('leads.dupes.note_both') %></span></label></td></tr>' : "");
+    }).join("");
+    $("mg-rows").innerHTML = rows || '<tr><td colspan="3" class="text-muted small"><%= i18n.__('leads.dupes.same') %></td></tr>';
+    $("mg-moves").innerHTML = '<i class="fa-solid fa-circle-info me-1 text-primary"></i>' + esc("<%= i18n.__('leads.dupes.moves') %>".replace("{{a}}", d.other.n_activities).replace("{{f}}", d.other.n_files).replace("{{id}}", d.other.id));
+    mergeModal.show();
+}
+if ($("mg-ok")) $("mg-ok").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    const pick = {};
+    $("mg-rows").querySelectorAll("input[type=radio]:checked").forEach((r) => (pick[r.dataset.f] = r.value));
+    btn.disabled = true;
+    try {
+        await api("/api/leads/" + LEAD_ID + "/merge/", { other: mergeOther, pick, date_edit: $("lead-date-edit").value });
+        notyf.success("<%= i18n.__('leads.dupes.n.merged') %>");
+        setTimeout(() => location.reload(), 800);
+    } catch (err) {
+        notyf.error(err.message);
+        btn.disabled = false;
+    }
+});
+document.addEventListener("click", (e) => {
+    const el = e.target.closest('[data-action="merge-open"]');
+    if (el) openMerge(Number(el.dataset.id));
+});
+
+// ============================================================
+// СКОРИНГ: з чого склались бали (правила скорингу)
+// ============================================================
+async function scoreWhy() {
+    let d;
+    try { d = await api("/api/leads/" + LEAD_ID + "/score/"); }
+    catch (err) { return notyf.error(err.message); }
+    const part = (type, label, total) => {
+        const rows = d.items.filter((i) => i.type === type);
+        const body = !d.auto[type]
+            ? '<p class="small text-muted mb-0"><%= i18n.__('leads.scoring.manual_part') %></p>'
+            : rows.length
+                ? '<table class="table table-sm mb-0"><tbody>' + rows.map((i) => "<tr><td>" + esc(i.name) + (i.hits ? ' <small class="text-muted">×' + Number(i.hits) + "</small>" : "") + '</td><td class="text-end ' + (i.delta < 0 ? "text-danger" : "text-success") + '">' + (i.delta > 0 ? "+" : "") + Number(i.delta) + "</td></tr>").join("") + "</tbody></table>"
+                : '<p class="small text-muted mb-0"><%= i18n.__('leads.scoring.no_hits') %></p>';
+        return '<div class="mb-3"><div class="d-flex justify-content-between fw-semibold"><span>' + esc(label) + "</span><span>" + Number(total) + "</span></div>" + body + "</div>";
+    };
+    $("m-score-body").innerHTML = part("fit", "Fit Score", d.fit) + part("activity", "Activity Score", d.activity) +
+        '<div class="small text-muted"><%= i18n.__('leads.scoring.grades') %></div>';
+    bootstrap.Modal.getOrCreateInstance($("m-score")).show();
+}
+document.addEventListener("click", (e) => {
+    if (e.target.closest('[data-action="score-why"]')) scoreWhy();
+});
+
+// ============================================================
+// ЗБАГАЧЕННЯ: пропозиції з телефону, домену email і сайту компанії
+// ============================================================
+const ENRICH_FIELD = { website: "<%= i18n.__('leads.view.f.website') %>", "contact.phone": "<%= i18n.__('leads.rules.f.contact.phone') %>", "contact.company": "<%= i18n.__('leads.rules.f.contact.company') %>" };
+const ENRICH_SRC = { e164: "<%= i18n.__('leads.enrich.src.e164') %>", email: "<%= i18n.__('leads.enrich.src.email') %>", site: "<%= i18n.__('leads.enrich.src.site') %>" };
+let enrichData = null;
+async function openEnrich(btn) {
+    if (document.body.classList.contains("lead-editing")) return notyf.error("<%= i18n.__('leads.work.e.editing') %>");
+    btn.disabled = true;
+    try { enrichData = await api("/api/leads/" + LEAD_ID + "/enrich/"); }
+    catch (err) { btn.disabled = false; return notyf.error(err.message); }
+    btn.disabled = false;
+    const d = enrichData;
+    const s = (d.info && d.info.site) || null;
+    let html = d.suggestions.length
+        ? '<div class="section-title"><%= i18n.__('leads.enrich.suggestions') %></div><table class="table table-sm table-bordered align-middle"><tbody>' +
+          d.suggestions.map((x, i) => '<tr><td style="width:36px" class="text-center"><input class="form-check-input" type="checkbox" data-sg="' + i + '" checked></td><td class="small fw-semibold">' + esc(ENRICH_FIELD[x.field] || x.field) + '</td><td class="small">' + (x.current ? '<span class="text-muted text-decoration-line-through me-1">' + esc(x.current) + "</span>" : "") + esc(x.value) + '<div class="text-muted">' + esc(ENRICH_SRC[x.source] || x.source) + "</div></td></tr>").join("") +
+          "</tbody></table>"
+        : '<p class="text-muted small"><%= i18n.__('leads.enrich.nothing') %></p>';
+    const facts = [];
+    if (d.info && d.info.country) facts.push("<%= i18n.__('leads.enrich.country') %>: <strong>" + esc(d.info.country) + "</strong> (" + esc(d.info.phone_code) + ")");
+    if (d.email_type) facts.push("<%= i18n.__('leads.enrich.email') %>: " + (d.email_type === "corporate" ? "<%= i18n.__('leads.enrich.corporate') %>" : "<%= i18n.__('leads.enrich.free') %>"));
+    if (s && s.error) facts.push("<%= i18n.__('leads.enrich.site_error') %> (" + esc(s.error) + ")");
+    if (s && !s.error) {
+        if (s.title) facts.push("<%= i18n.__('leads.enrich.site_title') %>: " + esc(s.title));
+        if (s.description) facts.push("<%= i18n.__('leads.enrich.site_desc') %>: " + esc(s.description));
+        const soc = Object.entries(s.social || {}).map(([k, u]) => '<a href="' + esc(u) + '" target="_blank" rel="noopener noreferrer">' + esc(k) + "</a>");
+        if (soc.length) facts.push("<%= i18n.__('leads.enrich.social') %>: " + soc.join(", "));
+        if ((s.emails || []).length) facts.push("Email: " + s.emails.map(esc).join(", "));
+        if ((s.phones || []).length) facts.push("<%= i18n.__('leads.enrich.phones') %>: " + s.phones.map(esc).join(", "));
+    }
+    if (facts.length) html += '<div class="section-title mt-3"><%= i18n.__('leads.enrich.found') %></div><ul class="small mb-0">' + facts.map((f) => "<li>" + f + "</li>").join("") + "</ul>";
+    $("m-enrich-body").innerHTML = html;
+    $("enrich-apply").classList.toggle("d-none", !d.suggestions.length);
+    bootstrap.Modal.getOrCreateInstance($("m-enrich")).show();
+}
+if ($("enrich-apply")) $("enrich-apply").addEventListener("click", async (e) => {
+    const picked = [...$("m-enrich-body").querySelectorAll("[data-sg]:checked")].map((c) => enrichData.suggestions[Number(c.dataset.sg)]);
+    if (!picked.length) return bootstrap.Modal.getOrCreateInstance($("m-enrich")).hide();
+    // Застосування — звичайним збереженням ліда (історія, вебхуки, захист від одночасних змін)
+    const changes = {};
+    const contact = {};
+    root.querySelectorAll('[data-f^="contact."]').forEach((el) => (contact[el.dataset.f.slice(8)] = el.value.trim()));
+    let contactTouched = false;
+    picked.forEach((x) => {
+        if (x.field.startsWith("contact.")) { contact[x.field.slice(8)] = x.value; contactTouched = true; }
+        else changes[x.field] = x.value;
+    });
+    if (contactTouched) changes.contact_info = Object.fromEntries(Object.entries(contact).filter(([, v]) => v));
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try {
+        await api("/api/leads/" + LEAD_ID + "/save/", { date_edit: $("lead-date-edit").value, changes });
+        notyf.success("<%= i18n.__('leads.view.saved') %>");
+        setTimeout(() => location.reload(), 700);
+    } catch (err) {
+        notyf.error(err.message);
+        btn.disabled = false;
+    }
+});
+document.addEventListener("click", (e) => {
+    const b = e.target.closest('[data-action="enrich"]');
+    if (b) openEnrich(b);
+});
+
+renderView();
+})();
+</script>
+</body>
+</html>

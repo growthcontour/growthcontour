@@ -1,0 +1,640 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('modules.telegramshop.bc.title') %></title>
+		<%- include('../../../views/partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<style>
+			/* Таблиці — як «Статуси замовлень»: рамки між колонками й рядками */
+			#r-table .tabulator-col,
+			#r-table .tabulator-cell { border-right: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; }
+			#r-table .tabulator-col:last-child,
+			#r-table .tabulator-cell:last-child { border-right: none; }
+			#r-table .tabulator-row:last-child .tabulator-cell { border-bottom: none; }
+
+			.section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #6c757d; letter-spacing: 0.5px; margin-bottom: 4px; }
+			/* Попередній перегляд — як повідомлення в Telegram */
+			.tg-chat { background: #d9e4ee; padding: 16px; min-height: 260px; }
+			.tg-msg { background: #fff; max-width: 360px; box-shadow: 0 1px 1px rgba(0, 0, 0, 0.12); border-radius: 12px; overflow: hidden; font-size: 14px; line-height: 1.4; }
+			.tg-msg img { display: block; width: 100%; max-height: 300px; object-fit: cover; }
+			.tg-msg .tx { padding: 8px 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+			.tg-msg .tx a { color: #0057b8; }
+			.tg-msg .tx blockquote { border-left: 3px solid #0057b8; margin: 4px 0; padding-left: 8px; }
+			.tg-msg .tx code, .tg-msg .tx pre { font-family: monospace; background: #f1f3f6; }
+			.tg-btn { max-width: 360px; margin-top: 4px; background: rgba(0, 0, 0, 0.25); color: #fff; text-align: center; border-radius: 8px; padding: 7px 10px; font-size: 14px; }
+			.stat { border: 1px solid #dee2e6; padding: 10px 12px; }
+			.stat .v { font-size: 22px; font-weight: 600; }
+			.stat .l { font-size: 12px; color: #6c757d; }
+			.tb .btn { padding: 2px 8px; }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../views/partials/header'); %>
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span id="h-title"><%= i18n.__('modules.telegramshop.bc.new') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('modules.telegramshop.home') %></span></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/mailing/"><%= i18n.__('modules.telegramshop.bc.mailing') %></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <a href="/modules/telegramshop/broadcasts/"><%= i18n.__('modules.telegramshop.bc.title') %></a></li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto d-flex gap-2" id="actions"></div>
+				</div>
+			</div>
+		</div>
+
+		<main class="flex-shrink-0">
+			<div class="container-fluid pt-3 pb-5">
+				<div class="alert alert-danger rounded-0 small d-none" id="problems"></div>
+
+				<!-- Звіт (після запуску) -->
+				<div class="card border-primary rounded-0 mb-3 d-none" id="report">
+					<div class="card-header text-bg-primary rounded-0 d-flex justify-content-between align-items-center">
+						<span><%= i18n.__('modules.telegramshop.bc.report') %></span>
+						<span class="badge text-bg-light rounded-0" id="r-status"></span>
+					</div>
+					<div class="card-body">
+						<div class="row g-2 mb-3" id="r-stats"></div>
+						<div class="progress rounded-0 mb-3" style="height: 6px"><div class="progress-bar" id="r-progress" style="width: 0"></div></div>
+						<div class="d-flex gap-2 align-items-center mb-2">
+							<select class="form-select form-select-sm rounded-0 w-auto" id="r-filter">
+								<option value=""><%= i18n.__('modules.telegramshop.bc.all_recipients') %></option>
+								<% ['sent','queued','failed','blocked','cancelled'].forEach(function (s) { %><option value="<%= s %>"><%= i18n.__('modules.telegramshop.bc.ms.' + s) %></option><% }); %>
+								<option value="clicked"><%= i18n.__('modules.telegramshop.bc.ms.clicked') %></option>
+							</select>
+							<span class="small text-muted"><%= i18n.__('modules.telegramshop.bc.orders_hint') %></span>
+						</div>
+						<div class="card border-primary rounded-0">
+							<div class="card-header text-bg-primary rounded-0"><%= i18n.__('modules.telegramshop.bc.recipients') %></div>
+							<div id="r-table"></div>
+						</div>
+					</div>
+				</div>
+
+				<div class="row g-3">
+					<div class="col-xl-7">
+						<div class="card border-primary rounded-0 mb-3">
+							<div class="card-header text-bg-primary rounded-0"><%= i18n.__('modules.telegramshop.bc.s_main') %></div>
+							<div class="card-body">
+								<label class="section-title d-block" for="f-name"><%= i18n.__('modules.telegramshop.bc.f_name') %></label>
+								<input type="text" class="form-control rounded-0 mb-3" id="f-name" maxlength="255" />
+
+								<div class="section-title"><%= i18n.__('modules.telegramshop.bc.f_shops') %></div>
+								<div class="mb-1" id="f-shops">
+									<% shops.forEach(function (s) { %>
+									<div class="form-check form-check-inline">
+										<input class="form-check-input" type="checkbox" value="<%= s.id %>" id="sh-<%= s.id %>" />
+										<label class="form-check-label small" for="sh-<%= s.id %>"><%= s.name %><% if (s.bot_username) { %> <span class="text-muted">@<%= s.bot_username %></span><% } %><% if (s.status !== 'active') { %> <span class="badge text-bg-secondary rounded-0"><%= i18n.__('modules.telegramshop.st.' + s.status) %></span><% } %></label>
+									</div>
+									<% }); %>
+								</div>
+								<div class="form-text mt-0 mb-3"><%= i18n.__('modules.telegramshop.bc.shops_hint') %></div>
+
+								<div class="row g-2 mb-2">
+									<div class="col-sm-6">
+										<label class="section-title d-block" for="f-segment"><%= i18n.__('modules.telegramshop.bc.f_segment') %></label>
+										<select class="form-select rounded-0" id="f-segment">
+											<% segments.forEach(function (s) { %><option value="<%= s %>"><%= i18n.__('modules.telegramshop.bc.seg.' + s) %></option><% }); %>
+										</select>
+									</div>
+									<div class="col-sm-3 d-none" id="w-days">
+										<label class="section-title d-block" for="f-days"><%= i18n.__('modules.telegramshop.bc.f_days') %></label>
+										<input type="number" min="1" max="365" class="form-control rounded-0" id="f-days" value="30" />
+									</div>
+									<div class="col-sm-3">
+										<label class="section-title d-block" for="f-langs"><%= i18n.__('modules.telegramshop.bc.f_langs') %></label>
+										<input type="text" class="form-control rounded-0" id="f-langs" placeholder="uk, en" />
+									</div>
+								</div>
+								<div class="small"><i class="fa-solid fa-users me-1 text-primary"></i><%= i18n.__('modules.telegramshop.bc.audience') %>: <b id="a-count">…</b> <span class="text-muted" id="a-langs"></span></div>
+							</div>
+						</div>
+
+						<div class="card border-primary rounded-0 mb-3">
+							<div class="card-header text-bg-primary rounded-0"><%= i18n.__('modules.telegramshop.bc.s_message') %></div>
+							<div class="card-body">
+								<div class="section-title"><%= i18n.__('modules.telegramshop.bc.f_text') %></div>
+								<div class="tb d-flex flex-wrap gap-1 mb-1">
+									<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-wrap="b" title="Bold"><b>B</b></button>
+									<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-wrap="i" title="Italic"><i>I</i></button>
+									<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-wrap="u" title="Underline"><u>U</u></button>
+									<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-wrap="s" title="Strike"><s>S</s></button>
+									<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-wrap="tg-spoiler" title="Spoiler"><i class="fa-solid fa-eye-slash"></i></button>
+									<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-wrap="blockquote" title="Quote"><i class="fa-solid fa-quote-left"></i></button>
+									<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="t-link" title="Link"><i class="fa-solid fa-link"></i></button>
+									<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-ins="{first_name}">{first_name}</button>
+									<button type="button" class="btn btn-sm btn-outline-secondary rounded-0" data-ins="{promo}" title="<%= i18n.__('modules.telegramshop.bc.promo_hint') %>">{promo}</button>
+								</div>
+								<textarea class="form-control rounded-0 font-monospace" id="f-text" rows="8" maxlength="8000"></textarea>
+								<div class="d-flex justify-content-between form-text"><span><%= i18n.__('modules.telegramshop.bc.text_hint') %></span><span id="t-len"></span></div>
+
+								<div class="section-title mt-3"><%= i18n.__('modules.telegramshop.bc.f_promo') %></div>
+								<select class="form-select rounded-0" id="f-promo"><option value=""><%= i18n.__('modules.telegramshop.bc.promo_none') %></option></select>
+								<div class="form-text mt-0"><%= i18n.__('modules.telegramshop.bc.promo_hint') %> <a href="/orders/promo/" target="_blank"><%= i18n.__('modules.telegramshop.bc.promo_manage') %></a></div>
+
+								<div class="section-title mt-3"><%= i18n.__('modules.telegramshop.bc.f_photo') %></div>
+								<div class="input-group input-group-sm mb-1">
+									<input type="url" class="form-control rounded-0" id="f-photo" placeholder="https://…" />
+									<label class="btn btn-outline-primary rounded-0 mb-0"><i class="fa-solid fa-upload me-1"></i><%= i18n.__('modules.telegramshop.bc.upload') %><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" id="f-file" hidden /></label>
+									<button type="button" class="btn btn-outline-danger rounded-0" id="f-photo-clear" title="×"><i class="fa-solid fa-xmark"></i></button>
+								</div>
+								<div class="form-text mt-0"><%= i18n.__('modules.telegramshop.bc.photo_hint') %></div>
+
+								<div class="section-title mt-3"><%= i18n.__('modules.telegramshop.bc.f_button') %></div>
+								<div class="row g-2">
+									<div class="col-sm-5"><input type="text" class="form-control rounded-0" id="f-btn-text" maxlength="64" placeholder="<%= i18n.__('modules.telegramshop.bc.btn_text_ph') %>" /></div>
+									<div class="col-sm-7">
+										<select class="form-select rounded-0" id="f-btn-target">
+											<% targets.forEach(function (t) { %><option value="<%= t %>"><%= i18n.__('modules.telegramshop.bc.tg.' + t) %></option><% }); %>
+										</select>
+									</div>
+									<div class="col-12 d-none" id="w-product">
+										<input type="text" class="form-control rounded-0" id="f-product-q" placeholder="<%= i18n.__('modules.telegramshop.bc.product_ph') %>" autocomplete="off" />
+										<div class="list-group rounded-0" id="f-product-list"></div>
+										<div class="small mt-1" id="f-product-picked"></div>
+									</div>
+									<div class="col-12 d-none" id="w-url"><input type="url" class="form-control rounded-0" id="f-btn-url" placeholder="https://…" /></div>
+								</div>
+								<div class="form-text"><%= i18n.__('modules.telegramshop.bc.button_hint') %></div>
+							</div>
+						</div>
+
+						<div class="card border-primary rounded-0">
+							<div class="card-header text-bg-primary rounded-0"><%= i18n.__('modules.telegramshop.bc.s_send') %></div>
+							<div class="card-body">
+								<div class="form-check"><input class="form-check-input" type="radio" name="when" id="w-now" value="now" checked /><label class="form-check-label" for="w-now"><%= i18n.__('modules.telegramshop.bc.when_now') %></label></div>
+								<div class="form-check d-flex align-items-center gap-2">
+									<input class="form-check-input" type="radio" name="when" id="w-at" value="at" />
+									<label class="form-check-label" for="w-at"><%= i18n.__('modules.telegramshop.bc.when_at') %></label>
+									<input type="datetime-local" class="form-control form-control-sm rounded-0 w-auto" id="f-at" />
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="col-xl-5">
+						<div class="card border-primary rounded-0 sticky-top" style="top: 80px">
+							<div class="card-header text-bg-primary rounded-0"><%= i18n.__('modules.telegramshop.bc.preview') %></div>
+							<div class="tg-chat">
+								<div class="tg-msg" id="pv"></div>
+								<div class="tg-btn d-none" id="pv-btn"></div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</main>
+
+		<!-- Тест -->
+		<div class="modal fade" id="m-test" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5"><%= i18n.__('modules.telegramshop.bc.test') %></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<label class="section-title d-block" for="t-to"><%= i18n.__('modules.telegramshop.bc.test_to') %></label>
+						<input type="text" class="form-control rounded-0" id="t-to" placeholder="@username" />
+						<div class="form-text"><%= i18n.__('modules.telegramshop.bc.test_hint') %></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('modules.telegramshop.cancel') %></button>
+						<button type="button" class="btn btn-primary rounded-0" id="t-send"><%= i18n.__('modules.telegramshop.bc.test_send') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Підтвердження -->
+		<div class="modal fade" id="m-confirm" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content rounded-0">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5" id="c-title"></h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body"><p class="mb-0" id="c-text"></p></div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary rounded-0" data-bs-dismiss="modal"><%= i18n.__('modules.telegramshop.cancel') %></button>
+						<button type="button" class="btn btn-primary rounded-0" id="c-ok"></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../../views/partials/footer'); %>
+		<%- include('../../../views/partials/script'); %>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s === null || s === undefined ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const notyf = new Notyf({ position: { x: "right", y: "top" }, duration: 4500, types: [{ type: "success", dismissible: true, icon: false }, { type: "error", background: "indianred", dismissible: true, icon: false }] });
+				const L = <%- JSON.stringify(i18n.__('modules.telegramshop.bc')).replace(/</g, '\\u003c') %>;
+				const EDIT = <%= perms.edit ? 'true' : 'false' %>;
+				const API = "/api/module/telegramshop/broadcasts/";
+				let ID = <%= id %>;
+				let item = null;
+				let picked = null; // обраний товар для кнопки { id, name }
+				async function post(url, body) {
+					const r = await fetch(API + url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body || {}) });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok || j.ok === false) throw Object.assign(new Error(j.error || L.e_server), { fields: j.fields });
+					return j;
+				}
+
+				// ── Форма ↔ дані ──
+				function formData() {
+					const at = $("w-at").checked && $("f-at").value ? new Date($("f-at").value) : null;
+					return {
+						id: ID || null,
+						name: $("f-name").value,
+						audience: {
+							shops: [...document.querySelectorAll("#f-shops input:checked")].map((x) => Number(x.value)),
+							segment: $("f-segment").value,
+							days: Number($("f-days").value) || 30,
+							langs: $("f-langs").value.split(/[\s,;]+/).filter(Boolean),
+						},
+						message: {
+							text: $("f-text").value,
+							photo: $("f-photo").value.trim(),
+							promo_template: Number($("f-promo").value) || null,
+							button: { text: $("f-btn-text").value, target: $("f-btn-target").value, product: picked ? picked.id : null, url: $("f-btn-url").value.trim() },
+						},
+						// Дата — у UTC (сервер порівнює з UTC)
+						date_scheduled: at && !isNaN(at) ? at.toISOString() : null,
+					};
+				}
+				function fill(b) {
+					item = b;
+					$("h-title").textContent = b.name;
+					$("f-name").value = b.name;
+					const a = b.audience || {};
+					document.querySelectorAll("#f-shops input").forEach((x) => (x.checked = (a.shops || []).includes(Number(x.value))));
+					$("f-segment").value = a.segment || "all";
+					$("f-days").value = a.days || 30;
+					$("f-langs").value = (a.langs || []).join(", ");
+					const m = b.message || {};
+					$("f-text").value = m.text || "";
+					$("f-photo").value = m.photo || "";
+					promoWanted = m.promo_template || "";
+					$("f-promo").value = String(promoWanted);
+					const btn = m.button || {};
+					$("f-btn-text").value = btn.text || "";
+					$("f-btn-target").value = btn.target || "shop";
+					$("f-btn-url").value = btn.url || "";
+					picked = btn.product ? { id: btn.product, name: "#" + btn.product } : null;
+					if (b.date_scheduled) {
+						const d = new Date(String(b.date_scheduled).replace(" ", "T") + "Z");
+						const pad = (n) => String(n).padStart(2, "0");
+						$("f-at").value = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
+						$("w-at").checked = true;
+					} else $("w-now").checked = true;
+					const lock = !b.editable || !EDIT;
+					document.querySelectorAll("main input, main select, main textarea, main .tb button, #f-photo-clear").forEach((el) => {
+						if (el.id !== "r-filter") el.disabled = lock;
+					});
+					toggles();
+					preview();
+					actions();
+					report();
+				}
+
+				// ── Попередній перегляд ──
+				const ALLOWED = /^(b|strong|i|em|u|ins|s|strike|del|code|pre|blockquote|tg-spoiler|a)$/i;
+				function safe(html) {
+					// Як на сервері: лише теги Telegram, решта — текстом
+					return String(html || "").replace(/<\s*(\/?)\s*([a-z-]+)([^>]*)>|([^<]+)|(<)/gi, (all, close, tag, attrs, text, lt) => {
+						if (text !== undefined) return text.replace(/&(?!(amp|lt|gt|quot|#\d+);)/g, "&amp;").replace(/>/g, "&gt;");
+						if (lt) return "&lt;";
+						if (!ALLOWED.test(tag)) return esc(all);
+						tag = tag.toLowerCase();
+						if (tag === "tg-spoiler") return close ? "</span>" : '<span style="background:#ccc;color:#ccc" title="spoiler">';
+						if (tag === "a") {
+							if (close) return "</a>";
+							const href = (/href\s*=\s*["']([^"']+)["']/i.exec(attrs) || [])[1] || "";
+							return /^https?:\/\//i.test(href) ? '<a href="' + esc(href) + '" target="_blank" rel="noopener">' : "<a>";
+						}
+						return "<" + close + tag + ">";
+					});
+				}
+				const plainLen = (s) => String(s || "").replace(/<[^>]+>/g, "").length;
+				function preview() {
+					const pt = promos.find((x) => String(x.id) === $("f-promo").value);
+					const text = $("f-text").value.replace(/\{first_name\}/g, L.pv_name).replace(/\{promo\}/g, "<code>" + (pt ? pt.code.slice(0, 12) + "-K7P2QX" : "{promo}") + "</code>");
+					const photo = $("f-photo").value.trim();
+					$("pv").innerHTML = (photo ? '<img src="' + esc(photo) + '" alt="" onerror="this.style.display=\'none\'">' : "") + (text.trim() ? '<div class="tx">' + safe(text) + "</div>" : photo ? "" : '<div class="tx text-muted">' + esc(L.pv_empty) + "</div>");
+					const bt = $("f-btn-text").value.trim();
+					$("pv-btn").classList.toggle("d-none", !bt);
+					$("pv-btn").textContent = bt;
+					const n = plainLen($("f-text").value);
+					const max = photo ? 1024 : 4096;
+					$("t-len").textContent = n + " / " + max;
+					$("t-len").className = n > max ? "text-danger fw-bold" : "";
+				}
+
+				function toggles() {
+					$("w-days").classList.toggle("d-none", $("f-segment").value !== "inactive");
+					const t = $("f-btn-target").value;
+					$("w-product").classList.toggle("d-none", t !== "product");
+					$("w-url").classList.toggle("d-none", t !== "url");
+					$("f-product-picked").innerHTML = picked ? '<i class="fa-solid fa-check text-success me-1"></i>' + esc(picked.name) : "";
+				}
+
+				// ── Аудиторія: кількість наживо ──
+				let cTimer = null;
+				function recount() {
+					clearTimeout(cTimer);
+					cTimer = setTimeout(async () => {
+						try {
+							const r = await post("count/", { audience: formData().audience });
+							$("a-count").textContent = r.count;
+							$("a-langs").textContent = r.langs.length ? "(" + r.langs.map((l) => l.lang + ": " + l.n).join(", ") + ")" : "";
+						} catch (e) {
+							$("a-count").textContent = "—";
+						}
+					}, 300);
+				}
+
+				// ── Редактор тексту ──
+				const ta = $("f-text");
+				function wrap(open, close) {
+					const s = ta.selectionStart, e = ta.selectionEnd, v = ta.value;
+					ta.value = v.slice(0, s) + open + v.slice(s, e) + close + v.slice(e);
+					ta.focus();
+					ta.selectionStart = s + open.length;
+					ta.selectionEnd = e + open.length;
+					preview();
+				}
+				document.querySelectorAll("[data-wrap]").forEach((b) => b.addEventListener("click", () => wrap("<" + b.dataset.wrap + ">", "</" + b.dataset.wrap + ">")));
+				document.querySelectorAll("[data-ins]").forEach((b) => b.addEventListener("click", () => wrap(b.dataset.ins, "")));
+				$("t-link").addEventListener("click", () => {
+					const url = (ta.value.slice(ta.selectionStart, ta.selectionEnd).match(/^https?:\/\/\S+$/) || [])[0] || "https://";
+					wrap('<a href="' + url + '">', "</a>");
+				});
+				["input", "change"].forEach((ev) => {
+					["f-text", "f-photo", "f-btn-text"].forEach((id) => $(id).addEventListener(ev, preview));
+					["f-segment", "f-days", "f-langs"].forEach((id) => $(id).addEventListener(ev, () => (toggles(), recount())));
+				});
+				$("f-shops").addEventListener("change", recount);
+				$("f-btn-target").addEventListener("change", toggles);
+				$("f-at").addEventListener("change", () => ($("w-at").checked = true));
+
+				// Фото: завантаження через сховище зображень розсилок
+				$("f-file").addEventListener("change", async () => {
+					const f = $("f-file").files[0];
+					if (!f) return;
+					const fd = new FormData();
+					fd.append("file", f);
+					try {
+						const r = await fetch("/api/mailing/images/upload", { method: "POST", credentials: "same-origin", body: fd });
+						const j = await r.json().catch(() => ({}));
+						if (!r.ok || !j.url) throw new Error(j.message || L.e_upload);
+						$("f-photo").value = j.url;
+						preview();
+					} catch (e) {
+						notyf.error(e.message);
+					} finally {
+						$("f-file").value = "";
+					}
+				});
+				$("f-photo-clear").addEventListener("click", () => {
+					$("f-photo").value = "";
+					preview();
+				});
+
+				// Товар для кнопки
+				let pTimer = null;
+				$("f-product-q").addEventListener("input", () => {
+					clearTimeout(pTimer);
+					pTimer = setTimeout(async () => {
+						const q = $("f-product-q").value.trim();
+						if (!q) return ($("f-product-list").innerHTML = "");
+						const r = await post("products/", { q }).catch(() => ({ rows: [] }));
+						$("f-product-list").innerHTML = r.rows.map((p) => '<button type="button" class="list-group-item list-group-item-action small" data-p="' + p.id + '" data-n="' + esc(p.name) + '">#' + p.id + " · " + esc(p.name) + (p.sku ? ' <span class="text-muted">' + esc(p.sku) + "</span>" : "") + "</button>").join("");
+					}, 300);
+				});
+				$("f-product-list").addEventListener("click", (e) => {
+					const b = e.target.closest("[data-p]");
+					if (!b) return;
+					picked = { id: Number(b.dataset.p), name: b.dataset.n };
+					$("f-product-list").innerHTML = "";
+					$("f-product-q").value = "";
+					toggles();
+				});
+
+				// ── Дії ──
+				const mConfirm = bootstrap.Modal.getOrCreateInstance($("m-confirm"));
+				let confirmFn = null;
+				function confirmBox(title, text, okText, fn, danger) {
+					$("c-title").textContent = title;
+					$("c-text").textContent = text;
+					$("c-ok").textContent = okText;
+					$("c-ok").className = "btn rounded-0 " + (danger ? "btn-danger" : "btn-primary");
+					confirmFn = fn;
+					mConfirm.show();
+				}
+				$("c-ok").addEventListener("click", async () => {
+					$("c-ok").disabled = true;
+					try {
+						if (confirmFn) await confirmFn();
+						mConfirm.hide();
+					} catch (e) {
+						notyf.error(e.message);
+					} finally {
+						$("c-ok").disabled = false;
+					}
+				});
+				function showProblems(list) {
+					const box = $("problems");
+					box.classList.toggle("d-none", !list || !list.length);
+					box.innerHTML = list && list.length ? "<b>" + esc(L.problems) + "</b><ul class='mb-0'>" + list.map((p) => "<li>" + esc((L.pr || {})[p] || p) + "</li>").join("") + "</ul>" : "";
+				}
+				async function save(quiet) {
+					const r = await post("save/", formData());
+					if (!ID) {
+						ID = r.item.id;
+						history.replaceState(null, "", "/modules/telegramshop/broadcasts/" + ID + "/");
+					}
+					fill(r.item);
+					if (!quiet) notyf.success(L.saved);
+					return r.item;
+				}
+				const act = (name) => async () => {
+					const r = await post(ID + "/" + name + "/");
+					if (r.item) fill(r.item);
+					return r;
+				};
+				function actions() {
+					const box = $("actions");
+					const b = item || { status: "draft", editable: true };
+					const btn = (id, icon, text, cls) => '<button type="button" class="btn ' + (cls || "btn-outline-primary") + ' rounded-0" id="' + id + '"><i class="fa-solid ' + icon + ' me-1"></i>' + esc(text) + "</button>";
+					let h = '<a href="/modules/telegramshop/broadcasts/" class="btn btn-primary rounded-0"><i class="fa-solid fa-angle-left"></i></a>';
+					if (EDIT) {
+						if (b.editable) h += btn("a-save", "fa-floppy-disk", L.save, "btn-primary");
+						if (ID) h += btn("a-test", "fa-paper-plane", L.test);
+						if (b.status === "draft" || b.status === "failed") h += btn("a-launch", "fa-rocket", L.launch, "btn-success");
+						if (b.status === "scheduled") h += btn("a-unschedule", "fa-clock-rotate-left", L.unschedule);
+						if (b.status === "sending") h += btn("a-pause", "fa-pause", L.pause);
+						if (b.status === "paused") h += btn("a-resume", "fa-play", L.resume);
+						if (["scheduled", "sending", "paused"].includes(b.status)) h += btn("a-cancel", "fa-ban", L.cancel_send, "btn-outline-danger");
+						if (ID) h += btn("a-copy", "fa-copy", L.copy);
+						if (ID && !["preparing", "sending"].includes(b.status)) h += btn("a-delete", "fa-trash", L.delete, "btn-outline-danger");
+					}
+					box.innerHTML = h;
+					const on = (id, fn) => $(id) && $(id).addEventListener("click", fn);
+					on("a-save", () => save().catch((e) => notyf.error(e.message)));
+					on("a-test", async () => {
+						try {
+							if (item && item.editable) await save(true);
+							bootstrap.Modal.getOrCreateInstance($("m-test")).show();
+						} catch (e) {
+							notyf.error(e.message);
+						}
+					});
+					on("a-launch", async () => {
+						try {
+							await save(true);
+							const ch = await post(ID + "/check/");
+							showProblems(ch.problems);
+							if (!ch.ok) return;
+							const when = item.date_scheduled ? new Date(String(item.date_scheduled).replace(" ", "T") + "Z").toLocaleString() : null;
+							confirmBox(L.launch, (when ? L.launch_at_q.replace("{{date}}", when) : L.launch_q).replace("{{n}}", ch.count), L.launch, async () => {
+								try {
+									await act("launch")();
+									notyf.success(when ? L.scheduled_ok : L.launched);
+								} catch (e) {
+									showProblems(e.fields);
+									throw e;
+								}
+							});
+						} catch (e) {
+							showProblems(e.fields);
+							notyf.error(e.message);
+						}
+					});
+					on("a-unschedule", () => act("unschedule")().catch((e) => notyf.error(e.message)));
+					on("a-pause", () => act("pause")().catch((e) => notyf.error(e.message)));
+					on("a-resume", () => act("resume")().catch((e) => notyf.error(e.message)));
+					on("a-cancel", () => confirmBox(L.cancel_send, L.cancel_q, L.cancel_send, act("cancel"), true));
+					on("a-copy", async () => {
+						try {
+							const r = await post(ID + "/copy/");
+							location.href = "/modules/telegramshop/broadcasts/" + r.item.id + "/";
+						} catch (e) {
+							notyf.error(e.message);
+						}
+					});
+					on("a-delete", () =>
+						confirmBox(L.delete, L.delete_q, L.delete, async () => {
+							await post(ID + "/delete/");
+							location.href = "/modules/telegramshop/broadcasts/";
+						}, true)
+					);
+				}
+				$("t-send").addEventListener("click", async () => {
+					$("t-send").disabled = true;
+					try {
+						const r = await post(ID + "/test/", { to: $("t-to").value });
+						bootstrap.Modal.getOrCreateInstance($("m-test")).hide();
+						notyf.success(L.test_ok.replace("{{to}}", r.to).replace("{{shop}}", r.shop));
+					} catch (e) {
+						notyf.error(e.message);
+					} finally {
+						$("t-send").disabled = false;
+					}
+				});
+
+				// ── Звіт ──
+				let rTable = null;
+				const pct = (a, b) => (b ? Math.round((a / b) * 1000) / 10 + "%" : "—");
+				function report() {
+					const b = item;
+					const show = b && !["draft"].includes(b.status) && (b.cnt_total || b.status !== "scheduled");
+					$("report").classList.toggle("d-none", !show);
+					if (!show) return;
+					$("r-status").textContent = (L.st || {})[b.status] || b.status;
+					const done = b.cnt_sent + b.cnt_failed + b.cnt_blocked;
+					$("r-progress").style.width = (b.cnt_total ? Math.min(100, (done / b.cnt_total) * 100) : 0) + "%";
+					const money = (n) => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+					const cell = (v, l, sub) => '<div class="col-6 col-md-4 col-xxl-2"><div class="stat"><div class="v">' + esc(v) + (sub ? ' <span class="small text-muted">' + esc(sub) + "</span>" : "") + '</div><div class="l">' + esc(l) + "</div></div></div>";
+					$("r-stats").innerHTML =
+						cell(b.cnt_total, L.c_total) +
+						cell(b.cnt_sent, L.c_sent, pct(b.cnt_sent, b.cnt_total)) +
+						cell(b.cnt_clicked, L.c_clicked, pct(b.cnt_clicked, b.cnt_sent)) +
+						cell(b.cnt_blocked, L.c_blocked, pct(b.cnt_blocked, b.cnt_total)) +
+						cell(b.cnt_failed, L.c_failed) +
+						cell(b.cnt_orders, L.c_orders, b.sum_orders ? money(b.sum_orders) : "");
+					if (b.last_error) $("r-stats").insertAdjacentHTML("beforeend", '<div class="col-12 small text-danger">' + esc(b.last_error) + "</div>");
+					if (!rTable) {
+						rTable = new Tabulator("#r-table", {
+							layout: "fitColumns",
+							pagination: true,
+							paginationSize: 10,
+							paginationSizeSelector: [10, 20, 30, 40],
+							movableColumns: true,
+							columnDefaults: { headerSort: false },
+							placeholder: L.empty_recipients,
+							columns: [
+								{ title: L.r_who, field: "username", widthGrow: 3, minWidth: 180, formatter: (c) => { const d = c.getRow().getData(); return esc([d.first_name, d.last_name].filter(Boolean).join(" ") || "—") + (d.username ? ' <span class="text-muted">@' + esc(d.username) + "</span>" : "") + (d.id_client ? ' <a href="/clients/' + d.id_client + '/" target="_blank"><i class="fa-solid fa-user"></i></a>' : ""); } },
+								{ title: L.r_shop, field: "shop", width: 160, formatter: (c) => esc(c.getValue()) },
+								{ title: L.f_status, field: "status", width: 150, formatter: (c) => esc((L.ms || {})[c.getValue()] || c.getValue()) + (c.getRow().getData().error ? ' <i class="fa-solid fa-circle-info text-muted" title="' + esc(c.getRow().getData().error) + '"></i>' : "") },
+								{ title: L.r_promo, field: "promo_code", width: 160, formatter: (c) => (c.getValue() ? '<code>' + esc(c.getValue()) + "</code>" : "") },
+								{ title: L.r_sent, field: "date_sent", width: 160, formatter: (c) => esc(c.getValue() || "") },
+								{ title: L.r_clicked, field: "date_clicked", width: 160, formatter: (c) => (c.getValue() ? '<i class="fa-solid fa-check text-success me-1"></i>' + esc(c.getValue()) : "") },
+							],
+						});
+						rTable.on("tableBuilt", loadRecipients);
+					} else loadRecipients();
+				}
+				function loadRecipients() {
+					if (!ID || !rTable) return;
+					const f = $("r-filter").value;
+					post(ID + "/recipients/", f === "clicked" ? { clicked: 1 } : { status: f }).then((r) => rTable.replaceData(r.rows)).catch(() => {});
+				}
+				$("r-filter").addEventListener("change", loadRecipients);
+				// Поки йде відправка — оновлювати
+				setInterval(async () => {
+					if (!ID || !item || !["scheduled", "preparing", "sending"].includes(item.status)) return;
+					try {
+						const r = await post(ID + "/get/");
+						item = r.item;
+						actions();
+						report();
+					} catch (e) {}
+				}, 5000);
+
+				// Шаблони персональних промокодів
+				let promos = [];
+				let promoWanted = "";
+				post("promos/")
+					.then((r) => {
+						promos = r.rows;
+						const cur = $("f-promo").value || String(promoWanted || "");
+						$("f-promo").insertAdjacentHTML("beforeend", promos.map((p) => '<option value="' + p.id + '">' + esc(p.code + (p.name ? " · " + p.name : "") + " (" + (p.type === "percent" ? Number(p.value) + "%" : p.type === "fixed" ? Number(p.value) + " " + (p.currency || "") : L.promo_free_ship) + ")") + "</option>").join(""));
+						$("f-promo").value = cur;
+						preview();
+					})
+					.catch(() => {});
+				$("f-promo").addEventListener("change", preview);
+
+				// ── Старт ──
+				if (ID) post(ID + "/get/").then((r) => (fill(r.item), recount())).catch((e) => notyf.error(e.message));
+				else {
+					fill({ name: L.default_name, status: "draft", editable: true, audience: { segment: "all", shops: <%- JSON.stringify(shops.filter(function (s) { return s.status === 'active'; }).map(function (s) { return s.id; })) %> }, message: { text: "", button: { text: L.default_button, target: "shop" } } });
+					recount();
+				}
+			})();
+		</script>
+	</body>
+</html>

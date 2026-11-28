@@ -1,0 +1,675 @@
+<!doctype html>
+<html class="h-100" lang="<%= i18n.__('lang_iso') %>">
+	<head>
+		<title><%= i18n.__('system.title') %></title>
+		<%- include('../../../partials/head'); %>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
+		<link href="/assets/css/tabulator/tabulator.min.css" rel="stylesheet" />
+		<link href="/assets/css/tabulator/tabulator_bootstrap5.min.css" rel="stylesheet" />
+		<style>
+			.kv { display: flex; justify-content: space-between; gap: 1rem; padding: 3px 0; border-bottom: 1px dashed var(--bs-border-color); font-size: 13px; }
+			.kv:last-child { border-bottom: 0; }
+			.kv span:first-child { color: var(--bs-secondary-color); }
+			.q-card .num, .m-card .num { font-size: 22px; font-weight: 600; line-height: 1; }
+			.m-card .lbl { font-size: 12px; color: var(--bs-secondary-color); }
+			.lv { font-size: 11px; }
+			.sys-chart { height: 240px; }
+			#d-body pre { max-height: 50vh; overflow: auto; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+			.tabulator .tabulator-cell { font-size: 13px; }
+			.live-dot { width: 8px; height: 8px; border-radius: 50%; background: #198754; display: inline-block; animation: blink 1s infinite; }
+			@keyframes blink { 50% { opacity: 0.2; } }
+		</style>
+	</head>
+	<body class="d-flex flex-column h-100">
+		<%- include('../../../partials/header'); %>
+
+		<div class="breadcrumbs pt-3 pb-3">
+			<div class="container-fluid">
+				<div class="row align-items-center">
+					<div class="col">
+						<span><%= i18n.__('system.title') %></span>
+						<div>
+							<ul class="list-inline mb-0">
+								<li class="list-inline-item"><a href="/"><i class="fas fa-home"></i> <span><%= i18n.__('system.home') %></span></a></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= i18n.__('header.nav.settings') %></li>
+								<li class="list-inline-item"><i class="fas fa-chevron-right"></i> <%= i18n.__('system.title') %></li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-auto d-flex align-items-center gap-2">
+						<div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="auto" checked /><label class="form-check-label small" for="auto"><%= i18n.__('system.auto') %></label></div>
+						<button type="button" class="btn btn-outline-primary rounded-0" id="refresh" title="<%= i18n.__('system.refresh') %>"><i class="fa-solid fa-rotate"></i></button>
+						<a href="/audit/" class="btn btn-outline-primary rounded-0"><i class="fa-solid fa-user-shield me-1"></i><%= i18n.__('system.audit') %></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container-fluid mt-3 mb-4">
+			<ul class="nav nav-tabs" role="tablist" id="tabs">
+				<li class="nav-item"><button class="nav-link active rounded-0" data-bs-toggle="tab" data-bs-target="#t-overview"><i class="fa-solid fa-gauge me-1"></i><%= i18n.__('system.t_overview') %></button></li>
+				<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#t-errors"><i class="fa-solid fa-bug me-1"></i><%= i18n.__('system.t_errors') %> <span class="badge text-bg-danger rounded-0 d-none" id="b-errors"></span></button></li>
+				<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#t-logs"><i class="fa-solid fa-file-lines me-1"></i><%= i18n.__('system.t_logs') %></button></li>
+				<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#t-perf"><i class="fa-solid fa-stopwatch me-1"></i><%= i18n.__('system.t_perf') %></button></li>
+				<li class="nav-item"><button class="nav-link rounded-0" data-bs-toggle="tab" data-bs-target="#t-queues"><i class="fa-solid fa-layer-group me-1"></i><%= i18n.__('system.t_queues') %> <span class="badge text-bg-danger rounded-0 d-none" id="b-failed"></span></button></li>
+			</ul>
+			<div class="tab-content border border-top-0 p-3">
+				<!-- ═══ Огляд ═══ -->
+				<div class="tab-pane fade show active" id="t-overview">
+					<div class="row g-2 mb-3" id="ov-alerts"></div>
+					<div class="row g-2 mb-3" id="ov-metrics"></div>
+					<div class="row g-3 mb-3">
+						<div class="col-xl-6"><div class="card rounded-0 h-100"><div class="card-header py-2 fw-semibold"><%= i18n.__('system.ch_requests') %></div><div class="card-body p-2"><div class="sys-chart" id="ch-requests"></div></div></div></div>
+						<div class="col-xl-6"><div class="card rounded-0 h-100"><div class="card-header py-2 fw-semibold"><%= i18n.__('system.ch_errors') %></div><div class="card-body p-2"><div class="sys-chart" id="ch-errors"></div></div></div></div>
+					</div>
+					<div class="row g-3">
+						<div class="col-lg-4"><div class="card border-primary rounded-0 h-100"><div class="card-header text-bg-primary rounded-0"><i class="fa-solid fa-server me-1"></i><%= i18n.__('system.server') %></div><div class="card-body" id="ov-server"></div></div></div>
+						<div class="col-lg-4"><div class="card border-primary rounded-0 h-100"><div class="card-header text-bg-primary rounded-0"><i class="fa-solid fa-database me-1"></i><%= i18n.__('system.db') %></div><div class="card-body" id="ov-db"></div></div></div>
+						<div class="col-lg-4"><div class="card border-primary rounded-0 h-100"><div class="card-header text-bg-primary rounded-0"><i class="fa-solid fa-clock-rotate-left me-1"></i><%= i18n.__('system.jobs') %></div><div class="card-body" id="ov-jobs"></div></div></div>
+						<div class="col-12"><div class="card border-primary rounded-0"><div class="card-header text-bg-primary rounded-0"><i class="fa-solid fa-layer-group me-1"></i><%= i18n.__('system.t_queues') %></div><div class="card-body"><div class="row g-2" id="ov-queues"></div></div></div></div>
+					</div>
+				</div>
+
+				<!-- ═══ Помилки ═══ -->
+				<div class="tab-pane fade" id="t-errors">
+					<div class="alert alert-warning rounded-0 small d-none" id="e-missing"><%= i18n.__('system.e_missing') %></div>
+					<div class="d-flex flex-wrap align-items-end gap-2 mb-2">
+						<div class="btn-group btn-group-sm" id="e-status">
+							<% ['open', 'resolved', 'ignored', ''].forEach(function (s, i) { %><button type="button" class="btn btn-outline-secondary rounded-0<%= i === 0 ? ' active' : '' %>" data-status="<%= s %>"><%= i18n.__('system.es.' + (s || 'all')) %> <span class="badge text-bg-light" data-count="<%= s %>"></span></button><% }); %>
+						</div>
+						<select class="form-select form-select-sm rounded-0 w-auto" id="e-module"><option value=""><%= i18n.__('system.module') %>: <%= i18n.__('system.all') %></option></select>
+						<select class="form-select form-select-sm rounded-0 w-auto" id="e-sort">
+							<option value="last"><%= i18n.__('system.sort_last') %></option>
+							<option value="count"><%= i18n.__('system.sort_count') %></option>
+							<option value="first"><%= i18n.__('system.sort_first') %></option>
+						</select>
+						<input type="search" class="form-control form-control-sm rounded-0 w-auto flex-grow-1" id="e-q" placeholder="<%= i18n.__('system.search_ph') %>" />
+						<% if (perms.edit) { %>
+						<div class="btn-group btn-group-sm">
+							<button type="button" class="btn btn-success rounded-0" data-set="resolved" disabled><i class="fa-solid fa-check me-1"></i><%= i18n.__('system.mark_resolved') %></button>
+							<button type="button" class="btn btn-outline-secondary rounded-0" data-set="ignored" disabled><i class="fa-solid fa-eye-slash me-1"></i><%= i18n.__('system.mark_ignored') %></button>
+							<button type="button" class="btn btn-outline-primary rounded-0" data-set="open" disabled><i class="fa-solid fa-rotate-left me-1"></i><%= i18n.__('system.mark_open') %></button>
+						</div>
+						<button type="button" class="btn btn-sm btn-danger rounded-0" id="e-delete" disabled><i class="fa-regular fa-trash-can me-1"></i><%= i18n.__('system.delete_selected') %></button>
+						<button type="button" class="btn btn-sm btn-outline-danger rounded-0" id="e-purge" title="<%= i18n.__('system.purge_hint') %>"><i class="fa-regular fa-trash-can"></i></button>
+						<% } %>
+					</div>
+					<div id="e-table"></div>
+				</div>
+
+				<!-- ═══ Журнали ═══ -->
+				<div class="tab-pane fade" id="t-logs">
+					<div class="d-flex flex-wrap align-items-end gap-2 mb-2">
+						<div><label class="form-label small mb-1"><%= i18n.__('system.category') %></label>
+							<select class="form-select form-select-sm rounded-0" id="l-cat">
+								<% ['app', 'error', 'http', 'cart', 'legacy'].forEach(function (c) { %><option value="<%= c %>"><%= i18n.__('system.cat.' + c) %></option><% }); %>
+							</select></div>
+						<div><label class="form-label small mb-1"><%= i18n.__('system.day') %></label><select class="form-select form-select-sm rounded-0" id="l-file"></select></div>
+						<div><label class="form-label small mb-1"><%= i18n.__('system.level') %></label>
+							<select class="form-select form-select-sm rounded-0" id="l-level">
+								<option value=""><%= i18n.__('system.all') %></option>
+								<option value=">=warn"><%= i18n.__('system.warn_up') %></option>
+								<% ['fatal', 'error', 'warn', 'info', 'debug', 'raw'].forEach(function (l) { %><option value="<%= l %>"><%= l %></option><% }); %>
+							</select></div>
+						<div><label class="form-label small mb-1"><%= i18n.__('system.module') %></label><select class="form-select form-select-sm rounded-0" id="l-module"><option value=""><%= i18n.__('system.all') %></option></select></div>
+						<div><label class="form-label small mb-1"><%= i18n.__('system.from') %></label><input type="time" class="form-control form-control-sm rounded-0" id="l-from" /></div>
+						<div><label class="form-label small mb-1"><%= i18n.__('system.to') %></label><input type="time" class="form-control form-control-sm rounded-0" id="l-to" /></div>
+						<div class="flex-grow-1"><label class="form-label small mb-1"><%= i18n.__('system.search') %></label><input class="form-control form-control-sm rounded-0" id="l-q" placeholder="<%= i18n.__('system.search_ph_log') %>" /></div>
+						<button type="button" class="btn btn-sm btn-primary rounded-0" id="l-apply"><i class="fa-solid fa-magnifying-glass"></i></button>
+						<button type="button" class="btn btn-sm btn-outline-success rounded-0" id="l-live" title="<%= i18n.__('system.live_hint') %>"><i class="fa-solid fa-play me-1"></i><%= i18n.__('system.live') %></button>
+						<a class="btn btn-sm btn-outline-secondary rounded-0" id="l-download" href="#"><i class="fa-solid fa-download me-1"></i><%= i18n.__('system.download') %></a>
+						<% if (perms.edit) { %><button type="button" class="btn btn-sm btn-outline-danger rounded-0" id="l-clear"><i class="fa-regular fa-trash-can me-1"></i><%= i18n.__('system.clear') %></button><% } %>
+					</div>
+					<div class="small text-muted mb-2" id="l-info"></div>
+					<div id="l-table"></div>
+				</div>
+
+				<!-- ═══ Продуктивність ═══ -->
+				<div class="tab-pane fade" id="t-perf">
+					<div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+						<div class="small text-muted me-auto" id="p-info"></div>
+						<input type="search" class="form-control form-control-sm rounded-0 w-auto" id="p-q" placeholder="<%= i18n.__('system.route_filter') %>" />
+						<% if (perms.edit) { %><button type="button" class="btn btn-sm btn-outline-danger rounded-0" id="p-reset"><i class="fa-solid fa-eraser me-1"></i><%= i18n.__('system.reset_metrics') %></button><% } %>
+					</div>
+					<div class="card rounded-0 mb-3"><div class="card-header py-2 fw-semibold"><%= i18n.__('system.routes') %></div><div class="card-body p-0"><div id="p-routes"></div></div></div>
+					<div class="card rounded-0"><div class="card-header py-2 fw-semibold"><%= i18n.__('system.slow_sql') %></div><div class="card-body p-0"><div id="p-sql"></div></div></div>
+				</div>
+
+				<!-- ═══ Черги ═══ -->
+				<div class="tab-pane fade" id="t-queues">
+					<div class="d-flex flex-wrap gap-2 mb-2">
+						<select class="form-select form-select-sm rounded-0 w-auto" id="q-key"><% queues.forEach(function (k) { %><option value="<%= k %>"><%= i18n.__('system.q.' + k) %></option><% }); %></select>
+						<select class="form-select form-select-sm rounded-0 w-auto" id="q-status">
+							<% ['failed', 'pending', 'processing', 'done', 'sent'].forEach(function (s) { %><option value="<%= s %>"><%= i18n.__('system.st.' + s) %></option><% }); %>
+						</select>
+						<% if (perms.edit) { %>
+						<button type="button" class="btn btn-sm btn-outline-primary rounded-0" id="q-retry-sel" disabled><i class="fa-solid fa-rotate-right me-1"></i><%= i18n.__('system.retry_selected') %></button>
+						<button type="button" class="btn btn-sm btn-primary rounded-0" id="q-retry-all"><i class="fa-solid fa-rotate-right me-1"></i><%= i18n.__('system.retry_all') %></button>
+						<% } %>
+					</div>
+					<div id="q-table"></div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Деталі: запис журналу / помилка / помилка черги -->
+		<div class="modal fade" id="m-detail" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-xl modal-dialog-scrollable">
+				<div class="modal-content rounded-0">
+					<div class="modal-header"><h1 class="modal-title fs-6 text-break" id="m-title"></h1><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+					<div class="modal-body" id="d-body"></div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary rounded-0 me-auto d-none" id="m-trace"><i class="fa-solid fa-route me-1"></i><%= i18n.__('system.trace') %></button>
+						<button type="button" class="btn btn-outline-secondary rounded-0" id="m-copy"><i class="fa-regular fa-copy me-1"></i><%= i18n.__('system.copy') %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<%- include('../../../partials/footer'); %>
+		<%- include('../../../partials/script'); %>
+		<script src="/assets/js/notyf/notyf.min.js"></script>
+		<script src="/assets/js/tabulator/tabulator.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js"></script>
+		<script>
+			(function () {
+				"use strict";
+				const L = <%- JSON.stringify(i18n.__('system')).replace(/</g, '\\u003c') %>;
+				const EDIT = <%- perms.edit ? "true" : "false" %>;
+				const notyf = new Notyf({ duration: 4000, position: { x: "right", y: "top" }, types: [{ type: "error", background: "indianred" }] });
+				const $ = (id) => document.getElementById(id);
+				const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+				const bytes = (n) => { n = Number(n) || 0; const u = ["B", "KB", "MB", "GB", "TB"]; let i = 0; while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; } return n.toFixed(i ? 1 : 0) + " " + u[i]; };
+				const dur = (s) => { s = Number(s) || 0; const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60); return (d ? d + L.d + " " : "") + (h ? h + L.h + " " : "") + m + L.m; };
+				const dt = (v) => (v ? new Date(v).toLocaleString() : "—");
+				const ago = (v) => { if (!v) return "—"; const s = Math.max(0, Math.round((Date.now() - new Date(v).getTime()) / 1000)); return s < 60 ? s + " " + L.sec_ago : s < 3600 ? Math.round(s / 60) + L.m + " " + L.ago : s < 86400 ? Math.round(s / 3600) + L.h + " " + L.ago : dt(v); };
+				const kv = (k, v, cls) => `<div class="kv"><span>${esc(k)}</span><span class="${cls || ""}">${v}</span></div>`;
+				const num = (v) => (Number(v) || 0).toLocaleString("uk-UA");
+				const LV = { fatal: "dark", error: "danger", warn: "warning", info: "info", debug: "secondary", raw: "light" };
+				const fill = (s, vars) => String(s).replace(/%(\w+)/g, (m, k) => (vars[k] !== undefined ? vars[k] : m));
+
+				async function post(url, body) {
+					const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+					const r = await res.json().catch(() => ({}));
+					if (!res.ok || r.ok === false) throw new Error(r.error || "Error " + res.status);
+					return r;
+				}
+
+				/* ─── Деталі ─── */
+				let traceId = null;
+				function detail(title, html, copyText, reqId) {
+					$("m-title").textContent = title;
+					$("d-body").innerHTML = html;
+					$("m-copy").dataset.text = copyText;
+					traceId = reqId || null;
+					$("m-trace").classList.toggle("d-none", !traceId);
+					bootstrap.Modal.getOrCreateInstance($("m-detail")).show();
+				}
+				const pre = (v) => `<pre class="bg-body-tertiary border p-2 mb-2">${esc(typeof v === "string" ? v : JSON.stringify(v, null, 2))}</pre>`;
+				$("m-copy").addEventListener("click", () => navigator.clipboard.writeText($("m-copy").dataset.text || "").then(() => notyf.success(L.copied)));
+				// Усі записи журналу того самого запиту (req_id) — у вкладці «Журнали»
+				$("m-trace").addEventListener("click", () => {
+					bootstrap.Modal.getInstance($("m-detail")).hide();
+					$("l-cat").value = "app";
+					fillFiles();
+					$("l-level").value = "";
+					$("l-module").value = "";
+					$("l-q").value = traceId;
+					bootstrap.Tab.getOrCreateInstance(document.querySelector('[data-bs-target="#t-logs"]')).show();
+					reloadLogs();
+				});
+
+				/* ─── Графіки ─── */
+				const charts = {};
+				const chart = (id) => charts[id] || (charts[id] = echarts.init($(id), document.documentElement.getAttribute("data-bs-theme") === "dark" ? "dark" : null));
+				window.addEventListener("resize", () => Object.values(charts).forEach((c) => c.resize()));
+				document.querySelectorAll('[data-bs-toggle="tab"]').forEach((t) => t.addEventListener("shown.bs.tab", () => Object.values(charts).forEach((c) => c.resize())));
+				const hm = (t) => { const d = new Date(t); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
+
+				/* ─── Огляд ─── */
+				let files = [];
+				async function overview() {
+					let r;
+					try {
+						r = await post("/api/settings/system/overview/");
+					} catch (e) {
+						return notyf.error(e.message);
+					}
+					const s = r.server, db = r.db;
+					const memPct = Math.round((1 - s.mem_free / s.mem_total) * 100);
+					const diskPct = s.disk ? Math.round((1 - s.disk.free / s.disk.total) * 100) : null;
+					const pool = (r.pools || {}).promise;
+
+					// Останні 15 хвилин — головні цифри
+					const last = (r.minutes || []).slice(-15);
+					const sum = (k) => last.reduce((a, b) => a + (b[k] || 0), 0);
+					const req15 = sum("req");
+					const avg15 = req15 ? Math.round(last.reduce((a, b) => a + b.avg * b.req, 0) / req15) : 0;
+					const metricCards = [
+						[L.m_rpm, (req15 / Math.max(1, last.length)).toFixed(1), ""],
+						[L.m_avg, avg15 + " ms", avg15 > 800 ? "text-danger" : ""],
+						[L.m_5xx, sum("err5"), sum("err5") ? "text-danger" : "text-success"],
+						[L.m_errors_day, r.errors_day, r.errors_day ? "text-danger" : "text-success"],
+						[L.m_open_groups, (r.error_groups.open || {}).n || 0, (r.error_groups.open || {}).n ? "text-danger" : "text-success"],
+						[L.m_loop, r.loop.p99 + " ms", r.loop.p99 > 200 ? "text-danger" : r.loop.p99 > 50 ? "text-warning" : ""],
+						[L.m_pool, pool ? `${pool.all - pool.free} / ${pool.limit}` + (pool.queue ? ` · ${L.queue} ${pool.queue}` : "") : "—", pool && pool.queue ? "text-danger" : ""],
+						[L.m_sql_slow, sum("sql_slow"), sum("sql_slow") ? "text-warning" : ""],
+					];
+					$("ov-metrics").innerHTML = metricCards.map(([l, v, c]) => `<div class="col-6 col-md-3 col-xl"><div class="border p-2 m-card h-100"><div class="lbl">${esc(l)}</div><div class="num ${c}">${esc(v)}</div></div></div>`).join("");
+
+					$("ov-server").innerHTML =
+						kv(L.node, esc(s.node) + " · " + esc(s.env)) + kv(L.host, esc(s.host)) + kv(L.platform, esc(s.platform)) +
+						kv(L.started, esc(dt(s.started_at))) + kv(L.uptime, esc(dur(s.uptime_sec))) + kv(L.os_uptime, esc(dur(s.os_uptime_sec))) +
+						kv(L.cpu, `${s.cpus} · ${L.load} ${s.load.map((x) => x.toFixed(2)).join(" / ")}`, s.load[0] > s.cpus ? "text-danger fw-semibold" : "") +
+						kv(L.memory, `${bytes(s.mem_total - s.mem_free)} / ${bytes(s.mem_total)} (${memPct}%)`, memPct > 90 ? "text-danger fw-semibold" : "") +
+						kv(L.process, `RSS ${bytes(s.rss)} · heap ${bytes(s.heap_used)} / ${bytes(s.heap_total)}`) +
+						kv(L.loop, `${L.mean} ${r.loop.mean} ms · p99 ${r.loop.p99} ms · max ${r.loop.max} ms`) +
+						(s.disk ? kv(L.disk, `${bytes(s.disk.free)} ${L.free} / ${bytes(s.disk.total)} (${diskPct}%)`, diskPct > 90 ? "text-danger fw-semibold" : "") : "") +
+						kv(L.logs_size, r.logs_size === null ? "—" : bytes(r.logs_size)) +
+						kv("PID", s.pid);
+					$("ov-db").innerHTML =
+						kv(L.db_version, esc(db.version)) + kv(L.db_latency, db.latency_ms + " ms", db.latency_ms > 200 ? "text-danger fw-semibold" : "") +
+						kv(L.db_time, esc(dt(db.now)) + " · " + esc(db.tz)) + kv(L.db_conn, `${db.connections} / ${db.max_conn}`) +
+						Object.entries(r.pools || {}).map(([k, p]) => (p ? kv(L.pool + " " + k, `${p.all - p.free} ${L.busy} · ${p.free} ${L.free} · ${L.queue} ${p.queue} · ${L.limit} ${p.limit}`, p.queue ? "text-danger fw-semibold" : "") : "")).join("") +
+						kv(L.db_size, bytes(db.size)) + kv(L.db_tables, db.tables);
+					$("ov-jobs").innerHTML = r.jobs.filter((j) => !j.missing).map((j) => kv(L.job[j.key] || j.key, esc(dt(j.last)) + (j.error ? ` <i class="fa-solid fa-triangle-exclamation text-danger" title="${esc(j.error)}"></i>` : ""))).join("") || `<span class="text-muted small">—</span>`;
+
+					// Черги
+					const failed = r.queues.reduce((a, q) => a + (q.failed || 0), 0);
+					$("b-failed").textContent = failed;
+					$("b-failed").classList.toggle("d-none", !failed);
+					const open = (r.error_groups.open || {}).n || 0;
+					$("b-errors").textContent = open;
+					$("b-errors").classList.toggle("d-none", !open);
+					$("ov-queues").innerHTML = r.queues.filter((q) => q.exists).map((q) => {
+						const stuck = q.pending && q.pending_age_min > 15;
+						return `<div class="col-md-6 col-xl"><div class="border p-2 q-card h-100 ${q.failed ? "border-danger" : stuck ? "border-warning" : ""}">
+							<div class="small fw-semibold mb-1">${esc(L.q[q.key])}</div>
+							<div class="d-flex gap-3">
+								<div><div class="num">${q.pending}</div><div class="small text-muted">${esc(L.st.pending)}</div></div>
+								<div><div class="num">${q.processing}</div><div class="small text-muted">${esc(L.st.processing)}</div></div>
+								<div><a href="#" class="text-decoration-none ${q.failed ? "text-danger" : "text-reset"}" data-open-queue="${q.key}"><div class="num">${q.failed}</div><div class="small">${esc(L.st.failed)}</div></a></div>
+							</div>
+							${stuck ? `<div class="small text-warning-emphasis mt-1"><i class="fa-solid fa-hourglass-half me-1"></i>${esc(fill(L.stuck, { n: q.pending_age_min }))}</div>` : ""}
+							${q.failed_day ? `<div class="small text-danger mt-1">${esc(fill(L.failed_day, { n: q.failed_day }))}</div>` : ""}
+						</div></div>`;
+					}).join("");
+
+					// Попередження згори: те, що потребує уваги
+					const alerts = [];
+					if (r.errors_missing) alerts.push(["warning", L.e_missing]);
+					if (open) alerts.push(["danger", fill(L.a_groups, { n: open }), "errors"]);
+					if (failed) alerts.push(["danger", fill(L.a_failed, { n: failed }), "queues"]);
+					r.queues.filter((q) => q.exists && q.pending && q.pending_age_min > 15).forEach((q) => alerts.push(["warning", fill(L.a_stuck, { q: L.q[q.key], n: q.pending_age_min }), "queues"]));
+					if (pool && pool.queue) alerts.push(["danger", fill(L.a_pool, { n: pool.queue })]);
+					if (r.loop.p99 > 200) alerts.push(["warning", fill(L.a_loop, { n: r.loop.p99 }), "perf"]);
+					if (diskPct !== null && diskPct > 90) alerts.push(["danger", fill(L.a_disk, { n: diskPct })]);
+					if (memPct > 90) alerts.push(["warning", fill(L.a_memory, { n: memPct })]);
+					$("ov-alerts").innerHTML = (alerts.length ? alerts : [["success", L.a_ok]])
+						.map(([c, t, tab]) => `<div class="col-12 col-md-6 col-xl-4"><div class="alert alert-${c} rounded-0 py-2 mb-0 small">${esc(t)}${tab ? ` <a href="#" class="alert-link ms-1" data-goto="${tab}">${esc(L.open_tab)}</a>` : ""}</div></div>`)
+						.join("");
+
+					// Графіки
+					const mins = r.minutes || [];
+					chart("ch-requests").setOption({
+						tooltip: { trigger: "axis" },
+						legend: { top: 0 },
+						grid: { left: 40, right: 50, top: 30, bottom: 25 },
+						xAxis: { type: "category", data: mins.map((m) => hm(m.m * 60000)) },
+						yAxis: [{ type: "value", minInterval: 1 }, { type: "value", name: "ms", splitLine: { show: false } }],
+						series: [
+							{ name: L.s_requests, type: "bar", data: mins.map((m) => m.req), itemStyle: { color: "#0d6efd" } },
+							{ name: "5xx", type: "bar", stack: "e", data: mins.map((m) => m.err5), itemStyle: { color: "#dc3545" } },
+							{ name: L.s_avg, type: "line", yAxisIndex: 1, showSymbol: false, data: mins.map((m) => m.avg), itemStyle: { color: "#fd7e14" } },
+						],
+					}, true);
+					chart("ch-errors").setOption({
+						tooltip: { trigger: "axis" },
+						grid: { left: 40, right: 20, top: 20, bottom: 25 },
+						xAxis: { type: "category", data: r.timeline.map((x) => { const d = new Date(x.t); return d.getDate() + "." + String(d.getMonth() + 1).padStart(2, "0") + " " + String(d.getHours()).padStart(2, "0") + ":00"; }) },
+						yAxis: { type: "value", minInterval: 1 },
+						series: [{ name: L.s_errors, type: "bar", data: r.timeline.map((x) => x.n), itemStyle: { color: "#dc3545" } }],
+					}, true);
+
+					files = r.files;
+					fillFiles(true);
+				}
+				const showTab = (t) => bootstrap.Tab.getOrCreateInstance(document.querySelector(`[data-bs-target="#t-${t}"]`)).show();
+				$("ov-alerts").addEventListener("click", (e) => {
+					const a = e.target.closest("[data-goto]");
+					if (!a) return;
+					e.preventDefault();
+					showTab(a.dataset.goto);
+				});
+				$("ov-queues").addEventListener("click", (e) => {
+					const a = e.target.closest("[data-open-queue]");
+					if (!a) return;
+					e.preventDefault();
+					$("q-key").value = a.dataset.openQueue;
+					$("q-status").value = "failed";
+					showTab("queues");
+					qTable.setData();
+				});
+
+				/* ─── Помилки ─── */
+				let eStatus = "open";
+				const eTable = new Tabulator("#e-table", {
+					layout: "fitColumns",
+					ajaxURL: "/api/settings/system/errors/",
+					ajaxRequestFunc: (url, cfg, p) =>
+						post(url, { status: eStatus, module: $("e-module").value, q: $("e-q").value.trim(), sort: $("e-sort").value, page: p.page, size: p.size }).then((r) => {
+							$("e-missing").classList.toggle("d-none", !r.missing);
+							document.querySelectorAll("#e-status [data-count]").forEach((el) => {
+								const k = el.dataset.count;
+								const n = k ? (r.stats[k] || {}).n || 0 : Object.values(r.stats).reduce((a, x) => a + x.n, 0);
+								el.textContent = n || "";
+							});
+							const sel = $("e-module");
+							const cur = sel.value;
+							sel.innerHTML = `<option value="">${esc(L.module)}: ${esc(L.all)}</option>` + r.modules.map((m) => `<option value="${esc(m)}">${esc(m)}</option>`).join("");
+							if (cur && !r.modules.includes(cur)) sel.insertAdjacentHTML("beforeend", `<option value="${esc(cur)}">${esc(cur)}</option>`);
+							sel.value = cur;
+							return r;
+						}),
+					pagination: true,
+					paginationMode: "remote",
+					paginationSize: 50,
+					selectable: EDIT,
+					placeholder: L.no_errors,
+					columns: [
+						...(EDIT ? [{ formatter: "rowSelection", titleFormatter: "rowSelection", hozAlign: "center", headerSort: false, width: 40, cellClick: (e, c) => c.getRow().toggleSelect() }] : []),
+						{ title: L.level, field: "level", width: 80, headerSort: false, formatter: (c) => `<span class="badge rounded-0 lv text-bg-${LV[c.getValue()] || "danger"}">${esc(c.getValue())}</span>` },
+						{ title: L.module, field: "module", width: 130, headerSort: false, formatter: (c) => `<span class="small">${esc(c.getValue())}</span>` },
+						{
+							title: L.message,
+							field: "message",
+							headerSort: false,
+							formatter: (c) => {
+								const d = c.getData();
+								return `<div class="text-truncate">${esc(c.getValue())}</div><div class="small text-muted text-truncate">${esc(d.type || "")}${d.frame ? " · " + esc(d.frame) : ""}</div>`;
+							},
+						},
+						{ title: L.count, field: "count", width: 90, hozAlign: "right", headerSort: false, formatter: (c) => `<b>${num(c.getValue())}</b>` },
+						{ title: L.last_seen, field: "last_seen", width: 140, headerSort: false, formatter: (c) => `<span title="${esc(dt(c.getValue()))}">${esc(ago(c.getValue()))}</span>` },
+						{ title: L.first_seen, field: "first_seen", width: 150, headerSort: false, formatter: (c) => `<span class="small">${esc(dt(c.getValue()))}</span>` },
+						{ title: L.state, field: "status", width: 110, headerSort: false, formatter: (c) => `<span class="badge rounded-0 text-bg-${{ open: "danger", resolved: "success", ignored: "secondary" }[c.getValue()]}">${esc(L.es[c.getValue()])}</span>` },
+					],
+				});
+				eTable.on("rowClick", async (e, row) => {
+					if (e.target.closest(".tabulator-row-handle, input[type=checkbox]")) return;
+					try {
+						const { row: d } = await post("/api/settings/system/errors/" + Number(row.getData().id) + "/");
+						const c = d.context || {};
+						const html =
+							kv(L.module, esc(d.module)) + kv(L.count, num(d.count)) + kv(L.first_seen, esc(dt(d.first_seen))) + kv(L.last_seen, esc(dt(d.last_seen))) +
+							(d.frame ? kv(L.frame, `<code>${esc(d.frame)}</code>`) : "") +
+							(c.url ? kv(L.url, `<code>${esc((c.method || "") + " " + c.url)}</code>`) : "") +
+							(c.user_id ? kv(L.user, "#" + Number(c.user_id)) : "") +
+							(c.req_id ? kv("Request ID", `<code>${esc(c.req_id)}</code>`) : "") +
+							(d.status !== "open" ? kv(L.state, esc(L.es[d.status]) + (d.resolved_name ? " · " + esc(d.resolved_name) : "") + (d.resolved_at ? " · " + esc(dt(d.resolved_at)) : "")) : "") +
+							`<div class="fw-semibold small mt-3 mb-1">${esc(L.stack)}</div>` + pre(d.stack || d.message) +
+							`<div class="fw-semibold small mt-2 mb-1">${esc(L.context)}</div>` + pre(c);
+						detail(d.message, html, (d.stack || d.message) + "\n\n" + JSON.stringify(c, null, 2), c.req_id);
+					} catch (err) {
+						notyf.error(err.message);
+					}
+				});
+				const reloadErrors = () => eTable.setData();
+				$("e-status").addEventListener("click", (e) => {
+					const b = e.target.closest("[data-status]");
+					if (!b) return;
+					document.querySelectorAll("#e-status .btn").forEach((x) => x.classList.toggle("active", x === b));
+					eStatus = b.dataset.status;
+					reloadErrors();
+				});
+				["e-module", "e-sort"].forEach((id) => $(id).addEventListener("change", reloadErrors));
+				let eT = null;
+				$("e-q").addEventListener("input", () => { clearTimeout(eT); eT = setTimeout(reloadErrors, 400); });
+				if (EDIT) {
+					const setBtns = document.querySelectorAll("[data-set]");
+					eTable.on("rowSelectionChanged", (d) => {
+						setBtns.forEach((b) => (b.disabled = !d.length));
+						$("e-delete").disabled = !d.length;
+					});
+					$("e-delete").addEventListener("click", async () => {
+						const ids = eTable.getSelectedData().map((d) => d.id);
+						if (!ids.length || !confirm("<%= i18n.__('system.delete_q') %>".replace("%n", ids.length))) return;
+						try {
+							const r = await post("/api/settings/system/errors-delete/", { ids });
+							notyf.success("<%= i18n.__('system.purged') %>".replace("%n", r.deleted));
+							reloadErrors();
+						} catch (e) {
+							notyf.error(e.message);
+						}
+					});
+					setBtns.forEach((b) =>
+						b.addEventListener("click", async () => {
+							const ids = eTable.getSelectedData().map((d) => d.id);
+							try {
+								const r = await post("/api/settings/system/errors-set/", { ids, status: b.dataset.set });
+								notyf.success(fill(L.changed, { n: r.changed }));
+								reloadErrors();
+							} catch (e) {
+								notyf.error(e.message);
+							}
+						})
+					);
+					$("e-purge").addEventListener("click", async () => {
+						if (!confirm(L.purge_q)) return;
+						try {
+							const r = await post("/api/settings/system/errors-purge/", { days: 30 });
+							notyf.success(fill(L.purged, { n: r.deleted }));
+							reloadErrors();
+						} catch (e) {
+							notyf.error(e.message);
+						}
+					});
+				}
+				document.querySelector('[data-bs-target="#t-errors"]').addEventListener("shown.bs.tab", reloadErrors);
+
+				/* ─── Журнали ─── */
+				function fillFiles(keep) {
+					const cat = $("l-cat").value;
+					const sel = $("l-file");
+					const cur = sel.value;
+					const list = files.filter((f) => f.category === cat);
+					sel.innerHTML = list.map((f) => `<option value="${esc(f.key)}">${esc(cat === "legacy" ? L.legacy[f.day] || f.day : f.day)} · ${bytes(f.size)}</option>`).join("") || `<option value="">—</option>`;
+					if (keep && cur && list.some((f) => f.key === cur)) sel.value = cur;
+					$("l-download").href = sel.value ? "/api/settings/system/logs/download/?file=" + encodeURIComponent(sel.value) : "#";
+				}
+				const timeOf = (id) => {
+					const f = files.find((x) => x.key === $("l-file").value);
+					const v = $(id).value;
+					return v && f && /^\d{4}-\d{2}-\d{2}$/.test(f.day) ? new Date(f.day + "T" + v + ":00").toISOString() : "";
+				};
+				const lTable = new Tabulator("#l-table", {
+					layout: "fitColumns",
+					ajaxURL: "/api/settings/system/logs/",
+					ajaxRequestFunc: (url, cfg, p) =>
+						$("l-file").value
+							? post(url, { file: $("l-file").value, level: $("l-level").value, module: $("l-module").value, q: $("l-q").value.trim(), from: timeOf("l-from"), to: timeOf("l-to"), page: p.page, size: p.size }).then((r) => {
+									$("l-info").textContent = fill(L.found, { n: num(r.total) }) + (Object.keys(r.counts.levels).length ? " · " + Object.entries(r.counts.levels).map(([k, v]) => k + ": " + v).join(", ") : "") + (r.truncated ? " · " + L.truncated : "");
+									const sel = $("l-module");
+									const cur = sel.value;
+									const mods = Object.keys(r.counts.modules).sort();
+									sel.innerHTML = `<option value="">${esc(L.all)}</option>` + mods.map((m) => `<option value="${esc(m)}">${esc(m)} (${r.counts.modules[m]})</option>`).join("");
+									if (cur && !mods.includes(cur)) sel.insertAdjacentHTML("beforeend", `<option value="${esc(cur)}">${esc(cur)}</option>`);
+									sel.value = cur;
+									return r;
+							  })
+							: Promise.resolve({ last_page: 1, data: [] }),
+					pagination: true,
+					paginationMode: "remote",
+					paginationSize: 100,
+					paginationSizeSelector: [50, 100, 200, 500],
+					placeholder: L.empty,
+					columns: [
+						{ title: L.time, field: "time", width: 165, headerSort: false, formatter: (c) => `<span class="small">${esc(dt(c.getValue()))}</span>` },
+						{ title: L.level, field: "level", width: 80, headerSort: false, formatter: (c) => `<span class="badge rounded-0 lv text-bg-${LV[c.getValue()] || "secondary"}">${esc(c.getValue())}</span>` },
+						{ title: L.module, field: "module", width: 120, headerSort: false, formatter: (c) => `<span class="small">${esc(c.getValue())}</span>` },
+						{
+							title: L.message,
+							field: "msg",
+							headerSort: false,
+							formatter: (c) => {
+								const d = c.getData();
+								const extra = [d.status ? "HTTP " + d.status : "", d.ms ? d.ms + " ms" : "", d.data && d.data.url ? d.data.url : ""].filter(Boolean).join(" · ");
+								return `<span class="small">${esc(c.getValue())}</span>${extra ? `<div class="small text-muted text-truncate">${esc(extra)}</div>` : ""}`;
+							},
+						},
+					],
+				});
+				lTable.on("rowClick", (e, row) => {
+					const d = row.getData();
+					const o = d.data || {};
+					const html = (o.err && o.err.stack ? `<div class="fw-semibold small mb-1">${esc(L.stack)}</div>` + pre(o.err.stack) : "") + pre(o.err ? Object.assign({}, o, { err: Object.assign({}, o.err, { stack: undefined }) }) : o || d.msg);
+					detail(`${dt(d.time)} · ${d.level}${d.module ? " · " + d.module : ""}`, html, JSON.stringify(o, null, 2), d.req_id);
+				});
+				function reloadLogs() {
+					$("l-download").href = $("l-file").value ? "/api/settings/system/logs/download/?file=" + encodeURIComponent($("l-file").value) : "#";
+					lTable.setData();
+				}
+				$("l-cat").addEventListener("change", () => { fillFiles(false); reloadLogs(); });
+				$("l-apply").addEventListener("click", reloadLogs);
+				$("l-q").addEventListener("keydown", (e) => e.key === "Enter" && reloadLogs());
+				["l-file", "l-level", "l-module", "l-from", "l-to"].forEach((id) => $(id).addEventListener("change", reloadLogs));
+				// Наживо: перша сторінка свіжих записів раз на 5 с
+				let live = null;
+				$("l-live").addEventListener("click", () => {
+					if (live) {
+						clearInterval(live);
+						live = null;
+						$("l-live").innerHTML = `<i class="fa-solid fa-play me-1"></i>${esc(L.live)}`;
+						return;
+					}
+					const today = files.find((f) => f.category === $("l-cat").value);
+					if (today) $("l-file").value = today.key;
+					reloadLogs();
+					live = setInterval(() => document.visibilityState === "visible" && lTable.getPage() === 1 && lTable.setData(), 5000);
+					$("l-live").innerHTML = `<span class="live-dot me-1"></span>${esc(L.live_on)}`;
+				});
+				if (EDIT)
+					$("l-clear").addEventListener("click", async () => {
+						if (!$("l-file").value || !confirm(L.confirm_clear)) return;
+						try {
+							await post("/api/settings/system/logs/clear/", { file: $("l-file").value });
+							notyf.success(L.cleared);
+							overview().then(reloadLogs);
+						} catch (e) {
+							notyf.error(e.message);
+						}
+					});
+				document.querySelector('[data-bs-target="#t-logs"]').addEventListener("shown.bs.tab", () => lTable.setData());
+
+				/* ─── Продуктивність ─── */
+				const pRoutes = new Tabulator("#p-routes", {
+					layout: "fitColumns",
+					height: 460,
+					placeholder: L.empty,
+					initialSort: [{ column: "total_sec", dir: "desc" }],
+					columns: [
+						{ title: L.method, field: "method", width: 80 },
+						{ title: L.route, field: "route", formatter: (c) => `<code class="small">${esc(c.getValue())}</code>` },
+						{ title: L.calls, field: "count", width: 90, hozAlign: "right", formatter: (c) => num(c.getValue()) },
+						{ title: "5xx", field: "err5", width: 70, hozAlign: "right", formatter: (c) => (c.getValue() ? `<b class="text-danger">${c.getValue()}</b>` : "0") },
+						{ title: "4xx", field: "err4", width: 70, hozAlign: "right" },
+						{ title: L.avg, field: "avg", width: 90, hozAlign: "right", formatter: (c) => `<span class="${c.getValue() > 1000 ? "text-danger fw-semibold" : c.getValue() > 300 ? "text-warning-emphasis" : ""}">${c.getValue()} ms</span>` },
+						{ title: "p95", field: "p95", width: 90, hozAlign: "right", formatter: (c) => "≤" + c.getValue() + " ms" },
+						{ title: L.max, field: "max", width: 90, hozAlign: "right", formatter: (c) => c.getValue() + " ms" },
+						{ title: L.total_time, field: "total_sec", width: 110, hozAlign: "right", formatter: (c) => dur(c.getValue()).replace(/^0\D+$/, c.getValue() + " s") },
+						{ title: L.last_call, field: "last", width: 120, formatter: (c) => esc(ago(c.getValue())) },
+					],
+				});
+				const pSql = new Tabulator("#p-sql", {
+					layout: "fitColumns",
+					height: 360,
+					placeholder: L.no_slow_sql,
+					columns: [
+						{ title: "SQL", field: "sql", formatter: (c) => `<code class="small text-wrap">${esc(c.getValue())}</code>`, variableHeight: true },
+						{ title: L.calls, field: "count", width: 90, hozAlign: "right" },
+						{ title: L.failed, field: "failed", width: 90, hozAlign: "right", formatter: (c) => (c.getValue() ? `<b class="text-danger">${c.getValue()}</b>` : "0") },
+						{ title: L.avg, field: "avg", width: 90, hozAlign: "right", formatter: (c) => c.getValue() + " ms" },
+						{ title: L.max, field: "max", width: 90, hozAlign: "right", formatter: (c) => c.getValue() + " ms" },
+						{ title: L.last_call, field: "last", width: 120, formatter: (c) => esc(ago(c.getValue())) },
+					],
+				});
+				pSql.on("rowClick", (e, row) => detail("SQL", pre(row.getData().sql), row.getData().sql));
+				async function perf() {
+					try {
+						const r = await post("/api/settings/system/performance/");
+						$("p-info").textContent = fill(L.perf_since, { t: dt(r.started_at) }) + " · event loop p99 " + r.loop.p99 + " ms";
+						pRoutes.setData(r.routes);
+						pSql.setData(r.sql);
+					} catch (e) {
+						notyf.error(e.message);
+					}
+				}
+				$("p-q").addEventListener("input", () => {
+					const q = $("p-q").value.trim().toLowerCase();
+					q ? pRoutes.setFilter((d) => d.route.toLowerCase().includes(q)) : pRoutes.clearFilter();
+				});
+				if (EDIT)
+					$("p-reset").addEventListener("click", async () => {
+						if (!confirm(L.reset_q)) return;
+						await post("/api/settings/system/performance/reset/").catch((e) => notyf.error(e.message));
+						perf();
+					});
+				document.querySelector('[data-bs-target="#t-perf"]').addEventListener("shown.bs.tab", perf);
+
+				/* ─── Черги ─── */
+				const qTable = new Tabulator("#q-table", {
+					layout: "fitColumns",
+					ajaxURL: "/api/settings/system/queue/",
+					ajaxRequestFunc: (url, cfg, p) => post(url, { key: $("q-key").value, status: $("q-status").value, page: p.page, size: p.size }),
+					pagination: true,
+					paginationMode: "remote",
+					paginationSize: 50,
+					selectable: EDIT,
+					placeholder: L.empty,
+					columns: [
+						...(EDIT ? [{ formatter: "rowSelection", titleFormatter: "rowSelection", hozAlign: "center", headerSort: false, width: 40, cellClick: (e, c) => c.getRow().toggleSelect() }] : []),
+						{ title: "ID", field: "id", width: 80, headerSort: false },
+						{ title: L.ref, field: "ref", width: 160, headerSort: false, formatter: (c) => ($("q-key").value === "messages" && c.getValue() ? `<a href="/orders/${Number(c.getValue())}/" target="_blank">#${Number(c.getValue())}</a>` : esc(c.getValue() ?? "—")) },
+						{ title: L.attempts, field: "attempts", width: 90, headerSort: false },
+						{ title: L.error, field: "last_error", headerSort: false, formatter: (c) => `<span class="small text-danger">${esc(c.getValue() || "")}</span>`, cellClick: (e, c) => c.getValue() && detail(L.error, pre(c.getValue()), c.getValue()) },
+						{ title: L.date, field: "date", width: 170, headerSort: false, formatter: (c) => esc(dt(c.getValue())) },
+					],
+				});
+				qTable.on("rowSelectionChanged", (d) => $("q-retry-sel") && ($("q-retry-sel").disabled = !d.length));
+				["q-key", "q-status"].forEach((id) => $(id).addEventListener("change", () => qTable.setData()));
+				async function retry(ids) {
+					if (!confirm(ids ? fill(L.confirm_retry_sel, { n: ids.length }) : L.confirm_retry_all)) return;
+					try {
+						const r = await post("/api/settings/system/queue/retry/", { key: $("q-key").value, ids: ids || [] });
+						notyf.success(fill(L.retried, { n: r.retried }));
+						qTable.setData();
+						overview();
+					} catch (e) {
+						notyf.error(e.message);
+					}
+				}
+				if (EDIT) {
+					$("q-retry-sel").addEventListener("click", () => retry(qTable.getSelectedData().map((d) => d.id)));
+					$("q-retry-all").addEventListener("click", () => retry(null));
+				}
+
+				/* ─── Оновлення ─── */
+				const activeTab = () => (document.querySelector("#tabs .nav-link.active") || {}).dataset?.bsTarget;
+				$("refresh").addEventListener("click", () => {
+					overview();
+					const t = activeTab();
+					if (t === "#t-errors") reloadErrors();
+					if (t === "#t-perf") perf();
+					if (t === "#t-logs") reloadLogs();
+				});
+				setInterval(() => {
+					if (!$("auto").checked || document.visibilityState !== "visible") return;
+					overview();
+					if (activeTab() === "#t-errors") reloadErrors();
+					if (activeTab() === "#t-perf") perf();
+				}, 30000);
+				overview();
+			})();
+		</script>
+	</body>
+</html>
